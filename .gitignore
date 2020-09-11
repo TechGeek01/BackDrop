@@ -3,6 +3,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Flake8 config
+.flake8
+
+# Scratch dir
+scratch/
+
 # C extensions
 *.so
 
