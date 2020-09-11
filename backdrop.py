@@ -511,7 +511,7 @@ def startBackupAnalysis():
 
 root = tk.Tk()
 root.attributes('-alpha', 0.0)
-root.title('Unraid Drive Backup Tool')
+root.title('BackDrop - Unraid Drive Backup Tool')
 # root.iconbitmap('.\\App\\Shim\\assets\\unpack_128.ico')
 root.resizable(False, False)
 root.geometry('1200x700')
