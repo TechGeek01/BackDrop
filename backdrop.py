@@ -12,10 +12,9 @@ import itertools
 import subprocess
 import clipboard
 import time
-from sys import argv
 
 # Set meta info
-appVersion = '1.0.0'
+appVersion = '1.0.1'
 
 # TODO: When loading a config, warn if drive in config isn't connected
 #    If replacement drive is selected that gives sufficient size, prompt for replace confirmation
@@ -26,12 +25,7 @@ appVersion = '1.0.0'
 #     This would prevent counting for existing data, though it's probably safe to wipe the drive of things that aren't getting copied anyway
 #     When we copy, check directory size of source and dest, and if the dest is larger than source, copy those first to free up space for ones that increased
 # TODO: Add a button for deleting the config from selected drives
-
-# Disallow CLI options
 # TODO: Add interactive CLI option if correct parameters are passed in
-if len(argv) > 1:
-	print('CLI options are not currently supported. Please use the GUI.')
-	exit()
 
 # Centers a tkinter window
 def center(win):
@@ -80,7 +74,7 @@ class color:
 	GREEN = '#6db500'
 	GOLD = '#ebb300'
 	RED = '#c00'
-	GRAY = '#aaa'
+	GRAY = '#999'
 
 	FINISHED = GREEN
 	RUNNING = BLUE
@@ -91,8 +85,8 @@ class color:
 sourceDrive = None
 backupConfigFile = 'backup.config'
 appConfigFile = 'defaults.config'
-appDataFolder = os.getenv('LocalAppData') + '\\TechGeek01UnraidBackup'
-halfPadding = 8
+appDataFolder = os.getenv('LocalAppData') + '\\BackDrop'
+elemPadding = 16
 
 config = {
 	'shares': [],
@@ -270,10 +264,7 @@ def analyzeBackup(shares, drives):
 
 	for i, drive in enumerate(driveInfo):
 		# Get list of shares small enough to fit on drive
-		smallShares = {}
-		for share, size in shareInfo.items():
-			if size <= drive['size']:
-				smallShares[share] = size
+		smallShares = {share: size for share, size in shareInfo.items() if size <= drive['size']}
 
 		# Try every combination of shares that fit to find result that uses most of that drive
 		largestSum = 0
@@ -317,8 +308,7 @@ def analyzeBackup(shares, drives):
 				driveShareList[drive['name']].extend(sharesThatFit) # Shares that fit on current drive
 
 				# Put remaining small shares back into pool to work with for next drive
-				for (share, size) in remainingSmallShares.items():
-					shareInfo[share] = size
+				shareInfo.update({share: size for share, size in remainingSmallShares.items()})
 		else:
 			# Fit all small shares onto drive
 			driveShareList[drive['name']].extend(sharesThatFit)
@@ -348,10 +338,7 @@ def analyzeBackup(shares, drives):
 
 		for i, drive in enumerate(driveInfo):
 			# Get list of files small enough to fit on drive
-			totalSmallFiles = {}
-			for file, size in fileInfo.items():
-				if size <= drive['free']:
-					totalSmallFiles[file] = size
+			totalSmallFiles = {file: size for file, size in fileInfo.items() if size <= drive['free']}
 
 			# Since the list of files is truncated to prevent an unreasonably large
 			# number of combinations to check, we need to keep processing the file list
@@ -452,9 +439,7 @@ def analyzeBackup(shares, drives):
 					rawExclusions = allFiles.copy()
 					rawExclusions.pop(drive, None)
 
-					masterExclusions = []
-					for files in rawExclusions.values():
-						masterExclusions.extend(files)
+					masterExclusions = [files for files in rawExclusions.values()]
 
 					fileExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isfile(sourcePathStub + file)]
 					dirExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isdir(sourcePathStub + file)]
@@ -521,7 +506,7 @@ center(root)
 root.attributes('-alpha', 1.0)
 
 mainFrame = tk.Frame(root)
-mainFrame.pack(fill = 'both', expand = 1, padx = halfPadding, pady = halfPadding)
+mainFrame.pack(fill = 'both', expand = 1, padx = elemPadding, pady = (elemPadding / 2, elemPadding))
 
 # Set some default styling
 buttonWinStyle = ttk.Style()
@@ -576,13 +561,13 @@ if not os.path.exists(appDataFolder + '\\sourceDrive.default') or not os.path.is
 
 # Tree frames for tree and scrollbar
 sourceTreeFrame = tk.Frame(mainFrame)
-sourceTreeFrame.grid(row = 1, column = 0, sticky = 'ns', padx = halfPadding, pady = (halfPadding, 0))
+sourceTreeFrame.grid(row = 1, column = 0, sticky = 'ns')
 destTreeFrame = tk.Frame(mainFrame)
-destTreeFrame.grid(row = 1, column = 1, sticky = 'ns', padx = halfPadding, pady = (halfPadding, 0))
+destTreeFrame.grid(row = 1, column = 1, sticky = 'ns', padx = (elemPadding, 0))
 
 # Progress/status values
 progressBar = ttk.Progressbar(mainFrame, maximum = 100)
-progressBar.grid(row = 10, column = 0, columnspan = 3, sticky = 'ew', padx = halfPadding, pady = halfPadding)
+progressBar.grid(row = 10, column = 0, columnspan = 3, sticky = 'ew', pady = (elemPadding, 0))
 
 sourceTree = ttk.Treeview(sourceTreeFrame, columns = ('size', 'rawsize'))
 sourceTree.heading('#0', text = 'Share')
@@ -599,7 +584,7 @@ sourceTree.configure(xscrollcommand = sourceShareScroll.set)
 # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
 # visible, so 1px needs to be added back
 sourceMetaFrame = tk.Frame(mainFrame)
-sourceMetaFrame.grid(row = 2, column = 0, sticky = 'nsew', padx = halfPadding, pady = (1, halfPadding))
+sourceMetaFrame.grid(row = 2, column = 0, sticky = 'nsew', pady = (1, elemPadding))
 tk.Grid.columnconfigure(sourceMetaFrame, 0, weight = 1)
 
 shareSpaceFrame = tk.Frame(sourceMetaFrame)
@@ -647,7 +632,7 @@ def changeSourceDrive(selection):
 	writeSettingToFile(sourceDrive, appDataFolder + '\\sourceDrive.default')
 
 sourceSelectFrame = tk.Frame(mainFrame)
-sourceSelectFrame.grid(row = 0, column = 0)
+sourceSelectFrame.grid(row = 0, column = 0, pady = (0, elemPadding / 2))
 tk.Label(sourceSelectFrame, text = 'Source:').pack(side = 'left')
 sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, sourceDrive, *tuple(remoteDrives), command = changeSourceDrive)
 sourceSelectMenu.pack(side = 'left', padx = (12, 0))
@@ -767,8 +752,7 @@ def loadDest():
 	try:
 		for physicalDisk in wmi.WMI().Win32_DiskDrive():
 			for partition in physicalDisk.associators("Win32_DiskDriveToDiskPartition"):
-				for logicalDisk in partition.associators("Win32_LogicalDiskToPartition"):
-					logicalPhysicalMap[logicalDisk.DeviceID[0]] = physicalDisk.SerialNumber.strip()
+				logicalPhysicalMap.update({logicalDisk.DeviceID[0]: physicalDisk.SerialNumber.strip() for logicalDisk in partition.associators("Win32_LogicalDiskToPartition")})
 	finally:
 		pythoncom.CoUninitialize()
 
@@ -817,7 +801,7 @@ def startRefreshDest():
 # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
 # visible, so 1px needs to be added back
 destMetaFrame = tk.Frame(mainFrame)
-destMetaFrame.grid(row = 2, column = 1, sticky = 'nsew', padx = halfPadding, pady = (1, halfPadding))
+destMetaFrame.grid(row = 2, column = 1, sticky = 'nsew', pady = (1, elemPadding))
 tk.Grid.columnconfigure(destMetaFrame, 0, weight = 1)
 
 driveSpaceFrame = tk.Frame(destMetaFrame)
@@ -835,21 +819,15 @@ startAnalysisBtn.grid(row = 0, column = 2)
 # Using the current config, make selections in the GUI to match
 def selectFromConfig():
 	global driveSelectBind
-	sourceShareList = sourceTree.get_children()
-	sourceTreeIdList = []
-	for item in sourceShareList:
-		if sourceTree.item(item, 'text') in config['shares']:
-			sourceTreeIdList.append(item)
+
+	# Get list of shares in config
+	sourceTreeIdList = [item for item in sourceTree.get_children() if sourceTree.item(item, 'text') in config['shares']]
 
 	sourceTree.focus(sourceTreeIdList[-1])
 	sourceTree.selection_set(tuple(sourceTreeIdList))
 
-	driveDestList = destTree.get_children()
-	driveTreeIdList = []
-	for item in driveDestList:
-		driveVid = destTree.item(item, 'values')[3]
-		if driveVid in config['vidList']:
-			driveTreeIdList.append(item)
+	# Get list of drives where volume ID is in config
+	driveTreeIdList = [item for item in destTree.get_children() if destTree.item(item, 'values')[3] in config['vidList']]
 
 	# Only redo the selection if the config data is different from the current
 	# selection (that is, the drive we selected to load a config is not the only
@@ -962,19 +940,16 @@ driveSelectBind = destTree.bind("<<TreeviewSelect>>", selectDriveInBackground)
 # TODO: Make changes to existing config check the existing for missing drives, and delete the config file from drives we unselected if there's multiple drives in a config
 def writeConfigFile():
 	if len(config['shares']) > 0 and len(config['drives']) > 0:
-		driveLetters = []
-		for drive in config['drives']:
-			driveLetters.append(destDriveMap[drive['vid']])
+		driveConfigList = ''.join(['\n%s,%s' % (drive['vid'], drive['serial']) for drive in config['drives']])
 
 		# For each drive letter, get drive info, and write file
-		for drive in driveLetters:
-			f = open('%s:/%s' % (drive, backupConfigFile), 'w')
+		for drive in config['drives']:
+			f = open('%s:/%s' % (destDriveMap[drive['vid']], backupConfigFile), 'w')
 			# f.write('[id]\n%s,%s\n\n' % (driveInfo['vid'], driveInfo['serial']))
 			f.write('[shares]\n%s\n\n' % (','.join(config['shares'])))
-			f.write('[drives]')
 
-			for confDrive in config['drives']:
-				f.write('\n%s,%s' % (confDrive['vid'], confDrive['serial']))
+			f.write('[drives]')
+			f.write(driveConfigList)
 
 			f.close()
 	else:
@@ -984,7 +959,7 @@ def writeConfigFile():
 # Add activity frame for backup status output
 tk.Grid.rowconfigure(mainFrame, 5, weight = 1)
 backupActivityFrame = tk.Frame(mainFrame)
-backupActivityFrame.grid(row = 5, column = 0, columnspan = 2, sticky = 'nsew', padx = halfPadding, pady = halfPadding)
+backupActivityFrame.grid(row = 5, column = 0, columnspan = 2, sticky = 'nsew')
 
 backupActivityInfoCanvas = tk.Canvas(backupActivityFrame)
 backupActivityInfoCanvas.pack(side = 'left', fill = 'both', expand = 1)
@@ -1007,10 +982,10 @@ backupActivityInfoCanvas.configure(yscrollcommand = backupActivityScroll.set)
 tk.Grid.columnconfigure(mainFrame, 2, weight = 1)
 
 rightSideFrame = tk.Frame(mainFrame)
-rightSideFrame.grid(row = 0, column = 2, rowspan = 6, sticky = 'nsew', padx = halfPadding, pady = halfPadding)
+rightSideFrame.grid(row = 0, column = 2, rowspan = 6, sticky = 'nsew', pady = (elemPadding / 2, 0))
 
 backupSummaryFrame = tk.Frame(rightSideFrame)
-backupSummaryFrame.pack(fill = 'both', expand = 1, padx = halfPadding, pady = halfPadding)
+backupSummaryFrame.pack(fill = 'both', expand = 1, padx = (elemPadding, 0))
 backupSummaryFrame.update()
 
 backupTitle = tk.Label(backupSummaryFrame, text = 'Analysis Summary', font = (None, 20))
@@ -1051,39 +1026,13 @@ def runBackup():
 		process = subprocess.Popen(cmd, shell = True, stdout = subprocess.PIPE, stdin = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
 		# process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-		# isDone = False
-		# finalLine = 0
-
 		while not backupHalted and process.poll() is None:
 			try:
 				out = process.stdout.readline().decode().strip()
 				cmdInfoBlocks[i]['state'].configure(text = 'Running', fg = color.RUNNING)
-				# print(out, end = '')
-				# out = re.sub('\s+', ' ', out)
-				# outParts = out.split()
-
 				cmdInfoBlocks[i]['lastOutResult'].configure(text = out.strip(), fg = color.NORMAL)
-
-				# if not isDone and outParts[0] == 'Total':
-				# 	isDone = True
-
-				# 	for headIndex, heading in enumerate(outParts):
-				# 		tk.Label(cmdInfoBlocks[i]['statusStatsFrame'], text = heading, font = (None, 10, 'bold')).grid(row = 0, column = headIndex + 1)
-				# elif isDone and out != '':
-				# 	outParts = re.sub(' : ', ' ', out).split()
-				# 	print(outParts[0])
-				# 	if outParts[0] in ['Dirs', 'Files']:
-				# 		finalLine += 1
-				# 		for statIndex, stat in enumerate(outParts):
-				# 			stat = (stat + ':') if statIndex == 0 else stat
-				# 			font = (None, 10)
-
-				# 			tk.Label(cmdInfoBlocks[i]['statusStatsFrame'], text = stat, font = font).grid(row = finalLine, column = statIndex)
-				# else:
-				# 	print(out)
 			except Exception as e:
 				pass
-				# print("\n  ______   _    _    _____   _  __\n |  ____| | |  | |  / ____| | |/ /\n | |__    | |  | | | |      | ' / \n |  __|   | |  | | | |      |  <  \n | |      | |__| | | |____  | . \\ \n |_|       \\____/   \\_____| |_|\\_\\n                                  \n")
 		process.terminate()
 
 		if not backupHalted:
@@ -1123,7 +1072,7 @@ tk.Label(backupSummaryTextFrame, text = 'This area will summarize the backup tha
 tk.Label(backupSummaryTextFrame, text = 'Please start a backup analysis to generate a summary.',
 	wraplength = backupSummaryFrame.winfo_width() - 2, justify = 'left').pack(anchor = 'w')
 startBackupBtn = ttk.Button(backupSummaryFrame, text = 'Run Backup', command = startBackup, state = 'disable', style = 'win.TButton')
-startBackupBtn.pack(padx = halfPadding, pady = halfPadding)
+startBackupBtn.pack(pady = elemPadding / 2)
 
 loadThread = threading.Thread(target = loadDest, name = 'Init', daemon = True)
 loadThread.start()
