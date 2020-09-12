@@ -67,6 +67,13 @@ def get_directory_size(directory):
 		return 0
 	return total
 
+# Detect if a thread by a given name is active
+def threadNameIsActive(name):
+	for thread in threading.enumerate():
+		if thread.name == name and thread.is_alive():
+			return thread
+	return False
+
 class color:
 	NORMAL = '#000'
 	FADED = '#999'
@@ -619,8 +626,9 @@ def loadSource():
 loadSource()
 
 def startRefreshSource():
-	sourceLoadThread = threading.Thread(target = loadSource, name = 'Load Source', daemon = True)
-	sourceLoadThread.start()
+	if not threadNameIsActive('Load Source'):
+		sourceLoadThread = threading.Thread(target = loadSource, name = 'Load Source', daemon = True)
+		sourceLoadThread.start()
 
 refreshSourceBtn = ttk.Button(sourceMetaFrame, text = '\u2b6e', command = startRefreshSource, style = 'icon.TButton')
 refreshSourceBtn.grid(row = 0, column = 1)
@@ -794,9 +802,9 @@ def loadDest():
 		progressBar.stop()
 
 def startRefreshDest():
-	# URGENT: Make this only run if it's not currently active
-	refreshDestThread = threading.Thread(target = loadDest, name = 'Refresh destination', daemon = True)
-	refreshDestThread.start()
+	if not threadNameIsActive('Refresh destination'):
+		refreshDestThread = threading.Thread(target = loadDest, name = 'Refresh destination', daemon = True)
+		refreshDestThread.start()
 
 # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
 # visible, so 1px needs to be added back
