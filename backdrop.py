@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, font
+from tkinter import ttk, messagebox, font as tkfont
 import win32api
 import win32file
 import shutil
@@ -25,7 +25,6 @@ appVersion = '1.0.2-alpha.1'
 #     When we copy, check directory size of source and dest, and if the dest is larger than source, copy those first to free up space for ones that increased
 # TODO: Add a button for deleting the config from selected drives
 # IDEA: Add interactive CLI option if correct parameters are passed in
-# URGENT: Threads that are active need to be killed if we rerun some things
 
 def center(win):
     """Center a tkinter window on screen.
@@ -119,15 +118,15 @@ def enumerateCommandInfo():
         expandArrow = cmdInfoBlocks[index]['arrow']['text']
         if expandArrow == rightArrow:
             # Collapsed turns into expanded
-            cmdInfoBlocks[index]['arrow'].configure(text = downArrow)
-            cmdInfoBlocks[index]['infoFrame'].pack(anchor = 'w')
+            cmdInfoBlocks[index]['arrow'].configure(text=downArrow)
+            cmdInfoBlocks[index]['infoFrame'].pack(anchor='w')
         else:
             # Expanded turns into collapsed
-            cmdInfoBlocks[index]['arrow'].configure(text = rightArrow)
+            cmdInfoBlocks[index]['arrow'].configure(text=rightArrow)
             cmdInfoBlocks[index]['infoFrame'].pack_forget()
 
         # For some reason, .configure() loses the function bind, so we need to re-set this
-        cmdInfoBlocks[index]['arrow'].bind('<Button-1>', lambda event, index = index: toggleCmdInfo(index))
+        cmdInfoBlocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: toggleCmdInfo(index))
 
     def copyCmd(index):
         """Copy a given indexed command to the clipboard.
@@ -149,45 +148,45 @@ def enumerateCommandInfo():
         config = {}
 
         config['mainFrame'] = tk.Frame(backupActivityScrollableFrame)
-        config['mainFrame'].pack(anchor = 'w', expand = 1)
+        config['mainFrame'].pack(anchor='w', expand=1)
 
         # Set up header arrow, trimmed command, and status
         config['headLine'] = tk.Frame(config['mainFrame'])
-        config['headLine'].pack(fill = 'x')
-        config['arrow'] = tk.Label(config['headLine'], text = rightArrow)
-        config['arrow'].pack(side = 'left')
-        config['header'] = tk.Label(config['headLine'], text = cmdSnip, font = cmdHeaderFont)
-        config['header'].pack(side = 'left')
-        config['state'] = tk.Label(config['headLine'], text = 'Pending', font = cmdStatusFont, fg = color.PENDING)
-        config['state'].pack(side = 'left')
+        config['headLine'].pack(fill='x')
+        config['arrow'] = tk.Label(config['headLine'], text=rightArrow)
+        config['arrow'].pack(side='left')
+        config['header'] = tk.Label(config['headLine'], text=cmdSnip, font=cmdHeaderFont)
+        config['header'].pack(side='left')
+        config['state'] = tk.Label(config['headLine'], text='Pending', font=cmdStatusFont, fg=color.PENDING)
+        config['state'].pack(side='left')
         config['arrow'].update_idletasks()
         arrowWidth = config['arrow'].winfo_width()
 
         # Header toggle action click
-        config['arrow'].bind('<Button-1>', lambda event, index = i: toggleCmdInfo(index))
-        config['header'].bind('<Button-1>', lambda event, index = i: toggleCmdInfo(index))
+        config['arrow'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
+        config['header'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
 
         # Set up info frame
         config['infoFrame'] = tk.Frame(config['mainFrame'])
         config['cmdLine'] = tk.Frame(config['infoFrame'])
-        config['cmdLine'].pack(anchor = 'w')
-        tk.Frame(config['cmdLine'], width = arrowWidth).pack(side = 'left')
-        config['cmdLineHeader'] = tk.Label(config['cmdLine'], text = 'Full command:', font = cmdHeaderFont)
-        config['cmdLineHeader'].pack(side = 'left')
-        config['cmdLineTooltip'] = tk.Label(config['cmdLine'], text = '(Click to copy)', font = cmdStatusFont, fg = color.FADED)
-        config['cmdLineTooltip'].pack(side = 'left')
+        config['cmdLine'].pack(anchor='w')
+        tk.Frame(config['cmdLine'], width=arrowWidth).pack(side='left')
+        config['cmdLineHeader'] = tk.Label(config['cmdLine'], text='Full command:', font=cmdHeaderFont)
+        config['cmdLineHeader'].pack(side='left')
+        config['cmdLineTooltip'] = tk.Label(config['cmdLine'], text='(Click to copy)', font=cmdStatusFont, fg=color.FADED)
+        config['cmdLineTooltip'].pack(side='left')
         config['fullCmd'] = cmd
 
         config['lastOutLine'] = tk.Frame(config['infoFrame'])
-        config['lastOutLine'].pack(anchor = 'w')
-        tk.Frame(config['lastOutLine'], width = arrowWidth).pack(side = 'left')
-        config['lastOutHeader'] = tk.Label(config['lastOutLine'], text = 'Out:', font = cmdHeaderFont)
-        config['lastOutHeader'].pack(side = 'left')
-        config['lastOutResult'] = tk.Label(config['lastOutLine'], text = 'Pending', font = cmdStatusFont, fg = color.PENDING)
-        config['lastOutResult'].pack(side = 'left')
+        config['lastOutLine'].pack(anchor='w')
+        tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
+        config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Out:', font=cmdHeaderFont)
+        config['lastOutHeader'].pack(side='left')
+        config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending', font=cmdStatusFont, fg=color.PENDING)
+        config['lastOutResult'].pack(side='left')
 
         # Handle command trimming
-        cmdFont = tk.font.Font(family = None, size = 10, weight = 'normal')
+        cmdFont = tkfont.Font(family=None, size=10, weight='normal')
         trimmedCmd = cmd
         maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
         actualWidth = cmdFont.measure(cmd)
@@ -198,20 +197,20 @@ def enumerateCommandInfo():
                 actualWidth = cmdFont.measure(trimmedCmd + '...')
             trimmedCmd = trimmedCmd + '...'
 
-        config['cmdLineCmd'] = tk.Label(config['cmdLine'], text = trimmedCmd, font = cmdStatusFont)
-        config['cmdLineCmd'].pack(side = 'left')
+        config['cmdLineCmd'] = tk.Label(config['cmdLine'], text=trimmedCmd, font=cmdStatusFont)
+        config['cmdLineCmd'].pack(side='left')
 
         # Command copy action click
-        config['cmdLineHeader'].bind('<Button-1>', lambda event, index = i: copyCmd(index))
-        config['cmdLineTooltip'].bind('<Button-1>', lambda event, index = i: copyCmd(index))
-        config['cmdLineCmd'].bind('<Button-1>', lambda event, index = i: copyCmd(index))
+        config['cmdLineHeader'].bind('<Button-1>', lambda event, index=i: copyCmd(index))
+        config['cmdLineTooltip'].bind('<Button-1>', lambda event, index=i: copyCmd(index))
+        config['cmdLineCmd'].bind('<Button-1>', lambda event, index=i: copyCmd(index))
 
         # Stats frame
         config['statusStatsLine'] = tk.Frame(config['infoFrame'])
-        config['statusStatsLine'].pack(anchor = 'w')
-        tk.Frame(config['statusStatsLine'], width = 2 * arrowWidth).pack(side = 'left')
+        config['statusStatsLine'].pack(anchor='w')
+        tk.Frame(config['statusStatsLine'], width=2 * arrowWidth).pack(side='left')
         config['statusStatsFrame'] = tk.Frame(config['statusStatsLine'])
-        config['statusStatsFrame'].pack(side = 'left')
+        config['statusStatsFrame'].pack(side='left')
 
         cmdInfoBlocks.append(config)
 
@@ -233,10 +232,10 @@ def analyzeBackup(shares, drives):
     global analysisValid
 
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'indeterminate')
+        progressBar.configure(mode='indeterminate')
         progressBar.start()
 
-    startBackupBtn.configure(state = 'disable')
+    startBackupBtn.configure(state='disable')
 
     # Set UI variables
     summaryHeaderFont = (None, 14)
@@ -244,8 +243,8 @@ def analyzeBackup(shares, drives):
     for widget in backupSummaryTextFrame.winfo_children():
         widget.destroy()
 
-    tk.Label(backupSummaryTextFrame, text = 'Shares', font = summaryHeaderFont,
-             wraplength = backupSummaryFrame.winfo_width() - 2, justify = 'left').pack(anchor = 'w')
+    tk.Label(backupSummaryTextFrame, text='Shares', font=summaryHeaderFont,
+             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
     shareInfo = {}
     allShareInfo = {}
@@ -256,11 +255,11 @@ def analyzeBackup(shares, drives):
         shareInfo[shareName] = shareSize
         allShareInfo[shareName] = shareSize
 
-        tk.Label(backupSummaryTextFrame, text = '%s \u27f6 %s' % (shareName, human_filesize(shareSize)),
-                 wraplength = backupSummaryFrame.winfo_width() - 2, justify = 'left').pack(anchor = 'w')
+        tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (shareName, human_filesize(shareSize)),
+                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
-    tk.Label(backupSummaryTextFrame, text = 'Drives', font = summaryHeaderFont,
-             wraplength = backupSummaryFrame.winfo_width() - 2, justify = 'left').pack(anchor = 'w')
+    tk.Label(backupSummaryTextFrame, text='Drives', font=summaryHeaderFont,
+             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
     driveInfo = []
     driveShareList = {}
@@ -278,11 +277,11 @@ def analyzeBackup(shares, drives):
         # Enumerate list for tracking what shares go where
         driveShareList[driveName] = []
 
-        tk.Label(backupSummaryTextFrame, text = '%s \u27f6 %s' % (driveName, human_filesize(driveSize)),
-                 wraplength = backupSummaryFrame.winfo_width() - 2, justify = 'left').pack(anchor = 'w')
+        tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (driveName, human_filesize(driveSize)),
+                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
     # For each drive, smallest first, filter list of shares to those that fit
-    driveInfo.sort(key = lambda x: x['size'])
+    driveInfo.sort(key=lambda x: x['size'])
 
     for i, drive in enumerate(driveInfo):
         # Get list of shares small enough to fit on drive
@@ -359,7 +358,7 @@ def analyzeBackup(shares, drives):
             fileInfo[fileName] = newDirSize
 
         # For splitting shares, sort by largest free space first
-        driveInfo.sort(reverse = True, key = lambda x: x['free'])
+        driveInfo.sort(reverse=True, key=lambda x: x['free'])
 
         for i, drive in enumerate(driveInfo):
             # Get list of files small enough to fit on drive
@@ -388,8 +387,8 @@ def analyzeBackup(shares, drives):
                         listDirs[file] = size
 
                 # Sort file list by largest first, and truncate to prevent unreasonably large number of combinations
-                smallFiles = sorted(listFiles.items(), key = lambda x: x[1], reverse = True)
-                smallFiles.extend(sorted(listDirs.items(), key = lambda x: x[1], reverse = True))
+                smallFiles = sorted(listFiles.items(), key=lambda x: x[1], reverse=True)
+                smallFiles.extend(sorted(listDirs.items(), key=lambda x: x[1], reverse=True))
                 trimmedSmallFiles = {file[0]: file[1] for file in smallFiles[:15]}
                 smallFiles = {file[0]: file[1] for file in smallFiles}
 
@@ -476,18 +475,18 @@ def analyzeBackup(shares, drives):
 
     enumerateCommandInfo()
 
-    tk.Label(backupSummaryTextFrame, text = 'Summary', font = summaryHeaderFont,
-             wraplength = backupSummaryFrame.winfo_width() - 2, justify = 'left').pack(anchor = 'w')
+    tk.Label(backupSummaryTextFrame, text='Summary', font=summaryHeaderFont,
+             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
     for drive, shares in driveShareList.items():
-        tk.Label(backupSummaryTextFrame, text = '%s \u27f6 %s' % (drive, ', '.join(shares)),
-                 wraplength = backupSummaryFrame.winfo_width() - 2, justify = 'left').pack(anchor = 'w')
+        tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (drive, ', '.join(shares)),
+                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
     analysisValid = True
 
-    startBackupBtn.configure(state = 'normal')
+    startBackupBtn.configure(state='normal')
 
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'determinate')
+        progressBar.configure(mode='determinate')
         progressBar.stop()
 
 def sanityCheck():
@@ -507,6 +506,7 @@ def sanityCheck():
     shareTotal = 0
     driveTotal = 0
 
+    # URGENT: Selection needs to only be okay if all selected shares are calculated
     if selectionOk:
         for item in sourceSelection:
             # Add total space of selection
@@ -527,7 +527,7 @@ def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
     # URGENT: If backup analysis thread is already running, it needs to be killed before it's rerun
     if sanityCheck():
-        backupAnalysisThread = threading.Thread(target = analyzeBackup, args = [sourceTree.selection(), destTree.selection()], name = 'Backup Analysis', daemon = True)
+        backupAnalysisThread = threading.Thread(target=analyzeBackup, args=[sourceTree.selection(), destTree.selection()], name='Backup Analysis', daemon=True)
         backupAnalysisThread.start()
 
 # TODO: Make changes to existing config check the existing for missing drives, and delete the config file from drives we unselected if there's multiple drives in a config
@@ -548,7 +548,7 @@ def writeSettingToFile(setting, file):
     f.write(setting)
     f.close()
 
-def readSettingFromFile(file, default, verifyData = None):
+def readSettingFromFile(file, default, verifyData=None):
     """Read a setting from a file.
 
     Args:
@@ -582,7 +582,7 @@ def loadSource():
     """Load the source share list, and display it in the tree."""
     global analysisValid
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'indeterminate')
+        progressBar.configure(mode='indeterminate')
         progressBar.start()
 
     analysisValid = False
@@ -590,21 +590,21 @@ def loadSource():
     # Empty tree in case this is being refreshed
     sourceTree.delete(*sourceTree.get_children())
 
-    shareSelectedSpace.configure(text = 'Selected: ' + human_filesize(0))
-    shareTotalSpace.configure(text = 'Total: ~' + human_filesize(0))
+    shareSelectedSpace.configure(text='Selected: ' + human_filesize(0))
+    shareTotalSpace.configure(text='Total: ~' + human_filesize(0))
 
     # Enumerate list of shares in source
     for directory in next(os.walk(sourceDrive))[1]:
-        sourceTree.insert(parent = '', index = 'end', text = directory, values = ('Unknown', 0))
+        sourceTree.insert(parent='', index='end', text=directory, values=('Unknown', 0))
 
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'determinate')
+        progressBar.configure(mode='determinate')
         progressBar.stop()
 
 def startRefreshSource():
     """Start a source refresh in a new thread."""
     if not threadNameIsActive('Load Source'):
-        sourceLoadThread = threading.Thread(target = loadSource, name = 'Load Source', daemon = True)
+        sourceLoadThread = threading.Thread(target=loadSource, name='Load Source', daemon=True)
         sourceLoadThread.start()
 
 def changeSourceDrive(selection):
@@ -630,11 +630,11 @@ def shareSelectCalc():
     global prevShareSelection
     global analysisValid
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'indeterminate')
+        progressBar.configure(mode='indeterminate')
         progressBar.start()
 
-    def updateInfo():
-        """Update the total info below the tree based on the share selection."""
+    def updateShareMetaInfo():
+        """Update the meta info below the tree based on the share selection."""
         selectedTotal = 0
         selectedShareList = []
         for item in sourceTree.selection():
@@ -647,7 +647,7 @@ def shareSelectCalc():
                 shareSize = sourceTree.item(item, 'values')[1]
                 selectedTotal = selectedTotal + int(shareSize)
 
-        shareSelectedSpace.configure(text = 'Selected: ' + human_filesize(selectedTotal))
+        shareSelectedSpace.configure(text='Selected: ' + human_filesize(selectedTotal))
         config['shares'] = selectedShareList
 
         shareTotal = 0
@@ -661,7 +661,7 @@ def shareSelectCalc():
                 totalIsApprox = True
                 totalPrefix += '~'
 
-        shareTotalSpace.configure(text = totalPrefix + human_filesize(shareTotal))
+        shareTotalSpace.configure(text=totalPrefix + human_filesize(shareTotal))
 
     selected = sourceTree.selection()
 
@@ -669,7 +669,7 @@ def shareSelectCalc():
     selectMatch = [share for share in selected if share in prevShareSelection]
     if len(selected) != len(prevShareSelection) or len(selectMatch) != len(prevShareSelection):
         analysisValid = False
-        startBackupBtn.configure(state = 'disable')
+        startBackupBtn.configure(state='disable')
 
     prevShareSelection = [share for share in selected]
 
@@ -677,7 +677,7 @@ def shareSelectCalc():
     for item in selected:
         # If new selected item hasn't been calculated, calculate it on the fly
         if sourceTree.item(item, 'values')[0] == 'Unknown':
-            startAnalysisBtn.configure(state = 'disable')
+            startAnalysisBtn.configure(state='disable')
 
             shareName = sourceTree.item(item, 'text')
             # print('...')
@@ -693,23 +693,23 @@ def shareSelectCalc():
         if sourceTree.item(item, 'values')[0] == 'Unknown':
             sharesAllKnown = False
     if sharesAllKnown:
-        startAnalysisBtn.configure(state = 'normal')
+        startAnalysisBtn.configure(state='normal')
 
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'determinate')
+        progressBar.configure(mode='determinate')
         progressBar.stop()
 
 # TODO: See if we can find a way to prevent the same share from being calculated twice in different threads
 def loadSourceInBackground(event):
     """Start a calculation of source filesize in a new thread."""
-    sourceItemLoadThread = threading.Thread(target = shareSelectCalc, name = 'Load Source Selection', daemon = True)
+    sourceItemLoadThread = threading.Thread(target=shareSelectCalc, name='Load Source Selection', daemon=True)
     sourceItemLoadThread.start()
 
 def loadDest():
     """Load the destination drive info, and display it in the tree."""
     global destDriveMap
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'indeterminate')
+        progressBar.configure(mode='indeterminate')
         progressBar.start()
 
     driveList = win32api.GetLogicalDriveStrings()
@@ -754,18 +754,18 @@ def loadDest():
                 driveHasConfigFile = os.path.exists('%s%s' % (drive, backupConfigFile)) and os.path.isfile('%s%s' % (drive, backupConfigFile))
 
                 totalUsage = totalUsage + driveSize
-                destTree.insert(parent = '', index = 'end', text = drive, values = (human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
+                destTree.insert(parent='', index='end', text=drive, values=(human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
 
-    driveTotalSpace.configure(text = 'Available: ' + human_filesize(totalUsage))
+    driveTotalSpace.configure(text='Available: ' + human_filesize(totalUsage))
 
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'determinate')
+        progressBar.configure(mode='determinate')
         progressBar.stop()
 
 def startRefreshDest():
     """Start the loading of the destination drive info in a new thread."""
     if not threadNameIsActive('Refresh destination'):
-        refreshDestThread = threading.Thread(target = loadDest, name = 'Refresh destination', daemon = True)
+        refreshDestThread = threading.Thread(target=loadDest, name='Refresh destination', daemon=True)
         refreshDestThread.start()
 
 def selectFromConfig():
@@ -848,7 +848,7 @@ def handleDriveSelectionClick():
     global analysisValid
 
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'indeterminate')
+        progressBar.configure(mode='indeterminate')
         progressBar.start()
 
     selected = destTree.selection()
@@ -857,7 +857,7 @@ def handleDriveSelectionClick():
     selectMatch = [drive for drive in selected if drive in prevDriveSelection]
     if len(selected) != len(prevDriveSelection) or len(selectMatch) != len(prevDriveSelection):
         analysisValid = False
-        startBackupBtn.configure(state = 'disable')
+        startBackupBtn.configure(state='disable')
 
     prevDriveSelection = [share for share in selected]
 
@@ -887,19 +887,24 @@ def handleDriveSelectionClick():
         driveSize = driveVals[1]
         selectedTotal = selectedTotal + int(driveSize)
 
-    driveSelectedSpace.configure(text = 'Selected: ' + human_filesize(selectedTotal))
+    driveSelectedSpace.configure(text='Selected: ' + human_filesize(selectedTotal))
     config['drives'] = selectedDriveList
 
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'determinate')
+        progressBar.configure(mode='determinate')
         progressBar.stop()
 
 def selectDriveInBackground(event):
     """Start the drive selection handling in a new thread."""
-    driveSelectThread = threading.Thread(target = handleDriveSelectionClick, name = 'Drive Select', daemon = True)
+    driveSelectThread = threading.Thread(target=handleDriveSelectionClick, name='Drive Select', daemon=True)
     driveSelectThread.start()
 
 # TODO: Make changes to existing config check the existing for missing drives, and delete the config file from drives we unselected if there's multiple drives in a config
+# TODO: If a drive config is overwritten with a new config file, due to the drive
+# being configured for a different backup, then we don't want to delete that file
+# In that case, the config file should be ignored. Thus, we need to delete configs
+# on unselected drives only if the config file on the drive we want to delete matches
+# the config on selected drives
 def writeConfigFile():
     """Write the current running backup config to config files on the drives."""
     if len(config['shares']) > 0 and len(config['drives']) > 0:
@@ -932,7 +937,7 @@ def runBackup():
         return
 
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'indeterminate')
+        progressBar.configure(mode='indeterminate')
         progressBar.start()
 
     # Reset halt flag if it's been tripped
@@ -942,55 +947,55 @@ def runBackup():
     writeConfigFile()
 
     for i, cmd in enumerate(commandList):
-        cmdInfoBlocks[i]['state'].configure(text = 'Pending', fg = color.PENDING)
-        cmdInfoBlocks[i]['lastOutResult'].configure(text = 'Pending', fg = color.PENDING)
+        cmdInfoBlocks[i]['state'].configure(text='Pending', fg=color.PENDING)
+        cmdInfoBlocks[i]['lastOutResult'].configure(text='Pending', fg=color.PENDING)
 
-    startBackupBtn.configure(text = 'Halt Backup', command = killBackup, style = 'danger.TButton')
+    startBackupBtn.configure(text='Halt Backup', command=killBackup, style='danger.TButton')
 
     for i, cmd in enumerate(commandList):
-        process = subprocess.Popen(cmd, shell = True, stdout = subprocess.PIPE, stdin = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         # process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         while not backupHalted and process.poll() is None:
             try:
                 out = process.stdout.readline().decode().strip()
-                cmdInfoBlocks[i]['state'].configure(text = 'Running', fg = color.RUNNING)
-                cmdInfoBlocks[i]['lastOutResult'].configure(text = out.strip(), fg = color.NORMAL)
+                cmdInfoBlocks[i]['state'].configure(text='Running', fg=color.RUNNING)
+                cmdInfoBlocks[i]['lastOutResult'].configure(text=out.strip(), fg=color.NORMAL)
             except Exception as e:
-                pass
+                print(e)
         process.terminate()
 
         if not backupHalted:
-            cmdInfoBlocks[i]['state'].configure(text = 'Done', fg = color.FINISHED)
-            cmdInfoBlocks[i]['lastOutResult'].configure(text = 'Done', fg = color.FINISHED)
+            cmdInfoBlocks[i]['state'].configure(text='Done', fg=color.FINISHED)
+            cmdInfoBlocks[i]['lastOutResult'].configure(text='Done', fg=color.FINISHED)
         else:
-            cmdInfoBlocks[i]['state'].configure(text = 'Aborted', fg = color.STOPPED)
-            cmdInfoBlocks[i]['lastOutResult'].configure(text = 'Aborted', fg = color.STOPPED)
+            cmdInfoBlocks[i]['state'].configure(text='Aborted', fg=color.STOPPED)
+            cmdInfoBlocks[i]['lastOutResult'].configure(text='Aborted', fg=color.STOPPED)
             break
 
     if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode = 'determinate')
+        progressBar.configure(mode='determinate')
         progressBar.stop()
 
-    startBackupBtn.configure(text = 'Run Backup', command = startBackup, style = 'win.TButton')
+    startBackupBtn.configure(text='Run Backup', command=startBackup, style='win.TButton')
 
 def startBackup():
     """Start the backup in a new thread."""
     global backupThread
     if sanityCheck():
-        backupThread = threading.Thread(target = runBackup, name = 'Backup', daemon = True)
+        backupThread = threading.Thread(target=runBackup, name='Backup', daemon=True)
         backupThread.start()
 
 def killBackup():
     """Stop robocopy, and abort the backup that's running."""
-    if threadNameIsActive('Backup'):
+    if backupThread and backupThread.is_alive():
         global backupHalted
         backupHalted = True
 
         try:
-            subprocess.run('taskkill /im robocopy.exe /f', shell = True, stderr = subprocess.DEVNULL, stdin = subprocess.DEVNULL, stdout = subprocess.DEVNULL)
-        except:
-            pass
+            subprocess.run('taskkill /im robocopy.exe /f', shell=True, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        except Exception as e:
+            print(e)
 
 class color:
     NORMAL = '#000'
@@ -1035,20 +1040,20 @@ center(root)
 root.attributes('-alpha', 1.0)
 
 mainFrame = tk.Frame(root)
-mainFrame.pack(fill = 'both', expand = 1, padx = elemPadding, pady = (elemPadding / 2, elemPadding))
+mainFrame.pack(fill='both', expand=1, padx=elemPadding, pady=(elemPadding / 2, elemPadding))
 
 # Set some default styling
 buttonWinStyle = ttk.Style()
 buttonWinStyle.theme_use('vista')
-buttonWinStyle.configure('win.TButton', padding = 5)
+buttonWinStyle.configure('win.TButton', padding=5)
 
 buttonWinStyle = ttk.Style()
 buttonWinStyle.theme_use('vista')
-buttonWinStyle.configure('danger.TButton', padding = 5, background = '#b00')
+buttonWinStyle.configure('danger.TButton', padding=5, background='#b00')
 
 buttonIconStyle = ttk.Style()
 buttonIconStyle.theme_use('vista')
-buttonIconStyle.configure('icon.TButton', width = 2, height = 1, padding = 1, font = (None, 15), background = '#00bfe6')
+buttonIconStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(None, 15), background='#00bfe6')
 
 # Set source drives and start to set up source dropdown
 sourceDriveDefault = tk.StringVar()
@@ -1062,142 +1067,140 @@ if not os.path.exists(appDataFolder + '\\sourceDrive.default') or not os.path.is
 
 # Tree frames for tree and scrollbar
 sourceTreeFrame = tk.Frame(mainFrame)
-sourceTreeFrame.grid(row = 1, column = 0, sticky = 'ns')
+sourceTreeFrame.grid(row=1, column=0, sticky='ns')
 destTreeFrame = tk.Frame(mainFrame)
-destTreeFrame.grid(row = 1, column = 1, sticky = 'ns', padx = (elemPadding, 0))
+destTreeFrame.grid(row=1, column=1, sticky='ns', padx=(elemPadding, 0))
 
 # Progress/status values
-progressBar = ttk.Progressbar(mainFrame, maximum = 100)
-progressBar.grid(row = 10, column = 0, columnspan = 3, sticky = 'ew', pady = (elemPadding, 0))
+progressBar = ttk.Progressbar(mainFrame, maximum=100)
+progressBar.grid(row=10, column=0, columnspan=3, sticky='ew', pady=(elemPadding, 0))
 
-sourceTree = ttk.Treeview(sourceTreeFrame, columns = ('size', 'rawsize'))
-sourceTree.heading('#0', text = 'Share')
-sourceTree.column('#0', width = 200)
-sourceTree.heading('size', text = 'Size')
-sourceTree.column('size', width = 80)
+sourceTree = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'))
+sourceTree.heading('#0', text='Share')
+sourceTree.column('#0', width=200)
+sourceTree.heading('size', text='Size')
+sourceTree.column('size', width=80)
 sourceTree['displaycolumns'] = ('size')
 
-sourceTree.pack(side = 'left')
-sourceShareScroll = ttk.Scrollbar(sourceTreeFrame, orient = 'vertical', command = sourceTree.yview)
-sourceShareScroll.pack(side = 'left', fill = 'y')
-sourceTree.configure(xscrollcommand = sourceShareScroll.set)
+sourceTree.pack(side='left')
+sourceShareScroll = ttk.Scrollbar(sourceTreeFrame, orient='vertical', command=sourceTree.yview)
+sourceShareScroll.pack(side='left', fill='y')
+sourceTree.configure(xscrollcommand=sourceShareScroll.set)
 
 # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
 # visible, so 1px needs to be added back
 sourceMetaFrame = tk.Frame(mainFrame)
-sourceMetaFrame.grid(row = 2, column = 0, sticky = 'nsew', pady = (1, elemPadding))
-tk.Grid.columnconfigure(sourceMetaFrame, 0, weight = 1)
+sourceMetaFrame.grid(row=2, column=0, sticky='nsew', pady=(1, elemPadding))
+tk.Grid.columnconfigure(sourceMetaFrame, 0, weight=1)
 
 shareSpaceFrame = tk.Frame(sourceMetaFrame)
-shareSpaceFrame.grid(row = 0, column = 0)
-shareSelectedSpace = tk.Label(shareSpaceFrame, text = 'Selected: ' + human_filesize(0))
-shareSelectedSpace.grid(row = 0, column = 0)
-shareTotalSpace = tk.Label(shareSpaceFrame, text = 'Total: ~' + human_filesize(0))
-shareTotalSpace.grid(row = 0, column = 1, padx = (12, 0))
+shareSpaceFrame.grid(row=0, column=0)
+shareSelectedSpace = tk.Label(shareSpaceFrame, text='Selected: ' + human_filesize(0))
+shareSelectedSpace.grid(row=0, column=0)
+shareTotalSpace = tk.Label(shareSpaceFrame, text='Total: ~' + human_filesize(0))
+shareTotalSpace.grid(row=0, column=1, padx=(12, 0))
 
 startRefreshSource()
 
-refreshSourceBtn = ttk.Button(sourceMetaFrame, text = '\u2b6e', command = startRefreshSource, style = 'icon.TButton')
-refreshSourceBtn.grid(row = 0, column = 1)
+refreshSourceBtn = ttk.Button(sourceMetaFrame, text='\u2b6e', command=startRefreshSource, style='icon.TButton')
+refreshSourceBtn.grid(row=0, column=1)
 
 sourceSelectFrame = tk.Frame(mainFrame)
-sourceSelectFrame.grid(row = 0, column = 0, pady = (0, elemPadding / 2))
-tk.Label(sourceSelectFrame, text = 'Source:').pack(side = 'left')
-sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, sourceDrive, *tuple(remoteDrives), command = changeSourceDrive)
-sourceSelectMenu.pack(side = 'left', padx = (12, 0))
+sourceSelectFrame.grid(row=0, column=0, pady=(0, elemPadding / 2))
+tk.Label(sourceSelectFrame, text='Source:').pack(side='left')
+sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, sourceDrive, *tuple(remoteDrives), command=changeSourceDrive)
+sourceSelectMenu.pack(side='left', padx=(12, 0))
 
 sourceTree.bind("<<TreeviewSelect>>", loadSourceInBackground)
 
-destTree = ttk.Treeview(destTreeFrame, columns = ('size', 'rawsize', 'configfile', 'vid', 'serial'))
-destTree.heading('#0', text = 'Drive')
-destTree.column('#0', width = 50)
-destTree.heading('size', text = 'Size')
-destTree.column('size', width = 80)
-destTree.heading('configfile', text = 'Config file')
-destTree.column('configfile', width = 100)
-destTree.heading('vid', text = 'Volume ID')
-destTree.column('vid', width = 100)
-destTree.heading('serial', text = 'Serial')
-destTree.column('serial', width = 200)
+destTree = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'))
+destTree.heading('#0', text='Drive')
+destTree.column('#0', width=50)
+destTree.heading('size', text='Size')
+destTree.column('size', width=80)
+destTree.heading('configfile', text='Config file')
+destTree.column('configfile', width=100)
+destTree.heading('vid', text='Volume ID')
+destTree.column('vid', width=100)
+destTree.heading('serial', text='Serial')
+destTree.column('serial', width=200)
 destTree['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
 
-destTree.pack(side = 'left')
-driveSelectScroll = ttk.Scrollbar(destTreeFrame, orient = 'vertical', command = destTree.yview)
-driveSelectScroll.pack(side = 'left', fill = 'y')
-destTree.configure(xscrollcommand = driveSelectScroll.set)
+destTree.pack(side='left')
+driveSelectScroll = ttk.Scrollbar(destTreeFrame, orient='vertical', command=destTree.yview)
+driveSelectScroll.pack(side='left', fill='y')
+destTree.configure(xscrollcommand=driveSelectScroll.set)
 
 # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
 # visible, so 1px needs to be added back
 destMetaFrame = tk.Frame(mainFrame)
-destMetaFrame.grid(row = 2, column = 1, sticky = 'nsew', pady = (1, elemPadding))
-tk.Grid.columnconfigure(destMetaFrame, 0, weight = 1)
+destMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, elemPadding))
+tk.Grid.columnconfigure(destMetaFrame, 0, weight=1)
 
 driveSpaceFrame = tk.Frame(destMetaFrame)
-driveSpaceFrame.grid(row = 0, column = 0)
-driveSelectedSpace = tk.Label(driveSpaceFrame, text = 'Selected: ' + human_filesize(0))
-driveSelectedSpace.grid(row = 0, column = 0)
-driveTotalSpace = tk.Label(driveSpaceFrame, text = 'Available: ' + human_filesize(0))
-driveTotalSpace.grid(row = 0, column = 1, padx = (12, 0))
+driveSpaceFrame.grid(row=0, column=0)
+driveSelectedSpace = tk.Label(driveSpaceFrame, text='Selected: ' + human_filesize(0))
+driveSelectedSpace.grid(row=0, column=0)
+driveTotalSpace = tk.Label(driveSpaceFrame, text='Available: ' + human_filesize(0))
+driveTotalSpace.grid(row=0, column=1, padx=(12, 0))
 
-refreshDestBtn = ttk.Button(destMetaFrame, text = '\u2b6e', command = startRefreshDest, style = 'icon.TButton')
-refreshDestBtn.grid(row = 0, column = 1)
-startAnalysisBtn = ttk.Button(destMetaFrame, text = 'Analyze Backup', command = startBackupAnalysis, style = 'win.TButton')
-startAnalysisBtn.grid(row = 0, column = 2)
+refreshDestBtn = ttk.Button(destMetaFrame, text='\u2b6e', command=startRefreshDest, style='icon.TButton')
+refreshDestBtn.grid(row=0, column=1)
+startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze Backup', command=startBackupAnalysis, style='win.TButton')
+startAnalysisBtn.grid(row=0, column=2)
 
 driveSelectBind = destTree.bind("<<TreeviewSelect>>", selectDriveInBackground)
 
 # Add activity frame for backup status output
-tk.Grid.rowconfigure(mainFrame, 5, weight = 1)
+tk.Grid.rowconfigure(mainFrame, 5, weight=1)
 backupActivityFrame = tk.Frame(mainFrame)
-backupActivityFrame.grid(row = 5, column = 0, columnspan = 2, sticky = 'nsew')
+backupActivityFrame.grid(row=5, column=0, columnspan=2, sticky='nsew')
 
 backupActivityInfoCanvas = tk.Canvas(backupActivityFrame)
-backupActivityInfoCanvas.pack(side = 'left', fill = 'both', expand = 1)
-backupActivityScroll = ttk.Scrollbar(backupActivityFrame, orient = 'vertical', command = backupActivityInfoCanvas.yview)
-backupActivityScroll.pack(side = 'left', fill = 'y')
+backupActivityInfoCanvas.pack(side='left', fill='both', expand=1)
+backupActivityScroll = ttk.Scrollbar(backupActivityFrame, orient='vertical', command=backupActivityInfoCanvas.yview)
+backupActivityScroll.pack(side='left', fill='y')
 backupActivityScrollableFrame = ttk.Frame(backupActivityInfoCanvas)
-backupActivityScrollableFrame.bind(
-    '<Configure>', lambda e: backupActivityInfoCanvas.configure(
-        scrollregion = backupActivityInfoCanvas.bbox('all')
-    )
-)
+backupActivityScrollableFrame.bind('<Configure>', lambda e: backupActivityInfoCanvas.configure(
+    scrollregion=backupActivityInfoCanvas.bbox('all')
+))
 
-backupActivityInfoCanvas.create_window((0, 0), window = backupActivityScrollableFrame, anchor = 'nw')
-backupActivityInfoCanvas.configure(yscrollcommand = backupActivityScroll.set)
+backupActivityInfoCanvas.create_window((0, 0), window=backupActivityScrollableFrame, anchor='nw')
+backupActivityInfoCanvas.configure(yscrollcommand=backupActivityScroll.set)
 
 # commandList = ['robocopy "R:\\atmg" "E:\\atmg" /mir', 'robocopy "R:\\documents" "E:\\documents" /mir', 'robocopy "R:\\backups" "F:\\backups" /mir /xd "Macrium Reflect"', 'robocopy "R:\\backups\\Macrium Reflect" "F:\\backups\\Macrium Reflect" /mir /xd "Main Desktop Boot Drive" "Office Desktop Boot Drive" /xf "Main Desktop Win10 Pre-Reinstall-00-00.mrimg" "AsusLaptop-Original-Win10-00-00.mrimg" "Office Desktop Pre10 - 12-24-2019-00-00.mrimg" "AndyLaptop-Win10-PreUbuntu-00-00.mrimg" "Asus Laptop Win10 Pre-Manjaro 2-26-2020-00-00.mrimg" "B0AA9BDCCD59E188-00-00.mrimg" "AndyLaptop-Ubuntu1810-00-00.mrimg" "WinME-HP-Pavillion-00-00.mrimg" "AndyLaptop-ManjaroArchitectKDE-00-00.mrimg" "Dad Full Clone 1-5-2014.7z" "AsusLaptop-Kali-8-10-2020-00-00.mrimg" "Win98-Gateway-00-00.mrimg" "AsusLaptop_Android-x86_9.0_8-11-2020-00-00.mrimg" "Win10 Reflect Rescue 7.2.4808.iso" "Win7 Reflect Rescue 7.2.4228.iso" "macrium_reflect_v7_user_guide.pdf" "Untitled.json"', 'robocopy "R:\\backups\\Macrium Reflect" "G:\\backups\\Macrium Reflect" /mir /xd "Asus Laptop Boot Drive" "Main Desktop User Files" "School Drive"']
 # commandList = ['robocopy "R:\\documents" "H:\\documents" /mir']
 # enumerateCommandInfo()
 
-tk.Grid.columnconfigure(mainFrame, 2, weight = 1)
+tk.Grid.columnconfigure(mainFrame, 2, weight=1)
 
 rightSideFrame = tk.Frame(mainFrame)
-rightSideFrame.grid(row = 0, column = 2, rowspan = 6, sticky = 'nsew', pady = (elemPadding / 2, 0))
+rightSideFrame.grid(row=0, column=2, rowspan=6, sticky='nsew', pady=(elemPadding / 2, 0))
 
 backupSummaryFrame = tk.Frame(rightSideFrame)
-backupSummaryFrame.pack(fill = 'both', expand = 1, padx = (elemPadding, 0))
+backupSummaryFrame.pack(fill='both', expand=1, padx=(elemPadding, 0))
 backupSummaryFrame.update()
 
-backupTitle = tk.Label(backupSummaryFrame, text = 'Analysis Summary', font = (None, 20))
+backupTitle = tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20))
 backupTitle.pack()
 
 brandingFrame = tk.Frame(rightSideFrame)
 brandingFrame.pack()
 
-tk.Label(brandingFrame, text = 'BackDrop', font = (None, 28), fg = color.GREEN).pack(side = 'left')
-tk.Label(brandingFrame, text = 'v' + appVersion, font = (None, 10), fg = color.FADED).pack(side = 'left', anchor = 's', pady = (0, 6))
+tk.Label(brandingFrame, text='BackDrop', font=(None, 28), fg=color.GREEN).pack(side='left')
+tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=color.FADED).pack(side='left', anchor='s', pady=(0, 6))
 
 # Add placeholder to backup analysis
 backupSummaryTextFrame = tk.Frame(backupSummaryFrame)
-backupSummaryTextFrame.pack(fill = 'x')
-tk.Label(backupSummaryTextFrame, text = 'This area will summarize the backup that\'s been configured.',
-         wraplength = backupSummaryFrame.winfo_width() - 2, justify = 'left').pack(anchor = 'w')
-tk.Label(backupSummaryTextFrame, text = 'Please start a backup analysis to generate a summary.',
-         wraplength = backupSummaryFrame.winfo_width() - 2, justify = 'left').pack(anchor = 'w')
-startBackupBtn = ttk.Button(backupSummaryFrame, text = 'Run Backup', command = startBackup, state = 'disable', style = 'win.TButton')
-startBackupBtn.pack(pady = elemPadding / 2)
+backupSummaryTextFrame.pack(fill='x')
+tk.Label(backupSummaryTextFrame, text='This area will summarize the backup that\'s been configured.',
+         wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+tk.Label(backupSummaryTextFrame, text='Please start a backup analysis to generate a summary.',
+         wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+startBackupBtn = ttk.Button(backupSummaryFrame, text='Run Backup', command=startBackup, state='disable', style='win.TButton')
+startBackupBtn.pack(pady=elemPadding / 2)
 
-loadThread = threading.Thread(target = loadDest, name = 'Init', daemon = True)
+loadThread = threading.Thread(target=loadDest, name='Init', daemon=True)
 loadThread.start()
 
 def onClose():
