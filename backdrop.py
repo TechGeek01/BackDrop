@@ -624,11 +624,9 @@ def shareSelectCalc():
             item (String): The identifier for a share in the source tree to be calculated.
         """
         shareName = sourceTree.item(item, 'text')
-        print('...')
         newShareSize = get_directory_size(sourceDrive + shareName)
         sourceTree.set(item, 'size', human_filesize(newShareSize))
         sourceTree.set(item, 'rawsize', newShareSize)
-        print('%s => %s' % (shareName, human_filesize(newShareSize)))
 
         # After calculating share info, update the meta info
         selectedTotal = 0
@@ -773,7 +771,7 @@ def selectFromConfig():
     # drive listed in the config)
     # Because of the <<TreeviewSelect>> handler, re-selecting the same single item
     # would get stuck into an endless loop of trying to load the config
-    # TODO: Is there a better way to handle this config loading selection handler conflict?
+    # QUESTION: Is there a better way to handle this config loading selection handler conflict?
     if destTree.selection() != tuple(driveTreeIdList):
         destTree.unbind('<<TreeviewSelect>>', driveSelectBind)
 
@@ -883,7 +881,7 @@ def handleDriveSelectionClick():
 
 def selectDriveInBackground(event):
     """Start the drive selection handling in a new thread."""
-    # FIXME: Does drive selection need to be run one at a time, or can this overlap?
+    # QUESTION: Does drive selection need to be run one at a time, or can this overlap?
     threadManager.start(threadManager.MULTIPLE, target=handleDriveSelectionClick, name='Drive Select', daemon=True)
 
 # TODO: Make changes to existing config check the existing for missing drives, and delete the config file from drives we unselected if there's multiple drives in a config
@@ -1003,7 +1001,7 @@ class ThreadManager:
         return False
 
     def garbage_collect(self):
-        """Remoe threads from threadList that aren't active anymore."""
+        """Remove threads from threadList that aren't active anymore."""
         self.threadList = {name: thread for name, thread in self.threadList.items() if thread['thread'].is_alive()}
 
     def start(self, threadType, *args, **kwargs):
@@ -1331,7 +1329,7 @@ tk.Label(backupSummaryTextFrame, text='Please start a backup analysis to generat
 startBackupBtn = ttk.Button(backupSummaryFrame, text='Run Backup', command=startBackup, state='disable', style='win.TButton')
 startBackupBtn.pack(pady=elemPadding / 2)
 
-# FIXME: Does init loadDest need to be SINGLE, MULTIPLE, or OVERRIDE?
+# QUESTION: Does init loadDest need to be SINGLE, MULTIPLE, or OVERRIDE?
 threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=True)
 
 def onClose():
