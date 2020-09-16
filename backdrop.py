@@ -496,7 +496,7 @@ def sanityCheck():
     if selectionOk:
         sharesKnown = True
         for item in sourceSelection:
-            if sourceTree.item(item, 'values')[0] != 'Unknown':
+            if sourceTree.item(item, 'values')[0] == 'Unknown':
                 sharesKnown = False
                 break
 
@@ -517,7 +517,7 @@ def sanityCheck():
 def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
     # FIXME: If backup analysis thread is already running, it needs to be killed before it's rerun
-    # This requires some way to have the thread itself check for the kill flag and break if it's set.
+    # CAVEAT: This requires some way to have the thread itself check for the kill flag and break if it's set.
     if sanityCheck():
         threadManager.start(threadManager.SINGLE, target=analyzeBackup, args=[sourceTree.selection(), destTree.selection()], name='Backup Analysis', daemon=True)
 
