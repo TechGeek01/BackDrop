@@ -617,8 +617,20 @@ def shareSelectCalc():
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
-    def updateShareMetaInfo():
-        """Update the meta info below the tree based on the share selection."""
+    def updateShareSize(item):
+        """Update share info for a given share.
+
+        Args:
+            item (String): The identifier for a share in the source tree to be calculated.
+        """
+        shareName = sourceTree.item(item, 'text')
+        print('...')
+        newShareSize = get_directory_size(sourceDrive + shareName)
+        sourceTree.set(item, 'size', human_filesize(newShareSize))
+        sourceTree.set(item, 'rawsize', newShareSize)
+        print('%s => %s' % (shareName, human_filesize(newShareSize)))
+
+        # After calculating share info, update the meta info
         selectedTotal = 0
         selectedShareList = []
         for item in sourceTree.selection():
@@ -647,6 +659,18 @@ def shareSelectCalc():
 
         shareTotalSpace.configure(text=totalPrefix + human_filesize(shareTotal))
 
+        # If everything's calculated, enable analysis button to be clicked
+        sharesAllKnown = True
+        for item in sourceTree.selection():
+            if sourceTree.item(item, 'values')[0] == 'Unknown':
+                sharesAllKnown = False
+        if sharesAllKnown:
+            startAnalysisBtn.configure(state='normal')
+
+        if len(threading.enumerate()) <= 3:
+            progressBar.configure(mode='determinate')
+            progressBar.stop()
+
     selected = sourceTree.selection()
 
     # If selection is different than last time, invalidate the analysis
@@ -662,28 +686,9 @@ def shareSelectCalc():
         # If new selected item hasn't been calculated, calculate it on the fly
         if sourceTree.item(item, 'values')[0] == 'Unknown':
             startAnalysisBtn.configure(state='disable')
-
             shareName = sourceTree.item(item, 'text')
-            # print('...')
-            newShareSize = get_directory_size(sourceDrive + shareName)
-            sourceTree.set(item, 'size', human_filesize(newShareSize))
-            sourceTree.set(item, 'rawsize', newShareSize)
-            # print('%s => %s' % (shareName, human_filesize(newShareSize)))
+            threadManager.start(threadManager.SINGLE, target=lambda: updateShareSize(item), name='shareCalc_%s' % (shareName), daemon=True)
 
-        updateInfo()
-
-    sharesAllKnown = True
-    for item in sourceTree.selection():
-        if sourceTree.item(item, 'values')[0] == 'Unknown':
-            sharesAllKnown = False
-    if sharesAllKnown:
-        startAnalysisBtn.configure(state='normal')
-
-    if len(threading.enumerate()) <= 2:
-        progressBar.configure(mode='determinate')
-        progressBar.stop()
-
-# TODO: See if we can find a way to prevent the same share from being calculated twice in different threads
 def loadSourceInBackground(event):
     """Start a calculation of source filesize in a new thread."""
     threadManager.start(threadManager.MULTIPLE, target=shareSelectCalc, name='Load Source Selection', daemon=True)
