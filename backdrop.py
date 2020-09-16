@@ -11,6 +11,7 @@ import pythoncom
 import itertools
 import subprocess
 import clipboard
+import time
 
 # Set meta info
 appVersion = '1.0.2-alpha.1'
@@ -84,20 +85,6 @@ def get_directory_size(directory):
     except OSError:
         return 0
     return total
-
-def threadNameIsActive(name):
-    """Check if a thread by a given name is active.
-
-    Args:
-        name (String): The name of the thread to check.
-
-    Returns:
-        bool: True if thread found by name is active, false otherwise.
-    """
-    for thread in threading.enumerate():
-        if thread.name == name and thread.is_alive():
-            return thread
-    return False
 
 def enumerateCommandInfo():
     """Enumerate the display widget with command info after a backup analysis."""
@@ -231,7 +218,7 @@ def analyzeBackup(shares, drives):
     global commandList
     global analysisValid
 
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -485,7 +472,7 @@ def analyzeBackup(shares, drives):
 
     startBackupBtn.configure(state='normal')
 
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
@@ -525,12 +512,11 @@ def sanityCheck():
 
 def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
-    # URGENT: If backup analysis thread is already running, it needs to be killed before it's rerun
+    # FIXME: If backup analysis thread is already running, it needs to be killed before it's rerun
+    # This requires some way to have the thread itself check for the kill flag and break if it's set.
     if sanityCheck():
-        backupAnalysisThread = threading.Thread(target=analyzeBackup, args=[sourceTree.selection(), destTree.selection()], name='Backup Analysis', daemon=True)
-        backupAnalysisThread.start()
+        threadManager.start(threadManager.SINGLE, target=analyzeBackup, args=[sourceTree.selection(), destTree.selection()], name='Backup Analysis', daemon=True)
 
-# TODO: Make changes to existing config check the existing for missing drives, and delete the config file from drives we unselected if there's multiple drives in a config
 def writeSettingToFile(setting, file):
     """Write a setting to a given file.
 
@@ -581,7 +567,7 @@ def readSettingFromFile(file, default, verifyData=None):
 def loadSource():
     """Load the source share list, and display it in the tree."""
     global analysisValid
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -597,15 +583,13 @@ def loadSource():
     for directory in next(os.walk(sourceDrive))[1]:
         sourceTree.insert(parent='', index='end', text=directory, values=('Unknown', 0))
 
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
 def startRefreshSource():
     """Start a source refresh in a new thread."""
-    if not threadNameIsActive('Load Source'):
-        sourceLoadThread = threading.Thread(target=loadSource, name='Load Source', daemon=True)
-        sourceLoadThread.start()
+    threadManager.start(threadManager.SINGLE, target=loadSource, name='Load Source', daemon=True)
 
 def changeSourceDrive(selection):
     """Change the source drive to pull shares from to a new selection.
@@ -629,7 +613,7 @@ def shareSelectCalc():
     """
     global prevShareSelection
     global analysisValid
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -702,13 +686,12 @@ def shareSelectCalc():
 # TODO: See if we can find a way to prevent the same share from being calculated twice in different threads
 def loadSourceInBackground(event):
     """Start a calculation of source filesize in a new thread."""
-    sourceItemLoadThread = threading.Thread(target=shareSelectCalc, name='Load Source Selection', daemon=True)
-    sourceItemLoadThread.start()
+    threadManager.start(threadManager.MULTIPLE, target=shareSelectCalc, name='Load Source Selection', daemon=True)
 
 def loadDest():
     """Load the destination drive info, and display it in the tree."""
     global destDriveMap
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -758,15 +741,14 @@ def loadDest():
 
     driveTotalSpace.configure(text='Available: ' + human_filesize(totalUsage))
 
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
 def startRefreshDest():
     """Start the loading of the destination drive info in a new thread."""
-    if not threadNameIsActive('Refresh destination'):
-        refreshDestThread = threading.Thread(target=loadDest, name='Refresh destination', daemon=True)
-        refreshDestThread.start()
+    if not threadManager.is_alive('Refresh destination'):
+        threadManager.start(threadManager.SINGLE, target=loadDest, name='Refresh destination', daemon=True)
 
 def selectFromConfig():
     """From the current config, select the appropriate shares and drives in the GUI."""
@@ -847,7 +829,7 @@ def handleDriveSelectionClick():
     global prevDriveSelection
     global analysisValid
 
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -890,14 +872,14 @@ def handleDriveSelectionClick():
     driveSelectedSpace.configure(text='Selected: ' + human_filesize(selectedTotal))
     config['drives'] = selectedDriveList
 
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
 def selectDriveInBackground(event):
     """Start the drive selection handling in a new thread."""
-    driveSelectThread = threading.Thread(target=handleDriveSelectionClick, name='Drive Select', daemon=True)
-    driveSelectThread.start()
+    # FIXME: Does drive selection need to be run one at a time, or can this overlap?
+    threadManager.start(threadManager.MULTIPLE, target=handleDriveSelectionClick, name='Drive Select', daemon=True)
 
 # TODO: Make changes to existing config check the existing for missing drives, and delete the config file from drives we unselected if there's multiple drives in a config
 # TODO: If a drive config is overwritten with a new config file, due to the drive
@@ -936,7 +918,7 @@ def runBackup():
     if not analysisValid:
         return
 
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -950,13 +932,13 @@ def runBackup():
         cmdInfoBlocks[i]['state'].configure(text='Pending', fg=color.PENDING)
         cmdInfoBlocks[i]['lastOutResult'].configure(text='Pending', fg=color.PENDING)
 
-    startBackupBtn.configure(text='Halt Backup', command=killBackup, style='danger.TButton')
+    startBackupBtn.configure(text='Halt Backup', command=lambda: threadManager.kill('Backup'), style='danger.TButton')
 
     for i, cmd in enumerate(commandList):
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         # process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-        while not backupHalted and process.poll() is None:
+        while not threadManager.threadList['Backup']['killFlag'] and process.poll() is None:
             try:
                 out = process.stdout.readline().decode().strip()
                 cmdInfoBlocks[i]['state'].configure(text='Running', fg=color.RUNNING)
@@ -965,7 +947,7 @@ def runBackup():
                 print(e)
         process.terminate()
 
-        if not backupHalted:
+        if not threadManager.threadList['Backup']['killFlag']:
             cmdInfoBlocks[i]['state'].configure(text='Done', fg=color.FINISHED)
             cmdInfoBlocks[i]['lastOutResult'].configure(text='Done', fg=color.FINISHED)
         else:
@@ -973,7 +955,7 @@ def runBackup():
             cmdInfoBlocks[i]['lastOutResult'].configure(text='Aborted', fg=color.STOPPED)
             break
 
-    if len(threading.enumerate()) <= 2:
+    if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
@@ -981,21 +963,164 @@ def runBackup():
 
 def startBackup():
     """Start the backup in a new thread."""
-    global backupThread
     if sanityCheck():
-        backupThread = threading.Thread(target=runBackup, name='Backup', daemon=True)
-        backupThread.start()
+        def killBackupThread():
+            try:
+                subprocess.run('taskkill /im robocopy.exe /f', shell=True, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            except Exception as e:
+                print(e)
 
-def killBackup():
-    """Stop robocopy, and abort the backup that's running."""
-    if backupThread and backupThread.is_alive():
-        global backupHalted
-        backupHalted = True
+        threadManager.start(threadManager.KILLABLE, killBackupThread, target=runBackup, name='Backup', daemon=True)
 
-        try:
-            subprocess.run('taskkill /im robocopy.exe /f', shell=True, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-        except Exception as e:
-            print(e)
+class ThreadManager:
+    # Define thread types for starting threads
+    SINGLE = 0      # One thread at once, block if already running
+    MULTIPLE = 1    # Multiple threads, name with counter, and run
+    KILLABLE = 2    # Thread can be killed with a flag
+    REPLACEABLE = 3 # Like SINGLE, but instead of blocking, kill and restart
+
+    threadList = {}
+    counter = 0
+
+    def is_alive(self, threadName):
+        """Check if a thread by a given name is active.
+
+        Args:
+            threadName (String): The name of the thread to check.
+
+        Returns:
+            threading.Thread: If thread found by name is active.
+            bool: False if thread not found, or thread is not active.
+        """
+        for thread in threading.enumerate():
+            if thread.name == threadName and thread.is_alive():
+                return thread
+        return False
+
+    def garbage_collect(self):
+        """Remoe threads from threadList that aren't active anymore."""
+        self.threadList = {name: thread for name, thread in self.threadList.items() if thread['thread'].is_alive()}
+
+    def start(self, threadType, *args, **kwargs):
+        """Create and start a thread if one doesn't already exist.
+
+        Args:
+            threadType (int): The constant corresponding to the thread type to create.
+            callback (def, optional): For KILLABLE and REPLACEABLE threads, the function to
+                run to kill the thread.
+
+        Returns:
+            String: If a thread is successfully created, the thread name is returned.
+            bool: False if an active thread exists with that name.
+        """
+        if kwargs['name']:
+            threadName = kwargs['name']
+        else:
+            threadName = 'thread%d' % (self.counter)
+            self.counter += 1
+
+        def dummy():
+            """A dummy function to pass as a default callback to KILLABLE threads."""
+            pass
+
+        # SINGLE: block if already running
+        # MULTIPLE: run again, and increment counter
+        # KILLABLE: Add flag to let it be killed
+        # REPLACEABLE: SINGLE thread, but instead of blocking, kill and restart
+
+        if threadType == self.SINGLE or threadType == self.KILLABLE or threadType == self.REPLACEABLE:
+            if kwargs['name']:
+                threadName = kwargs['name']
+            else:
+                self.counter += 1
+                threadName = 'thread%d' % (self.counter)
+        elif threadType == self.MULTIPLE:
+            self.counter += 1
+            threadName = '%s_%d' % (kwargs['name'] if kwargs['name'] else 'thread', self.counter)
+
+        # If the thread either isn't in the list, or isn't active, create and run the thread
+        if threadType == self.SINGLE:
+            # if threadName not in self.threadList.keys() or not self.threadList[threadName]['thread'].is_alive():
+            if not self.is_alive(threadName):
+                self.threadList[threadName] = {
+                    'type': threadType,
+                    'thread': threading.Thread(**kwargs)
+                }
+
+                self.threadList[threadName]['thread'].start()
+                return threadName
+
+            print('Thread "%s" already exists' % (threadName))
+        elif threadType == self.MULTIPLE:
+            if not self.is_alive(threadName):
+                self.threadList[threadName] = {
+                    'type': threadType,
+                    'thread': threading.Thread(**kwargs)
+                }
+
+                self.threadList[threadName]['thread'].start()
+                return threadName
+
+            print('Thread "%s" already exists' % (threadName))
+        elif threadType == self.KILLABLE:
+            if not self.is_alive(threadName):
+                self.threadList[threadName] = {
+                    'type': threadType,
+                    'thread': threading.Thread(**kwargs),
+                    'killFlag': False,
+                    'callback': args[0] if len(args) >= 1 else dummy
+                }
+
+                self.threadList[threadName]['thread'].start()
+                return threadName
+        elif threadType == self.REPLACEABLE:
+            # If thread is active already, kill it before starting a new thread
+            replaceableThread = self.is_alive(threadName)
+            if replaceableThread:
+                self.kill(replaceableThread)
+
+            self.threadList[threadName] = {
+                'type': threadType,
+                'thread': threading.Thread(**kwargs),
+                'killFlag': False,
+                'callback': args[0] if len(args) >= 1 else dummy
+            }
+
+            self.threadList[threadName]['thread'].start()
+            return threadName
+
+        return False
+
+    def kill(self, name):
+        """Kill a KILLABLE or REPLACEABLE thread by name.
+
+        Kills a thread by running the callback function defined during creation. This
+        only works on KILLABLE and REPLACEABLE threads.
+
+        Args:
+            name (String): The name of the thread, as set in threadList.
+        """
+        if name in self.threadList.keys() and self.threadList[name]['thread'].is_alive():
+            if (self.threadList[name]['type'] == self.KILLABLE or self.threadList[name]['type'] == self.REPLACEABLE) and self.threadList[name]['killFlag'] is not True:
+                # Thread exists, is active, is KILLABLE or REPLACEABLE, and has not been killed
+                self.threadList[name]['killFlag'] = True
+                self.threadList[name]['callback']()
+
+    def list(self):
+        """List all threads in threadList."""
+        print('   Threads   \n=============')
+        for thread in self.threadList.keys():
+            print('%s => %s' % (thread, '-- Alive --' if self.is_alive(thread) else 'Dead'))
+
+# TODO: Merge garbage collection into ThreadManager class
+def threadGarbageCollect():
+    """Periodically run garbage collection for ThreadManager."""
+    while 1:
+        time.sleep(20)
+        threadManager.garbage_collect()
+
+threadManagerGC = threading.Thread(target=threadGarbageCollect, name='ThreadManager_GC', daemon=True)
+threadManagerGC.start()
 
 class color:
     NORMAL = '#000'
@@ -1025,7 +1150,8 @@ config = {
 
 commandList = []
 
-backupThread = None
+threadManager = ThreadManager()
+
 analysisValid = False
 
 root = tk.Tk()
@@ -1200,13 +1326,13 @@ tk.Label(backupSummaryTextFrame, text='Please start a backup analysis to generat
 startBackupBtn = ttk.Button(backupSummaryFrame, text='Run Backup', command=startBackup, state='disable', style='win.TButton')
 startBackupBtn.pack(pady=elemPadding / 2)
 
-loadThread = threading.Thread(target=loadDest, name='Init', daemon=True)
-loadThread.start()
+# FIXME: Does init loadDest need to be SINGLE, MULTIPLE, or OVERRIDE?
+threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=True)
 
 def onClose():
-    if backupThread and backupThread.is_alive():
+    if threadManager.is_alive('Backup'):
         if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?'):
-            killBackup()
+            threadManager.kill('Backup')
             root.destroy()
     else:
         root.destroy()
