@@ -493,9 +493,13 @@ def sanityCheck():
     shareTotal = 0
     driveTotal = 0
 
-    # URGENT: Selection needs to only be okay if all selected shares are calculated
     if selectionOk:
+        sharesKnown = True
         for item in sourceSelection:
+            if sourceTree.item(item, 'values')[0] != 'Unknown':
+                sharesKnown = False
+                break
+
             # Add total space of selection
             shareSize = sourceTree.item(item, 'values')[1]
             shareTotal = shareTotal + int(shareSize)
@@ -505,7 +509,7 @@ def sanityCheck():
             driveSize = destTree.item(item, 'values')[1]
             driveTotal = driveTotal + int(driveSize)
 
-        if shareTotal < driveTotal:
+        if sharesKnown and shareTotal < driveTotal:
             return True
 
     return False
