@@ -1004,6 +1004,16 @@ class ThreadManager:
         """Remove threads from threadList that aren't active anymore."""
         self.threadList = {name: thread for name, thread in self.threadList.items() if thread['thread'].is_alive()}
 
+    def __init__(self):
+        def threadGarbageCollect():
+            """Periodically run garbage collection."""
+            while 1:
+                time.sleep(20)
+                self.garbage_collect()
+
+        self.gcThread = threading.Thread(target=threadGarbageCollect, name='ThreadManager_GC', daemon=True)
+        self.gcThread.start()
+
     def start(self, threadType, *args, **kwargs):
         """Create and start a thread if one doesn't already exist.
 
@@ -1042,40 +1052,33 @@ class ThreadManager:
             threadName = '%s_%d' % (kwargs['name'] if kwargs['name'] else 'thread', self.counter)
 
         # If the thread either isn't in the list, or isn't active, create and run the thread
-        if threadType == self.SINGLE:
+        if threadType == self.SINGLE and not self.is_alive(threadName):
             # if threadName not in self.threadList.keys() or not self.threadList[threadName]['thread'].is_alive():
-            if not self.is_alive(threadName):
-                self.threadList[threadName] = {
-                    'type': threadType,
-                    'thread': threading.Thread(**kwargs)
-                }
+            self.threadList[threadName] = {
+                'type': threadType,
+                'thread': threading.Thread(**kwargs)
+            }
 
-                self.threadList[threadName]['thread'].start()
-                return threadName
+            self.threadList[threadName]['thread'].start()
+            return threadName
+        elif threadType == self.MULTIPLE and not self.is_alive(threadName):
+            self.threadList[threadName] = {
+                'type': threadType,
+                'thread': threading.Thread(**kwargs)
+            }
 
-            print('Thread "%s" already exists' % (threadName))
-        elif threadType == self.MULTIPLE:
-            if not self.is_alive(threadName):
-                self.threadList[threadName] = {
-                    'type': threadType,
-                    'thread': threading.Thread(**kwargs)
-                }
+            self.threadList[threadName]['thread'].start()
+            return threadName
+        elif threadType == self.KILLABLE and not self.is_alive(threadName):
+            self.threadList[threadName] = {
+                'type': threadType,
+                'thread': threading.Thread(**kwargs),
+                'killFlag': False,
+                'callback': args[0] if len(args) >= 1 else dummy
+            }
 
-                self.threadList[threadName]['thread'].start()
-                return threadName
-
-            print('Thread "%s" already exists' % (threadName))
-        elif threadType == self.KILLABLE:
-            if not self.is_alive(threadName):
-                self.threadList[threadName] = {
-                    'type': threadType,
-                    'thread': threading.Thread(**kwargs),
-                    'killFlag': False,
-                    'callback': args[0] if len(args) >= 1 else dummy
-                }
-
-                self.threadList[threadName]['thread'].start()
-                return threadName
+            self.threadList[threadName]['thread'].start()
+            return threadName
         elif threadType == self.REPLACEABLE:
             # If thread is active already, kill it before starting a new thread
             replaceableThread = self.is_alive(threadName)
@@ -1103,27 +1106,19 @@ class ThreadManager:
         Args:
             name (String): The name of the thread, as set in threadList.
         """
-        if name in self.threadList.keys() and self.threadList[name]['thread'].is_alive():
-            if (self.threadList[name]['type'] == self.KILLABLE or self.threadList[name]['type'] == self.REPLACEABLE) and self.threadList[name]['killFlag'] is not True:
-                # Thread exists, is active, is KILLABLE or REPLACEABLE, and has not been killed
-                self.threadList[name]['killFlag'] = True
-                self.threadList[name]['callback']()
+        if (name in self.threadList.keys()
+                and self.threadList[name]['thread'].is_alive()
+                and (self.threadList[name]['type'] == self.KILLABLE or self.threadList[name]['type'] == self.REPLACEABLE)
+                and self.threadList[name]['killFlag'] is not True):
+            # Thread exists, is active, is KILLABLE or REPLACEABLE, and has not been killed
+            self.threadList[name]['killFlag'] = True
+            self.threadList[name]['callback']()
 
     def list(self):
         """List all threads in threadList."""
         print('   Threads   \n=============')
         for thread in self.threadList.keys():
             print('%s => %s' % (thread, '-- Alive --' if self.is_alive(thread) else 'Dead'))
-
-# TODO: Merge garbage collection into ThreadManager class
-def threadGarbageCollect():
-    """Periodically run garbage collection for ThreadManager."""
-    while 1:
-        time.sleep(20)
-        threadManager.garbage_collect()
-
-threadManagerGC = threading.Thread(target=threadGarbageCollect, name='ThreadManager_GC', daemon=True)
-threadManagerGC.start()
 
 class color:
     NORMAL = '#000'
