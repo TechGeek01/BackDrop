@@ -745,7 +745,7 @@ def loadDest():
                     'serial': serial
                 }
 
-                driveHasConfigFile = os.path.exists('%s%s' % (drive, backupConfigFile)) and os.path.isfile('%s%s' % (drive, backupConfigFile))
+                driveHasConfigFile = os.path.exists('%s%s/%s' % (drive, backupConfigDir, backupConfigFile)) and os.path.isfile('%s%s/%s' % (drive, backupConfigDir, backupConfigFile))
 
                 totalUsage = totalUsage + driveSize
                 destTree.insert(parent='', index='end', text=drive, values=(human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
@@ -860,7 +860,7 @@ def handleDriveSelectionClick():
     if prevSelection <= len(selected) and len(selected) == 1:
         prevSelection = len(selected)
         selectedDriveLetter = destTree.item(selected[0], 'text')[0]
-        configFilePath = '%s:/%s' % (selectedDriveLetter, backupConfigFile)
+        configFilePath = '%s:/%s/%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
         if os.path.exists(configFilePath) and os.path.isfile(configFilePath):
             # Found config file, so read it
             readConfigFile(configFilePath)
@@ -905,7 +905,14 @@ def writeConfigFile():
 
         # For each drive letter, get drive info, and write file
         for drive in config['drives']:
-            f = open('%s:/%s' % (destDriveMap[drive['vid']], backupConfigFile), 'w')
+            if not os.path.exists('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir)):
+                # If dir doesn't exist, make it
+                os.mkdir('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir))
+            elif os.path.exists('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)) and os.path.isdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)):
+                # If dir exists but backup config filename is dir, delete the dir
+                os.rmdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile))
+
+            f = open('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile), 'w')
             # f.write('[id]\n%s,%s\n\n' % (driveInfo['vid'], driveInfo['serial']))
             f.write('[shares]\n%s\n\n' % (','.join(config['shares'])))
 
@@ -1144,6 +1151,7 @@ class color:
 
 # Set app defaults
 sourceDrive = None
+backupConfigDir = '.backdrop'
 backupConfigFile = 'backup.config'
 appConfigFile = 'defaults.config'
 appDataFolder = os.getenv('LocalAppData') + '\\BackDrop'
