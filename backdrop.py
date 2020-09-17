@@ -205,6 +205,7 @@ def enumerateCommandInfo():
 # TODO: This analysis assumes the drives are going to be empty, aside from the config file
 # Other stuff that's not part of the backup will need to be deleted when we actually run it
 # TODO: Add a threshold for free space to subtract from drive capacity or free space to account for the config file
+# URGENT: Make sure that if a drive is missing from the config, even if there's enough space to fit everything, that we prevent backup analysis unless split mode is enabled.
 def analyzeBackup(shares, drives):
     """Analyze the list of selected shares and drives and figure out how to split files.
 
@@ -253,23 +254,28 @@ def analyzeBackup(shares, drives):
     tk.Label(backupSummaryTextFrame, text='Drives', font=summaryHeaderFont,
              wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
+    driveVidToLetterMap = {destTree.item(item, 'values')[3]: destTree.item(item, 'text') for item in destTree.get_children()}
+
     driveInfo = []
     driveShareList = {}
     for item in drives:
-        driveName = destTree.item(item, 'text')
-        driveSize = int(destTree.item(item, 'values')[1])
+        curDriveInfo = {
+            'vid': item['vid'],
+            'size': item['capacity'],
+            'free': item['capacity']
+        }
 
-        driveInfo.append({
-            'item': item,
-            'name': driveName,
-            'size': driveSize,
-            'free': driveSize
-        })
+        if item['vid'] in driveVidToLetterMap.keys():
+            curDriveInfo['name'] = driveVidToLetterMap[item['vid']]
+
+        driveInfo.append(curDriveInfo)
 
         # Enumerate list for tracking what shares go where
-        driveShareList[driveName] = []
+        driveShareList[item['vid']] = []
 
-        tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (driveName, human_filesize(driveSize)),
+        humanDriveName = curDriveInfo['name'] if 'name' in curDriveInfo.keys() else item['vid']
+
+        tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (humanDriveName, human_filesize(item['capacity'])),
                  wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
     # For each drive, smallest first, filter list of shares to those that fit
@@ -310,24 +316,24 @@ def analyzeBackup(shares, drives):
                 totalSmallShareSpace = sum(size for size in smallShares.values())
                 if nextDriveFreeSpace < drive['size'] and totalSmallShareSpace <= nextDrive['size']:
                     # Next drive free space less than total on current, so it's optimal to store on next drive instead
-                    driveShareList[nextDrive['name']].extend([share for share in smallShares.keys()]) # All small shares on next drive
+                    driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys()]) # All small shares on next drive
                 else:
                     # Better to leave on current, but overflow to next drive
-                    driveShareList[drive['name']].extend(sharesThatFit) # Shares that fit on current drive
-                    driveShareList[nextDrive['name']].extend([share for share in smallShares.keys() if share not in sharesThatFit]) # Remaining small shares on next drive
+                    driveShareList[drive['vid']].extend(sharesThatFit) # Shares that fit on current drive
+                    driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys() if share not in sharesThatFit]) # Remaining small shares on next drive
             else:
                 # If overflow for next drive is more than can fit on that drive, ignore it, put overflow
                 # back in pool of shares to sort, and put small drive shares only in current drive
-                driveShareList[drive['name']].extend(sharesThatFit) # Shares that fit on current drive
+                driveShareList[drive['vid']].extend(sharesThatFit) # Shares that fit on current drive
 
                 # Put remaining small shares back into pool to work with for next drive
                 shareInfo.update({share: size for share, size in remainingSmallShares.items()})
         else:
             # Fit all small shares onto drive
-            driveShareList[drive['name']].extend(sharesThatFit)
+            driveShareList[drive['vid']].extend(sharesThatFit)
 
         # Calculate space used by shares, and subtract it from capacity to get free space
-        usedSpace = sum(allShareInfo[share] for share in driveShareList[drive['name']])
+        usedSpace = sum(allShareInfo[share] for share in driveShareList[drive['vid']])
         drive.update({'free': drive['size'] - usedSpace})
 
     def splitShare(share):
@@ -337,7 +343,7 @@ def analyzeBackup(shares, drives):
             share (String): The share to split.
         """
         # Enumerate list for tracking what shares go where
-        driveFileList = {drive['name']: [] for drive in driveInfo}
+        driveFileList = {drive['vid']: [] for drive in driveInfo}
 
         fileInfo = {}
         for entry in os.scandir(sourceDrive + share):
@@ -406,7 +412,7 @@ def analyzeBackup(shares, drives):
             # NOTE: Since we're sorting by largest free space first, there's no cases to
             # move to a larger drive. This means all files that can fit should be put on the
             # drive they fit on
-            driveFileList[drive['name']].extend(filesThatFit)
+            driveFileList[drive['vid']].extend(filesThatFit)
             driveInfo[i]['free'] -= processedFileSize
 
         shareSplitSummary = [{
@@ -426,7 +432,8 @@ def analyzeBackup(shares, drives):
     commandList = []
     for drive, shares in driveShareList.items():
         if len(shares) > 0:
-            commandList.extend(['robocopy "%s" "%s" /mir' % (sourceDrive + share, drive + share) for share in shares])
+            humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
+            commandList.extend(['robocopy "%s" "%s" /mir' % (sourceDrive + share, humanDrive + share) for share in shares])
 
     # For each share that needs splitting, split each one
     # For each resulting folder in the summary, get list of files
@@ -434,43 +441,47 @@ def analyzeBackup(shares, drives):
 
     # For shares larger than all drives, recurse into each share
     for share in shareInfo.keys():
-        summary = splitShare(share)
+        if os.path.exists(sourceDrive + share) and os.path.isdir(sourceDrive + share):
+            summary = splitShare(share)
 
-        # Each summary contains a split share, and any split subfolders, starting with
-        # the share and recursing into the directories
-        for directory in summary:
-            shareName = directory['share']
-            shareFiles = directory['files']
-            shareExclusions = directory['exclusions']
+            # Each summary contains a split share, and any split subfolders, starting with
+            # the share and recursing into the directories
+            for directory in summary:
+                shareName = directory['share']
+                shareFiles = directory['files']
+                shareExclusions = directory['exclusions']
 
-            allFiles = shareFiles.copy()
-            allFiles['exclusions'] = shareExclusions
+                allFiles = shareFiles.copy()
+                allFiles['exclusions'] = shareExclusions
 
-            sourcePathStub = sourceDrive + shareName + '\\'
+                sourcePathStub = sourceDrive + shareName + '\\'
 
-            # For each drive, gather list of files to be written to other drives, and
-            # use that as exclusions
-            for drive, files in shareFiles.items():
-                if len(files) > 0:
-                    rawExclusions = allFiles.copy()
-                    rawExclusions.pop(drive, None)
+                # For each drive, gather list of files to be written to other drives, and
+                # use that as exclusions
+                for drive, files in shareFiles.items():
+                    if len(files) > 0:
+                        rawExclusions = allFiles.copy()
+                        rawExclusions.pop(drive, None)
 
-                    masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
+                        humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
 
-                    fileExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isfile(sourcePathStub + file)]
-                    dirExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isdir(sourcePathStub + file)]
-                    xs = (' /xf "' + '" "'.join(fileExclusions) + '"') if len(fileExclusions) > 0 else ''
-                    xd = (' /xd "' + '" "'.join(dirExclusions) + '"') if len(dirExclusions) > 0 else ''
+                        masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
 
-                    commandList.append('robocopy "%s" "%s" /mir%s%s' % (sourceDrive + shareName, drive + shareName, xd, xs))
-                driveShareList[drive].append(shareName)
+                        fileExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isfile(sourcePathStub + file)]
+                        dirExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isdir(sourcePathStub + file)]
+                        xs = (' /xf "' + '" "'.join(fileExclusions) + '"') if len(fileExclusions) > 0 else ''
+                        xd = (' /xd "' + '" "'.join(dirExclusions) + '"') if len(dirExclusions) > 0 else ''
+
+                        commandList.append('robocopy "%s" "%s" /mir%s%s' % (sourceDrive + shareName, humanDrive + shareName, xd, xs))
+                    driveShareList[drive].append(shareName)
 
     enumerateCommandInfo()
 
     tk.Label(backupSummaryTextFrame, text='Summary', font=summaryHeaderFont,
              wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
     for drive, shares in driveShareList.items():
-        tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (drive, ', '.join(shares)),
+        humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
+        tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (humanDrive, ', '.join(shares)),
                  wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
     analysisValid = True
@@ -523,7 +534,7 @@ def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
     # FIXME: If backup analysis thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the thread itself check for the kill flag and break if it's set.
-    threadManager.start(threadManager.SINGLE, target=analyzeBackup, args=[sourceTree.selection(), destTree.selection()], name='Backup Analysis', daemon=True)
+    threadManager.start(threadManager.SINGLE, target=analyzeBackup, args=[sourceTree.selection(), config['drives']], name='Backup Analysis', daemon=True)
 
 def writeSettingToFile(setting, file):
     """Write a setting to a given file.
@@ -892,16 +903,15 @@ def handleDriveSelectionClick():
 
 def selectDriveInBackground(event):
     """Start the drive selection handling in a new thread."""
-    # QUESTION: Does drive selection need to be run one at a time, or can this overlap?
     threadManager.start(threadManager.MULTIPLE, target=handleDriveSelectionClick, name='Drive Select', daemon=True)
 
 # TODO: Make changes to existing config check the existing for missing drives, and delete the config file from drives we unselected if there's multiple drives in a config
 # TODO: If a drive config is overwritten with a new config file, due to the drive
-# TODO: When drive selection happens, drives in the config should only be selected if the config on the other drive matces. If it doesn't don't select it by default, and warn about a conflict.
 # being configured for a different backup, then we don't want to delete that file
 # In that case, the config file should be ignored. Thus, we need to delete configs
 # on unselected drives only if the config file on the drive we want to delete matches
 # the config on selected drives
+# TODO: When drive selection happens, drives in the config should only be selected if the config on the other drive matches. If it doesn't don't select it by default, and warn about a conflict.
 def writeConfigFile():
     """Write the current running backup config to config files on the drives."""
     if len(config['shares']) > 0 and len(config['drives']) > 0:
@@ -1256,6 +1266,13 @@ sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, sourceD
 sourceSelectMenu.pack(side='left', padx=(12, 0))
 
 sourceTree.bind("<<TreeviewSelect>>", loadSourceInBackground)
+
+destModeFrame = tk.Frame(mainFrame)
+destModeFrame.grid(row=0, column=1, pady=(0, elemPadding / 2))
+
+destModeSplitVar = tk.IntVar()
+
+tk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitVar).pack()
 
 destTree = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'))
 destTree.heading('#0', text='Drive')
