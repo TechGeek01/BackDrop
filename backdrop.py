@@ -22,7 +22,6 @@ appVersion = '1.1.0-alpha.1'
 #     When we copy, check directory size of source and dest, and if the dest is larger than source, copy those first to free up space for ones that increased
 # TODO: Add a button for deleting the config from selected drives
 # IDEA: Add interactive CLI option if correct parameters are passed in
-# QUESTION: Are destDriveLetterToInfo and driveVidToLetterMap the same variable? Or do they contain similar enough info to combine them?
 
 def center(win):
     """Center a tkinter window on screen.
@@ -201,7 +200,6 @@ def enumerateCommandInfo(displayCommandList):
 
 # TODO: This analysis assumes the drives are going to be empty, aside from the config file
 # Other stuff that's not part of the backup will need to be deleted when we actually run it
-# TODO: Add a threshold for free space to subtract from drive capacity or free space to account for the config file
 def analyzeBackup(shares, drives):
     """Analyze the list of selected shares and drives and figure out how to split files.
 
@@ -266,11 +264,13 @@ def analyzeBackup(shares, drives):
         curDriveInfo = {
             'vid': item['vid'],
             'size': item['capacity'],
-            'free': item['capacity']
+            'free': item['capacity'],
+            'configSize': 0
         }
 
         if item['vid'] in driveVidToLetterMap.keys():
             curDriveInfo['name'] = driveVidToLetterMap[item['vid']]
+            curDriveInfo['configSize'] = get_directory_size(driveVidToLetterMap[item['vid']] + '.backdrop')
 
         driveInfo.append(curDriveInfo)
 
@@ -284,11 +284,11 @@ def analyzeBackup(shares, drives):
                  wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
     # For each drive, smallest first, filter list of shares to those that fit
-    driveInfo.sort(key=lambda x: x['size'])
+    driveInfo.sort(key=lambda x: x['size'] - x['configSize'])
 
     for i, drive in enumerate(driveInfo):
         # Get list of shares small enough to fit on drive
-        smallShares = {share: size for share, size in shareInfo.items() if size <= drive['size']}
+        smallShares = {share: size for share, size in shareInfo.items() if size <= drive['size'] - drive['configSize']}
 
         # Try every combination of shares that fit to find result that uses most of that drive
         largestSum = 0
@@ -297,7 +297,7 @@ def analyzeBackup(shares, drives):
             for subset in itertools.combinations(smallShares.keys(), n):
                 combinationTotal = sum(smallShares[share] for share in subset)
 
-                if (combinationTotal > largestSum and combinationTotal <= drive['size']):
+                if (combinationTotal > largestSum and combinationTotal <= drive['size'] - drive['configSize']):
                     largestSum = combinationTotal
                     largestSet = subset
 
@@ -310,16 +310,16 @@ def analyzeBackup(shares, drives):
         if len(remainingSmallShares) > 0 and i < (len(driveInfo) - 1):
             notFitTotal = sum(size for size in remainingSmallShares.values())
             nextDrive = driveInfo[i + 1]
-            nextDriveFreeSpace = nextDrive['size'] - notFitTotal
+            nextDriveFreeSpace = nextDrive['size'] - nextDrive['configSize'] - notFitTotal
 
             # If free space on next drive is less than total capacity of current drive, it becomes
             # more efficient to skip current drive, and put all shares on the next drive instead
             # NOTE: This applies only if they can all fit on the next drive. If they have to be split
             # across multiple drives after moving them to a larger drive, then it's easier to fit
             # what we can on the small drive, to leave the larger drives available for larger shares
-            if notFitTotal <= nextDrive['size']:
+            if notFitTotal <= nextDrive['size'] - nextDrive['configSize']:
                 totalSmallShareSpace = sum(size for size in smallShares.values())
-                if nextDriveFreeSpace < drive['size'] and totalSmallShareSpace <= nextDrive['size']:
+                if nextDriveFreeSpace < drive['size'] - drive['configSize'] and totalSmallShareSpace <= nextDrive['size'] - nextDrive['configSize']:
                     # Next drive free space less than total on current, so it's optimal to store on next drive instead
                     driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys()]) # All small shares on next drive
                 else:
@@ -339,7 +339,7 @@ def analyzeBackup(shares, drives):
 
         # Calculate space used by shares, and subtract it from capacity to get free space
         usedSpace = sum(allShareInfo[share] for share in driveShareList[drive['vid']])
-        drive.update({'free': drive['size'] - usedSpace})
+        drive.update({'free': drive['size'] - drive['configSize'] - usedSpace})
 
     def splitShare(share):
         """Recurse into a share or directory, and split the contents.
@@ -361,11 +361,11 @@ def analyzeBackup(shares, drives):
             fileInfo[fileName] = newDirSize
 
         # For splitting shares, sort by largest free space first
-        driveInfo.sort(reverse=True, key=lambda x: x['free'])
+        driveInfo.sort(reverse=True, key=lambda x: x['free'] - x['configSize'])
 
         for i, drive in enumerate(driveInfo):
             # Get list of files small enough to fit on drive
-            totalSmallFiles = {file: size for file, size in fileInfo.items() if size <= drive['free']}
+            totalSmallFiles = {file: size for file, size in fileInfo.items() if size <= drive['free'] - drive['configSize']}
 
             # Since the list of files is truncated to prevent an unreasonably large
             # number of combinations to check, we need to keep processing the file list
@@ -402,7 +402,7 @@ def analyzeBackup(shares, drives):
                     for subset in itertools.combinations(trimmedSmallFiles.keys(), n):
                         combinationTotal = sum(trimmedSmallFiles[file] for file in subset)
 
-                        if (combinationTotal > largestSum and combinationTotal <= drive['free'] - processedFileSize):
+                        if (combinationTotal > largestSum and combinationTotal <= drive['free'] - drive['configSize'] - processedFileSize):
                             largestSum = combinationTotal
                             largestSet = subset
 
