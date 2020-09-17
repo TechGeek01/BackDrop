@@ -16,10 +16,6 @@ import time
 # Set meta info
 appVersion = '1.1.0-alpha.1'
 
-# TODO: When loading a config, warn if drive in config isn't connected
-#    If replacement drive is selected that gives sufficient size, prompt for replace confirmation
-#    Warn about missing drive once, and allow user to select other drives or redo config after
-#        Let this warning be reset if program is re-launched, or a reset button is hit to reset the config
 # TODO: Shares are copied to root of drives, so other directories with data are most likely left intact
 #     We may need to account for this, by checking for free space, and then adding the size of the existing share directories
 #     This would prevent counting for existing data, though it's probably safe to wipe the drive of things that aren't getting copied anyway
@@ -219,6 +215,8 @@ def analyzeBackup(shares, drives):
     global backupSummaryTextFrame
     global commandList
     global analysisValid
+    global analysisStarted
+    global destModeSplitEnabled
 
     # Sanity check for space requirements
     if not sanityCheck():
@@ -230,6 +228,11 @@ def analyzeBackup(shares, drives):
 
     startBackupBtn.configure(state='disable')
     startAnalysisBtn.configure(state='disable')
+
+    # Apply split mode status from checkbox before starting analysis
+    analysisStarted = True
+    destModeSplitEnabled = destModeSplitCheckVar.get()
+    splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=color.ENABLED if destModeSplitEnabled else color.DISABLED)
 
     # Set UI variables
     summaryHeaderFont = (None, 14)
@@ -551,8 +554,7 @@ def sanityCheck():
 
         configTotal = sum(int(drive['capacity']) for drive in config['drives'])
 
-        # FIXME: Make the split mode toggle run a command that sets split mode for a backup and analysis. Let the toggle work, but only change the set value based on toggle if we rerun an analysis.
-        if sharesKnown and ((len(destSelection) == len(config['drives']) and shareTotal < driveTotal) or (shareTotal < configTotal and destModeSplitVar.get())):
+        if sharesKnown and ((len(destSelection) == len(config['drives']) and shareTotal < driveTotal) or (shareTotal < configTotal and destModeSplitEnabled)):
             # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
             return True
 
@@ -1200,6 +1202,9 @@ class color:
     RED = '#c00'
     GRAY = '#999'
 
+    ENABLED = GREEN
+    DISABLED = RED
+
     FINISHED = GREEN
     RUNNING = BLUE
     STOPPED = RED
@@ -1223,6 +1228,7 @@ commandList = []
 threadManager = ThreadManager()
 
 analysisValid = False
+analysisStarted = False
 
 root = tk.Tk()
 root.attributes('-alpha', 0.0)
@@ -1312,9 +1318,18 @@ sourceTree.bind("<<TreeviewSelect>>", loadSourceInBackground)
 destModeFrame = tk.Frame(mainFrame)
 destModeFrame.grid(row=0, column=1, pady=(0, elemPadding / 2))
 
-destModeSplitVar = tk.IntVar()
+def handleSplitModeCheck():
+    """Handle toggling of split mode based on checkbox value."""
+    global destModeSplitEnabled
+    if not analysisStarted:
+        destModeSplitEnabled = destModeSplitCheckVar.get()
+        splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=color.ENABLED if destModeSplitEnabled else color.DISABLED)
 
-tk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitVar).pack()
+destModeSplitCheckVar = tk.BooleanVar()
+destModeSplitEnabled = False
+
+splitModeCheck = tk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
+splitModeCheck.pack()
 
 destTree = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'))
 destTree.heading('#0', text='Drive')
@@ -1364,6 +1379,8 @@ driveSelectedSpace = tk.Label(driveSpaceFrame, text='Selected: ' + human_filesiz
 driveSelectedSpace.grid(row=0, column=1, padx=(12, 0))
 driveTotalSpace = tk.Label(driveSpaceFrame, text='Available: ' + human_filesize(0))
 driveTotalSpace.grid(row=0, column=2, padx=(12, 0))
+splitModeStatus = tk.Label(driveSpaceFrame, text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=color.ENABLED if destModeSplitEnabled else color.DISABLED)
+splitModeStatus.grid(row=0, column=3, padx=(12, 0))
 
 refreshDestBtn = ttk.Button(destMetaFrame, text='\u2b6e', command=startRefreshDest, style='icon.TButton')
 refreshDestBtn.grid(row=0, column=1)
