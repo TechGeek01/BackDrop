@@ -27,6 +27,7 @@ appVersion = '1.0.2-alpha.1'
 # TODO: Add a button for deleting the config from selected drives
 # IDEA: Add interactive CLI option if correct parameters are passed in
 # IDEA: Make missing drive prompt allow you to process all drives like a normal config, and store commands to copy to the other drive later
+# QUESTION: Are destDriveLetterToInfo and driveVidToLetterMap the same variable? Or do they contain similar enough info to combine them?
 
 def center(win):
     """Center a tkinter window on screen.
@@ -87,7 +88,7 @@ def get_directory_size(directory):
         return 0
     return total
 
-def enumerateCommandInfo():
+def enumerateCommandInfo(displayCommandList):
     """Enumerate the display widget with command info after a backup analysis."""
     global cmdInfoBlocks
     rightArrow = '\U0001f86a'
@@ -128,7 +129,8 @@ def enumerateCommandInfo():
         widget.destroy()
 
     cmdInfoBlocks = []
-    for i, cmd in enumerate(commandList):
+    for i, item in enumerate(displayCommandList):
+        cmd = item['cmd']
         cmdParts = cmd.split('/mir')
         # cmdSnip = ' '.join(cmdParts[0:3])
         cmdSnip = cmdParts[0].strip()
@@ -143,9 +145,9 @@ def enumerateCommandInfo():
         config['headLine'].pack(fill='x')
         config['arrow'] = tk.Label(config['headLine'], text=rightArrow)
         config['arrow'].pack(side='left')
-        config['header'] = tk.Label(config['headLine'], text=cmdSnip, font=cmdHeaderFont)
+        config['header'] = tk.Label(config['headLine'], text=cmdSnip, font=cmdHeaderFont, fg=color.NORMAL if item['enabled'] else color.FADED)
         config['header'].pack(side='left')
-        config['state'] = tk.Label(config['headLine'], text='Pending', font=cmdStatusFont, fg=color.PENDING)
+        config['state'] = tk.Label(config['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
         config['state'].pack(side='left')
         config['arrow'].update_idletasks()
         arrowWidth = config['arrow'].winfo_width()
@@ -170,7 +172,7 @@ def enumerateCommandInfo():
         tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
         config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Out:', font=cmdHeaderFont)
         config['lastOutHeader'].pack(side='left')
-        config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending', font=cmdStatusFont, fg=color.PENDING)
+        config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
         config['lastOutResult'].pack(side='left')
 
         # Handle command trimming
@@ -277,6 +279,7 @@ def analyzeBackup(shares, drives):
         humanDriveName = curDriveInfo['name'] if 'name' in curDriveInfo.keys() else item['vid']
 
         tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (humanDriveName, human_filesize(item['capacity'])),
+                 fg=color.NORMAL if 'name' in curDriveInfo.keys() else color.FADED,
                  wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
     # For each drive, smallest first, filter list of shares to those that fit
@@ -431,10 +434,21 @@ def analyzeBackup(shares, drives):
     # driveShareList contains info about whole shares mapped to drives
     # Use this to build the list of non-exclusion robocopy commands
     commandList = []
+    displayCommandList = []
     for drive, shares in driveShareList.items():
         if len(shares) > 0:
             humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
-            commandList.extend(['robocopy "%s" "%s" /mir' % (sourceDrive + share, humanDrive + share) for share in shares])
+
+            displayCommandList.extend([{
+                'enabled': drive in driveVidToLetterMap.keys(),
+                'cmd': 'robocopy "%s" "%s" /mir' % (sourceDrive + share, humanDrive + share)
+            } for share in shares])
+
+            if drive in driveVidToLetterMap.keys():
+                commandList.extend([{
+                    'displayIndex': len(displayCommandList) - 1,
+                    'cmd': 'robocopy "%s" "%s" /mir' % (sourceDrive + share, humanDrive + share)
+                }] for share in shares)
 
     # For each share that needs splitting, split each one
     # For each resulting folder in the summary, get list of files
@@ -473,16 +487,26 @@ def analyzeBackup(shares, drives):
                         xs = (' /xf "' + '" "'.join(fileExclusions) + '"') if len(fileExclusions) > 0 else ''
                         xd = (' /xd "' + '" "'.join(dirExclusions) + '"') if len(dirExclusions) > 0 else ''
 
-                        commandList.append('robocopy "%s" "%s" /mir%s%s' % (sourceDrive + shareName, humanDrive + shareName, xd, xs))
+                        displayCommandList.append({
+                            'enabled': drive in driveVidToLetterMap.keys(),
+                            'cmd': 'robocopy "%s" "%s" /mir%s%s' % (sourceDrive + shareName, humanDrive + shareName, xd, xs)
+                        })
+
+                        if drive in driveVidToLetterMap.keys():
+                            commandList.append({
+                                'displayIndex': len(displayCommandList) - 1,
+                                'cmd': 'robocopy "%s" "%s" /mir%s%s' % (sourceDrive + shareName, humanDrive + shareName, xd, xs)
+                            })
                     driveShareList[drive].append(shareName)
 
-    enumerateCommandInfo()
+    enumerateCommandInfo(displayCommandList)
 
     tk.Label(backupSummaryTextFrame, text='Summary', font=summaryHeaderFont,
              wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
     for drive, shares in driveShareList.items():
         humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
         tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (humanDrive, ', '.join(shares)),
+                 fg=color.NORMAL if drive in driveVidToLetterMap.keys() else color.FADED,
                  wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 
     analysisValid = True
@@ -527,7 +551,11 @@ def sanityCheck():
             driveSize = destTree.item(item, 'values')[1]
             driveTotal = driveTotal + int(driveSize)
 
-        if sharesKnown and shareTotal < driveTotal:
+        configTotal = sum(int(drive['capacity']) for drive in config['drives'])
+
+        # FIXME: Make the split mode toggle run a command that sets split mode for a backup and analysis. Let the toggle work, but only change the set value based on toggle if we rerun an analysis.
+        if sharesKnown and ((len(destSelection) == len(config['drives']) and shareTotal < driveTotal) or (shareTotal < configTotal and destModeSplitVar.get())):
+            # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
             return True
 
     return False
@@ -816,6 +844,7 @@ def readConfigFile(file):
         newConfig = {}
 
         # Each chunk after splitting on \n\n is a header followed by config stuff
+        configTotal = 0
         for chunk in rawConfig:
             splitChunk = chunk.split('\n')
             header = re.search(r'\[(.*)\]', splitChunk.pop(0)).group(1)
@@ -834,10 +863,13 @@ def readConfigFile(file):
                     newConfig['drives'].append({
                         'vid': drive[0],
                         'serial': drive[1],
-                        'capacity': drive[2]
+                        'capacity': int(drive[2])
                     })
 
+                    configTotal += int(drive[2])
+
         config = newConfig
+        configSelectedSpace.configure(text='Config: ' + human_filesize(configTotal))
         selectFromConfig()
 
 # Parse drive selection, and calculate values needed
@@ -850,6 +882,7 @@ def handleDriveSelectionClick():
     this function reads the config file on it if one exists, and will select any
     other drives and shares in the config.
     """
+    # IDEA: Make something like Alt + click ignore a config file on the first drive selection.
     global prevSelection
     global prevDriveSelection
     global analysisValid
@@ -897,7 +930,7 @@ def handleDriveSelectionClick():
         selectedTotal = selectedTotal + int(driveSize)
 
     driveSelectedSpace.configure(text='Selected: ' + human_filesize(selectedTotal))
-    config['drives'] = selectedDriveList
+    # config['drives'] = selectedDriveList
 
     if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='determinate')
@@ -918,24 +951,26 @@ def writeConfigFile():
     """Write the current running backup config to config files on the drives."""
     if len(config['shares']) > 0 and len(config['drives']) > 0:
         driveConfigList = ''.join(['\n%s,%s,%d' % (drive['vid'], drive['serial'], drive['capacity']) for drive in config['drives']])
+        driveVidToLetterMap = {destTree.item(item, 'values')[3]: destTree.item(item, 'text') for item in destTree.get_children()}
 
         # For each drive letter, get drive info, and write file
         for drive in config['drives']:
-            if not os.path.exists('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir)):
-                # If dir doesn't exist, make it
-                os.mkdir('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir))
-            elif os.path.exists('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)) and os.path.isdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)):
-                # If dir exists but backup config filename is dir, delete the dir
-                os.rmdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile))
+            if drive['vid'] in driveVidToLetterMap.keys():
+                if not os.path.exists('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir)):
+                    # If dir doesn't exist, make it
+                    os.mkdir('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir))
+                elif os.path.exists('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)) and os.path.isdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)):
+                    # If dir exists but backup config filename is dir, delete the dir
+                    os.rmdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile))
 
-            f = open('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile), 'w')
-            # f.write('[id]\n%s,%s\n\n' % (driveInfo['vid'], driveInfo['serial']))
-            f.write('[shares]\n%s\n\n' % (','.join(config['shares'])))
+                f = open('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile), 'w')
+                # f.write('[id]\n%s,%s\n\n' % (driveInfo['vid'], driveInfo['serial']))
+                f.write('[shares]\n%s\n\n' % (','.join(config['shares'])))
 
-            f.write('[drives]')
-            f.write(driveConfigList)
+                f.write('[drives]')
+                f.write(driveConfigList)
 
-            f.close()
+                f.close()
     else:
         pass
         # print('You must select at least one share, and at least one drive')
@@ -962,31 +997,31 @@ def runBackup():
     # Write config file to drives
     writeConfigFile()
 
-    for i, cmd in enumerate(commandList):
-        cmdInfoBlocks[i]['state'].configure(text='Pending', fg=color.PENDING)
-        cmdInfoBlocks[i]['lastOutResult'].configure(text='Pending', fg=color.PENDING)
+    for cmd in commandList:
+        cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Pending', fg=color.PENDING)
+        cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=color.PENDING)
 
     startBackupBtn.configure(text='Halt Backup', command=lambda: threadManager.kill('Backup'), style='danger.TButton')
 
-    for i, cmd in enumerate(commandList):
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for cmd in commandList:
+        process = subprocess.Popen(cmd['cmd'], shell=True, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         # process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         while not threadManager.threadList['Backup']['killFlag'] and process.poll() is None:
             try:
                 out = process.stdout.readline().decode().strip()
-                cmdInfoBlocks[i]['state'].configure(text='Running', fg=color.RUNNING)
-                cmdInfoBlocks[i]['lastOutResult'].configure(text=out.strip(), fg=color.NORMAL)
+                cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=color.RUNNING)
+                cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text=out.strip(), fg=color.NORMAL)
             except Exception as e:
                 print(e)
         process.terminate()
 
         if not threadManager.threadList['Backup']['killFlag']:
-            cmdInfoBlocks[i]['state'].configure(text='Done', fg=color.FINISHED)
-            cmdInfoBlocks[i]['lastOutResult'].configure(text='Done', fg=color.FINISHED)
+            cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=color.FINISHED)
+            cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=color.FINISHED)
         else:
-            cmdInfoBlocks[i]['state'].configure(text='Aborted', fg=color.STOPPED)
-            cmdInfoBlocks[i]['lastOutResult'].configure(text='Aborted', fg=color.STOPPED)
+            cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=color.STOPPED)
+            cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=color.STOPPED)
             break
 
     if len(threading.enumerate()) <= 3:
@@ -1302,10 +1337,12 @@ tk.Grid.columnconfigure(destMetaFrame, 0, weight=1)
 
 driveSpaceFrame = tk.Frame(destMetaFrame)
 driveSpaceFrame.grid(row=0, column=0)
+configSelectedSpace = tk.Label(driveSpaceFrame, text='Config: ' + human_filesize(0))
+configSelectedSpace.grid(row=0, column=0)
 driveSelectedSpace = tk.Label(driveSpaceFrame, text='Selected: ' + human_filesize(0))
-driveSelectedSpace.grid(row=0, column=0)
+driveSelectedSpace.grid(row=0, column=1, padx=(12, 0))
 driveTotalSpace = tk.Label(driveSpaceFrame, text='Available: ' + human_filesize(0))
-driveTotalSpace.grid(row=0, column=1, padx=(12, 0))
+driveTotalSpace.grid(row=0, column=2, padx=(12, 0))
 
 refreshDestBtn = ttk.Button(destMetaFrame, text='\u2b6e', command=startRefreshDest, style='icon.TButton')
 refreshDestBtn.grid(row=0, column=1)
@@ -1333,7 +1370,10 @@ backupActivityInfoCanvas.configure(yscrollcommand=backupActivityScroll.set)
 
 # commandList = ['robocopy "R:\\atmg" "E:\\atmg" /mir', 'robocopy "R:\\documents" "E:\\documents" /mir', 'robocopy "R:\\backups" "F:\\backups" /mir /xd "Macrium Reflect"', 'robocopy "R:\\backups\\Macrium Reflect" "F:\\backups\\Macrium Reflect" /mir /xd "Main Desktop Boot Drive" "Office Desktop Boot Drive" /xf "Main Desktop Win10 Pre-Reinstall-00-00.mrimg" "AsusLaptop-Original-Win10-00-00.mrimg" "Office Desktop Pre10 - 12-24-2019-00-00.mrimg" "AndyLaptop-Win10-PreUbuntu-00-00.mrimg" "Asus Laptop Win10 Pre-Manjaro 2-26-2020-00-00.mrimg" "B0AA9BDCCD59E188-00-00.mrimg" "AndyLaptop-Ubuntu1810-00-00.mrimg" "WinME-HP-Pavillion-00-00.mrimg" "AndyLaptop-ManjaroArchitectKDE-00-00.mrimg" "Dad Full Clone 1-5-2014.7z" "AsusLaptop-Kali-8-10-2020-00-00.mrimg" "Win98-Gateway-00-00.mrimg" "AsusLaptop_Android-x86_9.0_8-11-2020-00-00.mrimg" "Win10 Reflect Rescue 7.2.4808.iso" "Win7 Reflect Rescue 7.2.4228.iso" "macrium_reflect_v7_user_guide.pdf" "Untitled.json"', 'robocopy "R:\\backups\\Macrium Reflect" "G:\\backups\\Macrium Reflect" /mir /xd "Asus Laptop Boot Drive" "Main Desktop User Files" "School Drive"']
 # commandList = ['robocopy "R:\\documents" "H:\\documents" /mir']
-# enumerateCommandInfo()
+# enumerateCommandInfo({
+#     'enabled': True,
+#     'cmd': cmd
+# } for cmd in commandList)
 
 tk.Grid.columnconfigure(mainFrame, 2, weight=1)
 
