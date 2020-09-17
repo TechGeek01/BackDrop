@@ -26,6 +26,7 @@ appVersion = '1.0.2-alpha.1'
 #     When we copy, check directory size of source and dest, and if the dest is larger than source, copy those first to free up space for ones that increased
 # TODO: Add a button for deleting the config from selected drives
 # IDEA: Add interactive CLI option if correct parameters are passed in
+# IDEA: Make missing drive prompt allow you to process all drives like a normal config, and store commands to copy to the other drive later
 
 def center(win):
     """Center a tkinter window on screen.
@@ -217,6 +218,10 @@ def analyzeBackup(shares, drives):
     global backupSummaryTextFrame
     global commandList
     global analysisValid
+
+    # Sanity check for space requirements
+    if not sanityCheck():
+        return
 
     if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='indeterminate')
@@ -490,10 +495,10 @@ def sanityCheck():
     destSelection = destTree.selection()
     selectionOk = len(sourceSelection) > 0 and len(destSelection) > 0
 
-    shareTotal = 0
-    driveTotal = 0
-
     if selectionOk:
+        shareTotal = 0
+        driveTotal = 0
+
         sharesKnown = True
         for item in sourceSelection:
             if sourceTree.item(item, 'values')[0] == 'Unknown':
@@ -518,8 +523,7 @@ def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
     # FIXME: If backup analysis thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the thread itself check for the kill flag and break if it's set.
-    if sanityCheck():
-        threadManager.start(threadManager.SINGLE, target=analyzeBackup, args=[sourceTree.selection(), destTree.selection()], name='Backup Analysis', daemon=True)
+    threadManager.start(threadManager.SINGLE, target=analyzeBackup, args=[sourceTree.selection(), destTree.selection()], name='Backup Analysis', daemon=True)
 
 def writeSettingToFile(setting, file):
     """Write a setting to a given file.
