@@ -865,6 +865,7 @@ def handleDriveSelectionClick():
         if os.path.exists(configFilePath) and os.path.isfile(configFilePath):
             # Found config file, so read it
             readConfigFile(configFilePath)
+            selected = destTree.selection()
     else:
         prevSelection = len(selected)
 
