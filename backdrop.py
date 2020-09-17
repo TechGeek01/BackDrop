@@ -14,7 +14,7 @@ import clipboard
 import time
 
 # Set meta info
-appVersion = '1.0.2-alpha.1'
+appVersion = '1.1.0-alpha.1'
 
 # TODO: When loading a config, warn if drive in config isn't connected
 #    If replacement drive is selected that gives sufficient size, prompt for replace confirmation
@@ -26,7 +26,6 @@ appVersion = '1.0.2-alpha.1'
 #     When we copy, check directory size of source and dest, and if the dest is larger than source, copy those first to free up space for ones that increased
 # TODO: Add a button for deleting the config from selected drives
 # IDEA: Add interactive CLI option if correct parameters are passed in
-# IDEA: Make missing drive prompt allow you to process all drives like a normal config, and store commands to copy to the other drive later
 # QUESTION: Are destDriveLetterToInfo and driveVidToLetterMap the same variable? Or do they contain similar enough info to combine them?
 
 def center(win):
@@ -207,7 +206,6 @@ def enumerateCommandInfo(displayCommandList):
 # TODO: This analysis assumes the drives are going to be empty, aside from the config file
 # Other stuff that's not part of the backup will need to be deleted when we actually run it
 # TODO: Add a threshold for free space to subtract from drive capacity or free space to account for the config file
-# URGENT: Make sure that if a drive is missing from the config, even if there's enough space to fit everything, that we prevent backup analysis unless split mode is enabled.
 def analyzeBackup(shares, drives):
     """Analyze the list of selected shares and drives and figure out how to split files.
 
@@ -815,6 +813,14 @@ def selectFromConfig():
     # Get list of drives where volume ID is in config
     driveTreeIdList = [item for item in destTree.get_children() if destTree.item(item, 'values')[3] in config['vidList']]
 
+    # If drives aren't mounted that should be, display the warning
+    if len(driveTreeIdList) < len(config['drives']):
+        missingDriveCount = len(config['drives']) - len(driveTreeIdList)
+        splitWarningPrefix.configure(text='There %s' % ('is' if missingDriveCount == 1 else 'are'))
+        splitWarningSuffix.configure(text='%s in the config that %s connected. Please connect %s, or enable split mode.' % ('drive' if missingDriveCount == 1 else 'drives', 'isn\'t' if missingDriveCount == 1 else 'aren\'t', 'it' if missingDriveCount == 1 else 'them'))
+        splitWarningMissingDriveCount.configure(text='%d' % (missingDriveCount))
+        destSplitWarningFrame.grid(row=3, column=0, columnspan=2, sticky='nsew', pady=(0, elemPadding), ipady=elemPadding / 4)
+
     # Only redo the selection if the config data is different from the current
     # selection (that is, the drive we selected to load a config is not the only
     # drive listed in the config)
@@ -904,15 +910,14 @@ def handleDriveSelectionClick():
     # Check if newly selected drive has a config file
     # NOTE: We only want to do this if the click is the first selection (that is,
     # there are no other drives selected except the one we clicked)
-    if prevSelection <= len(selected) and len(selected) == 1:
-        prevSelection = len(selected)
-        selectedDriveLetter = destTree.item(selected[0], 'text')[0]
-        configFilePath = '%s:/%s/%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
-        if os.path.exists(configFilePath) and os.path.isfile(configFilePath):
-            # Found config file, so read it
-            readConfigFile(configFilePath)
-            selected = destTree.selection()
+    selectedDriveLetter = destTree.item(selected[0], 'text')[0]
+    configFilePath = '%s:/%s/%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
+    if prevSelection <= len(selected) and len(selected) == 1 and os.path.exists(configFilePath) and os.path.isfile(configFilePath):
+        # Found config file, so read it
+        readConfigFile(configFilePath)
+        selected = destTree.selection()
     else:
+        destSplitWarningFrame.grid_remove()
         prevSelection = len(selected)
 
     selectedTotal = 0
@@ -1334,6 +1339,22 @@ destTree.configure(xscrollcommand=driveSelectScroll.set)
 destMetaFrame = tk.Frame(mainFrame)
 destMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, elemPadding))
 tk.Grid.columnconfigure(destMetaFrame, 0, weight=1)
+
+splitWarningBgColor = '#ffe69d'
+
+destSplitWarningFrame = tk.Frame(mainFrame, bg=splitWarningBgColor)
+destSplitWarningFrame.rowconfigure(0, weight=1)
+destSplitWarningFrame.columnconfigure(0, weight=1)
+destSplitWarningFrame.columnconfigure(10, weight=1)
+
+tk.Frame(destSplitWarningFrame).grid(row=0, column=0)
+splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=splitWarningBgColor)
+splitWarningPrefix.grid(row=0, column=1, sticky='ns')
+splitWarningMissingDriveCount = tk.Label(destSplitWarningFrame, text='0', bg=splitWarningBgColor, font=(None, 18, 'bold'))
+splitWarningMissingDriveCount.grid(row=0, column=2, sticky='ns')
+splitWarningSuffix = tk.Label(destSplitWarningFrame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=splitWarningBgColor)
+splitWarningSuffix.grid(row=0, column=3, sticky='ns')
+tk.Frame(destSplitWarningFrame).grid(row=0, column=10)
 
 driveSpaceFrame = tk.Frame(destMetaFrame)
 driveSpaceFrame.grid(row=0, column=0)
