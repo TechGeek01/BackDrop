@@ -455,7 +455,7 @@ def analyzeBackup(shares, drives):
                     rawExclusions = allFiles.copy()
                     rawExclusions.pop(drive, None)
 
-                    masterExclusions = [files for files in rawExclusions.values()]
+                    masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
 
                     fileExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isfile(sourcePathStub + file)]
                     dirExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isdir(sourcePathStub + file)]
