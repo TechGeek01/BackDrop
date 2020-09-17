@@ -827,7 +827,7 @@ def selectFromConfig():
         destTree.focus(driveTreeIdList[-1])
         destTree.selection_set(tuple(driveTreeIdList))
 
-        driveSelectBind = destTree.bind("<<TreeviewSelect>>", handleDriveSelectionClick)
+        driveSelectBind = destTree.bind("<<TreeviewSelect>>", selectDriveInBackground)
 
 def readConfigFile(file):
     """Read a config file, and set the current config based off of it.
