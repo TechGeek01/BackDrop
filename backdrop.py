@@ -914,10 +914,12 @@ def handleDriveSelectionClick():
     # there are no other drives selected except the one we clicked)
     selectedDriveLetter = destTree.item(selected[0], 'text')[0]
     configFilePath = '%s:/%s/%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
+    readDrivesFromConfigFile = False
     if prevSelection <= len(selected) and len(selected) == 1 and os.path.exists(configFilePath) and os.path.isfile(configFilePath):
         # Found config file, so read it
         readConfigFile(configFilePath)
         selected = destTree.selection()
+        readDrivesFromConfigFile = True
     else:
         destSplitWarningFrame.grid_remove()
         prevSelection = len(selected)
@@ -937,7 +939,8 @@ def handleDriveSelectionClick():
         selectedTotal = selectedTotal + int(driveSize)
 
     driveSelectedSpace.configure(text='Selected: ' + human_filesize(selectedTotal))
-    # config['drives'] = selectedDriveList
+    if not readDrivesFromConfigFile:
+        config['drives'] = selectedDriveList
 
     if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='determinate')
