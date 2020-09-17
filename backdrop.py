@@ -229,6 +229,7 @@ def analyzeBackup(shares, drives):
         progressBar.start()
 
     startBackupBtn.configure(state='disable')
+    startAnalysisBtn.configure(state='disable')
 
     # Set UI variables
     summaryHeaderFont = (None, 14)
@@ -487,6 +488,7 @@ def analyzeBackup(shares, drives):
     analysisValid = True
 
     startBackupBtn.configure(state='normal')
+    startAnalysisBtn.configure(state='normal')
 
     if len(threading.enumerate()) <= 3:
         progressBar.configure(mode='determinate')
