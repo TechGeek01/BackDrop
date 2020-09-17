@@ -820,7 +820,8 @@ def readConfigFile(file):
                     newConfig['vidList'].append(drive[0])
                     newConfig['drives'].append({
                         'vid': drive[0],
-                        'serial': drive[1]
+                        'serial': drive[1],
+                        'capacity': drive[2]
                     })
 
         config = newConfig
@@ -874,7 +875,8 @@ def handleDriveSelectionClick():
         driveVals = destTree.item(item, 'values')
         selectedDriveList.append({
             'vid': driveVals[3],
-            'serial': driveVals[4]
+            'serial': driveVals[4],
+            'capacity': int(driveVals[1])
         })
 
         driveSize = driveVals[1]
@@ -894,6 +896,7 @@ def selectDriveInBackground(event):
 
 # TODO: Make changes to existing config check the existing for missing drives, and delete the config file from drives we unselected if there's multiple drives in a config
 # TODO: If a drive config is overwritten with a new config file, due to the drive
+# TODO: When drive selection happens, drives in the config should only be selected if the config on the other drive matces. If it doesn't don't select it by default, and warn about a conflict.
 # being configured for a different backup, then we don't want to delete that file
 # In that case, the config file should be ignored. Thus, we need to delete configs
 # on unselected drives only if the config file on the drive we want to delete matches
@@ -901,7 +904,7 @@ def selectDriveInBackground(event):
 def writeConfigFile():
     """Write the current running backup config to config files on the drives."""
     if len(config['shares']) > 0 and len(config['drives']) > 0:
-        driveConfigList = ''.join(['\n%s,%s' % (drive['vid'], drive['serial']) for drive in config['drives']])
+        driveConfigList = ''.join(['\n%s,%s,%d' % (drive['vid'], drive['serial'], drive['capacity']) for drive in config['drives']])
 
         # For each drive letter, get drive info, and write file
         for drive in config['drives']:
