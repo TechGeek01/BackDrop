@@ -14,7 +14,7 @@ import clipboard
 import time
 
 # Set meta info
-appVersion = '1.1.0-alpha.1'
+appVersion = '1.1.0'
 
 # TODO: Shares are copied to root of drives, so other directories with data are most likely left intact
 #     We may need to account for this, by checking for free space, and then adding the size of the existing share directories
@@ -447,9 +447,9 @@ def analyzeBackup(shares, drives):
 
             if drive in driveVidToLetterMap.keys():
                 commandList.extend([{
-                    'displayIndex': len(displayCommandList) - 1,
+                    'displayIndex': len(displayCommandList) - len(shares) + i,
                     'cmd': 'robocopy "%s" "%s" /mir' % (sourceDrive + share, humanDrive + share)
-                }] for share in shares)
+                } for i, share in enumerate(shares)])
 
     # For each share that needs splitting, split each one
     # For each resulting folder in the summary, get list of files
