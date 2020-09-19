@@ -15,7 +15,7 @@ import time
 import keyboard
 
 # Set meta info
-appVersion = '1.1.0'
+appVersion = '1.1.1-alpha.1'
 
 # TODO: Shares are copied to root of drives, so other directories with data are most likely left intact
 #     We may need to account for this, by checking for free space, and then adding the size of the existing share directories
