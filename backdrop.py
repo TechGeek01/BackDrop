@@ -17,12 +17,12 @@ import keyboard
 # Set meta info
 appVersion = '1.1.1-alpha.1'
 
-# TODO: Shares are copied to root of drives, so other directories with data are most likely left intact
+# TODO: @Shares are copied to root of drives, so other directories with data are most likely left intact
 #     We may need to account for this, by checking for free space, and then adding the size of the existing share directories
 #     This would prevent counting for existing data, though it's probably safe to wipe the drive of things that aren't getting copied anyway
 #     When we copy, check directory size of source and dest, and if the dest is larger than source, copy those first to free up space for ones that increased
-# TODO: Add a button for deleting the config from selected drives
-# IDEA: Add interactive CLI option if correct parameters are passed in
+# TODO: Add a button in @interface for deleting the @config from @selected_drives
+# IDEA: Add interactive CLI option if correct parameters are passed in @interface
 
 def center(win):
     """Center a tkinter window on screen.
@@ -199,7 +199,7 @@ def enumerateCommandInfo(displayCommandList):
 
         cmdInfoBlocks.append(config)
 
-# CAVEAT: This analysis assumes the drives are going to be empty, aside from the config file
+# CAVEAT: This @analysis assumes the drives are going to be empty, aside from the config file
 # Other stuff that's not part of the backup will need to be deleted when we actually run it
 def analyzeBackup(shares, drives):
     """Analyze the list of selected shares and drives and figure out how to split files.
@@ -371,7 +371,7 @@ def analyzeBackup(shares, drives):
             # Since the list of files is truncated to prevent an unreasonably large
             # number of combinations to check, we need to keep processing the file list
             # in chunks to make sure we check if all files can be fit on one drive
-            # TODO: This loop logic may need to be copied to the main share portion, though this is only necessary if the user selects a large number of shares
+            # TODO: This @analysis loop logic may need to be copied to the main @share portion, though this is only necessary if the user selects a large number of shares
             filesThatFit = []
             processedSmallFiles = []
             processedFileSize = 0
@@ -563,8 +563,8 @@ def sanityCheck():
 
 def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
-    # FIXME: If backup analysis thread is already running, it needs to be killed before it's rerun
-    # CAVEAT: This requires some way to have the thread itself check for the kill flag and break if it's set.
+    # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
+    # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
     threadManager.start(threadManager.SINGLE, target=analyzeBackup, args=[sourceTree.selection(), config['drives']], name='Backup Analysis', daemon=True)
 
 def writeSettingToFile(setting, file):
@@ -652,7 +652,7 @@ def changeSourceDrive(selection):
     startRefreshSource()
     writeSettingToFile(sourceDrive, appDataFolder + '\\sourceDrive.default')
 
-# IDEA: Calculate total space of all shares in background
+# IDEA: @Calculate total space of all @shares in background
 prevShareSelection = []
 def shareSelectCalc():
     """Calculate and display the filesize of a selected share, if it hasn't been calculated.
@@ -829,7 +829,7 @@ def selectFromConfig():
     # drive listed in the config)
     # Because of the <<TreeviewSelect>> handler, re-selecting the same single item
     # would get stuck into an endless loop of trying to load the config
-    # QUESTION: Is there a better way to handle this config loading selection handler conflict?
+    # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
     if destTree.selection() != tuple(driveTreeIdList):
         destTree.unbind('<<TreeviewSelect>>', driveSelectBind)
 
@@ -952,13 +952,13 @@ def selectDriveInBackground(event):
     """Start the drive selection handling in a new thread."""
     threadManager.start(threadManager.MULTIPLE, target=handleDriveSelectionClick, name='Drive Select', daemon=True)
 
-# TODO: Make changes to existing config check the existing for missing drives, and delete the config file from drives we unselected if there's multiple drives in a config
-# TODO: If a drive config is overwritten with a new config file, due to the drive
+# TODO: Make changes to existing @config check the existing for missing @drives, and delete the config file from drives we unselected if there's multiple drives in a config
+# TODO: If a @drive @config is overwritten with a new config file, due to the drive
 # being configured for a different backup, then we don't want to delete that file
 # In that case, the config file should be ignored. Thus, we need to delete configs
 # on unselected drives only if the config file on the drive we want to delete matches
 # the config on selected drives
-# TODO: When drive selection happens, drives in the config should only be selected if the config on the other drive matches. If it doesn't don't select it by default, and warn about a conflict.
+# TODO: When @drive @selection happens, drives in the @config should only be selected if the config on the other drive matches. If it doesn't don't select it by default, and warn about a conflict.
 def writeConfigFile():
     """Write the current running backup config to config files on the drives."""
     if len(config['shares']) > 0 and len(config['drives']) > 0:
@@ -1241,7 +1241,7 @@ analysisStarted = False
 root = tk.Tk()
 root.attributes('-alpha', 0.0)
 root.title('BackDrop - Unraid Drive Backup Tool')
-# TODO: Get an icon for the program
+# TODO: Get an icon for the program @branding
 # root.iconbitmap('.\\App\\Shim\\assets\\unpack_128.ico')
 root.resizable(False, False)
 root.geometry('1200x700')
@@ -1451,7 +1451,7 @@ tk.Label(backupSummaryTextFrame, text='Please start a backup analysis to generat
 startBackupBtn = ttk.Button(backupSummaryFrame, text='Run Backup', command=startBackup, state='disable', style='win.TButton')
 startBackupBtn.pack(pady=elemPadding / 2)
 
-# QUESTION: Does init loadDest need to be SINGLE, MULTIPLE, or OVERRIDE?
+# QUESTION: Does init loadDest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
 threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=True)
 
 def onClose():
