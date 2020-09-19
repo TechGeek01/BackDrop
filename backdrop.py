@@ -1211,6 +1211,8 @@ class color:
     DISABLED = RED
 
     INFO = '#bbe6ff'
+    WARNING = '#ffe69d'
+
     FINISHED = GREEN
     RUNNING = BLUE
     STOPPED = RED
@@ -1365,19 +1367,17 @@ destMetaFrame = tk.Frame(mainFrame)
 destMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, elemPadding))
 tk.Grid.columnconfigure(destMetaFrame, 0, weight=1)
 
-splitWarningBgColor = '#ffe69d'
-
-destSplitWarningFrame = tk.Frame(mainFrame, bg=splitWarningBgColor)
+destSplitWarningFrame = tk.Frame(mainFrame, bg=color.WARNING)
 destSplitWarningFrame.rowconfigure(0, weight=1)
 destSplitWarningFrame.columnconfigure(0, weight=1)
 destSplitWarningFrame.columnconfigure(10, weight=1)
 
 tk.Frame(destSplitWarningFrame).grid(row=0, column=0)
-splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=splitWarningBgColor)
+splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=color.WARNING)
 splitWarningPrefix.grid(row=0, column=1, sticky='ns')
-splitWarningMissingDriveCount = tk.Label(destSplitWarningFrame, text='0', bg=splitWarningBgColor, font=(None, 18, 'bold'))
+splitWarningMissingDriveCount = tk.Label(destSplitWarningFrame, text='0', bg=color.WARNING, font=(None, 18, 'bold'))
 splitWarningMissingDriveCount.grid(row=0, column=2, sticky='ns')
-splitWarningSuffix = tk.Label(destSplitWarningFrame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=splitWarningBgColor)
+splitWarningSuffix = tk.Label(destSplitWarningFrame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=color.WARNING)
 splitWarningSuffix.grid(row=0, column=3, sticky='ns')
 tk.Frame(destSplitWarningFrame).grid(row=0, column=10)
 
