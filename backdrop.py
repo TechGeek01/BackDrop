@@ -12,6 +12,7 @@ import itertools
 import subprocess
 import clipboard
 import time
+import keyboard
 
 # Set meta info
 appVersion = '1.1.0'
@@ -198,7 +199,7 @@ def enumerateCommandInfo(displayCommandList):
 
         cmdInfoBlocks.append(config)
 
-# TODO: This analysis assumes the drives are going to be empty, aside from the config file
+# CAVEAT: This analysis assumes the drives are going to be empty, aside from the config file
 # Other stuff that's not part of the backup will need to be deleted when we actually run it
 def analyzeBackup(shares, drives):
     """Analyze the list of selected shares and drives and figure out how to split files.
@@ -651,7 +652,7 @@ def changeSourceDrive(selection):
     startRefreshSource()
     writeSettingToFile(sourceDrive, appDataFolder + '\\sourceDrive.default')
 
-# TODO: Calculate total space of all shares
+# IDEA: Calculate total space of all shares in background
 prevShareSelection = []
 def shareSelectCalc():
     """Calculate and display the filesize of a selected share, if it hasn't been calculated.
@@ -880,9 +881,11 @@ def readConfigFile(file):
         configSelectedSpace.configure(text='Config: ' + human_filesize(configTotal))
         selectFromConfig()
 
-# Parse drive selection, and calculate values needed
 prevSelection = 0
 prevDriveSelection = []
+
+# BUG: keyboard module seems to be returning false for keypress on first try. No idea how to fix this
+keyboard.is_pressed('alt')
 def handleDriveSelectionClick():
     """Parse the current drive selection, read config data, and select other drives and shares if needed.
 
@@ -890,7 +893,6 @@ def handleDriveSelectionClick():
     this function reads the config file on it if one exists, and will select any
     other drives and shares in the config.
     """
-    # IDEA: Make something like Alt + click ignore a config file on the first drive selection.
     global prevSelection
     global prevDriveSelection
     global analysisValid
@@ -915,7 +917,7 @@ def handleDriveSelectionClick():
     selectedDriveLetter = destTree.item(selected[0], 'text')[0]
     configFilePath = '%s:/%s/%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
     readDrivesFromConfigFile = False
-    if prevSelection <= len(selected) and len(selected) == 1 and os.path.exists(configFilePath) and os.path.isfile(configFilePath):
+    if not keyboard.is_pressed('alt') and prevSelection <= len(selected) and len(selected) == 1 and os.path.exists(configFilePath) and os.path.isfile(configFilePath):
         # Found config file, so read it
         readConfigFile(configFilePath)
         selected = destTree.selection()
@@ -1208,6 +1210,7 @@ class color:
     ENABLED = GREEN
     DISABLED = RED
 
+    INFO = '#bbe6ff'
     FINISHED = GREEN
     RUNNING = BLUE
     STOPPED = RED
@@ -1331,8 +1334,12 @@ def handleSplitModeCheck():
 destModeSplitCheckVar = tk.BooleanVar()
 destModeSplitEnabled = False
 
+altTooltipFrame = tk.Frame(destModeFrame, bg=color.INFO)
+altTooltipFrame.pack(side='left', ipadx=elemPadding / 2, ipady=4)
+tk.Label(altTooltipFrame, text = 'Hold ALT while selecting a drive to ignore config files', bg=color.INFO).pack(fill='y', expand=1)
+
 splitModeCheck = tk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
-splitModeCheck.pack()
+splitModeCheck.pack(side='left', padx=(12, 0))
 
 destTree = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'))
 destTree.heading('#0', text='Drive')
