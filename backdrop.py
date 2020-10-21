@@ -16,6 +16,7 @@ import keyboard
 
 # Set meta info
 appVersion = '1.1.1-alpha.1'
+threadsForProgressBar = 5
 
 # TODO: @Shares are copied to root of drives, so other directories with data are most likely left intact
 #     We may need to account for this, by checking for free space, and then adding the size of the existing share directories
@@ -221,7 +222,7 @@ def analyzeBackup(shares, drives):
     if not sanityCheck():
         return
 
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -516,7 +517,7 @@ def analyzeBackup(shares, drives):
     startBackupBtn.configure(state='normal')
     startAnalysisBtn.configure(state='normal')
 
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
@@ -617,7 +618,7 @@ def readSettingFromFile(file, default, verifyData=None):
 def loadSource():
     """Load the source share list, and display it in the tree."""
     global analysisValid
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -633,7 +634,7 @@ def loadSource():
     for directory in next(os.walk(sourceDrive))[1]:
         sourceTree.insert(parent='', index='end', text=directory, values=('Unknown', 0))
 
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
@@ -663,7 +664,7 @@ def shareSelectCalc():
     """
     global prevShareSelection
     global analysisValid
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -715,7 +716,7 @@ def shareSelectCalc():
         if sharesAllKnown:
             startAnalysisBtn.configure(state='normal')
 
-        if len(threading.enumerate()) <= 3:
+        if len(threading.enumerate()) <= threadsForProgressBar:
             progressBar.configure(mode='determinate')
             progressBar.stop()
 
@@ -744,7 +745,7 @@ def loadSourceInBackground(event):
 def loadDest():
     """Load the destination drive info, and display it in the tree."""
     global destDriveMap
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -794,7 +795,7 @@ def loadDest():
 
     driveTotalSpace.configure(text='Available: ' + human_filesize(totalUsage))
 
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
@@ -897,7 +898,7 @@ def handleDriveSelectionClick():
     global prevDriveSelection
     global analysisValid
 
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -944,7 +945,7 @@ def handleDriveSelectionClick():
     if not readDrivesFromConfigFile:
         config['drives'] = selectedDriveList
 
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
@@ -999,7 +1000,7 @@ def runBackup():
     if not analysisValid:
         return
 
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='indeterminate')
         progressBar.start()
 
@@ -1036,7 +1037,7 @@ def runBackup():
             cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=color.STOPPED)
             break
 
-    if len(threading.enumerate()) <= 3:
+    if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
@@ -1338,7 +1339,7 @@ destModeSplitEnabled = False
 
 altTooltipFrame = tk.Frame(destModeFrame, bg=color.INFO)
 altTooltipFrame.pack(side='left', ipadx=elemPadding / 2, ipady=4)
-tk.Label(altTooltipFrame, text = 'Hold ALT while selecting a drive to ignore config files', bg=color.INFO).pack(fill='y', expand=1)
+tk.Label(altTooltipFrame, text='Hold ALT while selecting a drive to ignore config files', bg=color.INFO).pack(fill='y', expand=1)
 
 splitModeCheck = tk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
 splitModeCheck.pack(side='left', padx=(12, 0))
