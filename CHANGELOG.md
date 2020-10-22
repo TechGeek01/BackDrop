@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## [1.1.1] - TBD
+## [1.1.1] - 2020-10-21
 ### Fixed
 - Deleting files that are no longer allocated to a drive now happens before the robocopy in order to prevent running out of space while copying new files
 
