@@ -15,7 +15,7 @@ import time
 import keyboard
 
 # Set meta info
-appVersion = '1.1.1-alpha.1'
+appVersion = '1.1.1'
 threadsForProgressBar = 5
 
 # TODO: @Shares are copied to root of drives, so other directories with data are most likely left intact

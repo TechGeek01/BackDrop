@@ -1,6 +1,13 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - TBD
+### Fixed
+- Deleting files that are no longer allocated to a drive now happens before the robocopy in order to prevent running out of space while copying new files
+
+### Changed
+- Holding `Alt` while clicking on a drive now ignores config files and just selects the drive
+
 ## [1.1.0] - 2020-09-17
 ### Fixed
 - Fixed refresh threads running when a refresh is already active
