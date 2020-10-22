@@ -121,16 +121,20 @@ def enumerateCommandInfo(displayCommandList):
         """
         clipboard.copy(cmdInfoBlocks[index]['fullCmd'])
 
+    def copyList(index, item):
+        """Copy a given indexed command to the clipboard.
+
+        Args:
+            index (int): The index of the command to copy.
+            item (String): The name of the list to copy
+        """
+        clipboard.copy('\n'.join(cmdInfoBlocks[index][item]))
+
     for widget in backupActivityScrollableFrame.winfo_children():
         widget.destroy()
 
     cmdInfoBlocks = []
     for i, item in enumerate(displayCommandList):
-        cmd = item['cmd']
-        cmdParts = cmd.split('/mir')
-        # cmdSnip = ' '.join(cmdParts[0:3])
-        cmdSnip = cmdParts[0].strip()
-
         config = {}
 
         config['mainFrame'] = tk.Frame(backupActivityScrollableFrame)
@@ -141,7 +145,16 @@ def enumerateCommandInfo(displayCommandList):
         config['headLine'].pack(fill='x')
         config['arrow'] = tk.Label(config['headLine'], text=rightArrow)
         config['arrow'].pack(side='left')
-        config['header'] = tk.Label(config['headLine'], text=cmdSnip, font=cmdHeaderFont, fg=color.NORMAL if item['enabled'] else color.FADED)
+
+        if item['type'] == 'cmd':
+            cmd = item['cmd']
+            cmdParts = cmd.split('/mir')
+            # cmdHeaderText = ' '.join(cmdParts[0:3])
+            cmdHeaderText = cmdParts[0].strip()
+        else:
+            cmdHeaderText = 'Delete %d files from %s' % (len(item['fileList']), item['drive'])
+
+        config['header'] = tk.Label(config['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=color.NORMAL if item['enabled'] else color.FADED)
         config['header'].pack(side='left')
         config['state'] = tk.Label(config['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
         config['state'].pack(side='left')
@@ -154,54 +167,117 @@ def enumerateCommandInfo(displayCommandList):
 
         # Set up info frame
         config['infoFrame'] = tk.Frame(config['mainFrame'])
-        config['cmdLine'] = tk.Frame(config['infoFrame'])
-        config['cmdLine'].pack(anchor='w')
-        tk.Frame(config['cmdLine'], width=arrowWidth).pack(side='left')
-        config['cmdLineHeader'] = tk.Label(config['cmdLine'], text='Full command:', font=cmdHeaderFont)
-        config['cmdLineHeader'].pack(side='left')
-        config['cmdLineTooltip'] = tk.Label(config['cmdLine'], text='(Click to copy)', font=cmdStatusFont, fg=color.FADED)
-        config['cmdLineTooltip'].pack(side='left')
-        config['fullCmd'] = cmd
 
-        config['lastOutLine'] = tk.Frame(config['infoFrame'])
-        config['lastOutLine'].pack(anchor='w')
-        tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
-        config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Out:', font=cmdHeaderFont)
-        config['lastOutHeader'].pack(side='left')
-        config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
-        config['lastOutResult'].pack(side='left')
+        if item['type'] == 'cmd':
+            config['cmdLine'] = tk.Frame(config['infoFrame'])
+            config['cmdLine'].pack(anchor='w')
+            tk.Frame(config['cmdLine'], width=arrowWidth).pack(side='left')
+            config['cmdLineHeader'] = tk.Label(config['cmdLine'], text='Full command:', font=cmdHeaderFont)
+            config['cmdLineHeader'].pack(side='left')
+            config['cmdLineTooltip'] = tk.Label(config['cmdLine'], text='(Click to copy)', font=cmdStatusFont, fg=color.FADED)
+            config['cmdLineTooltip'].pack(side='left')
+            config['fullCmd'] = cmd
 
-        # Handle command trimming
-        cmdFont = tkfont.Font(family=None, size=10, weight='normal')
-        trimmedCmd = cmd
-        maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
-        actualWidth = cmdFont.measure(cmd)
+            config['lastOutLine'] = tk.Frame(config['infoFrame'])
+            config['lastOutLine'].pack(anchor='w')
+            tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
+            config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Out:', font=cmdHeaderFont)
+            config['lastOutHeader'].pack(side='left')
+            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+            config['lastOutResult'].pack(side='left')
 
-        if actualWidth > maxWidth:
-            while actualWidth > maxWidth and len(trimmedCmd) > 1:
-                trimmedCmd = trimmedCmd[:-1]
-                actualWidth = cmdFont.measure(trimmedCmd + '...')
-            trimmedCmd = trimmedCmd + '...'
+            # Handle command trimming
+            cmdFont = tkfont.Font(family=None, size=10, weight='normal')
+            trimmedCmd = cmd
+            maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
+            actualWidth = cmdFont.measure(cmd)
 
-        config['cmdLineCmd'] = tk.Label(config['cmdLine'], text=trimmedCmd, font=cmdStatusFont)
-        config['cmdLineCmd'].pack(side='left')
+            if actualWidth > maxWidth:
+                while actualWidth > maxWidth and len(trimmedCmd) > 1:
+                    trimmedCmd = trimmedCmd[:-1]
+                    actualWidth = cmdFont.measure(trimmedCmd + '...')
+                trimmedCmd = trimmedCmd + '...'
 
-        # Command copy action click
-        config['cmdLineHeader'].bind('<Button-1>', lambda event, index=i: copyCmd(index))
-        config['cmdLineTooltip'].bind('<Button-1>', lambda event, index=i: copyCmd(index))
-        config['cmdLineCmd'].bind('<Button-1>', lambda event, index=i: copyCmd(index))
+            config['cmdLineCmd'] = tk.Label(config['cmdLine'], text=trimmedCmd, font=cmdStatusFont)
+            config['cmdLineCmd'].pack(side='left')
 
-        # Stats frame
-        config['statusStatsLine'] = tk.Frame(config['infoFrame'])
-        config['statusStatsLine'].pack(anchor='w')
-        tk.Frame(config['statusStatsLine'], width=2 * arrowWidth).pack(side='left')
-        config['statusStatsFrame'] = tk.Frame(config['statusStatsLine'])
-        config['statusStatsFrame'].pack(side='left')
+            # Command copy action click
+            config['cmdLineHeader'].bind('<Button-1>', lambda event, index=i: copyCmd(index))
+            config['cmdLineTooltip'].bind('<Button-1>', lambda event, index=i: copyCmd(index))
+            config['cmdLineCmd'].bind('<Button-1>', lambda event, index=i: copyCmd(index))
+
+            # Stats frame
+            config['statusStatsLine'] = tk.Frame(config['infoFrame'])
+            config['statusStatsLine'].pack(anchor='w')
+            tk.Frame(config['statusStatsLine'], width=2 * arrowWidth).pack(side='left')
+            config['statusStatsFrame'] = tk.Frame(config['statusStatsLine'])
+            config['statusStatsFrame'].pack(side='left')
+        else:
+            config['fileListLine'] = tk.Frame(config['infoFrame'])
+            config['fileListLine'].pack(anchor='w')
+            tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
+            config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
+            config['fileListLineHeader'].pack(side='left')
+            config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=color.FADED)
+            config['fileListLineTooltip'].pack(side='left')
+            config['fullFileList'] = item['fileList']
+
+            config['cmdListLine'] = tk.Frame(config['infoFrame'])
+            config['cmdListLine'].pack(anchor='w')
+            tk.Frame(config['cmdListLine'], width=arrowWidth).pack(side='left')
+            config['cmdListLineHeader'] = tk.Label(config['cmdListLine'], text='File list:', font=cmdHeaderFont)
+            config['cmdListLineHeader'].pack(side='left')
+            config['cmdListLineTooltip'] = tk.Label(config['cmdListLine'], text='(Click to copy)', font=cmdStatusFont, fg=color.FADED)
+            config['cmdListLineTooltip'].pack(side='left')
+            config['fullCmdList'] = item['cmdList']
+
+            config['lastOutLine'] = tk.Frame(config['infoFrame'])
+            config['lastOutLine'].pack(anchor='w')
+            tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
+            config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Out:', font=cmdHeaderFont)
+            config['lastOutHeader'].pack(side='left')
+            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+            config['lastOutResult'].pack(side='left')
+
+            # Handle list trimming
+            listFont = tkfont.Font(family=None, size=10, weight='normal')
+            trimmedFileList = ', '.join(item['fileList'])
+            trimmedCmdList = ', '.join(item['cmdList'])
+            maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
+            actualFileWidth = listFont.measure(', '.join(item['fileList']))
+            actualCmdWidth = listFont.measure(', '.join(item['cmdList']))
+
+            if actualFileWidth > maxWidth:
+                while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
+                    trimmedFileList = trimmedFileList[:-1]
+                    actualFileWidth = cmdFont.measure(trimmedFileList + '...')
+                trimmedFileList = trimmedFileList + '...'
+
+            if actualCmdWidth > maxWidth:
+                while actualCmdWidth > maxWidth and len(trimmedCmdList) > 1:
+                    trimmedCmdList = trimmedCmdList[:-1]
+                    actualCmdWidth = cmdFont.measure(trimmedCmdList + '...')
+                trimmedCmdList = trimmedCmdList + '...'
+
+            config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
+            config['fileListLineTrimmed'].pack(side='left')
+            config['cmdListLineTrimmed'] = tk.Label(config['cmdListLine'], text=trimmedCmdList, font=cmdStatusFont)
+            config['cmdListLineTrimmed'].pack(side='left')
+
+            # Command copy action click
+            config['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+            config['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+            config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+
+            config['cmdListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
+            config['cmdListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
+            config['cmdListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
 
         cmdInfoBlocks.append(config)
 
 # CAVEAT: This @analysis assumes the drives are going to be empty, aside from the config file
 # Other stuff that's not part of the backup will need to be deleted when we actually run it
+# IDEA: When we ignore other stuff on the drives, and delete it, have a dialog popup that summarizes what's being deleted, and ask the user to confirm
 def analyzeBackup(shares, drives):
     """Analyze the list of selected shares and drives and figure out how to split files.
 
@@ -436,20 +512,40 @@ def analyzeBackup(shares, drives):
 
     # driveShareList contains info about whole shares mapped to drives
     # Use this to build the list of non-exclusion robocopy commands
-    commandList = []
-    displayCommandList = []
+    mirCommandList = []
+    purgeCommandList = []
+    displayMirCommandList = []
+    displayPurgeCommandList = []
     for drive, shares in driveShareList.items():
         if len(shares) > 0:
             humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
 
-            displayCommandList.extend([{
+            # If whole share is copied with /mir, we also need a /purge command to remove
+            # old stuff before the copy starts to avoid running out of room
+            displayPurgeCommandList.extend([{
                 'enabled': drive in driveVidToLetterMap.keys(),
+                'type': 'cmd',
+                'cmd': 'robocopy "%s" "%s" /purge' % (sourceDrive + share, humanDrive + share)
+            } for share in shares])
+
+            displayMirCommandList.extend([{
+                'enabled': drive in driveVidToLetterMap.keys(),
+                'type': 'cmd',
                 'cmd': 'robocopy "%s" "%s" /mir' % (sourceDrive + share, humanDrive + share)
             } for share in shares])
 
             if drive in driveVidToLetterMap.keys():
-                commandList.extend([{
-                    'displayIndex': len(displayCommandList) - len(shares) + i,
+                # If whole share is copied with /mir, we also need a /purge command to remove
+                # old stuff before the copy starts to avoid running out of room
+                purgeCommandList.extend([{
+                    'displayIndex': len(displayPurgeCommandList) - len(shares) + i,
+                    'type': 'cmd',
+                    'cmd': 'robocopy "%s" "%s" /purge' % (sourceDrive + share, humanDrive + share)
+                } for i, share in enumerate(shares)])
+
+                mirCommandList.extend([{
+                    'displayIndex': len(displayMirCommandList) - len(shares) + i,
+                    'type': 'cmd',
                     'cmd': 'robocopy "%s" "%s" /mir' % (sourceDrive + share, humanDrive + share)
                 } for i, share in enumerate(shares)])
 
@@ -458,6 +554,10 @@ def analyzeBackup(shares, drives):
     # For each drive, exclusions are files on other drives, plus explicit exclusions
 
     # For shares larger than all drives, recurse into each share
+    driveDeleteFiles = {}
+    for drive in driveInfo:
+        driveDeleteFiles[drive['name']] = []
+
     for share in shareInfo.keys():
         if os.path.exists(sourceDrive + share) and os.path.isdir(sourceDrive + share):
             summary = splitShare(share)
@@ -485,22 +585,78 @@ def analyzeBackup(shares, drives):
 
                         masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
 
+                        # If drive is connected, calculate exclusions
+                        if (drive in driveVidToLetterMap.keys()):
+                            # Check exclusion list for source, and remove any exclusions in the source dir
+                            # Then, add new exclusions to the list
+                            driveDeleteFiles[humanDrive] = [item for item in driveDeleteFiles[humanDrive] if not (item.find(shareName + '\\') == 0 or item == shareName)]
+                            driveDeleteFiles[humanDrive].extend([shareName + '\\' + item for item in masterExclusions])
+
                         fileExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isfile(sourcePathStub + file)]
                         dirExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isdir(sourcePathStub + file)]
                         xs = (' /xf "' + '" "'.join(fileExclusions) + '"') if len(fileExclusions) > 0 else ''
                         xd = (' /xd "' + '" "'.join(dirExclusions) + '"') if len(dirExclusions) > 0 else ''
 
-                        displayCommandList.append({
+                        displayMirCommandList.append({
                             'enabled': drive in driveVidToLetterMap.keys(),
+                            'type': 'cmd',
                             'cmd': 'robocopy "%s" "%s" /mir%s%s' % (sourceDrive + shareName, humanDrive + shareName, xd, xs)
                         })
 
                         if drive in driveVidToLetterMap.keys():
-                            commandList.append({
-                                'displayIndex': len(displayCommandList) - 1,
+                            mirCommandList.append({
+                                'displayIndex': len(displayMirCommandList) - 1,
+                                'type': 'cmd',
                                 'cmd': 'robocopy "%s" "%s" /mir%s%s' % (sourceDrive + shareName, humanDrive + shareName, xd, xs)
                             })
                     driveShareList[drive].append(shareName)
+
+    # For each drive, format and add the commands for deleting loose files to the list
+    for drive in driveDeleteFiles.keys():
+        # Filter exclusions to those that exist on the drive
+        fileDeleteList = [drive + file for file in driveDeleteFiles[drive] if os.path.exists(drive + file)]
+
+        if len(fileDeleteList) > 0:
+            # Format list of files into commands
+            fileDeleteCmdList = [('del /f "%s"' % (file) if os.path.isfile(file) else 'rmdir /s /q "%s"' % (file)) for file in fileDeleteList]
+
+            displayPurgeCommandList.append({
+                'enabled': True,
+                'type': 'list',
+                'drive': drive,
+                'fileList': fileDeleteList,
+                'cmdList': fileDeleteCmdList
+            })
+
+            purgeCommandList.append({
+                'displayIndex': len(displayPurgeCommandList) + 1,
+                'type': 'list',
+                'drive': drive,
+                'fileList': fileDeleteList,
+                'cmdList': fileDeleteCmdList
+            })
+
+    # Concat both lists into command list
+    commandList = []
+    commandList.extend([cmd for cmd in purgeCommandList])
+    commandList.extend([cmd for cmd in mirCommandList])
+
+    # Concat lists into display command list
+    displayCommandList = []
+    displayCommandList.extend([cmd for cmd in displayPurgeCommandList])
+    displayCommandList.extend([cmd for cmd in displayMirCommandList])
+
+    # Fix display index on command list
+    for i, cmd in enumerate(commandList):
+        commandList[i]['displayIndex'] = i
+
+    # URGENT: Other shares also need to be checked and deleted. That is, if a config includes "backups" but "backups" isn't coped to drive E, delete the "backups" folder if it exists.
+
+    # Old shares that have been moved need to be deleted
+    #     If backups used to be on a drive, but no longer is, the old backups folder needs to be deleted
+    # Files that aren't part of the backup also need to be deleted, and the user should be warned about this, and asked to confirm
+
+    # URGENT: Also add option to check for and delete non-backup files from the drive, in case other files are taking up room used for backups
 
     enumerateCommandInfo(displayCommandList)
 
@@ -1017,17 +1173,32 @@ def runBackup():
     startBackupBtn.configure(text='Halt Backup', command=lambda: threadManager.kill('Backup'), style='danger.TButton')
 
     for cmd in commandList:
-        process = subprocess.Popen(cmd['cmd'], shell=True, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if cmd['type'] == 'cmd':
+            process = subprocess.Popen(cmd['cmd'], shell=True, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-        while not threadManager.threadList['Backup']['killFlag'] and process.poll() is None:
-            try:
-                out = process.stdout.readline().decode().strip()
-                cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=color.RUNNING)
-                cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text=out.strip(), fg=color.NORMAL)
-            except Exception as e:
-                print(e)
-        process.terminate()
+            while not threadManager.threadList['Backup']['killFlag'] and process.poll() is None:
+                try:
+                    out = process.stdout.readline().decode().strip()
+                    cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=color.RUNNING)
+                    cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text=out, fg=color.NORMAL)
+                except Exception as e:
+                    print(e)
+            process.terminate()
+        elif cmd['type'] == 'list':
+            for item in cmd['cmdList']:
+                process = subprocess.Popen(item, shell=True, stdout=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text=item, fg=color.NORMAL)
+
+                while not threadManager.threadList['Backup']['killFlag'] and process.poll() is None:
+                    try:
+                        cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=color.RUNNING)
+                    except Exception as e:
+                        print(e)
+                process.terminate()
+
+                if threadManager.threadList['Backup']['killFlag']:
+                    break
 
         if not threadManager.threadList['Backup']['killFlag']:
             cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=color.FINISHED)
