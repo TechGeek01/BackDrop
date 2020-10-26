@@ -629,7 +629,7 @@ def analyzeBackup(shares, drives):
                                 'type': 'cmd',
                                 'cmd': 'robocopy "%s" "%s" /mir%s%s' % (sourceDrive + shareName, humanDrive + shareName, xd, xs)
                             })
-                    driveShareList[drive].append(shareName)
+                        driveShareList[drive].append(shareName)
 
     # For each drive, format and add the commands for deleting loose files to the list
     for drive in driveDeleteFiles.keys():
