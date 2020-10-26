@@ -225,7 +225,7 @@ def enumerateCommandInfo(displayCommandList):
             config['cmdListLine'] = tk.Frame(config['infoFrame'])
             config['cmdListLine'].pack(anchor='w')
             tk.Frame(config['cmdListLine'], width=arrowWidth).pack(side='left')
-            config['cmdListLineHeader'] = tk.Label(config['cmdListLine'], text='File list:', font=cmdHeaderFont)
+            config['cmdListLineHeader'] = tk.Label(config['cmdListLine'], text='Command list:', font=cmdHeaderFont)
             config['cmdListLineHeader'].pack(side='left')
             config['cmdListLineTooltip'] = tk.Label(config['cmdListLine'], text='(Click to copy)', font=cmdStatusFont, fg=color.FADED)
             config['cmdListLineTooltip'].pack(side='left')
