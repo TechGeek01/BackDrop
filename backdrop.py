@@ -318,27 +318,38 @@ def analyzeBackup(shares, drives):
 
     tk.Label(backupSummaryTextFrame, text='Shares', font=summaryHeaderFont,
              wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+    summaryFrame = tk.Frame(backupSummaryTextFrame)
+    summaryFrame.pack(fill='x', expand=True)
+    summaryFrame.columnconfigure(2, weight=1)
 
     shareInfo = {}
     allShareInfo = {}
-    for item in shares:
+    for i, item in enumerate(shares):
         shareName = sourceTree.item(item, 'text')
         shareSize = int(sourceTree.item(item, 'values')[1])
 
         shareInfo[shareName] = shareSize
         allShareInfo[shareName] = shareSize
 
-        tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (shareName, human_filesize(shareSize)),
-                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+        tk.Label(summaryFrame, text=shareName).grid(row=i, column=0, sticky='w')
+        tk.Label(summaryFrame, text='\u27f6').grid(row=i, column=1, sticky='w')
+        wrapFrame = tk.Frame(summaryFrame)
+        wrapFrame.grid(row=i, column=2, sticky='ew')
+        wrapFrame.update_idletasks()
+        tk.Label(summaryFrame, text=human_filesize(shareSize),
+                 wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
 
     tk.Label(backupSummaryTextFrame, text='Drives', font=summaryHeaderFont,
              wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+    driveFrame = tk.Frame(backupSummaryTextFrame)
+    driveFrame.pack(fill='x', expand=True)
+    driveFrame.columnconfigure(2, weight=1)
 
     driveVidToLetterMap = {destTree.item(item, 'values')[3]: destTree.item(item, 'text') for item in destTree.get_children()}
 
     driveInfo = []
     driveShareList = {}
-    for item in drives:
+    for i, item in enumerate(drives):
         curDriveInfo = {
             'vid': item['vid'],
             'size': item['capacity'],
@@ -357,9 +368,16 @@ def analyzeBackup(shares, drives):
 
         humanDriveName = curDriveInfo['name'] if 'name' in curDriveInfo.keys() else item['vid']
 
-        tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (humanDriveName, human_filesize(item['capacity'])),
+        tk.Label(driveFrame, text=humanDriveName,
+                 fg=color.NORMAL if 'name' in curDriveInfo.keys() else color.FADED).grid(row=i, column=0, sticky='w')
+        tk.Label(driveFrame, text='\u27f6',
+                 fg=color.NORMAL if 'name' in curDriveInfo.keys() else color.FADED).grid(row=i, column=1, sticky='w')
+        wrapFrame = tk.Frame(driveFrame)
+        wrapFrame.grid(row=i, column=2, sticky='ew')
+        wrapFrame.update_idletasks()
+        tk.Label(driveFrame, text=human_filesize(item['capacity']),
                  fg=color.NORMAL if 'name' in curDriveInfo.keys() else color.FADED,
-                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+                 wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
 
     # For each drive, smallest first, filter list of shares to those that fit
     driveInfo.sort(key=lambda x: x['size'] - x['configSize'])
@@ -660,11 +678,24 @@ def analyzeBackup(shares, drives):
 
     tk.Label(backupSummaryTextFrame, text='Summary', font=summaryHeaderFont,
              wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+    summaryFrame = tk.Frame(backupSummaryTextFrame)
+    summaryFrame.pack(fill='x', expand=True)
+    summaryFrame.columnconfigure(2, weight=1)
+    i = 0
     for drive, shares in driveShareList.items():
         humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
-        tk.Label(backupSummaryTextFrame, text='%s \u27f6 %s' % (humanDrive, ', '.join(shares)),
+        tk.Label(summaryFrame, text=humanDrive,
+                 fg=color.NORMAL if drive in driveVidToLetterMap.keys() else color.FADED).grid(row=i, column=0, sticky='w')
+        tk.Label(summaryFrame, text='\u27f6',
+                 fg=color.NORMAL if drive in driveVidToLetterMap.keys() else color.FADED).grid(row=i, column=1, sticky='w')
+        wrapFrame = tk.Frame(summaryFrame)
+        wrapFrame.grid(row=i, column=2, sticky='ew')
+        wrapFrame.update_idletasks()
+        tk.Label(summaryFrame, text=', '.join(shares),
                  fg=color.NORMAL if drive in driveVidToLetterMap.keys() else color.FADED,
-                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+                 wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+
+        i += 1
 
     analysisValid = True
 
