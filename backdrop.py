@@ -390,11 +390,13 @@ def analyzeBackup(shares, drives):
             nextDrive = driveInfo[i + 1]
             nextDriveFreeSpace = nextDrive['size'] - nextDrive['configSize'] - notFitTotal
 
-            # If free space on next drive is less than total capacity of current drive, it becomes
-            # more efficient to skip current drive, and put all shares on the next drive instead
-            # NOTE: This applies only if they can all fit on the next drive. If they have to be split
-            # across multiple drives after moving them to a larger drive, then it's easier to fit
-            # what we can on the small drive, to leave the larger drives available for larger shares
+            # If free space on next drive is less than total capacity of current drive, it
+            # becomes more efficient to skip current drive, and put all shares on the next
+            # drive instead.
+            # This applies only if they can all fit on the next drive. If they have to be
+            # split across multiple drives after moving them to a larger drive, then it's
+            # easier to fit what we can on the small drive, to leave the larger drives
+            # available for larger shares
             if notFitTotal <= nextDrive['size'] - nextDrive['configSize']:
                 totalSmallShareSpace = sum(size for size in smallShares.values())
                 if nextDriveFreeSpace < drive['size'] - drive['configSize'] and totalSmallShareSpace <= nextDrive['size'] - nextDrive['configSize']:
@@ -492,9 +494,9 @@ def analyzeBackup(shares, drives):
                 processedFileSize += sum([size for (file, size) in smallFiles.items() if file in largestSet])
 
             # Assign files to drive, and subtract filesize from free space
-            # NOTE: Since we're sorting by largest free space first, there's no cases to
-            # move to a larger drive. This means all files that can fit should be put on the
-            # drive they fit on
+            # Since we're sorting by largest free space first, there's no cases to move
+            # to a larger drive. This means all files that can fit should be put on the
+            # drive they fit on.
             driveFileList[drive['vid']].extend(filesThatFit)
             driveInfo[i]['free'] -= processedFileSize
 
@@ -650,12 +652,8 @@ def analyzeBackup(shares, drives):
     for i, cmd in enumerate(commandList):
         commandList[i]['displayIndex'] = i
 
-    # URGENT: Other shares also need to be checked and deleted. That is, if a config includes "backups" but "backups" isn't coped to drive E, delete the "backups" folder if it exists.
-
-    # Old shares that have been moved need to be deleted
+    # URGENT: Old shares that have been moved need to be deleted
     #     If backups used to be on a drive, but no longer is, the old backups folder needs to be deleted
-    # Files that aren't part of the backup also need to be deleted, and the user should be warned about this, and asked to confirm
-
     # URGENT: Also add option to check for and delete non-backup files from the drive, in case other files are taking up room used for backups
 
     enumerateCommandInfo(displayCommandList)
@@ -1069,8 +1067,8 @@ def handleDriveSelectionClick():
     prevDriveSelection = [share for share in selected]
 
     # Check if newly selected drive has a config file
-    # NOTE: We only want to do this if the click is the first selection (that is,
-    # there are no other drives selected except the one we clicked)
+    # We only want to do this if the click is the first selection (that is, there
+    # are no other drives selected except the one we clicked).
     selectedDriveLetter = destTree.item(selected[0], 'text')[0]
     configFilePath = '%s:/%s/%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
     readDrivesFromConfigFile = False
