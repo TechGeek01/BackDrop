@@ -691,7 +691,7 @@ def analyzeBackup(shares, drives):
         wrapFrame = tk.Frame(summaryFrame)
         wrapFrame.grid(row=i, column=2, sticky='ew')
         wrapFrame.update_idletasks()
-        tk.Label(summaryFrame, text=', '.join(shares),
+        tk.Label(summaryFrame, text='\n'.join(shares),
                  fg=color.NORMAL if drive in driveVidToLetterMap.keys() else color.FADED,
                  wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
 
