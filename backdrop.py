@@ -15,7 +15,7 @@ import time
 import keyboard
 
 # Set meta info
-appVersion = '1.1.1'
+appVersion = '1.1.2-alpha.1'
 threadsForProgressBar = 5
 
 # TODO: @Shares are copied to root of drives, so other directories with data are most likely left intact
@@ -1414,7 +1414,7 @@ root.title('BackDrop - Unraid Drive Backup Tool')
 # TODO: Get an icon for the program @branding
 # root.iconbitmap('.\\App\\Shim\\assets\\unpack_128.ico')
 root.resizable(False, False)
-root.geometry('1200x700')
+root.geometry('1300x700')
 
 center(root)
 root.attributes('-alpha', 1.0)
