@@ -13,6 +13,7 @@ import subprocess
 import clipboard
 import time
 import keyboard
+from PIL import Image, ImageTk
 
 # Set meta info
 appVersion = '1.1.2-alpha.1'
@@ -1639,8 +1640,10 @@ backupTitle.pack()
 brandingFrame = tk.Frame(rightSideFrame)
 brandingFrame.pack()
 
-tk.Label(brandingFrame, text='BackDrop', font=(None, 28), fg=color.GREEN).pack(side='left')
-tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=color.FADED).pack(side='left', anchor='s', pady=(0, 6))
+logoImageLoad = Image.open('.\\media\\logo_ui.png')
+logoImageRender = ImageTk.PhotoImage(logoImageLoad)
+tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
+tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=color.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
 # Add placeholder to backup analysis
 backupSummaryTextFrame = tk.Frame(backupSummaryFrame)
