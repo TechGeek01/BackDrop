@@ -1,7 +1,20 @@
-# BackDrop
+<p align="center">
+  <br />
+  <img alt="Logo" src="https://github.com/TechGeek01/BackDrop/raw/master/media/logo.png">
+  <br /><br />
+  <a href="https://lgtm.com/projects/g/TechGeek01/BackDrop/context:python"><img alt="undefined" src="https://img.shields.io/lgtm/grade/python/github/TechGeek01/BackDrop"/></a>
+  <br />
+  <a href="https://github.com/TechGeek01/BackDrop/releases/latest"><img alt="undefined" src="https://img.shields.io/github/v/release/TechGeek01/BackDrop"></a>
+  <img alt="undefined" src="https://img.shields.io/github/downloads/TechGeek01/BackDrop/total" />
+  <a href="https://github.com/TechGeek01/BackDrop/blob/master/LICENSE"><img alt="undefined" src="https://img.shields.io/github/license/TechGeek01/BackDrop"></a>
+  <br />
+  <a href="https://github.com/TechGeek01/BackDrop/releases/download/v1.1.1/backdrop-v1.1.1.exe" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a>
+  <br /><br />
+</p>
+
 Online storage of data can get expensive. Obviously, the cheap way to back up important data off of a file server is to load copies of it onto spare drives, and cart them to a friend's house. If you're like me, not all of the data you want to back up will always fit on one drive, and I wanted a way to automate the backup without having to manually figure out the best way to split directories.
 
-![BackDrop](https://raw.githubusercontent.com/TechGeek01/BackDrop/master/docs/img/showcase.png)
+![BackDrop UI](https://raw.githubusercontent.com/TechGeek01/BackDrop/master/docs/img/showcase.png)
 
 ## Usage
 BackDrop was intended for use with Unraid, or another NAS solution. My setup involves network shares, since I don't have room to just pop extra drives into the server, they're docked with a USB adapter in Windows, and encrypted so that data is inaccessible without my encryption key. My setup involves a "root share" where all of the shares I have in Unraid are accessible as subfolders on one network drive.
