@@ -1452,7 +1452,7 @@ def resource_path(relative_path):
 
 root = tk.Tk()
 root.attributes('-alpha', 0.0)
-root.title('BackDrop - Unraid Drive Backup Tool')
+root.title('BackDrop - Network Drive Backup Tool')
 root.iconbitmap(resource_path('media\\icon.ico'))
 root.resizable(False, False)
 root.geometry('1300x700')
