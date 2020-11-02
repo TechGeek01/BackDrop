@@ -1512,9 +1512,9 @@ def resource_path(relative_path):
 root = tk.Tk()
 root.attributes('-alpha', 0.0)
 root.title('BackDrop - Network Drive Backup Tool')
-root.iconbitmap(resource_path('media\\icon.ico'))
 root.resizable(False, False)
 root.geometry('1300x700')
+root.iconbitmap(resource_path('media\\icon.ico'))
 
 center(root)
 root.attributes('-alpha', 1.0)
