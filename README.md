@@ -1,5 +1,4 @@
 <p align="center">
-  <br />
   <img alt="Logo" src="https://github.com/TechGeek01/BackDrop/raw/master/media/logo.png">
   <br /><br />
   <a href="https://lgtm.com/projects/g/TechGeek01/BackDrop/context:python"><img alt="undefined" src="https://img.shields.io/lgtm/grade/python/github/TechGeek01/BackDrop"/></a>
@@ -12,7 +11,9 @@
   <br /><br />
 </p>
 
-Online storage of data can get expensive. Obviously, the cheap way to back up important data off of a file server is to load copies of it onto spare drives, and cart them to a friend's house. If you're like me, not all of the data you want to back up will always fit on one drive, and I wanted a way to automate the backup without having to manually figure out the best way to split directories.
+BackDrop is a tool to copy files from a NAS onto one, or many, external drives for cold storage.
+
+Online storage of data can get expensive. Obviously, the cheap way to back up important data from a file server is to load copies of it onto spare drives, and cart them to a friend's house. If you're like me, not all of the data you want to back up will always fit on one drive, and I wanted a way to automate the backup without having to manually figure out the best way to split directories.
 
 ![BackDrop UI](https://raw.githubusercontent.com/TechGeek01/BackDrop/master/docs/img/showcase.png)
 
