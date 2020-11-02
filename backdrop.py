@@ -1440,6 +1440,16 @@ threadManager = ThreadManager()
 analysisValid = False
 analysisStarted = False
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 root = tk.Tk()
 root.attributes('-alpha', 0.0)
 root.title('BackDrop - Unraid Drive Backup Tool')
@@ -1640,7 +1650,7 @@ backupTitle.pack()
 brandingFrame = tk.Frame(rightSideFrame)
 brandingFrame.pack()
 
-logoImageLoad = Image.open('.\\media\\logo_ui.png')
+logoImageLoad = Image.open(resource_path('media\\logo_ui.png'))
 logoImageRender = ImageTk.PhotoImage(logoImageLoad)
 tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
 tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=color.FADED).pack(side='left', anchor='s', pady=(0, 12))
