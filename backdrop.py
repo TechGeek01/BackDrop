@@ -531,16 +531,60 @@ def analyzeBackup(shares, drives):
 
         return shareSplitSummary
 
+    # Recurse through drive
+    # Exclude config dir, and shares that are purged
+    # Recurse through all other files
+    # Delete file if not exists on source
+    #     QUESTION: Does this exclude files that are part of the source, but aren't supposed to be on that drive?
+    # Delete folder if not exists on source
+    # Recurse into folder
+    # Delete folder if not exists or exists and not part of path for subfolder that's included
+    #     If backups/Macrium is copied, don't delete backups, even if backups isn't a share that's copied
+    # Delete exclusions
+    # URGENT: Delete files that exist on source, but aren't supposed to be copied, and aren't explicitly excluded
+
+    def crawl_drive_for_deletes(drive, excludeList):
+        """Get A list of files to delete from a drive.
+
+        Args:
+            drive (String): The drive letter to check.
+            excludeList (String list): A list of folders/files to ignore.
+
+        Returns:
+            String list: The list of files to delete.
+        """
+        deleteList = []
+        try:
+            for entry in os.scandir(drive):
+                # For each entry, either add filesize to the total, or recurse into the directory
+                fullPath = entry.path[3:]
+                if fullPath not in excludeList:
+                    if not os.path.exists(sourceDrive + fullPath):
+                        # Delete files that don't exist in source drive
+                        deleteList.append(fullPath)
+                    elif entry.is_dir():
+                        # Path is dir, and exists on source, so recurse into it
+                        deleteList.extend(crawl_drive_for_deletes(entry.path, excludeList))
+        except NotADirectoryError:
+            return []
+        except PermissionError:
+            return []
+        except OSError:
+            return []
+        return deleteList
+
     # driveShareList contains info about whole shares mapped to drives
     # Use this to build the list of non-exclusion robocopy commands
     mirCommandList = []
     purgeCommandList = []
     displayMirCommandList = []
     displayPurgeCommandList = []
+    driveDeleteIgnoreList = {}
     for drive, shares in driveShareList.items():
-        if len(shares) > 0:
-            humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
+        humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
+        driveDeleteIgnoreList[humanDrive] = [backupConfigDir, '$RECYCLE.BIN', 'System Volume Information']
 
+        if len(shares) > 0:
             # If whole share is copied with /mir, we also need a /purge command to remove
             # old stuff before the copy starts to avoid running out of room
             displayPurgeCommandList.extend([{
@@ -570,15 +614,18 @@ def analyzeBackup(shares, drives):
                     'cmd': 'robocopy "%s" "%s" /mir' % (sourceDrive + share, humanDrive + share)
                 } for i, share in enumerate(shares)])
 
+                # Add the share directory to the delete ignore list, since /purge takes care of it
+                driveDeleteIgnoreList[humanDrive].extend(shares)
+
     # For each share that needs splitting, split each one
     # For each resulting folder in the summary, get list of files
     # For each drive, exclusions are files on other drives, plus explicit exclusions
 
-    # For shares larger than all drives, recurse into each share
     driveDeleteFiles = {}
-    for drive in driveInfo:
-        driveDeleteFiles[drive['name']] = []
+    for drive, exclusions in driveDeleteIgnoreList.items():
+        driveDeleteFiles[drive] = []
 
+    # For shares larger than all drives, recurse into each share
     for share in shareInfo.keys():
         if os.path.exists(sourceDrive + share) and os.path.isdir(sourceDrive + share):
             summary = splitShare(share)
@@ -610,7 +657,10 @@ def analyzeBackup(shares, drives):
                         if (drive in driveVidToLetterMap.keys()):
                             # Check exclusion list for source, and remove any exclusions in the source dir
                             # Then, add new exclusions to the list
-                            driveDeleteFiles[humanDrive] = [item for item in driveDeleteFiles[humanDrive] if not (item.find(shareName + '\\') == 0 or item == shareName)]
+                            print(shareName)
+                            upperDir = '\\'.join(shareName.split('\\')[:-1])
+                            
+                            driveDeleteFiles[humanDrive] = [item for item in driveDeleteFiles[humanDrive] if not (shareName.find(item + '\\') == 0 or item == shareName)]
                             driveDeleteFiles[humanDrive].extend([shareName + '\\' + item for item in masterExclusions])
 
                         fileExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isfile(sourcePathStub + file)]
@@ -632,10 +682,18 @@ def analyzeBackup(shares, drives):
                             })
                         driveShareList[drive].append(shareName)
 
+    for drive, exclusions in driveDeleteIgnoreList.items():
+        files = crawl_drive_for_deletes(drive, driveDeleteIgnoreList[drive])
+        driveDeleteFiles[drive].extend(files)
+
     # For each drive, format and add the commands for deleting loose files to the list
     for drive in driveDeleteFiles.keys():
         # Filter exclusions to those that exist on the drive
         fileDeleteList = [drive + file for file in driveDeleteFiles[drive] if os.path.exists(drive + file)]
+
+        # print('----------------------')
+        # print(drive)
+        # print(fileDeleteList)
 
         if len(fileDeleteList) > 0:
             # Format list of files into commands
@@ -1426,6 +1484,7 @@ backupConfigDir = '.backdrop'
 backupConfigFile = 'backup.config'
 appConfigFile = 'defaults.config'
 appDataFolder = os.getenv('LocalAppData') + '\\BackDrop'
+robocopyLogFile = 'robocopy.log'
 elemPadding = 16
 
 config = {
