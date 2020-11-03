@@ -1,13 +1,13 @@
 <p align="center">
   <img alt="Logo" src="https://github.com/TechGeek01/BackDrop/raw/master/media/logo.png">
-  <br /><br />
-  <a href="https://lgtm.com/projects/g/TechGeek01/BackDrop/context:python"><img alt="undefined" src="https://img.shields.io/lgtm/grade/python/github/TechGeek01/BackDrop"/></a>
+  <br />
+  <a href="https://lgtm.com/projects/g/TechGeek01/BackDrop/context:python"><img alt="Language grade: Python" src="https://img.shields.io/lgtm/grade/python/g/TechGeek01/BackDrop.svg?logo=lgtm&logoWidth=18"/></a>
   <br />
   <a href="https://github.com/TechGeek01/BackDrop/releases/latest"><img alt="undefined" src="https://img.shields.io/github/v/release/TechGeek01/BackDrop"></a>
   <img alt="undefined" src="https://img.shields.io/github/downloads/TechGeek01/BackDrop/total" />
   <a href="https://github.com/TechGeek01/BackDrop/blob/master/LICENSE"><img alt="undefined" src="https://img.shields.io/github/license/TechGeek01/BackDrop"></a>
   <br />
-  <a href="https://github.com/TechGeek01/BackDrop/releases/download/v1.1.1/backdrop-v1.1.1.exe" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a>
+  <a href="https://github.com/TechGeek01/BackDrop/releases/download/v1.1.2/backdrop.exe" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a>
   <br /><br />
 </p>
 

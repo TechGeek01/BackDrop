@@ -16,7 +16,7 @@ import keyboard
 from PIL import Image, ImageTk
 
 # Set meta info
-appVersion = '1.1.2-alpha.1'
+appVersion = '1.1.2'
 threadsForProgressBar = 5
 
 # TODO: @Shares are copied to root of drives, so other directories with data are most likely left intact

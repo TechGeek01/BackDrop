@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2020-11-02
+### Fixed
+- Summary no longer shows split folders on all drives
+- Improved detection of leftover files to delete
+### Changed
+- Aligned text in summary frame to columns
+- Adjusted window size
+- Replaced text label branding with Logo
+
 ## [1.1.1] - 2020-10-21
 ### Fixed
 - Deleting files that are no longer allocated to a drive now happens before the robocopy in order to prevent running out of space while copying new files
@@ -24,5 +33,5 @@ All notable changes to this project will be documented in this file.
 - Added proper branding
 - Performance improvements
 
-## 1.0.0 - 2020-09-11
+## [1.0.0] - 2020-09-11
 Initial release
