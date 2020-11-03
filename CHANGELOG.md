@@ -1,10 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.1.3] - 2020-11-02
+### Fixed
+- BackDrop no longer crashes when no network drives are present to use as source
+
 ## [1.1.2] - 2020-11-02
 ### Fixed
 - Summary no longer shows split folders on all drives
 - Improved detection of leftover files to delete
+
 ### Changed
 - Aligned text in summary frame to columns
 - Adjusted window size
