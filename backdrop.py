@@ -775,6 +775,10 @@ def sanityCheck():
     Returns:
         bool: True if conditions are good, False otherwise.
     """
+
+    if not sourceDriveListValid:
+        return False
+
     sourceSelection = sourceTree.selection()
     destSelection = destTree.selection()
     selectionOk = len(sourceSelection) > 0 and len(destSelection) > 0
@@ -810,7 +814,8 @@ def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    threadManager.start(threadManager.SINGLE, target=analyzeBackup, args=[sourceTree.selection(), config['drives']], name='Backup Analysis', daemon=True)
+    if sourceDriveListValid:
+        threadManager.start(threadManager.SINGLE, target=analyzeBackup, args=[sourceTree.selection(), config['drives']], name='Backup Analysis', daemon=True)
 
 def writeSettingToFile(setting, file):
     """Write a setting to a given file.
@@ -884,7 +889,8 @@ def loadSource():
 
 def startRefreshSource():
     """Start a source refresh in a new thread."""
-    threadManager.start(threadManager.SINGLE, target=loadSource, name='Load Source', daemon=True)
+    if sourceDriveListValid:
+        threadManager.start(threadManager.SINGLE, target=loadSource, name='Load Source', daemon=True)
 
 def changeSourceDrive(selection):
     """Change the source drive to pull shares from to a new selection.
@@ -1472,6 +1478,7 @@ class color:
 
     INFO = '#bbe6ff'
     WARNING = '#ffe69d'
+    ERROR = '#ffd0d0'
 
     FINISHED = GREEN
     RUNNING = BLUE
@@ -1535,63 +1542,75 @@ buttonIconStyle = ttk.Style()
 buttonIconStyle.theme_use('vista')
 buttonIconStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(None, 15), background='#00bfe6')
 
-# Set source drives and start to set up source dropdown
-sourceDriveDefault = tk.StringVar()
-driveList = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-remoteDrives = [drive for drive in driveList if win32file.GetDriveType(drive) == 4]
-sourceDrive = readSettingFromFile(appDataFolder + '\\sourceDrive.default', remoteDrives[0], remoteDrives)
-sourceDriveDefault.set(sourceDrive)
-
-if not os.path.exists(appDataFolder + '\\sourceDrive.default') or not os.path.isfile(appDataFolder + '\\sourceDrive.default'):
-    writeSettingToFile(sourceDrive, appDataFolder + '\\sourceDrive.default')
-
-# Tree frames for tree and scrollbar
-sourceTreeFrame = tk.Frame(mainFrame)
-sourceTreeFrame.grid(row=1, column=0, sticky='ns')
-destTreeFrame = tk.Frame(mainFrame)
-destTreeFrame.grid(row=1, column=1, sticky='ns', padx=(elemPadding, 0))
-
 # Progress/status values
 progressBar = ttk.Progressbar(mainFrame, maximum=100)
 progressBar.grid(row=10, column=0, columnspan=3, sticky='ew', pady=(elemPadding, 0))
 
-sourceTree = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'))
-sourceTree.heading('#0', text='Share')
-sourceTree.column('#0', width=200)
-sourceTree.heading('size', text='Size')
-sourceTree.column('size', width=80)
-sourceTree['displaycolumns'] = ('size')
+# Set source drives and start to set up source dropdown
+sourceDriveDefault = tk.StringVar()
+driveList = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+remoteDrives = [drive for drive in driveList if win32file.GetDriveType(drive) == 4]
 
-sourceTree.pack(side='left')
-sourceShareScroll = ttk.Scrollbar(sourceTreeFrame, orient='vertical', command=sourceTree.yview)
-sourceShareScroll.pack(side='left', fill='y')
-sourceTree.configure(xscrollcommand=sourceShareScroll.set)
+sourceDriveListValid = len(remoteDrives) > 0
 
-# There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
-# visible, so 1px needs to be added back
-sourceMetaFrame = tk.Frame(mainFrame)
-sourceMetaFrame.grid(row=2, column=0, sticky='nsew', pady=(1, elemPadding))
-tk.Grid.columnconfigure(sourceMetaFrame, 0, weight=1)
+if sourceDriveListValid:
+    sourceDrive = readSettingFromFile(appDataFolder + '\\sourceDrive.default', remoteDrives[0], remoteDrives)
+    sourceDriveDefault.set(sourceDrive)
 
-shareSpaceFrame = tk.Frame(sourceMetaFrame)
-shareSpaceFrame.grid(row=0, column=0)
-shareSelectedSpace = tk.Label(shareSpaceFrame, text='Selected: ' + human_filesize(0))
-shareSelectedSpace.grid(row=0, column=0)
-shareTotalSpace = tk.Label(shareSpaceFrame, text='Total: ~' + human_filesize(0))
-shareTotalSpace.grid(row=0, column=1, padx=(12, 0))
+    if not os.path.exists(appDataFolder + '\\sourceDrive.default') or not os.path.isfile(appDataFolder + '\\sourceDrive.default'):
+        writeSettingToFile(sourceDrive, appDataFolder + '\\sourceDrive.default')
 
-startRefreshSource()
+    # Tree frames for tree and scrollbar
+    sourceTreeFrame = tk.Frame(mainFrame)
+    sourceTreeFrame.grid(row=1, column=0, sticky='ns')
 
-refreshSourceBtn = ttk.Button(sourceMetaFrame, text='\u2b6e', command=startRefreshSource, style='icon.TButton')
-refreshSourceBtn.grid(row=0, column=1)
+    sourceTree = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'))
+    sourceTree.heading('#0', text='Share')
+    sourceTree.column('#0', width=200)
+    sourceTree.heading('size', text='Size')
+    sourceTree.column('size', width=80)
+    sourceTree['displaycolumns'] = ('size')
 
-sourceSelectFrame = tk.Frame(mainFrame)
-sourceSelectFrame.grid(row=0, column=0, pady=(0, elemPadding / 2))
-tk.Label(sourceSelectFrame, text='Source:').pack(side='left')
-sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, sourceDrive, *tuple(remoteDrives), command=changeSourceDrive)
-sourceSelectMenu.pack(side='left', padx=(12, 0))
+    sourceTree.pack(side='left')
+    sourceShareScroll = ttk.Scrollbar(sourceTreeFrame, orient='vertical', command=sourceTree.yview)
+    sourceShareScroll.pack(side='left', fill='y')
+    sourceTree.configure(xscrollcommand=sourceShareScroll.set)
 
-sourceTree.bind("<<TreeviewSelect>>", loadSourceInBackground)
+    # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
+    # visible, so 1px needs to be added back
+    sourceMetaFrame = tk.Frame(mainFrame)
+    sourceMetaFrame.grid(row=2, column=0, sticky='nsew', pady=(1, elemPadding))
+    tk.Grid.columnconfigure(sourceMetaFrame, 0, weight=1)
+
+    shareSpaceFrame = tk.Frame(sourceMetaFrame)
+    shareSpaceFrame.grid(row=0, column=0)
+    shareSelectedSpace = tk.Label(shareSpaceFrame, text='Selected: ' + human_filesize(0))
+    shareSelectedSpace.grid(row=0, column=0)
+    shareTotalSpace = tk.Label(shareSpaceFrame, text='Total: ~' + human_filesize(0))
+    shareTotalSpace.grid(row=0, column=1, padx=(12, 0))
+
+    startRefreshSource()
+
+    refreshSourceBtn = ttk.Button(sourceMetaFrame, text='\u2b6e', command=startRefreshSource, style='icon.TButton')
+    refreshSourceBtn.grid(row=0, column=1)
+
+    sourceSelectFrame = tk.Frame(mainFrame)
+    sourceSelectFrame.grid(row=0, column=0, pady=(0, elemPadding / 2))
+    tk.Label(sourceSelectFrame, text='Source:').pack(side='left')
+    sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, sourceDrive, *tuple(remoteDrives), command=changeSourceDrive)
+    sourceSelectMenu.pack(side='left', padx=(12, 0))
+
+    sourceTree.bind("<<TreeviewSelect>>", loadSourceInBackground)
+else:
+    sourceDriveDefault.set('No remotes')
+
+    # sourceMissingFrame = tk.Frame(mainFrame, width=200)
+    # sourceMissingFrame.grid(row=0, column=0,  rowspan=2, sticky='nsew')
+    sourceWarning = tk.Label(mainFrame, text='No network drives are available to use as source', font=(None, 14), wraplength=250, bg=color.ERROR)
+    sourceWarning.grid(row=0, column=0,  rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
+
+destTreeFrame = tk.Frame(mainFrame)
+destTreeFrame.grid(row=1, column=1, sticky='ns', padx=(elemPadding, 0))
 
 destModeFrame = tk.Frame(mainFrame)
 destModeFrame.grid(row=0, column=1, pady=(0, elemPadding / 2))
@@ -1664,7 +1683,7 @@ splitModeStatus.grid(row=0, column=3, padx=(12, 0))
 
 refreshDestBtn = ttk.Button(destMetaFrame, text='\u2b6e', command=startRefreshDest, style='icon.TButton')
 refreshDestBtn.grid(row=0, column=1)
-startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze Backup', command=startBackupAnalysis, style='win.TButton')
+startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze Backup', command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled', style='win.TButton')
 startAnalysisBtn.grid(row=0, column=2)
 
 driveSelectBind = destTree.bind("<<TreeviewSelect>>", selectDriveInBackground)
@@ -1698,13 +1717,6 @@ tk.Grid.columnconfigure(mainFrame, 2, weight=1)
 rightSideFrame = tk.Frame(mainFrame)
 rightSideFrame.grid(row=0, column=2, rowspan=6, sticky='nsew', pady=(elemPadding / 2, 0))
 
-backupSummaryFrame = tk.Frame(rightSideFrame)
-backupSummaryFrame.pack(fill='both', expand=1, padx=(elemPadding, 0))
-backupSummaryFrame.update()
-
-backupTitle = tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20))
-backupTitle.pack()
-
 brandingFrame = tk.Frame(rightSideFrame)
 brandingFrame.pack()
 
@@ -1712,6 +1724,13 @@ logoImageLoad = Image.open(resource_path('media\\logo_ui.png'))
 logoImageRender = ImageTk.PhotoImage(logoImageLoad)
 tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
 tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=color.FADED).pack(side='left', anchor='s', pady=(0, 12))
+
+backupSummaryFrame = tk.Frame(rightSideFrame)
+backupSummaryFrame.pack(fill='both', expand=1, padx=(elemPadding, 0))
+backupSummaryFrame.update()
+
+backupTitle = tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20))
+backupTitle.pack()
 
 # Add placeholder to backup analysis
 backupSummaryTextFrame = tk.Frame(backupSummaryFrame)
