@@ -16,7 +16,7 @@ import keyboard
 from PIL import Image, ImageTk
 
 # Set meta info
-appVersion = '1.1.3'
+appVersion = '1.1.4-alpha1'
 threadsForProgressBar = 5
 
 # TODO: @Shares are copied to root of drives, so other directories with data are most likely left intact
@@ -186,6 +186,30 @@ def enumerateCommandInfo(displayCommandList):
             config['lastOutHeader'].pack(side='left')
             config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
             config['lastOutResult'].pack(side='left')
+
+            config['lastOutWorkingDirLine'] = tk.Frame(config['infoFrame'])
+            config['lastOutWorkingDirLine'].pack(anchor='w')
+            tk.Frame(config['lastOutWorkingDirLine'], width=arrowWidth).pack(side='left')
+            config['lastOutWorkingDirHeader'] = tk.Label(config['lastOutWorkingDirLine'], text='Working dir:', font=cmdHeaderFont)
+            config['lastOutWorkingDirHeader'].pack(side='left')
+            config['lastOutWorkingDirResult'] = tk.Label(config['lastOutWorkingDirLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+            config['lastOutWorkingDirResult'].pack(side='left')
+
+            config['lastOutFileStatusLine'] = tk.Frame(config['infoFrame'])
+            config['lastOutFileStatusLine'].pack(anchor='w')
+            tk.Frame(config['lastOutFileStatusLine'], width=arrowWidth).pack(side='left')
+            config['lastOutFileStatusHeader'] = tk.Label(config['lastOutFileStatusLine'], text='File Status:', font=cmdHeaderFont)
+            config['lastOutFileStatusHeader'].pack(side='left')
+            config['lastOutFileStatusResult'] = tk.Label(config['lastOutFileStatusLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+            config['lastOutFileStatusResult'].pack(side='left')
+
+            config['lastOutFileNameLine'] = tk.Frame(config['infoFrame'])
+            config['lastOutFileNameLine'].pack(anchor='w')
+            tk.Frame(config['lastOutFileNameLine'], width=arrowWidth).pack(side='left')
+            config['lastOutFileNameHeader'] = tk.Label(config['lastOutFileNameLine'], text='File:', font=cmdHeaderFont)
+            config['lastOutFileNameHeader'].pack(side='left')
+            config['lastOutFileNameResult'] = tk.Label(config['lastOutFileNameLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+            config['lastOutFileNameResult'].pack(side='left')
 
             # Handle command trimming
             cmdFont = tkfont.Font(family=None, size=10, weight='normal')
@@ -548,7 +572,7 @@ def analyzeBackup(shares, drives):
 
         Args:
             drive (String): The drive letter to check.
-            excludeList (String list): A list of folders/files to ignore.
+            excludeList (String[]): A list of folders/files to ignore.
 
         Returns:
             String list: The list of files to delete.
@@ -659,7 +683,7 @@ def analyzeBackup(shares, drives):
                             # Then, add new exclusions to the list
                             print(shareName)
                             upperDir = '\\'.join(shareName.split('\\')[:-1])
-                            
+
                             driveDeleteFiles[humanDrive] = [item for item in driveDeleteFiles[humanDrive] if not (shareName.find(item + '\\') == 0 or item == shareName)]
                             driveDeleteFiles[humanDrive].extend([shareName + '\\' + item for item in masterExclusions])
 
@@ -1266,16 +1290,89 @@ def runBackup():
 
     startBackupBtn.configure(text='Halt Backup', command=lambda: threadManager.kill('Backup'), style='danger.TButton')
 
+    import re
+
     for cmd in commandList:
         if cmd['type'] == 'cmd':
             process = subprocess.Popen(cmd['cmd'], shell=True, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             # process = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
+            dirFileCount = False
+            workingDir = False
+            fileAnalysis = False
+            fileSize = False
+            fileName = False
+            filePercent = False
+
             while not threadManager.threadList['Backup']['killFlag'] and process.poll() is None:
                 try:
                     out = process.stdout.readline().decode().strip()
-                    cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=color.RUNNING)
-                    cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text=out, fg=color.NORMAL)
+
+                    fileData = re.split(r'\s{2,}|[\t\r]', out)
+
+                    if fileData[0] != 'Total':
+                        # If first item in file line is total, then the summary has started, and we'e done with file output
+
+                        print('--------------------------------------------')
+
+                        if len(fileData) == 2 and fileData[1][-1] == '\\':
+                            # If file line has two items only, it indicates file count, and working directory
+                            dirFileCount = fileData[0]
+                            workingDir = fileData[1]
+
+                            print(dirFileCount + ' => ' + workingDir)
+                        elif len(fileData) == 3 and fileData[0] != 'ROBOCOPY':
+                            # If file line has 3 items, it's a skipped or extra file or dir, with no percent output
+                            fileAnalysis = fileData[0]
+                            fileSize = fileData[1]
+                            fileName = fileData[2]
+                            filePercent = False
+
+                            print(dirFileCount + ' => ' + workingDir)
+                            print(fileAnalysis + ' => ' + fileSize + ' => ' + fileName)
+                        elif len(fileData) >= 4 and fileData[-1][-1] == '%':
+                            # If file line has more than 2 items, it's either a meta line, or a file line
+                            # File lines report the last item in the array as percent copied
+                            fileAnalysis = fileData[0]
+                            fileSize = fileData[1]
+                            fileName = fileData[2]
+                            filePercent = fileData[-1]
+
+                            print(dirFileCount + ' => ' + workingDir)
+                            print(fileAnalysis + ' => ' + fileSize + ' => ' + fileName)
+                            print(filePercent)
+                        else:
+                            fileAnalysis = False
+                            fileSize = False
+                            fileName = False
+                            filePercent = False
+
+                            print(len(fileData))
+                            print(fileData)
+
+                        workingDirText = '%s files in %s' % (dirFileCount, workingDir) if dirFileCount and workingDir else ''
+                        fileStatusText = '%s => %s' % (fileAnalysis, fileName) if fileAnalysis and fileName else ''
+                        if filePercent and fileSize:
+                            filePercentText = '%s of %s' % (filePercent, fileSize)
+                        elif fileSize:
+                            filePercentText = fileSize
+                        else:
+                            filePercentText = ''
+
+                        cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=color.RUNNING)
+                        cmdInfoBlocks[cmd['displayIndex']]['lastOutWorkingDirResult'].configure(text=workingDirText, fg=color.NORMAL)
+                        cmdInfoBlocks[cmd['displayIndex']]['lastOutFileStatusResult'].configure(text=fileStatusText, fg=color.NORMAL)
+                        cmdInfoBlocks[cmd['displayIndex']]['lastOutFileNameResult'].configure(text=filePercentText, fg=color.NORMAL)
+                    else:
+                        break
+
+                    # print('----------------------')
+                    # print(workingDir)
+                    # print(dirFileCount)
+                    # print(fileAnalysis)
+                    # print(fileSize)
+                    # print(fileName)
+                    # print(filePercent)
                 except Exception as e:
                     print(e)
             process.terminate()
@@ -1296,10 +1393,14 @@ def runBackup():
 
         if not threadManager.threadList['Backup']['killFlag']:
             cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=color.FINISHED)
-            cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=color.FINISHED)
+            cmdInfoBlocks[cmd['displayIndex']]['lastOutWorkingDirResult'].configure(text='Done', fg=color.FINISHED)
+            cmdInfoBlocks[cmd['displayIndex']]['lastOutFileStatusResult'].configure(text='Done', fg=color.FINISHED)
+            cmdInfoBlocks[cmd['displayIndex']]['lastOutFileNameResult'].configure(text='Done', fg=color.FINISHED)
         else:
             cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=color.STOPPED)
-            cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=color.STOPPED)
+            cmdInfoBlocks[cmd['displayIndex']]['lastOutWorkingDirResult'].configure(text='Aborted', fg=color.STOPPED)
+            cmdInfoBlocks[cmd['displayIndex']]['lastOutFileStatusResult'].configure(text='Aborted', fg=color.STOPPED)
+            cmdInfoBlocks[cmd['displayIndex']]['lastOutFileNameResult'].configure(text='Aborted', fg=color.STOPPED)
             break
 
     if len(threading.enumerate()) <= threadsForProgressBar:
@@ -1717,6 +1818,10 @@ tk.Grid.columnconfigure(mainFrame, 2, weight=1)
 rightSideFrame = tk.Frame(mainFrame)
 rightSideFrame.grid(row=0, column=2, rowspan=6, sticky='nsew', pady=(elemPadding / 2, 0))
 
+backupSummaryFrame = tk.Frame(rightSideFrame)
+backupSummaryFrame.pack(fill='both', expand=1, padx=(elemPadding, 0))
+backupSummaryFrame.update()
+
 brandingFrame = tk.Frame(rightSideFrame)
 brandingFrame.pack()
 
@@ -1724,10 +1829,6 @@ logoImageLoad = Image.open(resource_path('media\\logo_ui.png'))
 logoImageRender = ImageTk.PhotoImage(logoImageLoad)
 tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
 tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=color.FADED).pack(side='left', anchor='s', pady=(0, 12))
-
-backupSummaryFrame = tk.Frame(rightSideFrame)
-backupSummaryFrame.pack(fill='both', expand=1, padx=(elemPadding, 0))
-backupSummaryFrame.update()
 
 backupTitle = tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20))
 backupTitle.pack()
