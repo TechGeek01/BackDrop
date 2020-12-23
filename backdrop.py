@@ -238,6 +238,14 @@ def enumerateCommandInfo(displayCommandList):
             config['statusStatsFrame'] = tk.Frame(config['statusStatsLine'])
             config['statusStatsFrame'].pack(side='left')
         else:
+            config['fileSizeLine'] = tk.Frame(config['infoFrame'])
+            config['fileSizeLine'].pack(anchor='w')
+            tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
+            config['fileSizeLineHeader'] = tk.Label(config['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
+            config['fileSizeLineHeader'].pack(side='left')
+            config['fileSizeLineTotal'] = tk.Label(config['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
+            config['fileSizeLineTotal'].pack(side='left')
+
             config['fileListLine'] = tk.Frame(config['infoFrame'])
             config['fileListLine'].pack(anchor='w')
             tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
@@ -318,6 +326,10 @@ def analyzeBackup(shares, drives):
     global analysisValid
     global analysisStarted
     global destModeSplitEnabled
+
+    global deleteFileList
+    global replaceFileList
+    global newFileList
 
     # Sanity check for space requirements
     if not sanityCheck():
@@ -706,27 +718,62 @@ def analyzeBackup(shares, drives):
                             })
                         driveShareList[drive].append(shareName)
 
-    for drive, exclusions in driveDeleteIgnoreList.items():
-        files = crawl_drive_for_deletes(drive, driveDeleteIgnoreList[drive])
-        driveDeleteFiles[drive].extend(files)
+    def buildDeleteFileList(drive):
+        specialIgnoreList = [backupConfigDir, '$RECYCLE.BIN', 'System Volume Information']
+        deleteList = []
+        try:
+            for entry in os.scandir(drive):
+                # For each entry, either add filesize to the total, or recurse into the directory
+                if entry.is_file():
+                    if entry.path[3:].find('\\') == -1:
+                        # Files should not be on root of drive
+                        deleteList.append((entry.path, entry.stat().st_size))
+                    else:
+                        # File is in dir, so check if it exists in source
+                        if not os.path.isfile(sourceDrive + entry.path[3:]):
+                            # File doesn't exist in source, so delete it
+                            deleteList.append((entry.path, get_directory_size(entry.path)))
+                elif entry.is_dir():
+                    foundShare = False
+                    for item in shares:
+                        if (entry.path[3:] == item # Dir is share, so it stays
+                                or (entry.path[3:].find(item + '\\') == 0 and os.path.isdir(sourceDrive + entry.path[3:])) # Dir is subdir inside share, and it exists in source
+                                or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of a share we're copying, so it stays
+                            # Recurse into the share
+                            deleteList.extend(buildDeleteFileList(entry.path))
+                            foundShare = True
+                            break
+                    if not foundShare and entry.path[3:] not in specialIgnoreList:
+                        # Directory isn't share, or part of one, so delete it
+                        deleteList.append((entry.path, get_directory_size(entry.path)))
+        except NotADirectoryError:
+            return []
+        except PermissionError:
+            return []
+        except OSError:
+            return []
+        return deleteList
 
-    # For each drive, format and add the commands for deleting loose files to the list
-    for drive in driveDeleteFiles.keys():
-        # Filter exclusions to those that exist on the drive
-        fileDeleteList = [drive + file for file in driveDeleteFiles[drive] if os.path.exists(drive + file)]
+    # Build list of files/dirs to delete
+    deleteFileList = {}
+    for drive, shares in driveShareList.items():
+        humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
 
-        # print('----------------------')
-        # print(drive)
-        # print(fileDeleteList)
+        print('%s => %s' % (humanDrive, ', '.join(shares)))
 
-        if len(fileDeleteList) > 0:
+        items = buildDeleteFileList(humanDrive)
+        if len(items) > 0:
+            deleteFileList[humanDrive] = items
+            fileDeleteList = [file for file, size in items]
+
             # Format list of files into commands
             fileDeleteCmdList = [('del /f "%s"' % (file) if os.path.isfile(file) else 'rmdir /s /q "%s"' % (file)) for file in fileDeleteList]
 
             displayPurgeCommandList.append({
                 'enabled': True,
                 'type': 'list',
-                'drive': drive,
+                'drive': humanDrive,
+                'size': sum([size for file, size in items]),
                 'fileList': fileDeleteList,
                 'cmdList': fileDeleteCmdList
             })
@@ -734,10 +781,12 @@ def analyzeBackup(shares, drives):
             purgeCommandList.append({
                 'displayIndex': len(displayPurgeCommandList) + 1,
                 'type': 'list',
-                'drive': drive,
+                'drive': humanDrive,
                 'fileList': fileDeleteList,
                 'cmdList': fileDeleteCmdList
             })
+
+        print('%d extra files => %s' % (len(items), human_filesize(sum([size for file, size in items]))))
 
     # Concat both lists into command list
     commandList = []
