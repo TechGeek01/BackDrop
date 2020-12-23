@@ -619,14 +619,6 @@ def analyzeBackup(shares, drives):
         humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
 
         if len(shares) > 0:
-            # If whole share is copied with /mir, we also need a /purge command to remove
-            # old stuff before the copy starts to avoid running out of room
-            displayPurgeCommandList.extend([{
-                'enabled': drive in driveVidToLetterMap.keys(),
-                'type': 'cmd',
-                'cmd': 'robocopy "%s" "%s" /purge' % (sourceDrive + share, humanDrive + share)
-            } for share in shares])
-
             displayMirCommandList.extend([{
                 'enabled': drive in driveVidToLetterMap.keys(),
                 'type': 'cmd',
@@ -634,14 +626,6 @@ def analyzeBackup(shares, drives):
             } for share in shares])
 
             if drive in driveVidToLetterMap.keys():
-                # If whole share is copied with /mir, we also need a /purge command to remove
-                # old stuff before the copy starts to avoid running out of room
-                purgeCommandList.extend([{
-                    'displayIndex': len(displayPurgeCommandList) - len(shares) + i,
-                    'type': 'cmd',
-                    'cmd': 'robocopy "%s" "%s" /purge' % (sourceDrive + share, humanDrive + share)
-                } for i, share in enumerate(shares)])
-
                 mirCommandList.extend([{
                     'displayIndex': len(displayMirCommandList) - len(shares) + i,
                     'type': 'cmd',
