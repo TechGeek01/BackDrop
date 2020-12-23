@@ -649,6 +649,7 @@ def analyzeBackup(shares, drives):
                 } for i, share in enumerate(shares)])
 
     # For shares larger than all drives, recurse into each share
+    driveExclusions = []
     for share in shareInfo.keys():
         if os.path.exists(sourceDrive + share) and os.path.isdir(sourceDrive + share):
             summary = splitShare(share)
@@ -675,6 +676,7 @@ def analyzeBackup(shares, drives):
                         humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
 
                         masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
+                        driveExclusions.extend([sourcePathStub + file for file in masterExclusions])
 
                         # If drive is connected, calculate exclusions
                         if (drive in driveVidToLetterMap.keys()):
@@ -711,8 +713,8 @@ def analyzeBackup(shares, drives):
 
         Returns:
             {
-                'delete' (tuple(String, int)): The list of files and filesizes for deleting.
-                'replace' (tuple(String, int, int)): The list of files and source/dest filesizes for replacement.
+                'delete' (tuple(String, int)[]): The list of files and filesizes for deleting.
+                'replace' (tuple(String, int, int)[]): The list of files and source/dest filesizes for replacement.
             }
         """
         specialIgnoreList = [backupConfigDir, '$RECYCLE.BIN', 'System Volume Information']
@@ -725,7 +727,8 @@ def analyzeBackup(shares, drives):
                 # For each entry, either add filesize to the total, or recurse into the directory
                 if entry.is_file():
                     if (entry.path[3:].find('\\') == -1 # Files should not be on root of drive
-                            or not os.path.isfile(sourceDrive + entry.path[3:])): # File doesn't exist in source, so delete it
+                            or not os.path.isfile(sourceDrive + entry.path[3:]) # File doesn't exist in source, so delete it
+                            or entry.path in driveExclusions): # File is excluded from drive
                         fileList['delete'].append((entry.path, entry.stat().st_size))
                     elif os.path.isfile(sourceDrive + entry.path[3:]):
                         if (entry.stat().st_mtime < os.path.getmtime(sourceDrive + entry.path[3:]) # Existing file is older than source
@@ -745,8 +748,9 @@ def analyzeBackup(shares, drives):
                             fileList['replace'].extend(newList['replace'])
                             foundShare = True
                             break
-                    if not foundShare and entry.path[3:] not in specialIgnoreList:
-                        # Directory isn't share, or part of one, so delete it
+                    if not foundShare and entry.path[3:] not in specialIgnoreList and entry.path not in driveExclusions:
+                        # Directory isn't share, or part of one, and isn't a special folder or
+                        # exclusion, so delete it
                         fileList['delete'].append((entry.path, get_directory_size(entry.path)))
         except NotADirectoryError:
             return []
