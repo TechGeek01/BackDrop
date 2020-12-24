@@ -14,6 +14,8 @@ import clipboard
 import time
 import keyboard
 from PIL import Image, ImageTk
+import math
+import hashlib
 
 # Set meta info
 appVersion = '1.1.4-alpha1'
@@ -84,6 +86,142 @@ def get_directory_size(directory):
     except OSError:
         return 0
     return total
+
+def copyfileobj(fsrc, fdst, callback, length=0):
+    """Copy a source binary file to a destination.
+
+    Args:
+        fsrc (fileobj): The source to copy.
+        dsrc (fileobj): The destination to copy to.
+        callback (def): The function to call on progress change.
+        length (int): The buffer length to use (default 0).
+    """
+
+    fsrc = open(fsrc, 'rb')
+    fdst = open(fdst, 'wb')
+
+    try:
+        # check for optimisation opportunity
+        if "b" in fsrc.mode and "b" in fdst.mode and fsrc.readinto:
+            return copyFile(fsrc, fdst, callback, length)
+    except AttributeError:
+        # one or both file objects do not support a .mode or .readinto attribute
+        pass
+
+    if not length:
+        length = shutil.COPY_BUFSIZE
+
+    fsrc_read = fsrc.read
+    fdst_write = fdst.write
+
+    copied = 0
+    while True:
+        buf = fsrc_read(length)
+        if not buf:
+            break
+        fdst_write(buf)
+        copied += len(buf)
+        callback(copied)
+
+# differs from shutil.COPY_BUFSIZE on platforms != Windows
+READINTO_BUFSIZE = 1024 * 1024
+
+def copyFile(sourceFilename, destFilename, callback, length=0):
+    """Copy a source binary file to a destination.
+
+    Args:
+        sourceFilename (String): The source to copy.
+        destFilename (String): The destination to copy to.
+        callback (def): The function to call on progress change.
+        length (int): The buffer length to use (default 0).
+    """
+
+    """readinto()/memoryview() based variant of copyfileobj().
+    *fsrc* must support readinto() method and both files must be
+    open in binary mode.
+    """
+
+    fsrc = open(sourceFilename, 'rb')
+    fdst = open(destFilename, 'wb')
+
+    fsrc_readinto = fsrc.readinto
+    fdst_write = fdst.write
+
+    if not length:
+        try:
+            file_size = os.stat(fsrc.fileno()).st_size
+        except OSError:
+            file_size = READINTO_BUFSIZE
+        length = min(file_size, READINTO_BUFSIZE)
+
+    copied = 0
+    with memoryview(bytearray(length)) as mv:
+        while True:
+            n = fsrc_readinto(mv)
+            if not n:
+                break
+            elif n < length:
+                with mv[:n] as smv:
+                    fdst.write(smv)
+            else:
+                fdst_write(mv)
+            copied += n
+            callback(copied, file_size)
+
+    fsrc.close()
+    fdst.close()
+
+    shutil.copymode(sourceFilename, destFilename)
+    shutil.copystat(sourceFilename, destFilename)
+
+    with open(sourceFilename, 'rb') as f:
+        source_hash = hashlib.blake2b()
+        while chunk := f.read(8192):
+            source_hash.update(chunk)
+
+    with open(destFilename, 'rb') as f:
+        dest_hash = hashlib.blake2b()
+        while chunk := f.read(8192):
+            dest_hash.update(chunk)
+
+    print(source_hash.hexdigest())
+    print(dest_hash.hexdigest())
+    if source_hash.hexdigest() == dest_hash.hexdigest():
+        print('Files are identical')
+
+def printProgress(copied, total):
+    print('%s copied' % (str(math.floor(copied / total * 10000) / 100)))
+
+def doCopy(src, dest):
+    """Copy a source to a destination.
+
+    Args:
+        src (String): The source to copy.
+        dest (String): The destination to copy to.
+    """
+
+    if os.path.isfile(src):
+        copyFile(src, dest, printProgress)
+    elif os.path.isdir(src):
+        # Make dir if it doesn't exist
+        if not os.path.isdir(dest):
+            os.mkdir(dest)
+
+        try:
+            for entry in os.scandir(src):
+                if entry.is_file():
+                    fileName = entry.path.split('\\')[-1]
+                    copyFile(src + '\\' + fileName, dest + '\\' + fileName, printProgress)
+                elif entry.is_dir():
+                    fileName = entry.path.split('\\')[-1]
+                    doCopy(src + '\\' + fileName, dest + '\\' + fileName)
+
+            # Handle changing attributes of folders if we copy a new folder
+            shutil.copymode(src, dest)
+            shutil.copystat(src, dest)
+        except:
+            return False
+        return True
 
 def enumerateCommandInfo(displayCommandList):
     """Enumerate the display widget with command info after a backup analysis."""
