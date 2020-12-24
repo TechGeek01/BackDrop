@@ -744,52 +744,46 @@ def analyzeBackup(shares, drives):
             return []
         return fileList
 
-    def buildNewFileList(drive):
-        """Get lists of files to delete and replace from the destination drive, that no longer
-        exist in the source, or have changed.
+    def buildNewFileList(drive, shares):
+        """Get lists of files to copy to the destination drive, that only exist on the
+        source.
 
         Args:
             drive (String): The drive to check.
+            shares (String[]): The list of shares the drive should contain.
 
         Returns:
             {
-                'delete' (tuple(String, int)): The list of files and filesizes for deleting.
-                'replace' (tuple(String, int, int)): The list of files and source/dest filesizes for replacement.
+                'new' (tuple(String, int)[]): The list of file destinations and filesizes to copy.
             }
         """
-        specialIgnoreList = [backupConfigDir, '$RECYCLE.BIN', 'System Volume Information']
         fileList = {
-            'delete': [],
-            'replace': []
+            'new': []
         }
+
+        targetDrive = drive[0:3]
+
         try:
-            for entry in os.scandir(drive):
+            for entry in os.scandir(sourceDrive + drive[3:]):
                 # For each entry, either add filesize to the total, or recurse into the directory
                 if entry.is_file():
-                    if (entry.path[3:].find('\\') == -1 # Files should not be on root of drive
-                            or not os.path.isfile(sourceDrive + entry.path[3:])): # File doesn't exist in source, so delete it
-                        fileList['delete'].append((entry.path, entry.stat().st_size))
-                    elif os.path.isfile(sourceDrive + entry.path[3:]):
-                        if (entry.stat().st_mtime < os.path.getmtime(sourceDrive + entry.path[3:]) # Existing file is older than source
-                                or entry.stat().st_size != os.path.getsize(sourceDrive + entry.path[3:])): # Existing file is different size than source
-                            # If existing dest file is older than source, it needs to be replaced
-                            filesizeDelta = os.path.getsize(sourceDrive + entry.path[3:]) - entry.stat().st_size
-                            fileList['replace'].append((entry.path[3:], filesizeDelta))
+                    if (entry.path[3:].find('\\') > -1 # File is not in root of source
+                            and not os.path.isfile(targetDrive + entry.path[3:]) # File doesn't exist in destination drive
+                            and targetDrive + entry.path[3:] not in driveExclusions): # File isn't part of drive exclusion
+                        fileList['new'].append((targetDrive + entry.path[3:], entry.stat().st_size))
                 elif entry.is_dir():
-                    foundShare = False
                     for item in shares:
                         if (entry.path[3:] == item # Dir is share, so it stays
-                                or (entry.path[3:].find(item + '\\') == 0 and os.path.isdir(sourceDrive + entry.path[3:])) # Dir is subdir inside share, and it exists in source
-                                or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of a share we're copying, so it stays
-                            # Recurse into the share
-                            newList = buildDeltaFileList(entry.path)
-                            fileList['delete'].extend(newList['delete'])
-                            fileList['replace'].extend(newList['replace'])
-                            foundShare = True
-                            break
-                    if not foundShare and entry.path[3:] not in specialIgnoreList:
-                        # Directory isn't share, or part of one, so delete it
-                        fileList['delete'].append((entry.path, get_directory_size(entry.path)))
+                                or entry.path[3:].find(item + '\\') == 0 # Dir is subdir inside share
+                                or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of share
+                            if os.path.isdir(targetDrive + entry.path[3:]):
+                                # If exists on dest, recurse into it
+                                newList = buildNewFileList(targetDrive + entry.path[3:], shares)
+                                fileList['new'].extend(newList['new'])
+                                break
+                            elif targetDrive + entry.path[3:] not in driveExclusions:
+                                # Path doesn't exist on dest, so add to list if not excluded
+                                fileList['new'].append((targetDrive + entry.path[3:], get_directory_size(entry.path)))
         except NotADirectoryError:
             return []
         except PermissionError:
@@ -801,6 +795,7 @@ def analyzeBackup(shares, drives):
     # Build list of files/dirs to delete and replace
     deleteFileList = {}
     replaceFileList = {}
+    newFileList = {}
     for drive, shares in driveShareList.items():
         humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
 
@@ -842,6 +837,13 @@ def analyzeBackup(shares, drives):
             replaceFileList[humanDrive] = replaceItems
 
         print('%d replace files => %s' % (len(replaceItems), human_filesize(sum([delta for file, delta in replaceItems]))))
+
+        # Build list of new files to copy
+        newItems = buildNewFileList(humanDrive, shares)['new']
+        if len(newItems) > 0:
+            newFileList[humanDrive] = newItems
+
+        print('%d new files => %s' % (len(newItems), human_filesize(sum([size for file, size in newItems]))))
 
     # Concat both lists into command list
     commandList = []
