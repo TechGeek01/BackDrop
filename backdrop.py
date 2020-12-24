@@ -421,13 +421,13 @@ def enumerateCommandInfo(displayCommandList):
             if actualFileWidth > maxWidth:
                 while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
                     trimmedFileList = trimmedFileList[:-1]
-                    actualFileWidth = cmdFont.measure(trimmedFileList + '...')
+                    actualFileWidth = listFont.measure(trimmedFileList + '...')
                 trimmedFileList = trimmedFileList + '...'
 
             if actualCmdWidth > maxWidth:
                 while actualCmdWidth > maxWidth and len(trimmedCmdList) > 1:
                     trimmedCmdList = trimmedCmdList[:-1]
-                    actualCmdWidth = cmdFont.measure(trimmedCmdList + '...')
+                    actualCmdWidth = listFont.measure(trimmedCmdList + '...')
                 trimmedCmdList = trimmedCmdList + '...'
 
             config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
