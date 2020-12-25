@@ -290,7 +290,7 @@ def printProgress(copied, total, guiOptions):
         elif guiOptions['mode'] == 'verifydest':
             cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'Verifying destination \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=color.BLUE)
 
-    if copied >= total:
+    if guiOptions['mode'] == 'copy' and copied >= total:
         backupTotals['running'] += total
 
 def doCopy(src, dest, guiOptions={}):
