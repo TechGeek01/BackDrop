@@ -18,7 +18,7 @@ import math
 import hashlib
 
 # Set meta info
-appVersion = '1.1.4-alpha1'
+appVersion = '1.2.0-alpha2'
 threadsForProgressBar = 5
 
 # TODO: @Shares are copied to root of drives, so other directories with data are most likely left intact
@@ -87,18 +87,22 @@ def get_directory_size(directory):
         return 0
     return total
 
-def copyfileobj(fsrc, fdst, callback, length=0):
+def copyFileObj(sourceFilename, destFilename, callback, guiOptions={}, length=0):
     """Copy a source binary file to a destination.
 
     Args:
-        fsrc (fileobj): The source to copy.
-        dsrc (fileobj): The destination to copy to.
+        sourceFilename (String): The source to copy.
+        destFilename (String): The destination to copy to.
         callback (def): The function to call on progress change.
+        guiOptions (obj): Options to handle GUI interaction (optional).
         length (int): The buffer length to use (default 0).
+
+    Returns:
+        bool: True if file was copied and verified successfully, False otherwise.
     """
 
-    fsrc = open(fsrc, 'rb')
-    fdst = open(fdst, 'wb')
+    fsrc = open(sourceFilename, 'rb')
+    fdst = open(destFilename, 'wb')
 
     try:
         # check for optimisation opportunity
@@ -114,6 +118,10 @@ def copyfileobj(fsrc, fdst, callback, length=0):
     fsrc_read = fsrc.read
     fdst_write = fdst.write
 
+    file_size = os.path.getsize(sourceFilename)
+
+    guiOptions['fileName'] = destFilename
+
     copied = 0
     while True:
         buf = fsrc_read(length)
@@ -121,19 +129,50 @@ def copyfileobj(fsrc, fdst, callback, length=0):
             break
         fdst_write(buf)
         copied += len(buf)
-        callback(copied)
+        callback(copied, file_size, guiOptions)
+
+    fsrc.close()
+    fdst.close()
+
+    # If file copied in full, copy meta, and verify
+    if copied == file_size:
+        shutil.copymode(sourceFilename, destFilename)
+        shutil.copystat(sourceFilename, destFilename)
+
+        with open(sourceFilename, 'rb') as f:
+            source_hash = hashlib.blake2b()
+            while chunk := f.read(8192):
+                source_hash.update(chunk)
+
+        with open(destFilename, 'rb') as f:
+            dest_hash = hashlib.blake2b()
+            while chunk := f.read(8192):
+                dest_hash.update(chunk)
+
+        print(source_hash.hexdigest())
+        print(dest_hash.hexdigest())
+        if source_hash.hexdigest() == dest_hash.hexdigest():
+            print('Files are identical')
+
+        return source_hash.hexdigest() == dest_hash.hexdigest()
+    else:
+        return False
 
 # differs from shutil.COPY_BUFSIZE on platforms != Windows
 READINTO_BUFSIZE = 1024 * 1024
 
-def copyFile(sourceFilename, destFilename, callback, length=0):
+def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
     """Copy a source binary file to a destination.
 
     Args:
         sourceFilename (String): The source to copy.
         destFilename (String): The destination to copy to.
         callback (def): The function to call on progress change.
+        guiOptions (obj): Options to handle GUI interaction (optional).
         length (int): The buffer length to use (default 0).
+
+    Returns:
+        bool: True if file was copied and verified successfully, False otherwise.
     """
 
     """readinto()/memoryview() based variant of copyfileobj().
@@ -154,9 +193,14 @@ def copyFile(sourceFilename, destFilename, callback, length=0):
             file_size = READINTO_BUFSIZE
         length = min(file_size, READINTO_BUFSIZE)
 
+    guiOptions['fileName'] = destFilename
+
     copied = 0
     with memoryview(bytearray(length)) as mv:
         while True:
+            if threadManager.threadList['Backup']['killFlag']:
+                break
+
             n = fsrc_readinto(mv)
             if not n:
                 break
@@ -166,42 +210,67 @@ def copyFile(sourceFilename, destFilename, callback, length=0):
             else:
                 fdst_write(mv)
             copied += n
-            callback(copied, file_size)
+            callback(copied, file_size, guiOptions)
 
     fsrc.close()
     fdst.close()
 
-    shutil.copymode(sourceFilename, destFilename)
-    shutil.copystat(sourceFilename, destFilename)
+    # If file copied in full, copy meta, and verify
+    if copied == file_size:
+        shutil.copymode(sourceFilename, destFilename)
+        shutil.copystat(sourceFilename, destFilename)
 
-    with open(sourceFilename, 'rb') as f:
-        source_hash = hashlib.blake2b()
-        while chunk := f.read(8192):
-            source_hash.update(chunk)
+        with open(sourceFilename, 'rb') as f:
+            source_hash = hashlib.blake2b()
+            while chunk := f.read(8192):
+                source_hash.update(chunk)
 
-    with open(destFilename, 'rb') as f:
-        dest_hash = hashlib.blake2b()
-        while chunk := f.read(8192):
-            dest_hash.update(chunk)
+        with open(destFilename, 'rb') as f:
+            dest_hash = hashlib.blake2b()
+            while chunk := f.read(8192):
+                dest_hash.update(chunk)
 
-    print(source_hash.hexdigest())
-    print(dest_hash.hexdigest())
-    if source_hash.hexdigest() == dest_hash.hexdigest():
-        print('Files are identical')
+        print(source_hash.hexdigest())
+        print(dest_hash.hexdigest())
+        if source_hash.hexdigest() == dest_hash.hexdigest():
+            print('Files are identical')
 
-def printProgress(copied, total):
+        return source_hash.hexdigest() == dest_hash.hexdigest()
+    else:
+        return False
+
+def printProgress(copied, total, guiOptions):
+    """Display the copy progress of a transfer
+
+    Args:
+        copied (int): the number of bytes copied.
+        total (int): The total file size.
+        guiOptions (obj): The options for updating the GUI.
+    """
     print('%s copied' % (str(math.floor(copied / total * 10000) / 100)))
+    percentCopied = copied / total * 100
 
-def doCopy(src, dest):
+    fileName = guiOptions['fileName']
+
+    # If display index has been specified, write progress to GUI
+    if 'displayIndex' in guiOptions.keys():
+        displayIndex = guiOptions['displayIndex']
+
+        cmdInfoBlocks[displayIndex]['currentFileResult'].configure(text=fileName, fg=color.NORMAL)
+        cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'{percentCopied:.2f}% \u2192 {human_filesize(copied)} of {human_filesize(total)}', fg=color.NORMAL)
+
+def doCopy(src, dest, guiOptions={}):
     """Copy a source to a destination.
 
     Args:
         src (String): The source to copy.
         dest (String): The destination to copy to.
+        guiOptions (obj): Options to handle GUI interaction (optional).
     """
 
     if os.path.isfile(src):
-        copyFile(src, dest, printProgress)
+        if not threadManager.threadList['Backup']['killFlag']:
+            copyFile(src, dest, printProgress, guiOptions)
     elif os.path.isdir(src):
         # Make dir if it doesn't exist
         if not os.path.isdir(dest):
@@ -209,9 +278,12 @@ def doCopy(src, dest):
 
         try:
             for entry in os.scandir(src):
+                if threadManager.threadList['Backup']['killFlag']:
+                    break
+
                 if entry.is_file():
                     fileName = entry.path.split('\\')[-1]
-                    copyFile(src + '\\' + fileName, dest + '\\' + fileName, printProgress)
+                    copyFile(src + '\\' + fileName, dest + '\\' + fileName, printProgress, guiOptions)
                 elif entry.is_dir():
                     fileName = entry.path.split('\\')[-1]
                     doCopy(src + '\\' + fileName, dest + '\\' + fileName)
@@ -290,8 +362,13 @@ def enumerateCommandInfo(displayCommandList):
             cmdParts = cmd.split('/mir')
             # cmdHeaderText = ' '.join(cmdParts[0:3])
             cmdHeaderText = cmdParts[0].strip()
-        else:
+        elif item['type'] == 'list':
             cmdHeaderText = 'Delete %d files from %s' % (len(item['fileList']), item['drive'])
+        elif item['type'] == 'fileList':
+            if item['mode'] == 'replace':
+                cmdHeaderText = 'Update %d files on %s' % (len(item['fileList']), item['drive'])
+            elif item['mode'] == 'copy':
+                cmdHeaderText = 'Copy %d new files to %s' % (len(item['fileList']), item['drive'])
 
         config['header'] = tk.Label(config['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=color.NORMAL if item['enabled'] else color.FADED)
         config['header'].pack(side='left')
@@ -375,7 +452,7 @@ def enumerateCommandInfo(displayCommandList):
             tk.Frame(config['statusStatsLine'], width=2 * arrowWidth).pack(side='left')
             config['statusStatsFrame'] = tk.Frame(config['statusStatsLine'])
             config['statusStatsFrame'].pack(side='left')
-        else:
+        elif item['type'] == 'list':
             config['fileSizeLine'] = tk.Frame(config['infoFrame'])
             config['fileSizeLine'].pack(anchor='w')
             tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
@@ -443,6 +520,59 @@ def enumerateCommandInfo(displayCommandList):
             config['cmdListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
             config['cmdListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
             config['cmdListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
+        elif item['type'] == 'fileList':
+            config['fileSizeLine'] = tk.Frame(config['infoFrame'])
+            config['fileSizeLine'].pack(anchor='w')
+            tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
+            config['fileSizeLineHeader'] = tk.Label(config['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
+            config['fileSizeLineHeader'].pack(side='left')
+            config['fileSizeLineTotal'] = tk.Label(config['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
+            config['fileSizeLineTotal'].pack(side='left')
+
+            config['fileListLine'] = tk.Frame(config['infoFrame'])
+            config['fileListLine'].pack(anchor='w')
+            tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
+            config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
+            config['fileListLineHeader'].pack(side='left')
+            config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=color.FADED)
+            config['fileListLineTooltip'].pack(side='left')
+            config['fullFileList'] = item['fileList']
+
+            config['currentFileLine'] = tk.Frame(config['infoFrame'])
+            config['currentFileLine'].pack(anchor='w')
+            tk.Frame(config['currentFileLine'], width=arrowWidth).pack(side='left')
+            config['currentFileHeader'] = tk.Label(config['currentFileLine'], text='Current file:', font=cmdHeaderFont)
+            config['currentFileHeader'].pack(side='left')
+            config['currentFileResult'] = tk.Label(config['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+            config['currentFileResult'].pack(side='left')
+
+            config['lastOutLine'] = tk.Frame(config['infoFrame'])
+            config['lastOutLine'].pack(anchor='w')
+            tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
+            config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Progress:', font=cmdHeaderFont)
+            config['lastOutHeader'].pack(side='left')
+            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+            config['lastOutResult'].pack(side='left')
+
+            # Handle list trimming
+            listFont = tkfont.Font(family=None, size=10, weight='normal')
+            trimmedFileList = ', '.join(item['fileList'])
+            maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
+            actualFileWidth = listFont.measure(', '.join(item['fileList']))
+
+            if actualFileWidth > maxWidth:
+                while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
+                    trimmedFileList = trimmedFileList[:-1]
+                    actualFileWidth = listFont.measure(trimmedFileList + '...')
+                trimmedFileList = trimmedFileList + '...'
+
+            config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
+            config['fileListLineTrimmed'].pack(side='left')
+
+            # Command copy action click
+            config['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+            config['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+            config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
 
         cmdInfoBlocks.append(config)
 
@@ -853,11 +983,11 @@ def analyzeBackup(shares, drives):
                             or entry.path in driveExclusions): # File is excluded from drive
                         fileList['delete'].append((entry.path, entry.stat().st_size))
                     elif os.path.isfile(sourceDrive + entry.path[3:]):
-                        if (entry.stat().st_mtime < os.path.getmtime(sourceDrive + entry.path[3:]) # Existing file is older than source
+                        if (entry.stat().st_mtime != os.path.getmtime(sourceDrive + entry.path[3:]) # Existing file is older than source
                                 or entry.stat().st_size != os.path.getsize(sourceDrive + entry.path[3:])): # Existing file is different size than source
-                            # If existing dest file is older than source, it needs to be replaced
+                            # If existing dest file is not same time as source, it needs to be replaced
                             filesizeDelta = os.path.getsize(sourceDrive + entry.path[3:]) - entry.stat().st_size
-                            fileList['replace'].append((entry.path[3:], filesizeDelta))
+                            fileList['replace'].append((entry.path, os.path.getsize(sourceDrive + entry.path[3:]), entry.stat().st_size))
                 elif entry.is_dir():
                     foundShare = False
                     for item in shares:
@@ -973,13 +1103,55 @@ def analyzeBackup(shares, drives):
         replaceItems.sort(key = lambda x: x[1])
         if len(replaceItems) > 0:
             replaceFileList[humanDrive] = replaceItems
+            fileReplaceList = [file for file, sourceSize, destSize in replaceItems]
 
-        print('%d replace files => %s' % (len(replaceItems), human_filesize(sum([delta for file, delta in replaceItems]))))
+            # TODO: Purge list is appended before copy list, so to get this to happen before robocopy, append the command to purge
+            # This will need to be fixed once robocopy is no longer in play
+            displayPurgeCommandList.append({
+                'enabled': True,
+                'type': 'fileList',
+                'drive': humanDrive,
+                'size': sum([sourceSize for file, sourceSize, destSize in replaceItems]),
+                'fileList': fileReplaceList,
+                'mode': 'replace'
+            })
+
+            purgeCommandList.append({
+                'displayIndex': len(displayPurgeCommandList) + 1,
+                'type': 'fileList',
+                'drive': humanDrive,
+                'fileList': fileReplaceList,
+                'payload': replaceItems,
+                'mode': 'replace'
+            })
+
+        print('%d replace files => %s' % (len(replaceItems), human_filesize(sum([sourceSize - destSize for file, sourceSize, destSize in replaceItems]))))
 
         # Build list of new files to copy
         newItems = buildNewFileList(humanDrive, shares)['new']
         if len(newItems) > 0:
             newFileList[humanDrive] = newItems
+            fileCopyList = [file for file, size in newItems]
+
+            # TODO: Purge list is appended before copy list, so to get this to happen before robocopy, append the command to purge
+            # This will need to be fixed once robocopy is no longer in play
+            displayPurgeCommandList.append({
+                'enabled': True,
+                'type': 'fileList',
+                'drive': humanDrive,
+                'size': sum([size for file, size in newItems]),
+                'fileList': fileCopyList,
+                'mode': 'copy'
+            })
+
+            purgeCommandList.append({
+                'displayIndex': len(displayPurgeCommandList) + 1,
+                'type': 'fileList',
+                'drive': humanDrive,
+                'fileList': fileCopyList,
+                'payload': newItems,
+                'mode': 'copy'
+            })
 
         print('%d new files => %s' % (len(newItems), human_filesize(sum([size for file, size in newItems]))))
 
@@ -996,10 +1168,6 @@ def analyzeBackup(shares, drives):
     # Fix display index on command list
     for i, cmd in enumerate(commandList):
         commandList[i]['displayIndex'] = i
-
-    # URGENT: Old shares that have been moved need to be deleted
-    #     If backups used to be on a drive, but no longer is, the old backups folder needs to be deleted
-    # URGENT: Also add option to check for and delete non-backup files from the drive, in case other files are taking up room used for backups
 
     enumerateCommandInfo(displayCommandList)
 
@@ -1530,6 +1698,8 @@ def runBackup():
 
     for cmd in commandList:
         cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Pending', fg=color.PENDING)
+        if cmd['type'] == 'fileList':
+            cmdInfoBlocks[cmd['displayIndex']]['currentFileResult'].configure(text='Pending', fg=color.PENDING)
         cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=color.PENDING)
 
     startBackupBtn.configure(text='Halt Backup', command=lambda: threadManager.kill('Backup'), style='danger.TButton')
@@ -1634,17 +1804,45 @@ def runBackup():
 
                 if threadManager.threadList['Backup']['killFlag']:
                     break
+        elif cmd['type'] == 'fileList':
+            if cmd['mode'] == 'replace':
+                for file, sourceSize, destSize in cmd['payload']:
+                    sourceFile = sourceDrive + file[3:]
+                    destFile = file
 
+                    guiOptions = {
+                        'displayIndex': cmd['displayIndex']
+                    }
+
+                    doCopy(sourceFile, destFile, guiOptions)
+            elif cmd['mode'] == 'copy':
+                for file, size in cmd['payload']:
+                    sourceFile = sourceDrive + file[3:]
+                    destFile = file
+
+                    guiOptions = {
+                        'displayIndex': cmd['displayIndex']
+                    }
+
+                    doCopy(sourceFile, destFile, guiOptions)
+
+        # URGENT: Fix this GUI output to not break with list types
         if not threadManager.threadList['Backup']['killFlag']:
             cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=color.FINISHED)
-            cmdInfoBlocks[cmd['displayIndex']]['lastOutWorkingDirResult'].configure(text='Done', fg=color.FINISHED)
-            cmdInfoBlocks[cmd['displayIndex']]['lastOutFileStatusResult'].configure(text='Done', fg=color.FINISHED)
-            cmdInfoBlocks[cmd['displayIndex']]['lastOutFileNameResult'].configure(text='Done', fg=color.FINISHED)
+            cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=color.FINISHED)
+
+            if cmd['type'] == 'cmd':
+                cmdInfoBlocks[cmd['displayIndex']]['lastOutWorkingDirResult'].configure(text='Done', fg=color.FINISHED)
+                cmdInfoBlocks[cmd['displayIndex']]['lastOutFileStatusResult'].configure(text='Done', fg=color.FINISHED)
+                cmdInfoBlocks[cmd['displayIndex']]['lastOutFileNameResult'].configure(text='Done', fg=color.FINISHED)
         else:
             cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=color.STOPPED)
-            cmdInfoBlocks[cmd['displayIndex']]['lastOutWorkingDirResult'].configure(text='Aborted', fg=color.STOPPED)
-            cmdInfoBlocks[cmd['displayIndex']]['lastOutFileStatusResult'].configure(text='Aborted', fg=color.STOPPED)
-            cmdInfoBlocks[cmd['displayIndex']]['lastOutFileNameResult'].configure(text='Aborted', fg=color.STOPPED)
+            cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=color.STOPPED)
+
+            if cmd['type'] == 'cmd':
+                cmdInfoBlocks[cmd['displayIndex']]['lastOutWorkingDirResult'].configure(text='Aborted', fg=color.STOPPED)
+                cmdInfoBlocks[cmd['displayIndex']]['lastOutFileStatusResult'].configure(text='Aborted', fg=color.STOPPED)
+                cmdInfoBlocks[cmd['displayIndex']]['lastOutFileNameResult'].configure(text='Aborted', fg=color.STOPPED)
             break
 
     if len(threading.enumerate()) <= threadsForProgressBar:
