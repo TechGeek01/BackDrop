@@ -1500,11 +1500,22 @@ def selectFromConfig():
 
     # If drives aren't mounted that should be, display the warning
     if len(driveTreeIdList) < len(config['drives']):
+        drivesSelected = [destTree.item(item, 'values')[3] for item in destTree.selection()]
+        configMissingVids = [drive['vid'] for drive in config['drives'] if drive['vid'] not in drivesSelected]
+
+        if len(configMissingVids) > 1:
+            configMissingVids[-1] = 'and ' + configMissingVids[-1]
+
+        warningMessage = f"The drive{'s' if len(configMissingVids) > 1 else ''} with volume ID{'s' if len(configMissingVids) > 1 else ''} {', '.join(configMissingVids)} {'are' if len(configMissingVids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
+        warningTitle = f"Drive{'s' if len(configMissingVids) > 1 else ''} missing"
+
         missingDriveCount = len(config['drives']) - len(driveTreeIdList)
         splitWarningPrefix.configure(text='There %s' % ('is' if missingDriveCount == 1 else 'are'))
         splitWarningSuffix.configure(text='%s in the config that %s connected. Please connect %s, or enable split mode.' % ('drive' if missingDriveCount == 1 else 'drives', 'isn\'t' if missingDriveCount == 1 else 'aren\'t', 'it' if missingDriveCount == 1 else 'them'))
         splitWarningMissingDriveCount.configure(text='%d' % (missingDriveCount))
         destSplitWarningFrame.grid(row=3, column=0, columnspan=2, sticky='nsew', pady=(0, elemPadding), ipady=elemPadding / 4)
+
+        messagebox.showwarning(warningTitle, warningMessage)
 
     # Only redo the selection if the config data is different from the current
     # selection (that is, the drive we selected to load a config is not the only
