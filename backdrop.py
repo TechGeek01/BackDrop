@@ -14,7 +14,6 @@ import clipboard
 import time
 import keyboard
 from PIL import Image, ImageTk
-import math
 import hashlib
 import sys
 
@@ -22,10 +21,6 @@ import sys
 appVersion = '2.0.0-rc.1'
 threadsForProgressBar = 5
 
-# TODO: @Shares are copied to root of drives, so other directories with data are most likely left intact
-#     We may need to account for this, by checking for free space, and then adding the size of the existing share directories
-#     This would prevent counting for existing data, though it's probably safe to wipe the drive of things that aren't getting copied anyway
-#     When we copy, check directory size of source and dest, and if the dest is larger than source, copy those first to free up space for ones that increased
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
 # IDEA: Add interactive CLI option if correct parameters are passed in @interface
 
@@ -867,71 +862,6 @@ def analyzeBackup(shares, drives):
 
         return shareSplitSummary
 
-    # Recurse through drive
-    # Exclude config dir, and shares that are purged
-    # Recurse through all other files
-    # Delete file if not exists on source
-    #     QUESTION: Does this exclude files that are part of the source, but aren't supposed to be on that drive?
-    # Delete folder if not exists on source
-    # Recurse into folder
-    # Delete folder if not exists or exists and not part of path for subfolder that's included
-    #     If backups/Macrium is copied, don't delete backups, even if backups isn't a share that's copied
-    # Delete exclusions
-    # URGENT: Delete files that exist on source, but aren't supposed to be copied, and aren't explicitly excluded
-
-    def crawl_drive_for_deletes(drive, excludeList):
-        """Get A list of files to delete from a drive.
-
-        Args:
-            drive (String): The drive letter to check.
-            excludeList (String[]): A list of folders/files to ignore.
-
-        Returns:
-            String list: The list of files to delete.
-        """
-        deleteList = []
-        try:
-            for entry in os.scandir(drive):
-                # For each entry, either add filesize to the total, or recurse into the directory
-                fullPath = entry.path[3:]
-                if fullPath not in excludeList:
-                    if not os.path.exists(sourceDrive + fullPath):
-                        # Delete files that don't exist in source drive
-                        deleteList.append(fullPath)
-                    elif entry.is_dir():
-                        # Path is dir, and exists on source, so recurse into it
-                        deleteList.extend(crawl_drive_for_deletes(entry.path, excludeList))
-        except NotADirectoryError:
-            return []
-        except PermissionError:
-            return []
-        except OSError:
-            return []
-        return deleteList
-
-    # driveShareList contains info about whole shares mapped to drives
-    # Use this to build the list of non-exclusion robocopy commands
-    mirCommandList = []
-    purgeCommandList = []
-    displayMirCommandList = []
-    displayPurgeCommandList = []
-    for drive, shares in driveShareList.items():
-        humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
-
-        if len(shares) > 0:
-            displayMirCommandList.extend([{
-                'enabled': drive in driveVidToLetterMap.keys(),
-                'type': 'cmd',
-                'cmd': 'robocopy "%s" "%s" /mir' % (sourceDrive + share, humanDrive + share)
-            } for share in shares])
-
-            if drive in driveVidToLetterMap.keys():
-                mirCommandList.extend([{
-                    'displayIndex': len(displayMirCommandList) - len(shares) + i,
-                    'type': 'cmd',
-                    'cmd': 'robocopy "%s" "%s" /mir' % (sourceDrive + share, humanDrive + share)
-                } for i, share in enumerate(shares)])
-
     # For shares larger than all drives, recurse into each share
     driveExclusions = []
     for share in shareInfo.keys():
@@ -961,31 +891,6 @@ def analyzeBackup(shares, drives):
 
                         masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
                         driveExclusions.extend([sourcePathStub + file for file in masterExclusions])
-
-                        # If drive is connected, calculate exclusions
-                        if (drive in driveVidToLetterMap.keys()):
-                            # Check exclusion list for source, and remove any exclusions in the source dir
-                            # Then, add new exclusions to the list
-                            print(shareName)
-                            upperDir = '\\'.join(shareName.split('\\')[:-1])
-
-                        fileExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isfile(sourcePathStub + file)]
-                        dirExclusions = [sourcePathStub + file for file in masterExclusions if os.path.isdir(sourcePathStub + file)]
-                        xs = (' /xf "' + '" "'.join(fileExclusions) + '"') if len(fileExclusions) > 0 else ''
-                        xd = (' /xd "' + '" "'.join(dirExclusions) + '"') if len(dirExclusions) > 0 else ''
-
-                        displayMirCommandList.append({
-                            'enabled': drive in driveVidToLetterMap.keys(),
-                            'type': 'cmd',
-                            'cmd': 'robocopy "%s" "%s" /mir%s%s' % (sourceDrive + shareName, humanDrive + shareName, xd, xs)
-                        })
-
-                        if drive in driveVidToLetterMap.keys():
-                            mirCommandList.append({
-                                'displayIndex': len(displayMirCommandList) - 1,
-                                'type': 'cmd',
-                                'cmd': 'robocopy "%s" "%s" /mir%s%s' % (sourceDrive + shareName, humanDrive + shareName, xd, xs)
-                            })
                         driveShareList[drive].append(shareName)
 
     def buildDeltaFileList(drive):
@@ -1018,7 +923,6 @@ def analyzeBackup(shares, drives):
                         if (entry.stat().st_mtime != os.path.getmtime(sourceDrive + entry.path[3:]) # Existing file is older than source
                                 or entry.stat().st_size != os.path.getsize(sourceDrive + entry.path[3:])): # Existing file is different size than source
                             # If existing dest file is not same time as source, it needs to be replaced
-                            filesizeDelta = os.path.getsize(sourceDrive + entry.path[3:]) - entry.stat().st_size
                             fileList['replace'].append((entry.path, os.path.getsize(sourceDrive + entry.path[3:]), entry.stat().st_size))
                 elif entry.is_dir():
                     foundShare = False
@@ -1096,12 +1000,12 @@ def analyzeBackup(shares, drives):
     deleteFileList = {}
     replaceFileList = {}
     newFileList = {}
+    purgeCommandList = []
     copyCommandList = []
+    displayPurgeCommandList = []
     displayCopyCommandList = []
     for drive, shares in driveShareList.items():
         humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
-
-        print('%s => %s' % (humanDrive, ', '.join(shares)))
 
         modifyFileList = buildDeltaFileList(humanDrive)
 
@@ -1130,11 +1034,9 @@ def analyzeBackup(shares, drives):
                 'cmdList': fileDeleteCmdList
             })
 
-        print('%d extra files => %s' % (len(deleteItems), human_filesize(sum([size for file, size in deleteItems]))))
-
         # Build list of files to replace
         replaceItems = modifyFileList['replace']
-        replaceItems.sort(key = lambda x: x[1])
+        replaceItems.sort(key=lambda x: x[1])
         if len(replaceItems) > 0:
             replaceFileList[humanDrive] = replaceItems
             fileReplaceList = [file for file, sourceSize, destSize in replaceItems]
@@ -1157,16 +1059,12 @@ def analyzeBackup(shares, drives):
                 'mode': 'replace'
             })
 
-        print('%d replace files => %s' % (len(replaceItems), human_filesize(sum([sourceSize - destSize for file, sourceSize, destSize in replaceItems]))))
-
         # Build list of new files to copy
         newItems = buildNewFileList(humanDrive, shares)['new']
         if len(newItems) > 0:
             newFileList[humanDrive] = newItems
             fileCopyList = [file for file, size in newItems]
 
-            # TODO: Purge list is appended before copy list, so to get this to happen before robocopy, append the command to purge
-            # This will need to be fixed once robocopy is no longer in play
             displayCopyCommandList.append({
                 'enabled': True,
                 'type': 'fileList',
@@ -1185,7 +1083,6 @@ def analyzeBackup(shares, drives):
                 'mode': 'copy'
             })
 
-        print('%d new files => %s' % (len(newItems), human_filesize(sum([size for file, size in newItems]))))
     tk.Label(backupSummaryTextFrame, text='Files', font=summaryHeaderFont,
              wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
     filesFrame = tk.Frame(backupSummaryTextFrame)
@@ -1250,13 +1147,11 @@ def analyzeBackup(shares, drives):
     commandList = []
     commandList.extend([cmd for cmd in purgeCommandList])
     commandList.extend([cmd for cmd in copyCommandList])
-    # commandList.extend([cmd for cmd in mirCommandList])
 
     # Concat lists into display command list
     displayCommandList = []
     displayCommandList.extend([cmd for cmd in displayPurgeCommandList])
     displayCommandList.extend([cmd for cmd in displayCopyCommandList])
-    # displayCommandList.extend([cmd for cmd in displayMirCommandList])
 
     # Fix display index on command list
     for i, cmd in enumerate(commandList):
@@ -1802,8 +1697,6 @@ def runBackup():
 
     startBackupBtn.configure(text='Halt Backup', command=lambda: threadManager.kill('Backup'), style='danger.TButton')
 
-    import re
-
     for cmd in commandList:
         if cmd['type'] == 'cmd':
             process = subprocess.Popen(cmd['cmd'], shell=True, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -1825,23 +1718,16 @@ def runBackup():
                     if fileData[0] != 'Total':
                         # If first item in file line is total, then the summary has started, and we'e done with file output
 
-                        print('--------------------------------------------')
-
                         if len(fileData) == 2 and fileData[1][-1] == '\\':
                             # If file line has two items only, it indicates file count, and working directory
                             dirFileCount = fileData[0]
                             workingDir = fileData[1]
-
-                            print(dirFileCount + ' => ' + workingDir)
-                        elif len(fileData) == 3 and fileData[0] != 'ROBOCOPY':
+                        elif len(fileData) == 3:
                             # If file line has 3 items, it's a skipped or extra file or dir, with no percent output
                             fileAnalysis = fileData[0]
                             fileSize = fileData[1]
                             fileName = fileData[2]
                             filePercent = False
-
-                            print(dirFileCount + ' => ' + workingDir)
-                            print(fileAnalysis + ' => ' + fileSize + ' => ' + fileName)
                         elif len(fileData) >= 4 and fileData[-1][-1] == '%':
                             # If file line has more than 2 items, it's either a meta line, or a file line
                             # File lines report the last item in the array as percent copied
@@ -1849,18 +1735,11 @@ def runBackup():
                             fileSize = fileData[1]
                             fileName = fileData[2]
                             filePercent = fileData[-1]
-
-                            print(dirFileCount + ' => ' + workingDir)
-                            print(fileAnalysis + ' => ' + fileSize + ' => ' + fileName)
-                            print(filePercent)
                         else:
                             fileAnalysis = False
                             fileSize = False
                             fileName = False
                             filePercent = False
-
-                            print(len(fileData))
-                            print(fileData)
 
                         workingDirText = '%s files in %s' % (dirFileCount, workingDir) if dirFileCount and workingDir else ''
                         fileStatusText = '%s => %s' % (fileAnalysis, fileName) if fileAnalysis and fileName else ''
@@ -1877,14 +1756,6 @@ def runBackup():
                         cmdInfoBlocks[cmd['displayIndex']]['lastOutFileNameResult'].configure(text=filePercentText, fg=color.NORMAL)
                     else:
                         break
-
-                    # print('----------------------')
-                    # print(workingDir)
-                    # print(dirFileCount)
-                    # print(fileAnalysis)
-                    # print(fileSize)
-                    # print(fileName)
-                    # print(filePercent)
                 except Exception as e:
                     print(e)
             process.terminate()
@@ -1944,10 +1815,6 @@ def runBackup():
                 cmdInfoBlocks[cmd['displayIndex']]['lastOutFileNameResult'].configure(text='Aborted', fg=color.STOPPED)
             break
 
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='determinate')
-        progressBar.stop()
-
     startBackupBtn.configure(text='Run Backup', command=startBackup, style='win.TButton')
 
 def startBackup():
@@ -1955,7 +1822,8 @@ def startBackup():
     if sanityCheck():
         def killBackupThread():
             try:
-                subprocess.run('taskkill /im robocopy.exe /f', shell=True, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+                pass
+                # subprocess.run('taskkill /im robocopy.exe /f', shell=True, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
             except Exception as e:
                 print(e)
 
@@ -2133,7 +2001,6 @@ backupConfigDir = '.backdrop'
 backupConfigFile = 'backup.config'
 appConfigFile = 'defaults.config'
 appDataFolder = os.getenv('LocalAppData') + '\\BackDrop'
-robocopyLogFile = 'robocopy.log'
 elemPadding = 16
 
 config = {
@@ -2346,13 +2213,6 @@ backupActivityScrollableFrame.bind('<Configure>', lambda e: backupActivityInfoCa
 
 backupActivityInfoCanvas.create_window((0, 0), window=backupActivityScrollableFrame, anchor='nw')
 backupActivityInfoCanvas.configure(yscrollcommand=backupActivityScroll.set)
-
-# commandList = ['robocopy "R:\\atmg" "E:\\atmg" /mir', 'robocopy "R:\\documents" "E:\\documents" /mir', 'robocopy "R:\\backups" "F:\\backups" /mir /xd "Macrium Reflect"', 'robocopy "R:\\backups\\Macrium Reflect" "F:\\backups\\Macrium Reflect" /mir /xd "Main Desktop Boot Drive" "Office Desktop Boot Drive" /xf "Main Desktop Win10 Pre-Reinstall-00-00.mrimg" "AsusLaptop-Original-Win10-00-00.mrimg" "Office Desktop Pre10 - 12-24-2019-00-00.mrimg" "AndyLaptop-Win10-PreUbuntu-00-00.mrimg" "Asus Laptop Win10 Pre-Manjaro 2-26-2020-00-00.mrimg" "B0AA9BDCCD59E188-00-00.mrimg" "AndyLaptop-Ubuntu1810-00-00.mrimg" "WinME-HP-Pavillion-00-00.mrimg" "AndyLaptop-ManjaroArchitectKDE-00-00.mrimg" "Dad Full Clone 1-5-2014.7z" "AsusLaptop-Kali-8-10-2020-00-00.mrimg" "Win98-Gateway-00-00.mrimg" "AsusLaptop_Android-x86_9.0_8-11-2020-00-00.mrimg" "Win10 Reflect Rescue 7.2.4808.iso" "Win7 Reflect Rescue 7.2.4228.iso" "macrium_reflect_v7_user_guide.pdf" "Untitled.json"', 'robocopy "R:\\backups\\Macrium Reflect" "G:\\backups\\Macrium Reflect" /mir /xd "Asus Laptop Boot Drive" "Main Desktop User Files" "School Drive"']
-# commandList = ['robocopy "R:\\documents" "H:\\documents" /mir']
-# enumerateCommandInfo({
-#     'enabled': True,
-#     'cmd': cmd
-# } for cmd in commandList)
 
 tk.Grid.columnconfigure(mainFrame, 2, weight=1)
 
