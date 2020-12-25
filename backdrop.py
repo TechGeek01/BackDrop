@@ -121,6 +121,9 @@ def copyFileObj(sourceFilename, destFilename, callback, guiOptions={}, length=0)
 
     copied = 0
     while True:
+        if threadManager.threadList['Backup']['killFlag']:
+            break
+
         buf = fsrc_read(length)
         if not buf:
             break
