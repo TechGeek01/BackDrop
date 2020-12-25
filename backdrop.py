@@ -143,8 +143,9 @@ def copyFileObj(sourceFilename, destFilename, callback, guiOptions={}, length=0)
             guiOptions['mode'] = 'verifysource'
             source_hash = hashlib.blake2b()
             copied = 0
-            while chunk := f.read(8192):
-                copied += 8192
+            chunk_size = 2**16
+            while chunk := f.read(chunk_size):
+                copied += chunk_size
                 source_hash.update(chunk)
                 callback(copied, file_size, guiOptions)
 
@@ -152,8 +153,9 @@ def copyFileObj(sourceFilename, destFilename, callback, guiOptions={}, length=0)
             guiOptions['mode'] = 'verifydest'
             dest_hash = hashlib.blake2b()
             copied = 0
-            while chunk := f.read(8192):
-                copied += 8192
+            chunk_size = 2**16
+            while chunk := f.read(chunk_size):
+                copied += chunk_size
                 dest_hash.update(chunk)
                 callback(copied, file_size, guiOptions)
 
@@ -233,8 +235,9 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
             guiOptions['mode'] = 'verifysource'
             source_hash = hashlib.blake2b()
             copied = 0
-            while chunk := f.read(8192):
-                copied += 8192
+            chunk_size = 2**16
+            while chunk := f.read(chunk_size):
+                copied += chunk_size
                 source_hash.update(chunk)
                 callback(copied, file_size, guiOptions)
 
@@ -242,8 +245,9 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
             guiOptions['mode'] = 'verifydest'
             dest_hash = hashlib.blake2b()
             copied = 0
-            while chunk := f.read(8192):
-                copied += 8192
+            chunk_size = 2**16
+            while chunk := f.read(chunk_size):
+                copied += chunk_size
                 dest_hash.update(chunk)
                 callback(copied, file_size, guiOptions)
 
