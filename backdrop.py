@@ -18,7 +18,7 @@ import math
 import hashlib
 
 # Set meta info
-appVersion = '1.2.0-alpha2'
+appVersion = '2.0.0-rc.1'
 threadsForProgressBar = 5
 
 # TODO: @Shares are copied to root of drives, so other directories with data are most likely left intact
@@ -257,7 +257,7 @@ def printProgress(copied, total, guiOptions):
         displayIndex = guiOptions['displayIndex']
 
         cmdInfoBlocks[displayIndex]['currentFileResult'].configure(text=fileName, fg=color.NORMAL)
-        cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'{percentCopied:.2f}% \u2192 {human_filesize(copied)} of {human_filesize(total)}', fg=color.NORMAL)
+        cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'{percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=color.NORMAL)
 
 def doCopy(src, dest, guiOptions={}):
     """Copy a source to a destination.
@@ -1154,6 +1154,41 @@ def analyzeBackup(shares, drives):
             })
 
         print('%d new files => %s' % (len(newItems), human_filesize(sum([size for file, size in newItems]))))
+    tk.Label(backupSummaryTextFrame, text='Files', font=summaryHeaderFont,
+             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+    filesFrame = tk.Frame(backupSummaryTextFrame)
+    filesFrame.pack(fill='x', expand=True)
+    filesFrame.columnconfigure(2, weight=1)
+
+    for i, drive in enumerate(driveShareList.keys()):
+        humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
+
+        fileSummary = []
+
+        if humanDrive in deleteFileList.keys():
+            fileSummary.append(f'Deleting {len(deleteFileList[humanDrive])} files ({human_filesize(sum([size for file, size in deleteFileList[humanDrive]]))})')
+
+        copyFileTotal = 0
+        if humanDrive in replaceFileList.keys():
+            replaceTotal = sum([sourceSize for file, sourceSize, destSize in replaceFileList[humanDrive]])
+            copyFileTotal += replaceTotal
+            fileSummary.append(f'Updating {len(replaceFileList[humanDrive])} files ({human_filesize(replaceTotal)})')
+
+        if humanDrive in newFileList.keys():
+            newTotal = sum([size for file, size in newFileList[humanDrive]])
+            copyFileTotal += newTotal
+            fileSummary.append(f'{len(newFileList[humanDrive])} new files ({human_filesize(newTotal)})')
+
+        if len(fileSummary) > 0:
+            tk.Label(filesFrame, text=humanDrive,
+                     fg=color.NORMAL).grid(row=i, column=0, sticky='w')
+            tk.Label(filesFrame, text='\u27f6',
+                     fg=color.NORMAL).grid(row=i, column=1, sticky='w')
+            wrapFrame = tk.Frame(filesFrame)
+            wrapFrame.grid(row=i, column=2, sticky='ew')
+            wrapFrame.update_idletasks()
+            tk.Label(filesFrame, text='\n'.join(fileSummary), fg=color.NORMAL,
+                     wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
 
     # Concat both lists into command list
     commandList = []
