@@ -1805,6 +1805,7 @@ def runBackup():
                 if threadManager.threadList['Backup']['killFlag']:
                     break
         elif cmd['type'] == 'fileList':
+            cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=color.RUNNING)
             if cmd['mode'] == 'replace':
                 for file, sourceSize, destSize in cmd['payload']:
                     sourceFile = sourceDrive + file[3:]
