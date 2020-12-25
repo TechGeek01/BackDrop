@@ -16,6 +16,7 @@ import keyboard
 from PIL import Image, ImageTk
 import math
 import hashlib
+import sys
 
 # Set meta info
 appVersion = '2.0.0-rc.1'
@@ -120,7 +121,8 @@ def copyFileObj(sourceFilename, destFilename, callback, guiOptions={}, length=0)
 
     file_size = os.path.getsize(sourceFilename)
 
-    guiOptions['fileName'] = destFilename
+    cmdInfoBlocks[guiOptions['displayIndex']]['currentFileResult'].configure(text=destFilename, fg=color.NORMAL)
+    guiOptions['mode'] = 'copy'
 
     copied = 0
     while True:
@@ -140,14 +142,22 @@ def copyFileObj(sourceFilename, destFilename, callback, guiOptions={}, length=0)
         shutil.copystat(sourceFilename, destFilename)
 
         with open(sourceFilename, 'rb') as f:
+            guiOptions['mode'] = 'verifysource'
             source_hash = hashlib.blake2b()
+            copied = 0
             while chunk := f.read(8192):
+                copied += 8192
                 source_hash.update(chunk)
+                callback(copied, file_size, guiOptions)
 
         with open(destFilename, 'rb') as f:
+            guiOptions['mode'] = 'verifydest'
             dest_hash = hashlib.blake2b()
+            copied = 0
             while chunk := f.read(8192):
+                copied += 8192
                 dest_hash.update(chunk)
+                callback(copied, file_size, guiOptions)
 
         print(source_hash.hexdigest())
         print(dest_hash.hexdigest())
@@ -193,7 +203,8 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
             file_size = READINTO_BUFSIZE
         length = min(file_size, READINTO_BUFSIZE)
 
-    guiOptions['fileName'] = destFilename
+    cmdInfoBlocks[guiOptions['displayIndex']]['currentFileResult'].configure(text=destFilename, fg=color.NORMAL)
+    guiOptions['mode'] = 'copy'
 
     copied = 0
     with memoryview(bytearray(length)) as mv:
@@ -221,14 +232,22 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
         shutil.copystat(sourceFilename, destFilename)
 
         with open(sourceFilename, 'rb') as f:
+            guiOptions['mode'] = 'verifysource'
             source_hash = hashlib.blake2b()
+            copied = 0
             while chunk := f.read(8192):
+                copied += 8192
                 source_hash.update(chunk)
+                callback(copied, file_size, guiOptions)
 
         with open(destFilename, 'rb') as f:
+            guiOptions['mode'] = 'verifydest'
             dest_hash = hashlib.blake2b()
+            copied = 0
             while chunk := f.read(8192):
+                copied += 8192
                 dest_hash.update(chunk)
+                callback(copied, file_size, guiOptions)
 
         print(source_hash.hexdigest())
         print(dest_hash.hexdigest())
@@ -247,17 +266,30 @@ def printProgress(copied, total, guiOptions):
         total (int): The total file size.
         guiOptions (obj): The options for updating the GUI.
     """
-    print('%s copied' % (str(math.floor(copied / total * 10000) / 100)))
-    percentCopied = copied / total * 100
 
-    fileName = guiOptions['fileName']
+    global backupTotals
+
+    if copied > total:
+        copied = total
+    percentCopied = copied / total * 100
 
     # If display index has been specified, write progress to GUI
     if 'displayIndex' in guiOptions.keys():
         displayIndex = guiOptions['displayIndex']
 
-        cmdInfoBlocks[displayIndex]['currentFileResult'].configure(text=fileName, fg=color.NORMAL)
-        cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'{percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=color.NORMAL)
+        if guiOptions['mode'] == 'copy':
+            # Progress bar position should only be updated on copy, not verify
+            backupTotals['progressBar'] = backupTotals['running'] + copied
+            progressBar.configure(value=backupTotals['progressBar'])
+
+            cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'{percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=color.NORMAL)
+        elif guiOptions['mode'] == 'verifysource':
+            cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'Verifying source \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=color.BLUE)
+        elif guiOptions['mode'] == 'verifydest':
+            cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'Verifying destination \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=color.BLUE)
+
+    if copied >= total:
+        backupTotals['running'] += total
 
 def doCopy(src, dest, guiOptions={}):
     """Copy a source to a destination.
@@ -291,7 +323,7 @@ def doCopy(src, dest, guiOptions={}):
             # Handle changing attributes of folders if we copy a new folder
             shutil.copymode(src, dest)
             shutil.copystat(src, dest)
-        except:
+        except Exception:
             return False
         return True
 
@@ -1064,6 +1096,8 @@ def analyzeBackup(shares, drives):
     deleteFileList = {}
     replaceFileList = {}
     newFileList = {}
+    copyCommandList = []
+    displayCopyCommandList = []
     for drive, shares in driveShareList.items():
         humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
 
@@ -1105,9 +1139,7 @@ def analyzeBackup(shares, drives):
             replaceFileList[humanDrive] = replaceItems
             fileReplaceList = [file for file, sourceSize, destSize in replaceItems]
 
-            # TODO: Purge list is appended before copy list, so to get this to happen before robocopy, append the command to purge
-            # This will need to be fixed once robocopy is no longer in play
-            displayPurgeCommandList.append({
+            displayCopyCommandList.append({
                 'enabled': True,
                 'type': 'fileList',
                 'drive': humanDrive,
@@ -1116,7 +1148,7 @@ def analyzeBackup(shares, drives):
                 'mode': 'replace'
             })
 
-            purgeCommandList.append({
+            copyCommandList.append({
                 'displayIndex': len(displayPurgeCommandList) + 1,
                 'type': 'fileList',
                 'drive': humanDrive,
@@ -1135,7 +1167,7 @@ def analyzeBackup(shares, drives):
 
             # TODO: Purge list is appended before copy list, so to get this to happen before robocopy, append the command to purge
             # This will need to be fixed once robocopy is no longer in play
-            displayPurgeCommandList.append({
+            displayCopyCommandList.append({
                 'enabled': True,
                 'type': 'fileList',
                 'drive': humanDrive,
@@ -1144,7 +1176,7 @@ def analyzeBackup(shares, drives):
                 'mode': 'copy'
             })
 
-            purgeCommandList.append({
+            copyCommandList.append({
                 'displayIndex': len(displayPurgeCommandList) + 1,
                 'type': 'fileList',
                 'drive': humanDrive,
@@ -1164,20 +1196,44 @@ def analyzeBackup(shares, drives):
         humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
 
         fileSummary = []
+        driveTotal = {
+            'running': 0,
+            'delta': 0,
+            'delete': 0,
+            'replace': 0,
+            'copy': 0,
+            'new': 0
+        }
 
         if humanDrive in deleteFileList.keys():
-            fileSummary.append(f'Deleting {len(deleteFileList[humanDrive])} files ({human_filesize(sum([size for file, size in deleteFileList[humanDrive]]))})')
+            driveTotal['delete'] = sum([size for file, size in deleteFileList[humanDrive]])
 
-        copyFileTotal = 0
+            driveTotal['running'] -= driveTotal['delete']
+            backupTotals['delta'] -= driveTotal['delete']
+
+            fileSummary.append(f"Deleting {len(deleteFileList[humanDrive])} files ({human_filesize(driveTotal['delete'])})")
+
         if humanDrive in replaceFileList.keys():
-            replaceTotal = sum([sourceSize for file, sourceSize, destSize in replaceFileList[humanDrive]])
-            copyFileTotal += replaceTotal
-            fileSummary.append(f'Updating {len(replaceFileList[humanDrive])} files ({human_filesize(replaceTotal)})')
+            driveTotal['replace'] = sum([sourceSize for file, sourceSize, destSize in replaceFileList[humanDrive]])
+
+            driveTotal['running'] += driveTotal['replace']
+            driveTotal['copy'] += driveTotal['replace']
+            driveTotal['delta'] += sum([sourceSize - destSize for file, sourceSize, destSize in replaceFileList[humanDrive]])
+
+            fileSummary.append(f"Updating {len(replaceFileList[humanDrive])} files ({human_filesize(driveTotal['replace'])})")
 
         if humanDrive in newFileList.keys():
-            newTotal = sum([size for file, size in newFileList[humanDrive]])
-            copyFileTotal += newTotal
-            fileSummary.append(f'{len(newFileList[humanDrive])} new files ({human_filesize(newTotal)})')
+            driveTotal['new'] = sum([size for file, size in newFileList[humanDrive]])
+
+            driveTotal['running'] += driveTotal['new']
+            driveTotal['copy'] += driveTotal['new']
+            driveTotal['delta'] += driveTotal['new']
+
+            fileSummary.append(f"{len(newFileList[humanDrive])} new files ({human_filesize(driveTotal['new'])})")
+
+        # Increment master totals
+        backupTotals['master'] += driveTotal['running']
+        backupTotals['delta'] += driveTotal['delta']
 
         if len(fileSummary) > 0:
             tk.Label(filesFrame, text=humanDrive,
@@ -1193,12 +1249,14 @@ def analyzeBackup(shares, drives):
     # Concat both lists into command list
     commandList = []
     commandList.extend([cmd for cmd in purgeCommandList])
-    commandList.extend([cmd for cmd in mirCommandList])
+    commandList.extend([cmd for cmd in copyCommandList])
+    # commandList.extend([cmd for cmd in mirCommandList])
 
     # Concat lists into display command list
     displayCommandList = []
     displayCommandList.extend([cmd for cmd in displayPurgeCommandList])
-    displayCommandList.extend([cmd for cmd in displayMirCommandList])
+    displayCommandList.extend([cmd for cmd in displayCopyCommandList])
+    # displayCommandList.extend([cmd for cmd in displayMirCommandList])
 
     # Fix display index on command list
     for i, cmd in enumerate(commandList):
@@ -1710,6 +1768,12 @@ def writeConfigFile():
         # print('You must select at least one share, and at least one drive')
 
 backupHalted = False
+backupTotals = {
+    'master': 0,
+    'delta': 0,
+    'running': 0,
+    'progressBar': 0
+}
 def runBackup():
     """Once the backup analysis is run, and drives and shares are selected, run the backup.
 
@@ -1721,9 +1785,8 @@ def runBackup():
     if not analysisValid:
         return
 
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='indeterminate')
-        progressBar.start()
+    progressBar.stop()
+    progressBar.configure(mode='determinate', variable=backupTotals['progressBar'], maximum=backupTotals['master'])
 
     # Reset halt flag if it's been tripped
     backupHalted = False
