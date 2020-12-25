@@ -1,6 +1,20 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2020-12-25
+### Added
+- Progress bar now shows overall copy progress based on how much data needs to be copied
+- Files are now verified when copying
+- Analysis summary now shows how much data will be copied to each drive
+- Added confirmation message warning about data deletion on new drives with no config
+- Added warning message noting missing drives that need to be connected
+
+### Fixed
+- File detection now properly detects all files that should be deleted
+
+### Changed
+- Moved from robocopy for file copying to a custom function that allows reporting of progress
+
 ## [1.1.3] - 2020-11-02
 ### Fixed
 - BackDrop no longer crashes when no network drives are present to use as source

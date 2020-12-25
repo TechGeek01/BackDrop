@@ -18,7 +18,7 @@ import hashlib
 import sys
 
 # Set meta info
-appVersion = '2.0.0-rc.1'
+appVersion = '2.0.0'
 threadsForProgressBar = 5
 
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -1196,6 +1196,7 @@ def analyzeBackup(shares, drives):
         progressBar.configure(mode='determinate')
         progressBar.stop()
 
+confirmWipeExistingDrives = False
 def sanityCheck():
     """Check to make sure everything is correct before a backup.
 
@@ -1206,6 +1207,8 @@ def sanityCheck():
     Returns:
         bool: True if conditions are good, False otherwise.
     """
+
+    global confirmWipeExistingDrives
 
     if not sourceDriveListValid:
         return False
@@ -1237,6 +1240,17 @@ def sanityCheck():
 
         if sharesKnown and ((len(destSelection) == len(config['drives']) and shareTotal < driveTotal) or (shareTotal < configTotal and destModeSplitEnabled)):
             # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
+
+            selectedNewDrives = [destTree.item(drive, 'text') for drive in destSelection if destTree.item(drive, 'values')[2] != 'Yes']
+            if not confirmWipeExistingDrives and len(selectedNewDrives) > 0:
+                driveString = ', '.join(selectedNewDrives[:-2] + [' and '.join(selectedNewDrives[-2:])])
+
+                newDriveConfirmTitle = f"New drive{'s' if len(selectedNewDrives) > 1 else ''} selected"
+                newDriveConfirmMessage = f"Drive{'s' if len(selectedNewDrives) > 1 else ''} {driveString} appear{'' if len(selectedNewDrives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
+                confirmWipeExistingDrives = messagebox.askyesno(newDriveConfirmTitle, newDriveConfirmMessage)
+
+                return confirmWipeExistingDrives
+
             return True
 
     return False
@@ -1503,10 +1517,9 @@ def selectFromConfig():
         drivesSelected = [destTree.item(item, 'values')[3] for item in destTree.selection()]
         configMissingVids = [drive['vid'] for drive in config['drives'] if drive['vid'] not in drivesSelected]
 
-        if len(configMissingVids) > 1:
-            configMissingVids[-1] = 'and ' + configMissingVids[-1]
+        missingVidString = ', '.join(configMissingVids[:-2] + [' and '.join(configMissingVids[-2:])])
 
-        warningMessage = f"The drive{'s' if len(configMissingVids) > 1 else ''} with volume ID{'s' if len(configMissingVids) > 1 else ''} {', '.join(configMissingVids)} {'are' if len(configMissingVids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
+        warningMessage = f"The drive{'s' if len(configMissingVids) > 1 else ''} with volume ID{'s' if len(configMissingVids) > 1 else ''} {missingVidString} {'are' if len(configMissingVids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
         warningTitle = f"Drive{'s' if len(configMissingVids) > 1 else ''} missing"
 
         missingDriveCount = len(config['drives']) - len(driveTreeIdList)
@@ -1589,6 +1602,7 @@ def handleDriveSelectionClick():
     global prevSelection
     global prevDriveSelection
     global analysisValid
+    global confirmWipeExistingDrives
 
     if len(threading.enumerate()) <= threadsForProgressBar:
         progressBar.configure(mode='indeterminate')
@@ -1600,6 +1614,7 @@ def handleDriveSelectionClick():
     selectMatch = [drive for drive in selected if drive in prevDriveSelection]
     if len(selected) != len(prevDriveSelection) or len(selectMatch) != len(prevDriveSelection):
         analysisValid = False
+        confirmWipeExistingDrives = False
         startBackupBtn.configure(state='disable')
 
     prevDriveSelection = [share for share in selected]
@@ -2267,7 +2282,7 @@ threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=T
 
 def onClose():
     if threadManager.is_alive('Backup'):
-        if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?'):
+        if messagebox.askyesno('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?'):
             threadManager.kill('Backup')
             root.destroy()
     else:
