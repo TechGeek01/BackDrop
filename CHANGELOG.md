@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [2.0.1] - 2020-12-25
+### Fixed
+- Functions for gathering file lists during analysis no longer break when trying to query missing drives
+
 ## [2.0.0] - 2020-12-25
 ### Added
 - Progress bar now shows overall copy progress based on how much data needs to be copied
