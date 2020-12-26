@@ -18,7 +18,7 @@ import hashlib
 import sys
 
 # Set meta info
-appVersion = '2.0.0'
+appVersion = '2.0.1'
 threadsForProgressBar = 5
 
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -948,11 +948,20 @@ def analyzeBackup(shares, drives):
                         # exclusion, so delete it
                         fileList['delete'].append((entry.path, get_directory_size(entry.path)))
         except NotADirectoryError:
-            return []
+            return {
+                'delete': [],
+                'replace': []
+            }
         except PermissionError:
-            return []
+            return {
+                'delete': [],
+                'replace': []
+            }
         except OSError:
-            return []
+            return {
+                'delete': [],
+                'replace': []
+            }
         return fileList
 
     def buildNewFileList(drive, shares):
@@ -996,11 +1005,17 @@ def analyzeBackup(shares, drives):
                                 # Path doesn't exist on dest, so add to list if not excluded
                                 fileList['new'].append((targetDrive + entry.path[3:], get_directory_size(entry.path)))
         except NotADirectoryError:
-            return []
+            return {
+                'new': []
+            }
         except PermissionError:
-            return []
+            return {
+                'new': []
+            }
         except OSError:
-            return []
+            return {
+                'new': []
+            }
         return fileList
 
     # Build list of files/dirs to delete and replace
@@ -1829,7 +1844,6 @@ def runBackup():
 
                     doCopy(sourceFile, destFile, guiOptions)
 
-        # URGENT: Fix this GUI output to not break with list types
         if not threadManager.threadList['Backup']['killFlag']:
             cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=color.FINISHED)
             cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=color.FINISHED)
