@@ -6,7 +6,6 @@ import shutil
 import os
 import wmi
 import re
-import threading
 import pythoncom
 import itertools
 import subprocess
@@ -16,10 +15,10 @@ from PIL import Image, ImageTk
 import hashlib
 import sys
 from bin.threadManager import ThreadManager
+from bin.progress import Progress
 
 # Set meta info
-appVersion = '2.0.1'
-threadsForProgressBar = 5
+appVersion = '2.1.0-alpha.1'
 
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
 # IDEA: Add interactive CLI option if correct parameters are passed in @interface
@@ -282,7 +281,7 @@ def printProgress(copied, total, guiOptions):
         if guiOptions['mode'] == 'copy':
             # Progress bar position should only be updated on copy, not verify
             backupTotals['progressBar'] = backupTotals['running'] + copied
-            progressBar.configure(value=backupTotals['progressBar'])
+            progress.set(backupTotals['progressBar'])
 
             cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'{percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=color.NORMAL)
         elif guiOptions['mode'] == 'verifysource':
@@ -637,9 +636,7 @@ def analyzeBackup(shares, drives):
     if not sanityCheck():
         return
 
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='indeterminate')
-        progressBar.start()
+    progress.startIndeterminate()
 
     startBackupBtn.configure(state='disable')
     startAnalysisBtn.configure(state='disable')
@@ -1207,9 +1204,7 @@ def analyzeBackup(shares, drives):
     startBackupBtn.configure(state='normal')
     startAnalysisBtn.configure(state='normal')
 
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='determinate')
-        progressBar.stop()
+    progress.stopIndeterminate()
 
 confirmWipeExistingDrives = False
 def sanityCheck():
@@ -1327,9 +1322,8 @@ def readSettingFromFile(file, default, verifyData=None):
 def loadSource():
     """Load the source share list, and display it in the tree."""
     global analysisValid
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='indeterminate')
-        progressBar.start()
+
+    progress.startIndeterminate()
 
     analysisValid = False
 
@@ -1343,9 +1337,7 @@ def loadSource():
     for directory in next(os.walk(sourceDrive))[1]:
         sourceTree.insert(parent='', index='end', text=directory, values=('Unknown', 0))
 
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='determinate')
-        progressBar.stop()
+    progress.stopIndeterminate()
 
 def startRefreshSource():
     """Start a source refresh in a new thread."""
@@ -1374,9 +1366,8 @@ def shareSelectCalc():
     """
     global prevShareSelection
     global analysisValid
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='indeterminate')
-        progressBar.start()
+    
+    progress.startIndeterminate()
 
     def updateShareSize(item):
         """Update share info for a given share.
@@ -1426,9 +1417,7 @@ def shareSelectCalc():
         if sharesAllKnown:
             startAnalysisBtn.configure(state='normal')
 
-        if len(threading.enumerate()) <= threadsForProgressBar:
-            progressBar.configure(mode='determinate')
-            progressBar.stop()
+        progress.stopIndeterminate()
 
     selected = sourceTree.selection()
 
@@ -1455,9 +1444,8 @@ def loadSourceInBackground(event):
 def loadDest():
     """Load the destination drive info, and display it in the tree."""
     global destDriveMap
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='indeterminate')
-        progressBar.start()
+    
+    progress.startIndeterminate()
 
     driveList = win32api.GetLogicalDriveStrings()
     driveList = driveList.split('\000')[:-1]
@@ -1505,9 +1493,7 @@ def loadDest():
 
     driveTotalSpace.configure(text='Available: ' + human_filesize(totalUsage))
 
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='determinate')
-        progressBar.stop()
+    progress.stopIndeterminate()
 
 def startRefreshDest():
     """Start the loading of the destination drive info in a new thread."""
@@ -1619,9 +1605,7 @@ def handleDriveSelectionClick():
     global analysisValid
     global confirmWipeExistingDrives
 
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='indeterminate')
-        progressBar.start()
+    progress.startIndeterminate()
 
     selected = destTree.selection()
 
@@ -1667,9 +1651,7 @@ def handleDriveSelectionClick():
     if not readDrivesFromConfigFile:
         config['drives'] = selectedDriveList
 
-    if len(threading.enumerate()) <= threadsForProgressBar:
-        progressBar.configure(mode='determinate')
-        progressBar.stop()
+    progress.stopIndeterminate()
 
 def selectDriveInBackground(event):
     """Start the drive selection handling in a new thread."""
@@ -1728,8 +1710,7 @@ def runBackup():
     if not analysisValid:
         return
 
-    progressBar.stop()
-    progressBar.configure(mode='determinate', variable=backupTotals['progressBar'], maximum=backupTotals['master'])
+    progress.setMax(backupTotals['master'])
 
     # Reset halt flag if it's been tripped
     backupHalted = False
@@ -1956,6 +1937,8 @@ buttonIconStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(No
 # Progress/status values
 progressBar = ttk.Progressbar(mainFrame, maximum=100)
 progressBar.grid(row=10, column=0, columnspan=3, sticky='ew', pady=(elemPadding, 0))
+
+progress = Progress(progressBar, 5)
 
 # Set source drives and start to set up source dropdown
 sourceDriveDefault = tk.StringVar()
