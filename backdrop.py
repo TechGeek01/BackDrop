@@ -14,6 +14,7 @@ import keyboard
 from PIL import Image, ImageTk
 import hashlib
 import sys
+from bin.color import Color
 from bin.threadManager import ThreadManager
 from bin.progress import Progress
 
@@ -115,7 +116,7 @@ def copyFileObj(sourceFilename, destFilename, callback, guiOptions={}, length=0)
 
     file_size = os.path.getsize(sourceFilename)
 
-    cmdInfoBlocks[guiOptions['displayIndex']]['currentFileResult'].configure(text=destFilename, fg=color.NORMAL)
+    cmdInfoBlocks[guiOptions['displayIndex']]['currentFileResult'].configure(text=destFilename, fg=Color.NORMAL)
     guiOptions['mode'] = 'copy'
 
     copied = 0
@@ -202,7 +203,7 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
             file_size = READINTO_BUFSIZE
         length = min(file_size, READINTO_BUFSIZE)
 
-    cmdInfoBlocks[guiOptions['displayIndex']]['currentFileResult'].configure(text=destFilename, fg=color.NORMAL)
+    cmdInfoBlocks[guiOptions['displayIndex']]['currentFileResult'].configure(text=destFilename, fg=Color.NORMAL)
     guiOptions['mode'] = 'copy'
 
     copied = 0
@@ -283,11 +284,11 @@ def printProgress(copied, total, guiOptions):
             backupTotals['progressBar'] = backupTotals['running'] + copied
             progress.set(backupTotals['progressBar'])
 
-            cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'{percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=color.NORMAL)
+            cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'{percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=Color.NORMAL)
         elif guiOptions['mode'] == 'verifysource':
-            cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'Verifying source \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=color.BLUE)
+            cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'Verifying source \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=Color.BLUE)
         elif guiOptions['mode'] == 'verifydest':
-            cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'Verifying destination \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=color.BLUE)
+            cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'Verifying destination \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=Color.BLUE)
 
     if guiOptions['mode'] == 'copy' and copied >= total:
         backupTotals['running'] += total
@@ -398,9 +399,9 @@ def enumerateCommandInfo(displayCommandList):
             elif item['mode'] == 'copy':
                 cmdHeaderText = 'Copy %d new files to %s' % (len(item['fileList']), item['drive'])
 
-        config['header'] = tk.Label(config['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=color.NORMAL if item['enabled'] else color.FADED)
+        config['header'] = tk.Label(config['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=Color.NORMAL if item['enabled'] else Color.FADED)
         config['header'].pack(side='left')
-        config['state'] = tk.Label(config['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+        config['state'] = tk.Label(config['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
         config['state'].pack(side='left')
         config['arrow'].update_idletasks()
         arrowWidth = config['arrow'].winfo_width()
@@ -426,7 +427,7 @@ def enumerateCommandInfo(displayCommandList):
             tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
             config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
             config['fileListLineHeader'].pack(side='left')
-            config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=color.FADED)
+            config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=Color.FADED)
             config['fileListLineTooltip'].pack(side='left')
             config['fullFileList'] = item['fileList']
 
@@ -435,7 +436,7 @@ def enumerateCommandInfo(displayCommandList):
             tk.Frame(config['cmdListLine'], width=arrowWidth).pack(side='left')
             config['cmdListLineHeader'] = tk.Label(config['cmdListLine'], text='Command list:', font=cmdHeaderFont)
             config['cmdListLineHeader'].pack(side='left')
-            config['cmdListLineTooltip'] = tk.Label(config['cmdListLine'], text='(Click to copy)', font=cmdStatusFont, fg=color.FADED)
+            config['cmdListLineTooltip'] = tk.Label(config['cmdListLine'], text='(Click to copy)', font=cmdStatusFont, fg=Color.FADED)
             config['cmdListLineTooltip'].pack(side='left')
             config['fullCmdList'] = item['cmdList']
 
@@ -444,7 +445,7 @@ def enumerateCommandInfo(displayCommandList):
             tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
             config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Out:', font=cmdHeaderFont)
             config['lastOutHeader'].pack(side='left')
-            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
             config['lastOutResult'].pack(side='left')
 
             # Handle list trimming
@@ -494,7 +495,7 @@ def enumerateCommandInfo(displayCommandList):
             tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
             config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
             config['fileListLineHeader'].pack(side='left')
-            config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=color.FADED)
+            config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=Color.FADED)
             config['fileListLineTooltip'].pack(side='left')
             config['fullFileList'] = item['fileList']
 
@@ -503,7 +504,7 @@ def enumerateCommandInfo(displayCommandList):
             tk.Frame(config['currentFileLine'], width=arrowWidth).pack(side='left')
             config['currentFileHeader'] = tk.Label(config['currentFileLine'], text='Current file:', font=cmdHeaderFont)
             config['currentFileHeader'].pack(side='left')
-            config['currentFileResult'] = tk.Label(config['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+            config['currentFileResult'] = tk.Label(config['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
             config['currentFileResult'].pack(side='left')
 
             config['lastOutLine'] = tk.Frame(config['infoFrame'])
@@ -511,7 +512,7 @@ def enumerateCommandInfo(displayCommandList):
             tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
             config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Progress:', font=cmdHeaderFont)
             config['lastOutHeader'].pack(side='left')
-            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=color.PENDING if item['enabled'] else color.FADED)
+            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
             config['lastOutResult'].pack(side='left')
 
             # Handle list trimming
@@ -1711,28 +1712,7 @@ def startBackup():
             #     print(e)
             pass
 
-        threadManager.start(threadManager.KILLABLE, killBackupThread, target=runBackup, name='Backup', daemon=True)
-
-class color:
-    NORMAL = '#000'
-    FADED = '#999'
-    BLUE = '#0093c4'
-    GREEN = '#6db500'
-    GOLD = '#ebb300'
-    RED = '#c00'
-    GRAY = '#999'
-
-    ENABLED = GREEN
-    DISABLED = RED
-
-    INFO = '#bbe6ff'
-    WARNING = '#ffe69d'
-    ERROR = '#ffd0d0'
-
-    FINISHED = GREEN
-    RUNNING = BLUE
-    STOPPED = RED
-    PENDING = GRAY
+        threadManager.start(threadManager.KILLABLE, killBackupThread, target=backup.run, name='Backup', daemon=True)
 
 # Set app defaults
 sourceDrive = None
@@ -1853,7 +1833,7 @@ else:
 
     # sourceMissingFrame = tk.Frame(mainFrame, width=200)
     # sourceMissingFrame.grid(row=0, column=0,  rowspan=2, sticky='nsew')
-    sourceWarning = tk.Label(mainFrame, text='No network drives are available to use as source', font=(None, 14), wraplength=250, bg=color.ERROR)
+    sourceWarning = tk.Label(mainFrame, text='No network drives are available to use as source', font=(None, 14), wraplength=250, bg=Color.ERROR)
     sourceWarning.grid(row=0, column=0, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
 destTreeFrame = tk.Frame(mainFrame)
@@ -1867,14 +1847,14 @@ def handleSplitModeCheck():
     global destModeSplitEnabled
     if not analysisStarted:
         destModeSplitEnabled = destModeSplitCheckVar.get()
-        splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=color.ENABLED if destModeSplitEnabled else color.DISABLED)
+        splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=Color.ENABLED if destModeSplitEnabled else Color.DISABLED)
 
 destModeSplitCheckVar = tk.BooleanVar()
 destModeSplitEnabled = False
 
-altTooltipFrame = tk.Frame(destModeFrame, bg=color.INFO)
+altTooltipFrame = tk.Frame(destModeFrame, bg=Color.INFO)
 altTooltipFrame.pack(side='left', ipadx=elemPadding / 2, ipady=4)
-tk.Label(altTooltipFrame, text='Hold ALT while selecting a drive to ignore config files', bg=color.INFO).pack(fill='y', expand=1)
+tk.Label(altTooltipFrame, text='Hold ALT while selecting a drive to ignore config files', bg=Color.INFO).pack(fill='y', expand=1)
 
 splitModeCheck = tk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
 splitModeCheck.pack(side='left', padx=(12, 0))
@@ -1903,17 +1883,17 @@ destMetaFrame = tk.Frame(mainFrame)
 destMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, elemPadding))
 tk.Grid.columnconfigure(destMetaFrame, 0, weight=1)
 
-destSplitWarningFrame = tk.Frame(mainFrame, bg=color.WARNING)
+destSplitWarningFrame = tk.Frame(mainFrame, bg=Color.WARNING)
 destSplitWarningFrame.rowconfigure(0, weight=1)
 destSplitWarningFrame.columnconfigure(0, weight=1)
 destSplitWarningFrame.columnconfigure(10, weight=1)
 
 tk.Frame(destSplitWarningFrame).grid(row=0, column=0)
-splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=color.WARNING)
+splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=Color.WARNING)
 splitWarningPrefix.grid(row=0, column=1, sticky='ns')
-splitWarningMissingDriveCount = tk.Label(destSplitWarningFrame, text='0', bg=color.WARNING, font=(None, 18, 'bold'))
+splitWarningMissingDriveCount = tk.Label(destSplitWarningFrame, text='0', bg=Color.WARNING, font=(None, 18, 'bold'))
 splitWarningMissingDriveCount.grid(row=0, column=2, sticky='ns')
-splitWarningSuffix = tk.Label(destSplitWarningFrame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=color.WARNING)
+splitWarningSuffix = tk.Label(destSplitWarningFrame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=Color.WARNING)
 splitWarningSuffix.grid(row=0, column=3, sticky='ns')
 tk.Frame(destSplitWarningFrame).grid(row=0, column=10)
 
@@ -1925,7 +1905,7 @@ driveSelectedSpace = tk.Label(driveSpaceFrame, text='Selected: ' + human_filesiz
 driveSelectedSpace.grid(row=0, column=1, padx=(12, 0))
 driveTotalSpace = tk.Label(driveSpaceFrame, text='Available: ' + human_filesize(0))
 driveTotalSpace.grid(row=0, column=2, padx=(12, 0))
-splitModeStatus = tk.Label(driveSpaceFrame, text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=color.ENABLED if destModeSplitEnabled else color.DISABLED)
+splitModeStatus = tk.Label(driveSpaceFrame, text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=Color.ENABLED if destModeSplitEnabled else Color.DISABLED)
 splitModeStatus.grid(row=0, column=3, padx=(12, 0))
 
 refreshDestBtn = ttk.Button(destMetaFrame, text='\u2b6e', command=startRefreshDest, style='icon.TButton')
@@ -1967,7 +1947,7 @@ brandingFrame.pack()
 logoImageLoad = Image.open(resource_path('media\\logo_ui.png'))
 logoImageRender = ImageTk.PhotoImage(logoImageLoad)
 tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
-tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=color.FADED).pack(side='left', anchor='s', pady=(0, 12))
+tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=Color.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
 backupTitle = tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20))
 backupTitle.pack()
