@@ -1777,7 +1777,7 @@ elemPadding = 16
 
 config = {
     'shares': [],
-    'drives': {}
+    'drives': []
 }
 
 commandList = []
