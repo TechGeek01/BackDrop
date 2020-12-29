@@ -667,42 +667,49 @@ class Backup:
 
         driveInfo = []
         driveShareList = {}
-        for i, item in enumerate(self.config['drives']):
-            curDriveInfo = {
-                'vid': item['vid'],
-                'size': item['capacity'],
-                'free': item['capacity'],
-                'configSize': 0
-            }
+        masterDriveList = [drive for drive in self.config['drives']]
+        masterDriveList.extend([{'vid': vid, 'capacity': capacity} for vid, capacity in self.config['missingDrives'].items()])
+        connectedVidList = [drive['vid'] for drive in self.config['drives']]
+        for i, drive in enumerate(masterDriveList):
+            driveConnected = drive['vid'] in connectedVidList
 
-            if item['vid'] in driveVidToLetterMap.keys():
-                curDriveInfo['name'] = driveVidToLetterMap[item['vid']]
-                curDriveInfo['configSize'] = get_directory_size(driveVidToLetterMap[item['vid']] + '.backdrop')
+            curDriveInfo = drive
+            curDriveInfo['connected'] = driveConnected
+
+            # If drive is connected, collect info about config size and free space
+            if driveConnected:
+                curDriveInfo['configSize'] = get_directory_size(drive['name'] + '.backdrop')
+            else:
+                curDriveInfo['name'] = f"[{drive['vid']}]"
+                curDriveInfo['configSize'] = 20000 # Assume 20K config size
+
+            # TODO: Find a way to properly determine free space left of drive here
+            curDriveInfo['free'] = drive['capacity'] - drive['configSize']
 
             driveInfo.append(curDriveInfo)
 
             # Enumerate list for tracking what shares go where
-            driveShareList[item['vid']] = []
+            driveShareList[drive['vid']] = []
 
-            humanDriveName = curDriveInfo['name'] if 'name' in curDriveInfo.keys() else item['vid']
-
-            tk.Label(driveFrame, text=humanDriveName,
+            tk.Label(driveFrame, text=curDriveInfo['name'],
                      fg=Color.NORMAL if 'name' in curDriveInfo.keys() else Color.FADED).grid(row=i, column=0, sticky='w')
             tk.Label(driveFrame, text='\u27f6',
                      fg=Color.NORMAL if 'name' in curDriveInfo.keys() else Color.FADED).grid(row=i, column=1, sticky='w')
             wrapFrame = tk.Frame(driveFrame)
             wrapFrame.grid(row=i, column=2, sticky='ew')
             wrapFrame.update_idletasks()
-            tk.Label(driveFrame, text=human_filesize(item['capacity']),
+            tk.Label(driveFrame, text=human_filesize(drive['capacity']),
                      fg=Color.NORMAL if 'name' in curDriveInfo.keys() else Color.FADED,
                      wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
 
+        driveVidToName = {drive['vid']: drive['name'] for drive in driveInfo}
+
         # For each drive, smallest first, filter list of shares to those that fit
-        driveInfo.sort(key=lambda x: x['size'] - x['configSize'])
+        driveInfo.sort(key=lambda x: x['free'])
 
         for i, drive in enumerate(driveInfo):
             # Get list of shares small enough to fit on drive
-            smallShares = {share: size for share, size in shareInfo.items() if size <= drive['size'] - drive['configSize']}
+            smallShares = {share: size for share, size in shareInfo.items() if size <= drive['free']}
 
             # Try every combination of shares that fit to find result that uses most of that drive
             largestSum = 0
@@ -711,7 +718,7 @@ class Backup:
                 for subset in itertools.combinations(smallShares.keys(), n):
                     combinationTotal = sum(smallShares[share] for share in subset)
 
-                    if (combinationTotal > largestSum and combinationTotal <= drive['size'] - drive['configSize']):
+                    if (combinationTotal > largestSum and combinationTotal <= drive['free']):
                         largestSum = combinationTotal
                         largestSet = subset
 
@@ -724,7 +731,7 @@ class Backup:
             if len(remainingSmallShares) > 0 and i < (len(driveInfo) - 1):
                 notFitTotal = sum(size for size in remainingSmallShares.values())
                 nextDrive = driveInfo[i + 1]
-                nextDriveFreeSpace = nextDrive['size'] - nextDrive['configSize'] - notFitTotal
+                nextDriveFreeSpace = nextDrive['free'] - notFitTotal
 
                 # If free space on next drive is less than total capacity of current drive, it
                 # becomes more efficient to skip current drive, and put all shares on the next
@@ -733,9 +740,9 @@ class Backup:
                 # split across multiple drives after moving them to a larger drive, then it's
                 # easier to fit what we can on the small drive, to leave the larger drives
                 # available for larger shares
-                if notFitTotal <= nextDrive['size'] - nextDrive['configSize']:
+                if notFitTotal <= nextDrive['free']:
                     totalSmallShareSpace = sum(size for size in smallShares.values())
-                    if nextDriveFreeSpace < drive['size'] - drive['configSize'] and totalSmallShareSpace <= nextDrive['size'] - nextDrive['configSize']:
+                    if nextDriveFreeSpace < drive['free'] and totalSmallShareSpace <= nextDrive['free']:
                         # Next drive free space less than total on current, so it's optimal to store on next drive instead
                         driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys()]) # All small shares on next drive
                     else:
@@ -755,7 +762,7 @@ class Backup:
 
             # Calculate space used by shares, and subtract it from capacity to get free space
             usedSpace = sum(allShareInfo[share] for share in driveShareList[drive['vid']])
-            drive.update({'free': drive['size'] - drive['configSize'] - usedSpace})
+            driveInfo[i]['free'] -= usedSpace
 
         def splitShare(share):
             """Recurse into a share or directory, and split the contents.
@@ -777,11 +784,11 @@ class Backup:
                 fileInfo[fileName] = newDirSize
 
             # For splitting shares, sort by largest free space first
-            driveInfo.sort(reverse=True, key=lambda x: x['free'] - x['configSize'])
+            driveInfo.sort(reverse=True, key=lambda x: x['free'])
 
             for i, drive in enumerate(driveInfo):
                 # Get list of files small enough to fit on drive
-                totalSmallFiles = {file: size for file, size in fileInfo.items() if size <= drive['free'] - drive['configSize']}
+                totalSmallFiles = {file: size for file, size in fileInfo.items() if size <= drive['free']}
 
                 # Since the list of files is truncated to prevent an unreasonably large
                 # number of combinations to check, we need to keep processing the file list
@@ -818,7 +825,7 @@ class Backup:
                         for subset in itertools.combinations(trimmedSmallFiles.keys(), n):
                             combinationTotal = sum(trimmedSmallFiles[file] for file in subset)
 
-                            if (combinationTotal > largestSum and combinationTotal <= drive['free'] - drive['configSize'] - processedFileSize):
+                            if (combinationTotal > largestSum and combinationTotal <= drive['free'] - processedFileSize):
                                 largestSum = combinationTotal
                                 largestSet = subset
 
@@ -873,8 +880,6 @@ class Backup:
                             rawExclusions = allFiles.copy()
                             rawExclusions.pop(drive, None)
 
-                            humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
-
                             masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
                             driveExclusions.extend([sourcePathStub + file for file in masterExclusions])
                             driveShareList[drive].append(shareName)
@@ -902,28 +907,33 @@ class Backup:
                 for entry in os.scandir(drive):
                     # For each entry, either add filesize to the total, or recurse into the directory
                     if entry.is_file():
-                        if (entry.path[3:].find('\\') == -1 # Files should not be on root of drive
-                                or not os.path.isfile(self.config['sourceDrive'] + entry.path[3:]) # File doesn't exist in source, so delete it
-                                or entry.path in driveExclusions): # File is excluded from drive
+                        stubPath = entry.path[3:]
+                        sourcePath = self.config['sourceDrive'] + stubPath
+                        if (stubPath.find('\\') == -1 # Files should not be on root of drive
+                                or not os.path.isfile(sourcePath) # File doesn't exist in source, so delete it
+                                or sourcePath in driveExclusions): # File is excluded from drive
                             fileList['delete'].append((entry.path, entry.stat().st_size))
-                        elif os.path.isfile(self.config['sourceDrive'] + entry.path[3:]):
-                            if (entry.stat().st_mtime != os.path.getmtime(self.config['sourceDrive'] + entry.path[3:]) # Existing file is older than source
-                                    or entry.stat().st_size != os.path.getsize(self.config['sourceDrive'] + entry.path[3:])): # Existing file is different size than source
+                        elif os.path.isfile(sourcePath):
+                            if (entry.stat().st_mtime != os.path.getmtime(sourcePath) # Existing file is older than source
+                                    or entry.stat().st_size != os.path.getsize(sourcePath)): # Existing file is different size than source
                                 # If existing dest file is not same time as source, it needs to be replaced
-                                fileList['replace'].append((entry.path, os.path.getsize(self.config['sourceDrive'] + entry.path[3:]), entry.stat().st_size))
+                                fileList['replace'].append((entry.path, os.path.getsize(sourcePath), entry.stat().st_size))
                     elif entry.is_dir():
                         foundShare = False
+                        stubPath = entry.path[3:]
+                        sourcePath = self.config['sourceDrive'] + stubPath
                         for item in shares:
-                            if (entry.path[3:] == item # Dir is share, so it stays
-                                    or (entry.path[3:].find(item + '\\') == 0 and os.path.isdir(self.config['sourceDrive'] + entry.path[3:])) # Dir is subdir inside share, and it exists in source
-                                    or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of a share we're copying, so it stays
+                            if (stubPath == item # Dir is share, so it stays
+                                    or (stubPath.find(item + '\\') == 0 and os.path.isdir(sourcePath)) # Dir is subdir inside share, and it exists in source
+                                    or item.find(stubPath + '\\') == 0): # Dir is parent directory of a share we're copying, so it stays
                                 # Recurse into the share
                                 newList = buildDeltaFileList(entry.path, shares)
                                 fileList['delete'].extend(newList['delete'])
                                 fileList['replace'].extend(newList['replace'])
                                 foundShare = True
                                 break
-                        if not foundShare and entry.path[3:] not in specialIgnoreList and entry.path not in driveExclusions:
+
+                        if not foundShare and stubPath not in specialIgnoreList and entry.path not in driveExclusions:
                             # Directory isn't share, or part of one, and isn't a special folder or
                             # exclusion, so delete it
                             fileList['delete'].append((entry.path, get_directory_size(entry.path)))
@@ -1007,13 +1017,11 @@ class Backup:
         displayPurgeCommandList = []
         displayCopyCommandList = []
         for drive, shares in driveShareList.items():
-            humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
-
-            modifyFileList = buildDeltaFileList(humanDrive, shares)
+            modifyFileList = buildDeltaFileList(driveVidToName[drive], shares)
 
             deleteItems = modifyFileList['delete']
             if len(deleteItems) > 0:
-                deleteFileList[humanDrive] = deleteItems
+                deleteFileList[driveVidToName[drive]] = deleteItems
                 fileDeleteList = [file for file, size in deleteItems]
 
                 # Format list of files into commands
@@ -1022,7 +1030,7 @@ class Backup:
                 displayPurgeCommandList.append({
                     'enabled': True,
                     'type': 'list',
-                    'drive': humanDrive,
+                    'drive': driveVidToName[drive],
                     'size': sum([size for file, size in deleteItems]),
                     'fileList': fileDeleteList,
                     'cmdList': fileDeleteCmdList
@@ -1031,7 +1039,7 @@ class Backup:
                 purgeCommandList.append({
                     'displayIndex': len(displayPurgeCommandList) + 1,
                     'type': 'list',
-                    'drive': humanDrive,
+                    'drive': driveVidToName[drive],
                     'fileList': fileDeleteList,
                     'cmdList': fileDeleteCmdList
                 })
@@ -1040,13 +1048,13 @@ class Backup:
             replaceItems = modifyFileList['replace']
             replaceItems.sort(key=lambda x: x[1])
             if len(replaceItems) > 0:
-                replaceFileList[humanDrive] = replaceItems
+                replaceFileList[driveVidToName[drive]] = replaceItems
                 fileReplaceList = [file for file, sourceSize, destSize in replaceItems]
 
                 displayCopyCommandList.append({
                     'enabled': True,
                     'type': 'fileList',
-                    'drive': humanDrive,
+                    'drive': driveVidToName[drive],
                     'size': sum([sourceSize for file, sourceSize, destSize in replaceItems]),
                     'fileList': fileReplaceList,
                     'mode': 'replace'
@@ -1055,22 +1063,22 @@ class Backup:
                 copyCommandList.append({
                     'displayIndex': len(displayPurgeCommandList) + 1,
                     'type': 'fileList',
-                    'drive': humanDrive,
+                    'drive': driveVidToName[drive],
                     'fileList': fileReplaceList,
                     'payload': replaceItems,
                     'mode': 'replace'
                 })
 
             # Build list of new files to copy
-            newItems = buildNewFileList(humanDrive, shares)['new']
+            newItems = buildNewFileList(driveVidToName[drive], shares)['new']
             if len(newItems) > 0:
-                newFileList[humanDrive] = newItems
+                newFileList[driveVidToName[drive]] = newItems
                 fileCopyList = [file for file, size in newItems]
 
                 displayCopyCommandList.append({
                     'enabled': True,
                     'type': 'fileList',
-                    'drive': humanDrive,
+                    'drive': driveVidToName[drive],
                     'size': sum([size for file, size in newItems]),
                     'fileList': fileCopyList,
                     'mode': 'copy'
@@ -1079,7 +1087,7 @@ class Backup:
                 copyCommandList.append({
                     'displayIndex': len(displayPurgeCommandList) + 1,
                     'type': 'fileList',
-                    'drive': humanDrive,
+                    'drive': driveVidToName[drive],
                     'fileList': fileCopyList,
                     'payload': newItems,
                     'mode': 'copy'
@@ -1091,9 +1099,8 @@ class Backup:
         filesFrame.pack(fill='x', expand=True)
         filesFrame.columnconfigure(2, weight=1)
 
+        # Gather and summarize totals for analysis summary
         for i, drive in enumerate(driveShareList.keys()):
-            humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
-
             fileSummary = []
             driveTotal = {
                 'running': 0,
@@ -1104,38 +1111,38 @@ class Backup:
                 'new': 0
             }
 
-            if humanDrive in deleteFileList.keys():
-                driveTotal['delete'] = sum([size for file, size in deleteFileList[humanDrive]])
+            if driveVidToName[drive] in deleteFileList.keys():
+                driveTotal['delete'] = sum([size for file, size in deleteFileList[driveVidToName[drive]]])
 
                 driveTotal['running'] -= driveTotal['delete']
                 self.totals['delta'] -= driveTotal['delete']
 
-                fileSummary.append(f"Deleting {len(deleteFileList[humanDrive])} files ({human_filesize(driveTotal['delete'])})")
+                fileSummary.append(f"Deleting {len(deleteFileList[driveVidToName[drive]])} files ({human_filesize(driveTotal['delete'])})")
 
-            if humanDrive in replaceFileList.keys():
-                driveTotal['replace'] = sum([sourceSize for file, sourceSize, destSize in replaceFileList[humanDrive]])
+            if driveVidToName[drive] in replaceFileList.keys():
+                driveTotal['replace'] = sum([sourceSize for file, sourceSize, destSize in replaceFileList[driveVidToName[drive]]])
 
                 driveTotal['running'] += driveTotal['replace']
                 driveTotal['copy'] += driveTotal['replace']
-                driveTotal['delta'] += sum([sourceSize - destSize for file, sourceSize, destSize in replaceFileList[humanDrive]])
+                driveTotal['delta'] += sum([sourceSize - destSize for file, sourceSize, destSize in replaceFileList[driveVidToName[drive]]])
 
-                fileSummary.append(f"Updating {len(replaceFileList[humanDrive])} files ({human_filesize(driveTotal['replace'])})")
+                fileSummary.append(f"Updating {len(replaceFileList[driveVidToName[drive]])} files ({human_filesize(driveTotal['replace'])})")
 
-            if humanDrive in newFileList.keys():
-                driveTotal['new'] = sum([size for file, size in newFileList[humanDrive]])
+            if driveVidToName[drive] in newFileList.keys():
+                driveTotal['new'] = sum([size for file, size in newFileList[driveVidToName[drive]]])
 
                 driveTotal['running'] += driveTotal['new']
                 driveTotal['copy'] += driveTotal['new']
                 driveTotal['delta'] += driveTotal['new']
 
-                fileSummary.append(f"{len(newFileList[humanDrive])} new files ({human_filesize(driveTotal['new'])})")
+                fileSummary.append(f"{len(newFileList[driveVidToName[drive]])} new files ({human_filesize(driveTotal['new'])})")
 
             # Increment master totals
             self.totals['master'] += driveTotal['running']
             self.totals['delta'] += driveTotal['delta']
 
             if len(fileSummary) > 0:
-                tk.Label(filesFrame, text=humanDrive,
+                tk.Label(filesFrame, text=driveVidToName[drive],
                          fg=Color.NORMAL).grid(row=i, column=0, sticky='w')
                 tk.Label(filesFrame, text='\u27f6',
                          fg=Color.NORMAL).grid(row=i, column=1, sticky='w')
@@ -1168,8 +1175,7 @@ class Backup:
         summaryFrame.columnconfigure(2, weight=1)
         i = 0
         for drive, shares in driveShareList.items():
-            humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
-            tk.Label(summaryFrame, text=humanDrive,
+            tk.Label(summaryFrame, text=driveVidToName[drive],
                      fg=Color.NORMAL if drive in driveVidToLetterMap.keys() else Color.FADED).grid(row=i, column=0, sticky='w')
             tk.Label(summaryFrame, text='\u27f6',
                      fg=Color.NORMAL if drive in driveVidToLetterMap.keys() else Color.FADED).grid(row=i, column=1, sticky='w')
