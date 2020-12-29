@@ -213,10 +213,13 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
                 dest_hash.update(chunk)
                 callback(copied, file_size, guiOptions)
 
-        print(source_hash.hexdigest())
-        print(dest_hash.hexdigest())
         if source_hash.hexdigest() == dest_hash.hexdigest():
             print('Files are identical')
+        else:
+            # TODO: Add in way to gather this data as a list of mis-copied files
+            print('File mismatch')
+            print(f"    Source: {source_hash.hexdigest()}")
+            print(F"    Dest:   {dest_hash.hexdigest()}")
 
         return source_hash.hexdigest() == dest_hash.hexdigest()
     else:
