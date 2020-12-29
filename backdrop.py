@@ -76,6 +76,7 @@ def copyFileObj(sourceFilename, destFilename, callback, guiOptions={}, length=0)
 
     file_size = os.path.getsize(sourceFilename)
 
+    cmdInfoBlocks = backup.getCmdInfoBlocks()
     cmdInfoBlocks[guiOptions['displayIndex']]['currentFileResult'].configure(text=destFilename, fg=Color.NORMAL)
     guiOptions['mode'] = 'copy'
 
@@ -163,6 +164,7 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
             file_size = READINTO_BUFSIZE
         length = min(file_size, READINTO_BUFSIZE)
 
+    cmdInfoBlocks = backup.getCmdInfoBlocks()
     cmdInfoBlocks[guiOptions['displayIndex']]['currentFileResult'].configure(text=destFilename, fg=Color.NORMAL)
     guiOptions['mode'] = 'copy'
 
@@ -229,7 +231,7 @@ def printProgress(copied, total, guiOptions):
         guiOptions (obj): The options for updating the GUI.
     """
 
-    global backupTotals
+    backupTotals = backup.getTotals()
 
     if copied > total:
         copied = total
@@ -238,6 +240,8 @@ def printProgress(copied, total, guiOptions):
     # If display index has been specified, write progress to GUI
     if 'displayIndex' in guiOptions.keys():
         displayIndex = guiOptions['displayIndex']
+
+        cmdInfoBlocks = backup.getCmdInfoBlocks()
 
         if guiOptions['mode'] == 'copy':
             # Progress bar position should only be updated on copy, not verify
@@ -289,876 +293,1062 @@ def doCopy(src, dest, guiOptions={}):
             return False
         return True
 
-def enumerateCommandInfo(displayCommandList):
-    """Enumerate the display widget with command info after a backup analysis."""
-    global cmdInfoBlocks
-    rightArrow = '\U0001f86a'
-    downArrow = '\U0001f86e'
-
-    cmdHeaderFont = (None, 9, 'bold')
-    cmdStatusFont = (None, 9)
-
-    def toggleCmdInfo(index):
-        """Toggle the command info for a given indexed command.
-
-        Args:
-            index (int): The index of the command to expand or hide.
+class Backup:
+    def __init__(self, config, sourceDrive, startBackupFn, killBackupFn, threadManager, progress):
         """
-        # Check if arrow needs to be expanded
-        expandArrow = cmdInfoBlocks[index]['arrow']['text']
-        if expandArrow == rightArrow:
-            # Collapsed turns into expanded
-            cmdInfoBlocks[index]['arrow'].configure(text=downArrow)
-            cmdInfoBlocks[index]['infoFrame'].pack(anchor='w')
-        else:
-            # Expanded turns into collapsed
-            cmdInfoBlocks[index]['arrow'].configure(text=rightArrow)
-            cmdInfoBlocks[index]['infoFrame'].pack_forget()
-
-        # For some reason, .configure() loses the function bind, so we need to re-set this
-        cmdInfoBlocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: toggleCmdInfo(index))
-
-    def copyCmd(index):
-        """Copy a given indexed command to the clipboard.
-
         Args:
-            index (int): The index of the command to copy.
+            config (dict): The backup config to be processed.
+            sourceDrive (String): The source drive letter to back up.
+            startBackupFn (def): The function to be used to start the backup.
+            killBackupFn (def): The function to be used to kill the backup.
+            threadManager (ThreadManager): The thread manager to check for kill flags.
+            progress (Progress): The progress tracker to bind to.
         """
-        clipboard.copy(cmdInfoBlocks[index]['fullCmd'])
 
-    def copyList(index, item):
-        """Copy a given indexed command to the clipboard.
-
-        Args:
-            index (int): The index of the command to copy.
-            item (String): The name of the list to copy
-        """
-        clipboard.copy('\n'.join(cmdInfoBlocks[index][item]))
-
-    for widget in backupActivityScrollableFrame.winfo_children():
-        widget.destroy()
-
-    cmdInfoBlocks = []
-    for i, item in enumerate(displayCommandList):
-        config = {}
-
-        config['mainFrame'] = tk.Frame(backupActivityScrollableFrame)
-        config['mainFrame'].pack(anchor='w', expand=1)
-
-        # Set up header arrow, trimmed command, and status
-        config['headLine'] = tk.Frame(config['mainFrame'])
-        config['headLine'].pack(fill='x')
-        config['arrow'] = tk.Label(config['headLine'], text=rightArrow)
-        config['arrow'].pack(side='left')
-
-        if item['type'] == 'list':
-            cmdHeaderText = 'Delete %d files from %s' % (len(item['fileList']), item['drive'])
-        elif item['type'] == 'fileList':
-            if item['mode'] == 'replace':
-                cmdHeaderText = 'Update %d files on %s' % (len(item['fileList']), item['drive'])
-            elif item['mode'] == 'copy':
-                cmdHeaderText = 'Copy %d new files to %s' % (len(item['fileList']), item['drive'])
-
-        config['header'] = tk.Label(config['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=Color.NORMAL if item['enabled'] else Color.FADED)
-        config['header'].pack(side='left')
-        config['state'] = tk.Label(config['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
-        config['state'].pack(side='left')
-        config['arrow'].update_idletasks()
-        arrowWidth = config['arrow'].winfo_width()
-
-        # Header toggle action click
-        config['arrow'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
-        config['header'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
-
-        # Set up info frame
-        config['infoFrame'] = tk.Frame(config['mainFrame'])
-
-        if item['type'] == 'list':
-            config['fileSizeLine'] = tk.Frame(config['infoFrame'])
-            config['fileSizeLine'].pack(anchor='w')
-            tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
-            config['fileSizeLineHeader'] = tk.Label(config['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
-            config['fileSizeLineHeader'].pack(side='left')
-            config['fileSizeLineTotal'] = tk.Label(config['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
-            config['fileSizeLineTotal'].pack(side='left')
-
-            config['fileListLine'] = tk.Frame(config['infoFrame'])
-            config['fileListLine'].pack(anchor='w')
-            tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
-            config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
-            config['fileListLineHeader'].pack(side='left')
-            config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=Color.FADED)
-            config['fileListLineTooltip'].pack(side='left')
-            config['fullFileList'] = item['fileList']
-
-            config['cmdListLine'] = tk.Frame(config['infoFrame'])
-            config['cmdListLine'].pack(anchor='w')
-            tk.Frame(config['cmdListLine'], width=arrowWidth).pack(side='left')
-            config['cmdListLineHeader'] = tk.Label(config['cmdListLine'], text='Command list:', font=cmdHeaderFont)
-            config['cmdListLineHeader'].pack(side='left')
-            config['cmdListLineTooltip'] = tk.Label(config['cmdListLine'], text='(Click to copy)', font=cmdStatusFont, fg=Color.FADED)
-            config['cmdListLineTooltip'].pack(side='left')
-            config['fullCmdList'] = item['cmdList']
-
-            config['lastOutLine'] = tk.Frame(config['infoFrame'])
-            config['lastOutLine'].pack(anchor='w')
-            tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
-            config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Out:', font=cmdHeaderFont)
-            config['lastOutHeader'].pack(side='left')
-            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
-            config['lastOutResult'].pack(side='left')
-
-            # Handle list trimming
-            listFont = tkfont.Font(family=None, size=10, weight='normal')
-            trimmedFileList = ', '.join(item['fileList'])
-            trimmedCmdList = ', '.join(item['cmdList'])
-            maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
-            actualFileWidth = listFont.measure(', '.join(item['fileList']))
-            actualCmdWidth = listFont.measure(', '.join(item['cmdList']))
-
-            if actualFileWidth > maxWidth:
-                while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
-                    trimmedFileList = trimmedFileList[:-1]
-                    actualFileWidth = listFont.measure(trimmedFileList + '...')
-                trimmedFileList = trimmedFileList + '...'
-
-            if actualCmdWidth > maxWidth:
-                while actualCmdWidth > maxWidth and len(trimmedCmdList) > 1:
-                    trimmedCmdList = trimmedCmdList[:-1]
-                    actualCmdWidth = listFont.measure(trimmedCmdList + '...')
-                trimmedCmdList = trimmedCmdList + '...'
-
-            config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
-            config['fileListLineTrimmed'].pack(side='left')
-            config['cmdListLineTrimmed'] = tk.Label(config['cmdListLine'], text=trimmedCmdList, font=cmdStatusFont)
-            config['cmdListLineTrimmed'].pack(side='left')
-
-            # Command copy action click
-            config['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-            config['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-            config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-
-            config['cmdListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
-            config['cmdListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
-            config['cmdListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
-        elif item['type'] == 'fileList':
-            config['fileSizeLine'] = tk.Frame(config['infoFrame'])
-            config['fileSizeLine'].pack(anchor='w')
-            tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
-            config['fileSizeLineHeader'] = tk.Label(config['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
-            config['fileSizeLineHeader'].pack(side='left')
-            config['fileSizeLineTotal'] = tk.Label(config['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
-            config['fileSizeLineTotal'].pack(side='left')
-
-            config['fileListLine'] = tk.Frame(config['infoFrame'])
-            config['fileListLine'].pack(anchor='w')
-            tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
-            config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
-            config['fileListLineHeader'].pack(side='left')
-            config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=Color.FADED)
-            config['fileListLineTooltip'].pack(side='left')
-            config['fullFileList'] = item['fileList']
-
-            config['currentFileLine'] = tk.Frame(config['infoFrame'])
-            config['currentFileLine'].pack(anchor='w')
-            tk.Frame(config['currentFileLine'], width=arrowWidth).pack(side='left')
-            config['currentFileHeader'] = tk.Label(config['currentFileLine'], text='Current file:', font=cmdHeaderFont)
-            config['currentFileHeader'].pack(side='left')
-            config['currentFileResult'] = tk.Label(config['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
-            config['currentFileResult'].pack(side='left')
-
-            config['lastOutLine'] = tk.Frame(config['infoFrame'])
-            config['lastOutLine'].pack(anchor='w')
-            tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
-            config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Progress:', font=cmdHeaderFont)
-            config['lastOutHeader'].pack(side='left')
-            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
-            config['lastOutResult'].pack(side='left')
-
-            # Handle list trimming
-            listFont = tkfont.Font(family=None, size=10, weight='normal')
-            trimmedFileList = ', '.join(item['fileList'])
-            maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
-            actualFileWidth = listFont.measure(', '.join(item['fileList']))
-
-            if actualFileWidth > maxWidth:
-                while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
-                    trimmedFileList = trimmedFileList[:-1]
-                    actualFileWidth = listFont.measure(trimmedFileList + '...')
-                trimmedFileList = trimmedFileList + '...'
-
-            config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
-            config['fileListLineTrimmed'].pack(side='left')
-
-            # Command copy action click
-            config['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-            config['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-            config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-
-        cmdInfoBlocks.append(config)
-
-# CAVEAT: This @analysis assumes the drives are going to be empty, aside from the config file
-# Other stuff that's not part of the backup will need to be deleted when we actually run it
-# IDEA: When we ignore other stuff on the drives, and delete it, have a dialog popup that summarizes what's being deleted, and ask the user to confirm
-def analyzeBackup(shares, drives):
-    """Analyze the list of selected shares and drives and figure out how to split files.
-
-    Args:
-        shares (tuple(String)): The list of selected shares.
-        drives (tuple(String)): The list of selected drives.
-
-    This function is run in a new thread, but is only run if the backup config is valid.
-    If sanityCheck() returns False, the analysis isn't run.
-    """
-    global backupSummaryTextFrame
-    global commandList
-    global analysisValid
-    global analysisStarted
-    global destModeSplitEnabled
-
-    global deleteFileList
-    global replaceFileList
-    global newFileList
-
-    # Sanity check for space requirements
-    if not sanityCheck():
-        return
-
-    progress.startIndeterminate()
-
-    startBackupBtn.configure(state='disable')
-    startAnalysisBtn.configure(state='disable')
-
-    # Apply split mode status from checkbox before starting analysis
-    analysisStarted = True
-    destModeSplitEnabled = destModeSplitCheckVar.get()
-    splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=color.ENABLED if destModeSplitEnabled else color.DISABLED)
-
-    # Set UI variables
-    summaryHeaderFont = (None, 14)
-
-    for widget in backupSummaryTextFrame.winfo_children():
-        widget.destroy()
-
-    tk.Label(backupSummaryTextFrame, text='Shares', font=summaryHeaderFont,
-             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-    summaryFrame = tk.Frame(backupSummaryTextFrame)
-    summaryFrame.pack(fill='x', expand=True)
-    summaryFrame.columnconfigure(2, weight=1)
-
-    shareInfo = {}
-    allShareInfo = {}
-    for i, item in enumerate(shares):
-        shareName = sourceTree.item(item, 'text')
-        shareSize = int(sourceTree.item(item, 'values')[1])
-
-        shareInfo[shareName] = shareSize
-        allShareInfo[shareName] = shareSize
-
-        tk.Label(summaryFrame, text=shareName).grid(row=i, column=0, sticky='w')
-        tk.Label(summaryFrame, text='\u27f6').grid(row=i, column=1, sticky='w')
-        wrapFrame = tk.Frame(summaryFrame)
-        wrapFrame.grid(row=i, column=2, sticky='ew')
-        wrapFrame.update_idletasks()
-        tk.Label(summaryFrame, text=human_filesize(shareSize),
-                 wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
-
-    tk.Label(backupSummaryTextFrame, text='Drives', font=summaryHeaderFont,
-             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-    driveFrame = tk.Frame(backupSummaryTextFrame)
-    driveFrame.pack(fill='x', expand=True)
-    driveFrame.columnconfigure(2, weight=1)
-
-    driveVidToLetterMap = {destTree.item(item, 'values')[3]: destTree.item(item, 'text') for item in destTree.get_children()}
-
-    driveInfo = []
-    driveShareList = {}
-    for i, item in enumerate(drives):
-        curDriveInfo = {
-            'vid': item['vid'],
-            'size': item['capacity'],
-            'free': item['capacity'],
-            'configSize': 0
-        }
-
-        if item['vid'] in driveVidToLetterMap.keys():
-            curDriveInfo['name'] = driveVidToLetterMap[item['vid']]
-            curDriveInfo['configSize'] = get_directory_size(driveVidToLetterMap[item['vid']] + '.backdrop')
-
-        driveInfo.append(curDriveInfo)
-
-        # Enumerate list for tracking what shares go where
-        driveShareList[item['vid']] = []
-
-        humanDriveName = curDriveInfo['name'] if 'name' in curDriveInfo.keys() else item['vid']
-
-        tk.Label(driveFrame, text=humanDriveName,
-                 fg=color.NORMAL if 'name' in curDriveInfo.keys() else color.FADED).grid(row=i, column=0, sticky='w')
-        tk.Label(driveFrame, text='\u27f6',
-                 fg=color.NORMAL if 'name' in curDriveInfo.keys() else color.FADED).grid(row=i, column=1, sticky='w')
-        wrapFrame = tk.Frame(driveFrame)
-        wrapFrame.grid(row=i, column=2, sticky='ew')
-        wrapFrame.update_idletasks()
-        tk.Label(driveFrame, text=human_filesize(item['capacity']),
-                 fg=color.NORMAL if 'name' in curDriveInfo.keys() else color.FADED,
-                 wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
-
-    # For each drive, smallest first, filter list of shares to those that fit
-    driveInfo.sort(key=lambda x: x['size'] - x['configSize'])
-
-    for i, drive in enumerate(driveInfo):
-        # Get list of shares small enough to fit on drive
-        smallShares = {share: size for share, size in shareInfo.items() if size <= drive['size'] - drive['configSize']}
-
-        # Try every combination of shares that fit to find result that uses most of that drive
-        largestSum = 0
-        largestSet = []
-        for n in range(1, len(smallShares) + 1):
-            for subset in itertools.combinations(smallShares.keys(), n):
-                combinationTotal = sum(smallShares[share] for share in subset)
-
-                if (combinationTotal > largestSum and combinationTotal <= drive['size'] - drive['configSize']):
-                    largestSum = combinationTotal
-                    largestSet = subset
-
-        sharesThatFit = [share for share in largestSet]
-        remainingSmallShares = {share: size for (share, size) in smallShares.items() if share not in sharesThatFit}
-        shareInfo = {share: size for (share, size) in shareInfo.items() if share not in sharesThatFit}
-
-        # If not all shares fit on smallest drive at once (at least one share has to be put
-        # on the next largest drive), check free space on next largest drive
-        if len(remainingSmallShares) > 0 and i < (len(driveInfo) - 1):
-            notFitTotal = sum(size for size in remainingSmallShares.values())
-            nextDrive = driveInfo[i + 1]
-            nextDriveFreeSpace = nextDrive['size'] - nextDrive['configSize'] - notFitTotal
-
-            # If free space on next drive is less than total capacity of current drive, it
-            # becomes more efficient to skip current drive, and put all shares on the next
-            # drive instead.
-            # This applies only if they can all fit on the next drive. If they have to be
-            # split across multiple drives after moving them to a larger drive, then it's
-            # easier to fit what we can on the small drive, to leave the larger drives
-            # available for larger shares
-            if notFitTotal <= nextDrive['size'] - nextDrive['configSize']:
-                totalSmallShareSpace = sum(size for size in smallShares.values())
-                if nextDriveFreeSpace < drive['size'] - drive['configSize'] and totalSmallShareSpace <= nextDrive['size'] - nextDrive['configSize']:
-                    # Next drive free space less than total on current, so it's optimal to store on next drive instead
-                    driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys()]) # All small shares on next drive
-                else:
-                    # Better to leave on current, but overflow to next drive
-                    driveShareList[drive['vid']].extend(sharesThatFit) # Shares that fit on current drive
-                    driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys() if share not in sharesThatFit]) # Remaining small shares on next drive
-            else:
-                # If overflow for next drive is more than can fit on that drive, ignore it, put overflow
-                # back in pool of shares to sort, and put small drive shares only in current drive
-                driveShareList[drive['vid']].extend(sharesThatFit) # Shares that fit on current drive
-
-                # Put remaining small shares back into pool to work with for next drive
-                shareInfo.update({share: size for share, size in remainingSmallShares.items()})
-        else:
-            # Fit all small shares onto drive
-            driveShareList[drive['vid']].extend(sharesThatFit)
-
-        # Calculate space used by shares, and subtract it from capacity to get free space
-        usedSpace = sum(allShareInfo[share] for share in driveShareList[drive['vid']])
-        drive.update({'free': drive['size'] - drive['configSize'] - usedSpace})
-
-    def splitShare(share):
-        """Recurse into a share or directory, and split the contents.
-
-        Args:
-            share (String): The share to split.
-        """
-        # Enumerate list for tracking what shares go where
-        driveFileList = {drive['vid']: [] for drive in driveInfo}
-
-        fileInfo = {}
-        for entry in os.scandir(sourceDrive + share):
-            if entry.is_file():
-                newDirSize = entry.stat().st_size
-            elif entry.is_dir():
-                newDirSize = get_directory_size(entry.path)
-
-            fileName = entry.path.split('\\')[-1]
-            fileInfo[fileName] = newDirSize
-
-        # For splitting shares, sort by largest free space first
-        driveInfo.sort(reverse=True, key=lambda x: x['free'] - x['configSize'])
-
-        for i, drive in enumerate(driveInfo):
-            # Get list of files small enough to fit on drive
-            totalSmallFiles = {file: size for file, size in fileInfo.items() if size <= drive['free'] - drive['configSize']}
-
-            # Since the list of files is truncated to prevent an unreasonably large
-            # number of combinations to check, we need to keep processing the file list
-            # in chunks to make sure we check if all files can be fit on one drive
-            # TODO: This @analysis loop logic may need to be copied to the main @share portion, though this is only necessary if the user selects a large number of shares
-            filesThatFit = []
-            processedSmallFiles = []
-            processedFileSize = 0
-            while len(processedSmallFiles) < len(totalSmallFiles):
-                # Trim the list of small files to those that aren't already processed
-                smallFiles = {file: size for (file, size) in totalSmallFiles.items() if file not in processedSmallFiles}
-
-                # Make sure we don't end with an unreasonable number of combinations to go through
-                # by sorting by largest first, and truncating
-                # Sorting files first, since files can't be split, so it's preferred to have directories last
-                listFiles = {}
-                listDirs = {}
-                for file, size in smallFiles.items():
-                    if os.path.isfile(sourceDrive + '\\' + share + '\\' + file):
-                        listFiles[file] = size
-                    elif os.path.isdir(sourceDrive + '\\' + share + '\\' + file):
-                        listDirs[file] = size
-
-                # Sort file list by largest first, and truncate to prevent unreasonably large number of combinations
-                smallFiles = sorted(listFiles.items(), key=lambda x: x[1], reverse=True)
-                smallFiles.extend(sorted(listDirs.items(), key=lambda x: x[1], reverse=True))
-                trimmedSmallFiles = {file[0]: file[1] for file in smallFiles[:15]}
-                smallFiles = {file[0]: file[1] for file in smallFiles}
-
-                # Try every combination of shares that fit to find result that uses most of that drive
-                largestSum = 0
-                largestSet = []
-                for n in range(1, len(trimmedSmallFiles) + 1):
-                    for subset in itertools.combinations(trimmedSmallFiles.keys(), n):
-                        combinationTotal = sum(trimmedSmallFiles[file] for file in subset)
-
-                        if (combinationTotal > largestSum and combinationTotal <= drive['free'] - drive['configSize'] - processedFileSize):
-                            largestSum = combinationTotal
-                            largestSet = subset
-
-                filesThatFit.extend([file for file in largestSet])
-                processedSmallFiles.extend([file for file in trimmedSmallFiles.keys()])
-                fileInfo = {file: size for (file, size) in fileInfo.items() if file not in largestSet}
-
-                # Subtract file size of each batch of files from the free space on the drive so the next batch sorts properly
-                processedFileSize += sum([size for (file, size) in smallFiles.items() if file in largestSet])
-
-            # Assign files to drive, and subtract filesize from free space
-            # Since we're sorting by largest free space first, there's no cases to move
-            # to a larger drive. This means all files that can fit should be put on the
-            # drive they fit on.
-            driveFileList[drive['vid']].extend(filesThatFit)
-            driveInfo[i]['free'] -= processedFileSize
-
-        shareSplitSummary = [{
-            'share': share,
-            'files': driveFileList,
-            'exclusions': [file for file in fileInfo.keys()]
-        }]
-
-        for file in fileInfo.keys():
-            filePath = share + '\\' + file
-            shareSplitSummary.extend(splitShare(filePath))
-
-        return shareSplitSummary
-
-    # For shares larger than all drives, recurse into each share
-    driveExclusions = []
-    for share in shareInfo.keys():
-        if os.path.exists(sourceDrive + share) and os.path.isdir(sourceDrive + share):
-            summary = splitShare(share)
-
-            # Each summary contains a split share, and any split subfolders, starting with
-            # the share and recursing into the directories
-            for directory in summary:
-                shareName = directory['share']
-                shareFiles = directory['files']
-                shareExclusions = directory['exclusions']
-
-                allFiles = shareFiles.copy()
-                allFiles['exclusions'] = shareExclusions
-
-                sourcePathStub = sourceDrive + shareName + '\\'
-
-                # For each drive, gather list of files to be written to other drives, and
-                # use that as exclusions
-                for drive, files in shareFiles.items():
-                    if len(files) > 0:
-                        rawExclusions = allFiles.copy()
-                        rawExclusions.pop(drive, None)
-
-                        humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
-
-                        masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
-                        driveExclusions.extend([sourcePathStub + file for file in masterExclusions])
-                        driveShareList[drive].append(shareName)
-
-    def buildDeltaFileList(drive):
-        """Get lists of files to delete and replace from the destination drive, that no longer
-        exist in the source, or have changed.
-
-        Args:
-            drive (String): The drive to check.
-
-        Returns:
-            {
-                'delete' (tuple(String, int)[]): The list of files and filesizes for deleting.
-                'replace' (tuple(String, int, int)[]): The list of files and source/dest filesizes for replacement.
-            }
-        """
-        specialIgnoreList = [backupConfigDir, '$RECYCLE.BIN', 'System Volume Information']
-        fileList = {
-            'delete': [],
-            'replace': []
-        }
-        try:
-            for entry in os.scandir(drive):
-                # For each entry, either add filesize to the total, or recurse into the directory
-                if entry.is_file():
-                    if (entry.path[3:].find('\\') == -1 # Files should not be on root of drive
-                            or not os.path.isfile(sourceDrive + entry.path[3:]) # File doesn't exist in source, so delete it
-                            or entry.path in driveExclusions): # File is excluded from drive
-                        fileList['delete'].append((entry.path, entry.stat().st_size))
-                    elif os.path.isfile(sourceDrive + entry.path[3:]):
-                        if (entry.stat().st_mtime != os.path.getmtime(sourceDrive + entry.path[3:]) # Existing file is older than source
-                                or entry.stat().st_size != os.path.getsize(sourceDrive + entry.path[3:])): # Existing file is different size than source
-                            # If existing dest file is not same time as source, it needs to be replaced
-                            fileList['replace'].append((entry.path, os.path.getsize(sourceDrive + entry.path[3:]), entry.stat().st_size))
-                elif entry.is_dir():
-                    foundShare = False
-                    for item in shares:
-                        if (entry.path[3:] == item # Dir is share, so it stays
-                                or (entry.path[3:].find(item + '\\') == 0 and os.path.isdir(sourceDrive + entry.path[3:])) # Dir is subdir inside share, and it exists in source
-                                or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of a share we're copying, so it stays
-                            # Recurse into the share
-                            newList = buildDeltaFileList(entry.path)
-                            fileList['delete'].extend(newList['delete'])
-                            fileList['replace'].extend(newList['replace'])
-                            foundShare = True
-                            break
-                    if not foundShare and entry.path[3:] not in specialIgnoreList and entry.path not in driveExclusions:
-                        # Directory isn't share, or part of one, and isn't a special folder or
-                        # exclusion, so delete it
-                        fileList['delete'].append((entry.path, get_directory_size(entry.path)))
-        except NotADirectoryError:
-            return {
-                'delete': [],
-                'replace': []
-            }
-        except PermissionError:
-            return {
-                'delete': [],
-                'replace': []
-            }
-        except OSError:
-            return {
-                'delete': [],
-                'replace': []
-            }
-        return fileList
-
-    def buildNewFileList(drive, shares):
-        """Get lists of files to copy to the destination drive, that only exist on the
-        source.
-
-        Args:
-            drive (String): The drive to check.
-            shares (String[]): The list of shares the drive should contain.
-
-        Returns:
-            {
-                'new' (tuple(String, int)[]): The list of file destinations and filesizes to copy.
-            }
-        """
-        fileList = {
-            'new': []
-        }
-
-        targetDrive = drive[0:3]
-
-        try:
-            for entry in os.scandir(sourceDrive + drive[3:]):
-                # For each entry, either add filesize to the total, or recurse into the directory
-                if entry.is_file():
-                    if (entry.path[3:].find('\\') > -1 # File is not in root of source
-                            and not os.path.isfile(targetDrive + entry.path[3:]) # File doesn't exist in destination drive
-                            and targetDrive + entry.path[3:] not in driveExclusions): # File isn't part of drive exclusion
-                        fileList['new'].append((targetDrive + entry.path[3:], entry.stat().st_size))
-                elif entry.is_dir():
-                    for item in shares:
-                        if (entry.path[3:] == item # Dir is share, so it stays
-                                or entry.path[3:].find(item + '\\') == 0 # Dir is subdir inside share
-                                or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of share
-                            if os.path.isdir(targetDrive + entry.path[3:]):
-                                # If exists on dest, recurse into it
-                                newList = buildNewFileList(targetDrive + entry.path[3:], shares)
-                                fileList['new'].extend(newList['new'])
-                                break
-                            elif targetDrive + entry.path[3:] not in driveExclusions:
-                                # Path doesn't exist on dest, so add to list if not excluded
-                                fileList['new'].append((targetDrive + entry.path[3:], get_directory_size(entry.path)))
-        except NotADirectoryError:
-            return {
-                'new': []
-            }
-        except PermissionError:
-            return {
-                'new': []
-            }
-        except OSError:
-            return {
-                'new': []
-            }
-        return fileList
-
-    # Build list of files/dirs to delete and replace
-    deleteFileList = {}
-    replaceFileList = {}
-    newFileList = {}
-    purgeCommandList = []
-    copyCommandList = []
-    displayPurgeCommandList = []
-    displayCopyCommandList = []
-    for drive, shares in driveShareList.items():
-        humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
-
-        modifyFileList = buildDeltaFileList(humanDrive)
-
-        deleteItems = modifyFileList['delete']
-        if len(deleteItems) > 0:
-            deleteFileList[humanDrive] = deleteItems
-            fileDeleteList = [file for file, size in deleteItems]
-
-            # Format list of files into commands
-            fileDeleteCmdList = [('del /f "%s"' % (file) if os.path.isfile(file) else 'rmdir /s /q "%s"' % (file)) for file in fileDeleteList]
-
-            displayPurgeCommandList.append({
-                'enabled': True,
-                'type': 'list',
-                'drive': humanDrive,
-                'size': sum([size for file, size in deleteItems]),
-                'fileList': fileDeleteList,
-                'cmdList': fileDeleteCmdList
-            })
-
-            purgeCommandList.append({
-                'displayIndex': len(displayPurgeCommandList) + 1,
-                'type': 'list',
-                'drive': humanDrive,
-                'fileList': fileDeleteList,
-                'cmdList': fileDeleteCmdList
-            })
-
-        # Build list of files to replace
-        replaceItems = modifyFileList['replace']
-        replaceItems.sort(key=lambda x: x[1])
-        if len(replaceItems) > 0:
-            replaceFileList[humanDrive] = replaceItems
-            fileReplaceList = [file for file, sourceSize, destSize in replaceItems]
-
-            displayCopyCommandList.append({
-                'enabled': True,
-                'type': 'fileList',
-                'drive': humanDrive,
-                'size': sum([sourceSize for file, sourceSize, destSize in replaceItems]),
-                'fileList': fileReplaceList,
-                'mode': 'replace'
-            })
-
-            copyCommandList.append({
-                'displayIndex': len(displayPurgeCommandList) + 1,
-                'type': 'fileList',
-                'drive': humanDrive,
-                'fileList': fileReplaceList,
-                'payload': replaceItems,
-                'mode': 'replace'
-            })
-
-        # Build list of new files to copy
-        newItems = buildNewFileList(humanDrive, shares)['new']
-        if len(newItems) > 0:
-            newFileList[humanDrive] = newItems
-            fileCopyList = [file for file, size in newItems]
-
-            displayCopyCommandList.append({
-                'enabled': True,
-                'type': 'fileList',
-                'drive': humanDrive,
-                'size': sum([size for file, size in newItems]),
-                'fileList': fileCopyList,
-                'mode': 'copy'
-            })
-
-            copyCommandList.append({
-                'displayIndex': len(displayPurgeCommandList) + 1,
-                'type': 'fileList',
-                'drive': humanDrive,
-                'fileList': fileCopyList,
-                'payload': newItems,
-                'mode': 'copy'
-            })
-
-    tk.Label(backupSummaryTextFrame, text='Files', font=summaryHeaderFont,
-             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-    filesFrame = tk.Frame(backupSummaryTextFrame)
-    filesFrame.pack(fill='x', expand=True)
-    filesFrame.columnconfigure(2, weight=1)
-
-    for i, drive in enumerate(driveShareList.keys()):
-        humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
-
-        fileSummary = []
-        driveTotal = {
-            'running': 0,
+        self.totals = {
+            'master': 0,
             'delta': 0,
-            'delete': 0,
-            'replace': 0,
-            'copy': 0,
-            'new': 0
+            'running': 0,
+            'progressBar': 0
         }
 
-        if humanDrive in deleteFileList.keys():
-            driveTotal['delete'] = sum([size for file, size in deleteFileList[humanDrive]])
+        self.confirmWipeExistingDrives = False
+        self.analysisValid = False
+        self.analysisStarted = False
+        self.analysisRunning = False
+        self.backupRunning = False
+        self.commandList = []
 
-            driveTotal['running'] -= driveTotal['delete']
-            backupTotals['delta'] -= driveTotal['delete']
+        self.config = config
+        self.sourceDrive = sourceDrive
 
-            fileSummary.append(f"Deleting {len(deleteFileList[humanDrive])} files ({human_filesize(driveTotal['delete'])})")
+        self.startBackupFn = startBackupFn
+        self.killBackupFn = killBackupFn
+        self.threadManager = threadManager
+        self.progress = progress
 
-        if humanDrive in replaceFileList.keys():
-            driveTotal['replace'] = sum([sourceSize for file, sourceSize, destSize in replaceFileList[humanDrive]])
+        print(self.config)
 
-            driveTotal['running'] += driveTotal['replace']
-            driveTotal['copy'] += driveTotal['replace']
-            driveTotal['delta'] += sum([sourceSize - destSize for file, sourceSize, destSize in replaceFileList[humanDrive]])
+    def sanityCheck(self):
+        """Check to make sure everything is correct before a backup.
 
-            fileSummary.append(f"Updating {len(replaceFileList[humanDrive])} files ({human_filesize(driveTotal['replace'])})")
+        Before running a backup, or an analysis, both shares and drives need to be
+        selected, and the drive space on selected drives needs to be larger than the
+        total size of the selected shares.
 
-        if humanDrive in newFileList.keys():
-            driveTotal['new'] = sum([size for file, size in newFileList[humanDrive]])
+        Returns:
+            bool: True if conditions are good, False otherwise.
+        """
 
-            driveTotal['running'] += driveTotal['new']
-            driveTotal['copy'] += driveTotal['new']
-            driveTotal['delta'] += driveTotal['new']
+        if not self.sourceDrive:
+            return False
 
-            fileSummary.append(f"{len(newFileList[humanDrive])} new files ({human_filesize(driveTotal['new'])})")
+        destSelection = destTree.selection()
+        selectionOk = len(self.config['drives']) > 0 and len(self.config['shares']) > 0
 
-        # Increment master totals
-        backupTotals['master'] += driveTotal['running']
-        backupTotals['delta'] += driveTotal['delta']
+        if selectionOk:
+            shareTotal = 0
+            driveTotal = 0
 
-        if len(fileSummary) > 0:
-            tk.Label(filesFrame, text=humanDrive,
-                     fg=color.NORMAL).grid(row=i, column=0, sticky='w')
-            tk.Label(filesFrame, text='\u27f6',
-                     fg=color.NORMAL).grid(row=i, column=1, sticky='w')
-            wrapFrame = tk.Frame(filesFrame)
-            wrapFrame.grid(row=i, column=2, sticky='ew')
-            wrapFrame.update_idletasks()
-            tk.Label(filesFrame, text='\n'.join(fileSummary), fg=color.NORMAL,
-                     wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+            sharesKnown = True
+            for share in self.config['shares']:
+                if share['size'] is None:
+                    sharesKnown = False
+                    break
 
-    # Concat both lists into command list
-    commandList = []
-    commandList.extend([cmd for cmd in purgeCommandList])
-    commandList.extend([cmd for cmd in copyCommandList])
+                # Add total space of selection
+                shareTotal += share['size']
 
-    # Concat lists into display command list
-    displayCommandList = []
-    displayCommandList.extend([cmd for cmd in displayPurgeCommandList])
-    displayCommandList.extend([cmd for cmd in displayCopyCommandList])
+            driveTotal = sum([drive['capacity'] for drive in self.config['drives']])
+            configTotal = sum([size for drive, size in self.config['vidList'].items()])
 
-    # Fix display index on command list
-    for i, cmd in enumerate(commandList):
-        commandList[i]['displayIndex'] = i
+            if sharesKnown and ((len(self.config['drives']) == len(self.config['vidList']) and shareTotal < driveTotal) or (shareTotal < configTotal and destModeSplitEnabled)):
+                # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
 
-    enumerateCommandInfo(displayCommandList)
+                selectedNewDrives = [destTree.item(drive, 'text') for drive in destSelection if destTree.item(drive, 'values')[2] != 'Yes']
+                if not self.confirmWipeExistingDrives and len(selectedNewDrives) > 0:
+                    driveString = ', '.join(selectedNewDrives[:-2] + [' and '.join(selectedNewDrives[-2:])])
 
-    tk.Label(backupSummaryTextFrame, text='Summary', font=summaryHeaderFont,
-             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-    summaryFrame = tk.Frame(backupSummaryTextFrame)
-    summaryFrame.pack(fill='x', expand=True)
-    summaryFrame.columnconfigure(2, weight=1)
-    i = 0
-    for drive, shares in driveShareList.items():
-        humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
-        tk.Label(summaryFrame, text=humanDrive,
-                 fg=color.NORMAL if drive in driveVidToLetterMap.keys() else color.FADED).grid(row=i, column=0, sticky='w')
-        tk.Label(summaryFrame, text='\u27f6',
-                 fg=color.NORMAL if drive in driveVidToLetterMap.keys() else color.FADED).grid(row=i, column=1, sticky='w')
-        wrapFrame = tk.Frame(summaryFrame)
-        wrapFrame.grid(row=i, column=2, sticky='ew')
-        wrapFrame.update_idletasks()
-        tk.Label(summaryFrame, text='\n'.join(shares),
-                 fg=color.NORMAL if drive in driveVidToLetterMap.keys() else color.FADED,
-                 wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+                    newDriveConfirmTitle = f"New drive{'s' if len(selectedNewDrives) > 1 else ''} selected"
+                    newDriveConfirmMessage = f"Drive{'s' if len(selectedNewDrives) > 1 else ''} {driveString} appear{'' if len(selectedNewDrives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
+                    self.confirmWipeExistingDrives = messagebox.askyesno(newDriveConfirmTitle, newDriveConfirmMessage)
 
-        i += 1
+                    return self.confirmWipeExistingDrives
 
-    analysisValid = True
+                return True
 
-    startBackupBtn.configure(state='normal')
-    startAnalysisBtn.configure(state='normal')
-
-    progress.stopIndeterminate()
-
-confirmWipeExistingDrives = False
-def sanityCheck():
-    """Check to make sure everything is correct before a backup.
-
-    Before running a backup, or an analysis, both shares and drives need to be
-    selected, and the drive space on selected drives needs to be larger than the
-    total size of the selected shares.
-
-    Returns:
-        bool: True if conditions are good, False otherwise.
-    """
-
-    global confirmWipeExistingDrives
-
-    if not sourceDriveListValid:
         return False
 
-    sourceSelection = sourceTree.selection()
-    destSelection = destTree.selection()
-    selectionOk = len(sourceSelection) > 0 and len(destSelection) > 0
+    def enumerateCommandInfo(self, displayCommandList):
+        """Enumerate the display widget with command info after a backup analysis."""
+        rightArrow = '\U0001f86a'
+        downArrow = '\U0001f86e'
 
-    if selectionOk:
-        shareTotal = 0
-        driveTotal = 0
+        cmdHeaderFont = (None, 9, 'bold')
+        cmdStatusFont = (None, 9)
 
-        sharesKnown = True
-        for item in sourceSelection:
-            if sourceTree.item(item, 'values')[0] == 'Unknown':
-                sharesKnown = False
+        def toggleCmdInfo(index):
+            """Toggle the command info for a given indexed command.
+
+            Args:
+                index (int): The index of the command to expand or hide.
+            """
+            # Check if arrow needs to be expanded
+            expandArrow = self.cmdInfoBlocks[index]['arrow']['text']
+            if expandArrow == rightArrow:
+                # Collapsed turns into expanded
+                self.cmdInfoBlocks[index]['arrow'].configure(text=downArrow)
+                self.cmdInfoBlocks[index]['infoFrame'].pack(anchor='w')
+            else:
+                # Expanded turns into collapsed
+                self.cmdInfoBlocks[index]['arrow'].configure(text=rightArrow)
+                self.cmdInfoBlocks[index]['infoFrame'].pack_forget()
+
+            # For some reason, .configure() loses the function bind, so we need to re-set this
+            self.cmdInfoBlocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: toggleCmdInfo(index))
+
+        def copyCmd(index):
+            """Copy a given indexed command to the clipboard.
+
+            Args:
+                index (int): The index of the command to copy.
+            """
+            clipboard.copy(self.cmdInfoBlocks[index]['fullCmd'])
+
+        def copyList(index, item):
+            """Copy a given indexed command to the clipboard.
+
+            Args:
+                index (int): The index of the command to copy.
+                item (String): The name of the list to copy
+            """
+            clipboard.copy('\n'.join(self.cmdInfoBlocks[index][item]))
+
+        for widget in backupActivityScrollableFrame.winfo_children():
+            widget.destroy()
+
+        self.cmdInfoBlocks = []
+        for i, item in enumerate(displayCommandList):
+            config = {}
+
+            config['mainFrame'] = tk.Frame(backupActivityScrollableFrame)
+            config['mainFrame'].pack(anchor='w', expand=1)
+
+            # Set up header arrow, trimmed command, and status
+            config['headLine'] = tk.Frame(config['mainFrame'])
+            config['headLine'].pack(fill='x')
+            config['arrow'] = tk.Label(config['headLine'], text=rightArrow)
+            config['arrow'].pack(side='left')
+
+            if item['type'] == 'list':
+                cmdHeaderText = 'Delete %d files from %s' % (len(item['fileList']), item['drive'])
+            elif item['type'] == 'fileList':
+                if item['mode'] == 'replace':
+                    cmdHeaderText = 'Update %d files on %s' % (len(item['fileList']), item['drive'])
+                elif item['mode'] == 'copy':
+                    cmdHeaderText = 'Copy %d new files to %s' % (len(item['fileList']), item['drive'])
+
+            config['header'] = tk.Label(config['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=Color.NORMAL if item['enabled'] else Color.FADED)
+            config['header'].pack(side='left')
+            config['state'] = tk.Label(config['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
+            config['state'].pack(side='left')
+            config['arrow'].update_idletasks()
+            arrowWidth = config['arrow'].winfo_width()
+
+            # Header toggle action click
+            config['arrow'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
+            config['header'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
+
+            # Set up info frame
+            config['infoFrame'] = tk.Frame(config['mainFrame'])
+
+            if item['type'] == 'list':
+                config['fileSizeLine'] = tk.Frame(config['infoFrame'])
+                config['fileSizeLine'].pack(anchor='w')
+                tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
+                config['fileSizeLineHeader'] = tk.Label(config['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
+                config['fileSizeLineHeader'].pack(side='left')
+                config['fileSizeLineTotal'] = tk.Label(config['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
+                config['fileSizeLineTotal'].pack(side='left')
+
+                config['fileListLine'] = tk.Frame(config['infoFrame'])
+                config['fileListLine'].pack(anchor='w')
+                tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
+                config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
+                config['fileListLineHeader'].pack(side='left')
+                config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=Color.FADED)
+                config['fileListLineTooltip'].pack(side='left')
+                config['fullFileList'] = item['fileList']
+
+                config['cmdListLine'] = tk.Frame(config['infoFrame'])
+                config['cmdListLine'].pack(anchor='w')
+                tk.Frame(config['cmdListLine'], width=arrowWidth).pack(side='left')
+                config['cmdListLineHeader'] = tk.Label(config['cmdListLine'], text='Command list:', font=cmdHeaderFont)
+                config['cmdListLineHeader'].pack(side='left')
+                config['cmdListLineTooltip'] = tk.Label(config['cmdListLine'], text='(Click to copy)', font=cmdStatusFont, fg=Color.FADED)
+                config['cmdListLineTooltip'].pack(side='left')
+                config['fullCmdList'] = item['cmdList']
+
+                config['lastOutLine'] = tk.Frame(config['infoFrame'])
+                config['lastOutLine'].pack(anchor='w')
+                tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
+                config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Out:', font=cmdHeaderFont)
+                config['lastOutHeader'].pack(side='left')
+                config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
+                config['lastOutResult'].pack(side='left')
+
+                # Handle list trimming
+                listFont = tkfont.Font(family=None, size=10, weight='normal')
+                trimmedFileList = ', '.join(item['fileList'])
+                trimmedCmdList = ', '.join(item['cmdList'])
+                maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
+                actualFileWidth = listFont.measure(', '.join(item['fileList']))
+                actualCmdWidth = listFont.measure(', '.join(item['cmdList']))
+
+                if actualFileWidth > maxWidth:
+                    while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
+                        trimmedFileList = trimmedFileList[:-1]
+                        actualFileWidth = listFont.measure(trimmedFileList + '...')
+                    trimmedFileList = trimmedFileList + '...'
+
+                if actualCmdWidth > maxWidth:
+                    while actualCmdWidth > maxWidth and len(trimmedCmdList) > 1:
+                        trimmedCmdList = trimmedCmdList[:-1]
+                        actualCmdWidth = listFont.measure(trimmedCmdList + '...')
+                    trimmedCmdList = trimmedCmdList + '...'
+
+                config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
+                config['fileListLineTrimmed'].pack(side='left')
+                config['cmdListLineTrimmed'] = tk.Label(config['cmdListLine'], text=trimmedCmdList, font=cmdStatusFont)
+                config['cmdListLineTrimmed'].pack(side='left')
+
+                # Command copy action click
+                config['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+                config['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+                config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+
+                config['cmdListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
+                config['cmdListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
+                config['cmdListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
+            elif item['type'] == 'fileList':
+                config['fileSizeLine'] = tk.Frame(config['infoFrame'])
+                config['fileSizeLine'].pack(anchor='w')
+                tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
+                config['fileSizeLineHeader'] = tk.Label(config['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
+                config['fileSizeLineHeader'].pack(side='left')
+                config['fileSizeLineTotal'] = tk.Label(config['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
+                config['fileSizeLineTotal'].pack(side='left')
+
+                config['fileListLine'] = tk.Frame(config['infoFrame'])
+                config['fileListLine'].pack(anchor='w')
+                tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
+                config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
+                config['fileListLineHeader'].pack(side='left')
+                config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=Color.FADED)
+                config['fileListLineTooltip'].pack(side='left')
+                config['fullFileList'] = item['fileList']
+
+                config['currentFileLine'] = tk.Frame(config['infoFrame'])
+                config['currentFileLine'].pack(anchor='w')
+                tk.Frame(config['currentFileLine'], width=arrowWidth).pack(side='left')
+                config['currentFileHeader'] = tk.Label(config['currentFileLine'], text='Current file:', font=cmdHeaderFont)
+                config['currentFileHeader'].pack(side='left')
+                config['currentFileResult'] = tk.Label(config['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
+                config['currentFileResult'].pack(side='left')
+
+                config['lastOutLine'] = tk.Frame(config['infoFrame'])
+                config['lastOutLine'].pack(anchor='w')
+                tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
+                config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Progress:', font=cmdHeaderFont)
+                config['lastOutHeader'].pack(side='left')
+                config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=Color.PENDING if item['enabled'] else Color.FADED)
+                config['lastOutResult'].pack(side='left')
+
+                # Handle list trimming
+                listFont = tkfont.Font(family=None, size=10, weight='normal')
+                trimmedFileList = ', '.join(item['fileList'])
+                maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
+                actualFileWidth = listFont.measure(', '.join(item['fileList']))
+
+                if actualFileWidth > maxWidth:
+                    while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
+                        trimmedFileList = trimmedFileList[:-1]
+                        actualFileWidth = listFont.measure(trimmedFileList + '...')
+                    trimmedFileList = trimmedFileList + '...'
+
+                config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
+                config['fileListLineTrimmed'].pack(side='left')
+
+                # Command copy action click
+                config['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+                config['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+                config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+
+            self.cmdInfoBlocks.append(config)
+
+    # CAVEAT: This @analysis assumes the drives are going to be empty, aside from the config file
+    # Other stuff that's not part of the backup will need to be deleted when we actually run it
+    # IDEA: When we ignore other stuff on the drives, and delete it, have a dialog popup that summarizes what's being deleted, and ask the user to confirm
+    def analyze(self):
+        """Analyze the list of selected shares and drives and figure out how to split files.
+
+        Args:
+            shares (dict[]): The list of selected shares.
+            shares.name (String): The name of the share.
+            shares.size (int): The size in bytes of the share.
+            drives (tuple(String)): The list of selected drives.
+
+        This function is run in a new thread, but is only run if the backup config is valid.
+        If sanityCheck() returns False, the analysis isn't run.
+        """
+        global backupSummaryTextFrame
+        global commandList
+        global destModeSplitEnabled
+
+        global deleteFileList
+        global replaceFileList
+        global newFileList
+
+        self.analysisRunning = True
+
+        # Sanity check for space requirements
+        if not self.sanityCheck():
+            return
+
+        self.progress.startIndeterminate()
+
+        startBackupBtn.configure(state='disable')
+        startAnalysisBtn.configure(state='disable')
+
+        # Apply split mode status from checkbox before starting analysis
+        self.analysisStarted = True
+        destModeSplitEnabled = destModeSplitCheckVar.get()
+        splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=Color.ENABLED if destModeSplitEnabled else Color.DISABLED)
+
+        # Set UI variables
+        summaryHeaderFont = (None, 14)
+
+        for widget in backupSummaryTextFrame.winfo_children():
+            widget.destroy()
+
+        tk.Label(backupSummaryTextFrame, text='Shares', font=summaryHeaderFont,
+                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+        summaryFrame = tk.Frame(backupSummaryTextFrame)
+        summaryFrame.pack(fill='x', expand=True)
+        summaryFrame.columnconfigure(2, weight=1)
+
+        shareInfo = {}
+        allShareInfo = {}
+        for i, item in enumerate(self.config['shares']):
+            shareName = item['name']
+            shareSize = item['size']
+
+            shareInfo[shareName] = shareSize
+            allShareInfo[shareName] = shareSize
+
+            tk.Label(summaryFrame, text=shareName).grid(row=i, column=0, sticky='w')
+            tk.Label(summaryFrame, text='\u27f6').grid(row=i, column=1, sticky='w')
+            wrapFrame = tk.Frame(summaryFrame)
+            wrapFrame.grid(row=i, column=2, sticky='ew')
+            wrapFrame.update_idletasks()
+            tk.Label(summaryFrame, text=human_filesize(shareSize),
+                     wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+
+        tk.Label(backupSummaryTextFrame, text='Drives', font=summaryHeaderFont,
+                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+        driveFrame = tk.Frame(backupSummaryTextFrame)
+        driveFrame.pack(fill='x', expand=True)
+        driveFrame.columnconfigure(2, weight=1)
+
+        driveVidToLetterMap = {destTree.item(item, 'values')[3]: destTree.item(item, 'text') for item in destTree.get_children()}
+
+        driveInfo = []
+        driveShareList = {}
+        for i, item in enumerate(self.config['drives']):
+            curDriveInfo = {
+                'vid': item['vid'],
+                'size': item['capacity'],
+                'free': item['capacity'],
+                'configSize': 0
+            }
+
+            if item['vid'] in driveVidToLetterMap.keys():
+                curDriveInfo['name'] = driveVidToLetterMap[item['vid']]
+                curDriveInfo['configSize'] = get_directory_size(driveVidToLetterMap[item['vid']] + '.backdrop')
+
+            driveInfo.append(curDriveInfo)
+
+            # Enumerate list for tracking what shares go where
+            driveShareList[item['vid']] = []
+
+            humanDriveName = curDriveInfo['name'] if 'name' in curDriveInfo.keys() else item['vid']
+
+            tk.Label(driveFrame, text=humanDriveName,
+                     fg=Color.NORMAL if 'name' in curDriveInfo.keys() else Color.FADED).grid(row=i, column=0, sticky='w')
+            tk.Label(driveFrame, text='\u27f6',
+                     fg=Color.NORMAL if 'name' in curDriveInfo.keys() else Color.FADED).grid(row=i, column=1, sticky='w')
+            wrapFrame = tk.Frame(driveFrame)
+            wrapFrame.grid(row=i, column=2, sticky='ew')
+            wrapFrame.update_idletasks()
+            tk.Label(driveFrame, text=human_filesize(item['capacity']),
+                     fg=Color.NORMAL if 'name' in curDriveInfo.keys() else Color.FADED,
+                     wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+
+        # For each drive, smallest first, filter list of shares to those that fit
+        driveInfo.sort(key=lambda x: x['size'] - x['configSize'])
+
+        for i, drive in enumerate(driveInfo):
+            # Get list of shares small enough to fit on drive
+            smallShares = {share: size for share, size in shareInfo.items() if size <= drive['size'] - drive['configSize']}
+
+            # Try every combination of shares that fit to find result that uses most of that drive
+            largestSum = 0
+            largestSet = []
+            for n in range(1, len(smallShares) + 1):
+                for subset in itertools.combinations(smallShares.keys(), n):
+                    combinationTotal = sum(smallShares[share] for share in subset)
+
+                    if (combinationTotal > largestSum and combinationTotal <= drive['size'] - drive['configSize']):
+                        largestSum = combinationTotal
+                        largestSet = subset
+
+            sharesThatFit = [share for share in largestSet]
+            remainingSmallShares = {share: size for (share, size) in smallShares.items() if share not in sharesThatFit}
+            shareInfo = {share: size for (share, size) in shareInfo.items() if share not in sharesThatFit}
+
+            # If not all shares fit on smallest drive at once (at least one share has to be put
+            # on the next largest drive), check free space on next largest drive
+            if len(remainingSmallShares) > 0 and i < (len(driveInfo) - 1):
+                notFitTotal = sum(size for size in remainingSmallShares.values())
+                nextDrive = driveInfo[i + 1]
+                nextDriveFreeSpace = nextDrive['size'] - nextDrive['configSize'] - notFitTotal
+
+                # If free space on next drive is less than total capacity of current drive, it
+                # becomes more efficient to skip current drive, and put all shares on the next
+                # drive instead.
+                # This applies only if they can all fit on the next drive. If they have to be
+                # split across multiple drives after moving them to a larger drive, then it's
+                # easier to fit what we can on the small drive, to leave the larger drives
+                # available for larger shares
+                if notFitTotal <= nextDrive['size'] - nextDrive['configSize']:
+                    totalSmallShareSpace = sum(size for size in smallShares.values())
+                    if nextDriveFreeSpace < drive['size'] - drive['configSize'] and totalSmallShareSpace <= nextDrive['size'] - nextDrive['configSize']:
+                        # Next drive free space less than total on current, so it's optimal to store on next drive instead
+                        driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys()]) # All small shares on next drive
+                    else:
+                        # Better to leave on current, but overflow to next drive
+                        driveShareList[drive['vid']].extend(sharesThatFit) # Shares that fit on current drive
+                        driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys() if share not in sharesThatFit]) # Remaining small shares on next drive
+                else:
+                    # If overflow for next drive is more than can fit on that drive, ignore it, put overflow
+                    # back in pool of shares to sort, and put small drive shares only in current drive
+                    driveShareList[drive['vid']].extend(sharesThatFit) # Shares that fit on current drive
+
+                    # Put remaining small shares back into pool to work with for next drive
+                    shareInfo.update({share: size for share, size in remainingSmallShares.items()})
+            else:
+                # Fit all small shares onto drive
+                driveShareList[drive['vid']].extend(sharesThatFit)
+
+            # Calculate space used by shares, and subtract it from capacity to get free space
+            usedSpace = sum(allShareInfo[share] for share in driveShareList[drive['vid']])
+            drive.update({'free': drive['size'] - drive['configSize'] - usedSpace})
+
+        def splitShare(share):
+            """Recurse into a share or directory, and split the contents.
+
+            Args:
+                share (String): The share to split.
+            """
+            # Enumerate list for tracking what shares go where
+            driveFileList = {drive['vid']: [] for drive in driveInfo}
+
+            fileInfo = {}
+            for entry in os.scandir(self.sourceDrive + share):
+                if entry.is_file():
+                    newDirSize = entry.stat().st_size
+                elif entry.is_dir():
+                    newDirSize = get_directory_size(entry.path)
+
+                fileName = entry.path.split('\\')[-1]
+                fileInfo[fileName] = newDirSize
+
+            # For splitting shares, sort by largest free space first
+            driveInfo.sort(reverse=True, key=lambda x: x['free'] - x['configSize'])
+
+            for i, drive in enumerate(driveInfo):
+                # Get list of files small enough to fit on drive
+                totalSmallFiles = {file: size for file, size in fileInfo.items() if size <= drive['free'] - drive['configSize']}
+
+                # Since the list of files is truncated to prevent an unreasonably large
+                # number of combinations to check, we need to keep processing the file list
+                # in chunks to make sure we check if all files can be fit on one drive
+                # TODO: This @analysis loop logic may need to be copied to the main @share portion, though this is only necessary if the user selects a large number of shares
+                filesThatFit = []
+                processedSmallFiles = []
+                processedFileSize = 0
+                while len(processedSmallFiles) < len(totalSmallFiles):
+                    # Trim the list of small files to those that aren't already processed
+                    smallFiles = {file: size for (file, size) in totalSmallFiles.items() if file not in processedSmallFiles}
+
+                    # Make sure we don't end with an unreasonable number of combinations to go through
+                    # by sorting by largest first, and truncating
+                    # Sorting files first, since files can't be split, so it's preferred to have directories last
+                    listFiles = {}
+                    listDirs = {}
+                    for file, size in smallFiles.items():
+                        if os.path.isfile(self.sourceDrive + '\\' + share + '\\' + file):
+                            listFiles[file] = size
+                        elif os.path.isdir(self.sourceDrive + '\\' + share + '\\' + file):
+                            listDirs[file] = size
+
+                    # Sort file list by largest first, and truncate to prevent unreasonably large number of combinations
+                    smallFiles = sorted(listFiles.items(), key=lambda x: x[1], reverse=True)
+                    smallFiles.extend(sorted(listDirs.items(), key=lambda x: x[1], reverse=True))
+                    trimmedSmallFiles = {file[0]: file[1] for file in smallFiles[:15]}
+                    smallFiles = {file[0]: file[1] for file in smallFiles}
+
+                    # Try every combination of shares that fit to find result that uses most of that drive
+                    largestSum = 0
+                    largestSet = []
+                    for n in range(1, len(trimmedSmallFiles) + 1):
+                        for subset in itertools.combinations(trimmedSmallFiles.keys(), n):
+                            combinationTotal = sum(trimmedSmallFiles[file] for file in subset)
+
+                            if (combinationTotal > largestSum and combinationTotal <= drive['free'] - drive['configSize'] - processedFileSize):
+                                largestSum = combinationTotal
+                                largestSet = subset
+
+                    filesThatFit.extend([file for file in largestSet])
+                    processedSmallFiles.extend([file for file in trimmedSmallFiles.keys()])
+                    fileInfo = {file: size for (file, size) in fileInfo.items() if file not in largestSet}
+
+                    # Subtract file size of each batch of files from the free space on the drive so the next batch sorts properly
+                    processedFileSize += sum([size for (file, size) in smallFiles.items() if file in largestSet])
+
+                # Assign files to drive, and subtract filesize from free space
+                # Since we're sorting by largest free space first, there's no cases to move
+                # to a larger drive. This means all files that can fit should be put on the
+                # drive they fit on.
+                driveFileList[drive['vid']].extend(filesThatFit)
+                driveInfo[i]['free'] -= processedFileSize
+
+            shareSplitSummary = [{
+                'share': share,
+                'files': driveFileList,
+                'exclusions': [file for file in fileInfo.keys()]
+            }]
+
+            for file in fileInfo.keys():
+                filePath = share + '\\' + file
+                shareSplitSummary.extend(splitShare(filePath))
+
+            return shareSplitSummary
+
+        # For shares larger than all drives, recurse into each share
+        driveExclusions = []
+        for share in shareInfo.keys():
+            if os.path.exists(self.sourceDrive + share) and os.path.isdir(self.sourceDrive + share):
+                summary = splitShare(share)
+
+                # Each summary contains a split share, and any split subfolders, starting with
+                # the share and recursing into the directories
+                for directory in summary:
+                    shareName = directory['share']
+                    shareFiles = directory['files']
+                    shareExclusions = directory['exclusions']
+
+                    allFiles = shareFiles.copy()
+                    allFiles['exclusions'] = shareExclusions
+
+                    sourcePathStub = self.sourceDrive + shareName + '\\'
+
+                    # For each drive, gather list of files to be written to other drives, and
+                    # use that as exclusions
+                    for drive, files in shareFiles.items():
+                        if len(files) > 0:
+                            rawExclusions = allFiles.copy()
+                            rawExclusions.pop(drive, None)
+
+                            humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
+
+                            masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
+                            driveExclusions.extend([sourcePathStub + file for file in masterExclusions])
+                            driveShareList[drive].append(shareName)
+
+        def buildDeltaFileList(drive, shares):
+            """Get lists of files to delete and replace from the destination drive, that no longer
+            exist in the source, or have changed.
+
+            Args:
+                drive (String): The drive to check.
+                shares (String[]): The list of shares to check
+
+            Returns:
+                {
+                    'delete' (tuple(String, int)[]): The list of files and filesizes for deleting.
+                    'replace' (tuple(String, int, int)[]): The list of files and source/dest filesizes for replacement.
+                }
+            """
+            specialIgnoreList = [backupConfigDir, '$RECYCLE.BIN', 'System Volume Information']
+            fileList = {
+                'delete': [],
+                'replace': []
+            }
+            try:
+                for entry in os.scandir(drive):
+                    # For each entry, either add filesize to the total, or recurse into the directory
+                    if entry.is_file():
+                        if (entry.path[3:].find('\\') == -1 # Files should not be on root of drive
+                                or not os.path.isfile(self.sourceDrive + entry.path[3:]) # File doesn't exist in source, so delete it
+                                or entry.path in driveExclusions): # File is excluded from drive
+                            fileList['delete'].append((entry.path, entry.stat().st_size))
+                        elif os.path.isfile(self.sourceDrive + entry.path[3:]):
+                            if (entry.stat().st_mtime != os.path.getmtime(self.sourceDrive + entry.path[3:]) # Existing file is older than source
+                                    or entry.stat().st_size != os.path.getsize(self.sourceDrive + entry.path[3:])): # Existing file is different size than source
+                                # If existing dest file is not same time as source, it needs to be replaced
+                                fileList['replace'].append((entry.path, os.path.getsize(self.sourceDrive + entry.path[3:]), entry.stat().st_size))
+                    elif entry.is_dir():
+                        foundShare = False
+                        for item in shares:
+                            if (entry.path[3:] == item # Dir is share, so it stays
+                                    or (entry.path[3:].find(item + '\\') == 0 and os.path.isdir(self.sourceDrive + entry.path[3:])) # Dir is subdir inside share, and it exists in source
+                                    or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of a share we're copying, so it stays
+                                # Recurse into the share
+                                newList = buildDeltaFileList(entry.path, shares)
+                                fileList['delete'].extend(newList['delete'])
+                                fileList['replace'].extend(newList['replace'])
+                                foundShare = True
+                                break
+                        if not foundShare and entry.path[3:] not in specialIgnoreList and entry.path not in driveExclusions:
+                            # Directory isn't share, or part of one, and isn't a special folder or
+                            # exclusion, so delete it
+                            fileList['delete'].append((entry.path, get_directory_size(entry.path)))
+            except NotADirectoryError:
+                return {
+                    'delete': [],
+                    'replace': []
+                }
+            except PermissionError:
+                return {
+                    'delete': [],
+                    'replace': []
+                }
+            except OSError:
+                return {
+                    'delete': [],
+                    'replace': []
+                }
+            return fileList
+
+        def buildNewFileList(drive, shares):
+            """Get lists of files to copy to the destination drive, that only exist on the
+            source.
+
+            Args:
+                drive (String): The drive to check.
+                shares (String[]): The list of shares the drive should contain.
+
+            Returns:
+                {
+                    'new' (tuple(String, int)[]): The list of file destinations and filesizes to copy.
+                }
+            """
+            fileList = {
+                'new': []
+            }
+
+            targetDrive = drive[0:3]
+
+            try:
+                for entry in os.scandir(self.sourceDrive + drive[3:]):
+                    # For each entry, either add filesize to the total, or recurse into the directory
+                    if entry.is_file():
+                        if (entry.path[3:].find('\\') > -1 # File is not in root of source
+                                and not os.path.isfile(targetDrive + entry.path[3:]) # File doesn't exist in destination drive
+                                and targetDrive + entry.path[3:] not in driveExclusions): # File isn't part of drive exclusion
+                            fileList['new'].append((targetDrive + entry.path[3:], entry.stat().st_size))
+                    elif entry.is_dir():
+                        for item in shares:
+                            if (entry.path[3:] == item # Dir is share, so it stays
+                                    or entry.path[3:].find(item + '\\') == 0 # Dir is subdir inside share
+                                    or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of share
+                                if os.path.isdir(targetDrive + entry.path[3:]):
+                                    # If exists on dest, recurse into it
+                                    newList = buildNewFileList(targetDrive + entry.path[3:], shares)
+                                    fileList['new'].extend(newList['new'])
+                                    break
+                                elif targetDrive + entry.path[3:] not in driveExclusions:
+                                    # Path doesn't exist on dest, so add to list if not excluded
+                                    fileList['new'].append((targetDrive + entry.path[3:], get_directory_size(entry.path)))
+            except NotADirectoryError:
+                return {
+                    'new': []
+                }
+            except PermissionError:
+                return {
+                    'new': []
+                }
+            except OSError:
+                return {
+                    'new': []
+                }
+            return fileList
+
+        # Build list of files/dirs to delete and replace
+        deleteFileList = {}
+        replaceFileList = {}
+        newFileList = {}
+        purgeCommandList = []
+        copyCommandList = []
+        displayPurgeCommandList = []
+        displayCopyCommandList = []
+        for drive, shares in driveShareList.items():
+            humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]\\' % (drive)
+
+            modifyFileList = buildDeltaFileList(humanDrive, shares)
+
+            deleteItems = modifyFileList['delete']
+            if len(deleteItems) > 0:
+                deleteFileList[humanDrive] = deleteItems
+                fileDeleteList = [file for file, size in deleteItems]
+
+                # Format list of files into commands
+                fileDeleteCmdList = [('del /f "%s"' % (file) if os.path.isfile(file) else 'rmdir /s /q "%s"' % (file)) for file in fileDeleteList]
+
+                displayPurgeCommandList.append({
+                    'enabled': True,
+                    'type': 'list',
+                    'drive': humanDrive,
+                    'size': sum([size for file, size in deleteItems]),
+                    'fileList': fileDeleteList,
+                    'cmdList': fileDeleteCmdList
+                })
+
+                purgeCommandList.append({
+                    'displayIndex': len(displayPurgeCommandList) + 1,
+                    'type': 'list',
+                    'drive': humanDrive,
+                    'fileList': fileDeleteList,
+                    'cmdList': fileDeleteCmdList
+                })
+
+            # Build list of files to replace
+            replaceItems = modifyFileList['replace']
+            replaceItems.sort(key=lambda x: x[1])
+            if len(replaceItems) > 0:
+                replaceFileList[humanDrive] = replaceItems
+                fileReplaceList = [file for file, sourceSize, destSize in replaceItems]
+
+                displayCopyCommandList.append({
+                    'enabled': True,
+                    'type': 'fileList',
+                    'drive': humanDrive,
+                    'size': sum([sourceSize for file, sourceSize, destSize in replaceItems]),
+                    'fileList': fileReplaceList,
+                    'mode': 'replace'
+                })
+
+                copyCommandList.append({
+                    'displayIndex': len(displayPurgeCommandList) + 1,
+                    'type': 'fileList',
+                    'drive': humanDrive,
+                    'fileList': fileReplaceList,
+                    'payload': replaceItems,
+                    'mode': 'replace'
+                })
+
+            # Build list of new files to copy
+            newItems = buildNewFileList(humanDrive, shares)['new']
+            if len(newItems) > 0:
+                newFileList[humanDrive] = newItems
+                fileCopyList = [file for file, size in newItems]
+
+                displayCopyCommandList.append({
+                    'enabled': True,
+                    'type': 'fileList',
+                    'drive': humanDrive,
+                    'size': sum([size for file, size in newItems]),
+                    'fileList': fileCopyList,
+                    'mode': 'copy'
+                })
+
+                copyCommandList.append({
+                    'displayIndex': len(displayPurgeCommandList) + 1,
+                    'type': 'fileList',
+                    'drive': humanDrive,
+                    'fileList': fileCopyList,
+                    'payload': newItems,
+                    'mode': 'copy'
+                })
+
+        tk.Label(backupSummaryTextFrame, text='Files', font=summaryHeaderFont,
+                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+        filesFrame = tk.Frame(backupSummaryTextFrame)
+        filesFrame.pack(fill='x', expand=True)
+        filesFrame.columnconfigure(2, weight=1)
+
+        for i, drive in enumerate(driveShareList.keys()):
+            humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
+
+            fileSummary = []
+            driveTotal = {
+                'running': 0,
+                'delta': 0,
+                'delete': 0,
+                'replace': 0,
+                'copy': 0,
+                'new': 0
+            }
+
+            if humanDrive in deleteFileList.keys():
+                driveTotal['delete'] = sum([size for file, size in deleteFileList[humanDrive]])
+
+                driveTotal['running'] -= driveTotal['delete']
+                self.totals['delta'] -= driveTotal['delete']
+
+                fileSummary.append(f"Deleting {len(deleteFileList[humanDrive])} files ({human_filesize(driveTotal['delete'])})")
+
+            if humanDrive in replaceFileList.keys():
+                driveTotal['replace'] = sum([sourceSize for file, sourceSize, destSize in replaceFileList[humanDrive]])
+
+                driveTotal['running'] += driveTotal['replace']
+                driveTotal['copy'] += driveTotal['replace']
+                driveTotal['delta'] += sum([sourceSize - destSize for file, sourceSize, destSize in replaceFileList[humanDrive]])
+
+                fileSummary.append(f"Updating {len(replaceFileList[humanDrive])} files ({human_filesize(driveTotal['replace'])})")
+
+            if humanDrive in newFileList.keys():
+                driveTotal['new'] = sum([size for file, size in newFileList[humanDrive]])
+
+                driveTotal['running'] += driveTotal['new']
+                driveTotal['copy'] += driveTotal['new']
+                driveTotal['delta'] += driveTotal['new']
+
+                fileSummary.append(f"{len(newFileList[humanDrive])} new files ({human_filesize(driveTotal['new'])})")
+
+            # Increment master totals
+            self.totals['master'] += driveTotal['running']
+            self.totals['delta'] += driveTotal['delta']
+
+            if len(fileSummary) > 0:
+                tk.Label(filesFrame, text=humanDrive,
+                         fg=Color.NORMAL).grid(row=i, column=0, sticky='w')
+                tk.Label(filesFrame, text='\u27f6',
+                         fg=Color.NORMAL).grid(row=i, column=1, sticky='w')
+                wrapFrame = tk.Frame(filesFrame)
+                wrapFrame.grid(row=i, column=2, sticky='ew')
+                wrapFrame.update_idletasks()
+                tk.Label(filesFrame, text='\n'.join(fileSummary), fg=Color.NORMAL,
+                         wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+
+        # Concat both lists into command list
+        commandList = []
+        commandList.extend([cmd for cmd in purgeCommandList])
+        commandList.extend([cmd for cmd in copyCommandList])
+
+        # Concat lists into display command list
+        displayCommandList = []
+        displayCommandList.extend([cmd for cmd in displayPurgeCommandList])
+        displayCommandList.extend([cmd for cmd in displayCopyCommandList])
+
+        # Fix display index on command list
+        for i, cmd in enumerate(commandList):
+            commandList[i]['displayIndex'] = i
+
+        self.enumerateCommandInfo(displayCommandList)
+
+        tk.Label(backupSummaryTextFrame, text='Summary', font=summaryHeaderFont,
+                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+        summaryFrame = tk.Frame(backupSummaryTextFrame)
+        summaryFrame.pack(fill='x', expand=True)
+        summaryFrame.columnconfigure(2, weight=1)
+        i = 0
+        for drive, shares in driveShareList.items():
+            humanDrive = driveVidToLetterMap[drive] if drive in driveVidToLetterMap.keys() else '[%s]' % (drive)
+            tk.Label(summaryFrame, text=humanDrive,
+                     fg=Color.NORMAL if drive in driveVidToLetterMap.keys() else Color.FADED).grid(row=i, column=0, sticky='w')
+            tk.Label(summaryFrame, text='\u27f6',
+                     fg=Color.NORMAL if drive in driveVidToLetterMap.keys() else Color.FADED).grid(row=i, column=1, sticky='w')
+            wrapFrame = tk.Frame(summaryFrame)
+            wrapFrame.grid(row=i, column=2, sticky='ew')
+            wrapFrame.update_idletasks()
+            tk.Label(summaryFrame, text='\n'.join(shares),
+                     fg=Color.NORMAL if drive in driveVidToLetterMap.keys() else Color.FADED,
+                     wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+
+            i += 1
+
+        self.analysisValid = True
+
+        startBackupBtn.configure(state='normal')
+        startAnalysisBtn.configure(state='normal')
+
+        self.progress.stopIndeterminate()
+
+        self.analysisRunning = False
+
+    # TODO: Make changes to existing @config check the existing for missing @drives, and delete the config file from drives we unselected if there's multiple drives in a config
+    # TODO: If a @drive @config is overwritten with a new config file, due to the drive
+    # being configured for a different backup, then we don't want to delete that file
+    # In that case, the config file should be ignored. Thus, we need to delete configs
+    # on unselected drives only if the config file on the drive we want to delete matches
+    # the config on selected drives
+    # TODO: When @drive @selection happens, drives in the @config should only be selected if the config on the other drive matches. If it doesn't don't select it by default, and warn about a conflict.
+    def writeConfigFile(self):
+        """Write the current running backup config to config files on the drives."""
+        if len(self.config['shares']) > 0 and len(self.config['drives']) > 0:
+            driveConfigList = ''.join(['\n%s,%s,%d' % (drive['vid'], drive['serial'], drive['capacity']) for drive in self.config['drives']])
+            driveVidToLetterMap = {destTree.item(item, 'values')[3]: destTree.item(item, 'text') for item in destTree.get_children()}
+
+            # For each drive letter, get drive info, and write file
+            for drive in self.config['drives']:
+                if drive['vid'] in driveVidToLetterMap.keys():
+                    if not os.path.exists('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir)):
+                        # If dir doesn't exist, make it
+                        os.mkdir('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir))
+                    elif os.path.exists('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)) and os.path.isdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)):
+                        # If dir exists but backup config filename is dir, delete the dir
+                        os.rmdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile))
+
+                    f = open('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile), 'w')
+                    # f.write('[id]\n%s,%s\n\n' % (driveInfo['vid'], driveInfo['serial']))
+                    f.write('[shares]\n%s\n\n' % (','.join([item['name'] for item in self.config['shares']])))
+
+                    f.write('[drives]')
+                    f.write(driveConfigList)
+
+                    f.close()
+        else:
+            pass
+            # print('You must select at least one share, and at least one drive')
+
+    def run(self):
+        """Once the backup analysis is run, and drives and shares are selected, run the backup.
+
+        This function is run in a new thread, but is only run if the backup config is valid.
+        If sanityCheck() returns False, the backup isn't run.
+        """
+        global backupHalted
+
+        self.backupRunning = True
+
+        if not self.analysisValid or not self.sanityCheck():
+            return
+
+        self.progress.setMax(self.totals['master'])
+
+        # Reset halt flag if it's been tripped
+        backupHalted = False
+
+        # Write config file to drives
+        self.writeConfigFile()
+
+        for cmd in commandList:
+            self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Pending', fg=Color.PENDING)
+            if cmd['type'] == 'fileList':
+                self.cmdInfoBlocks[cmd['displayIndex']]['currentFileResult'].configure(text='Pending', fg=Color.PENDING)
+            self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=Color.PENDING)
+
+        startBackupBtn.configure(text='Halt Backup', command=self.killBackupFn, style='danger.TButton')
+
+        for cmd in commandList:
+            if cmd['type'] == 'list':
+                for item in cmd['cmdList']:
+                    process = subprocess.Popen(item, shell=True, stdout=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text=item, fg=Color.NORMAL)
+
+                    while not self.threadManager.threadList['Backup']['killFlag'] and process.poll() is None:
+                        try:
+                            self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=Color.RUNNING)
+                        except Exception as e:
+                            print(e)
+                    process.terminate()
+
+                    if self.threadManager.threadList['Backup']['killFlag']:
+                        break
+            elif cmd['type'] == 'fileList':
+                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=Color.RUNNING)
+                if cmd['mode'] == 'replace':
+                    for file, sourceSize, destSize in cmd['payload']:
+                        sourceFile = self.sourceDrive + file[3:]
+                        destFile = file
+
+                        guiOptions = {
+                            'displayIndex': cmd['displayIndex']
+                        }
+
+                        doCopy(sourceFile, destFile, guiOptions)
+                elif cmd['mode'] == 'copy':
+                    for file, size in cmd['payload']:
+                        sourceFile = self.sourceDrive + file[3:]
+                        destFile = file
+
+                        guiOptions = {
+                            'displayIndex': cmd['displayIndex']
+                        }
+
+                        doCopy(sourceFile, destFile, guiOptions)
+
+            if not self.threadManager.threadList['Backup']['killFlag']:
+                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=Color.FINISHED)
+                self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=Color.FINISHED)
+            else:
+                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=Color.STOPPED)
+                self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=Color.STOPPED)
                 break
 
-            # Add total space of selection
-            shareSize = sourceTree.item(item, 'values')[1]
-            shareTotal = shareTotal + int(shareSize)
+        startBackupBtn.configure(text='Run Backup', command=self.startBackupFn, style='win.TButton')
 
-        for item in destSelection:
-            # Add total space of selection
-            driveSize = destTree.item(item, 'values')[1]
-            driveTotal = driveTotal + int(driveSize)
+        self.backupRunning = False
 
-        configTotal = sum(int(drive['capacity']) for drive in config['drives'])
+    def getTotals(self):
+        """
+        Returns:
+            totals (dict): The backup totals for the current instance.
+        """
+        return self.totals
 
-        if sharesKnown and ((len(destSelection) == len(config['drives']) and shareTotal < driveTotal) or (shareTotal < configTotal and destModeSplitEnabled)):
-            # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
+    def getCmdInfoBlocks(self):
+        """
+        Returns:
+            dict: The command info blocks for the current backup.
+        """
+        return self.cmdInfoBlocks
 
-            selectedNewDrives = [destTree.item(drive, 'text') for drive in destSelection if destTree.item(drive, 'values')[2] != 'Yes']
-            if not confirmWipeExistingDrives and len(selectedNewDrives) > 0:
-                driveString = ', '.join(selectedNewDrives[:-2] + [' and '.join(selectedNewDrives[-2:])])
+    def isAnalysisStarted(self):
+        """
+        Returns:
+            bool: Whether or not the analysis has been started.
+        """
+        return self.analysisStarted
 
-                newDriveConfirmTitle = f"New drive{'s' if len(selectedNewDrives) > 1 else ''} selected"
-                newDriveConfirmMessage = f"Drive{'s' if len(selectedNewDrives) > 1 else ''} {driveString} appear{'' if len(selectedNewDrives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
-                confirmWipeExistingDrives = messagebox.askyesno(newDriveConfirmTitle, newDriveConfirmMessage)
-
-                return confirmWipeExistingDrives
-
-            return True
-
-    return False
+    def isRunning(self):
+        """
+        Returns:
+            bool: Whether or not the backup is actively running something.
+        """
+        # FIXME: Make this function tell when we can and can't change the config. UI config changing should only be allowed if a backup isn't actively running.
+        return self.analysisRunning or self.backupRunning
 
 def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
+
+    global backup
+
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
+    # URGENT: We need a way to only replace the analysis if an analysis or backup isn't active already, otherwise we end up with ghost threads
     if sourceDriveListValid:
-        threadManager.start(threadManager.SINGLE, target=analyzeBackup, args=[sourceTree.selection(), config['drives']], name='Backup Analysis', daemon=True)
+        backup = Backup(
+            config=config,
+            sourceDrive=sourceDrive,
+            startBackupFn=startBackup,
+            killBackupFn=lambda: threadManager.kill('Backup'),
+            threadManager=threadManager,
+            progress=progress
+        )
+        threadManager.start(threadManager.SINGLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
 def writeSettingToFile(setting, file):
     """Write a setting to a given file.
@@ -1209,11 +1399,9 @@ def readSettingFromFile(file, default, verifyData=None):
 
 def loadSource():
     """Load the source share list, and display it in the tree."""
-    global analysisValid
+    global backup
 
     progress.startIndeterminate()
-
-    analysisValid = False
 
     # Empty tree in case this is being refreshed
     sourceTree.delete(*sourceTree.get_children())
@@ -1253,8 +1441,8 @@ def shareSelectCalc():
     selection, and total share space is also shown below the tree.
     """
     global prevShareSelection
-    global analysisValid
-    
+    global backup
+
     progress.startIndeterminate()
 
     def updateShareSize(item):
@@ -1273,7 +1461,10 @@ def shareSelectCalc():
         selectedShareList = []
         for item in sourceTree.selection():
             # Write selected shares to config
-            selectedShareList.append(sourceTree.item(item, 'text'))
+            selectedShareList.append({
+                'name': sourceTree.item(item, 'text'),
+                'size': int(sourceTree.item(item, 'values')[1])
+            })
 
             # Add total space of selection
             if sourceTree.item(item, 'values')[0] != 'Unknown':
@@ -1312,7 +1503,7 @@ def shareSelectCalc():
     # If selection is different than last time, invalidate the analysis
     selectMatch = [share for share in selected if share in prevShareSelection]
     if len(selected) != len(prevShareSelection) or len(selectMatch) != len(prevShareSelection):
-        analysisValid = False
+        # URGENT: This button needs to be dealt with. It should not be disabled here, but we need some indication that the config has changed and that analysis should be re-run
         startBackupBtn.configure(state='disable')
 
     prevShareSelection = [share for share in selected]
@@ -1332,7 +1523,7 @@ def loadSourceInBackground(event):
 def loadDest():
     """Load the destination drive info, and display it in the tree."""
     global destDriveMap
-    
+
     progress.startIndeterminate()
 
     driveList = win32api.GetLogicalDriveStrings()
@@ -1393,13 +1584,14 @@ def selectFromConfig():
     global driveSelectBind
 
     # Get list of shares in config
-    sourceTreeIdList = [item for item in sourceTree.get_children() if sourceTree.item(item, 'text') in config['shares']]
+    shareNameList = [item['name'] for item in config['shares']]
+    sourceTreeIdList = [item for item in sourceTree.get_children() if sourceTree.item(item, 'text') in shareNameList]
 
     sourceTree.focus(sourceTreeIdList[-1])
     sourceTree.selection_set(tuple(sourceTreeIdList))
 
     # Get list of drives where volume ID is in config
-    driveTreeIdList = [item for item in destTree.get_children() if destTree.item(item, 'values')[3] in config['vidList']]
+    driveTreeIdList = [item for item in destTree.get_children() if destTree.item(item, 'values')[3] in config['vidList'].keys()]
 
     # If drives aren't mounted that should be, display the warning
     if len(driveTreeIdList) < len(config['drives']):
@@ -1455,15 +1647,18 @@ def readConfigFile(file):
 
             if header == 'shares':
                 # Shares is a single line, comma separated list of shares
-                newConfig['shares'] = splitChunk[0].split(',')
+                newConfig['shares'] = [{
+                    'name': share,
+                    'size': None
+                } for share in splitChunk[0].split(',')]
             elif header == 'drives':
                 # Drives is a list, where each line is one drive, and each drive lists
                 # comma separated volume ID and physical serial
                 newConfig['drives'] = []
-                newConfig['vidList'] = []
+                newConfig['vidList'] = {}
                 for drive in splitChunk:
                     drive = drive.split(',')
-                    newConfig['vidList'].append(drive[0])
+                    newConfig['vidList'][drive[0]] = int(drive[2])
                     newConfig['drives'].append({
                         'vid': drive[0],
                         'serial': drive[1],
@@ -1490,8 +1685,7 @@ def handleDriveSelectionClick():
     """
     global prevSelection
     global prevDriveSelection
-    global analysisValid
-    global confirmWipeExistingDrives
+    global backup
 
     progress.startIndeterminate()
 
@@ -1500,8 +1694,7 @@ def handleDriveSelectionClick():
     # If selection is different than last time, invalidate the analysis
     selectMatch = [drive for drive in selected if drive in prevDriveSelection]
     if len(selected) != len(prevDriveSelection) or len(selectMatch) != len(prevDriveSelection):
-        analysisValid = False
-        confirmWipeExistingDrives = False
+        # URGENT: This button shouldn't be disabled here, but we need some indicator that analysis should be redone
         startBackupBtn.configure(state='disable')
 
     prevDriveSelection = [share for share in selected]
@@ -1545,126 +1738,14 @@ def selectDriveInBackground(event):
     """Start the drive selection handling in a new thread."""
     threadManager.start(threadManager.MULTIPLE, target=handleDriveSelectionClick, name='Drive Select', daemon=True)
 
-# TODO: Make changes to existing @config check the existing for missing @drives, and delete the config file from drives we unselected if there's multiple drives in a config
-# TODO: If a @drive @config is overwritten with a new config file, due to the drive
-# being configured for a different backup, then we don't want to delete that file
-# In that case, the config file should be ignored. Thus, we need to delete configs
-# on unselected drives only if the config file on the drive we want to delete matches
-# the config on selected drives
-# TODO: When @drive @selection happens, drives in the @config should only be selected if the config on the other drive matches. If it doesn't don't select it by default, and warn about a conflict.
-def writeConfigFile():
-    """Write the current running backup config to config files on the drives."""
-    if len(config['shares']) > 0 and len(config['drives']) > 0:
-        driveConfigList = ''.join(['\n%s,%s,%d' % (drive['vid'], drive['serial'], drive['capacity']) for drive in config['drives']])
-        driveVidToLetterMap = {destTree.item(item, 'values')[3]: destTree.item(item, 'text') for item in destTree.get_children()}
-
-        # For each drive letter, get drive info, and write file
-        for drive in config['drives']:
-            if drive['vid'] in driveVidToLetterMap.keys():
-                if not os.path.exists('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir)):
-                    # If dir doesn't exist, make it
-                    os.mkdir('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir))
-                elif os.path.exists('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)) and os.path.isdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)):
-                    # If dir exists but backup config filename is dir, delete the dir
-                    os.rmdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile))
-
-                f = open('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile), 'w')
-                # f.write('[id]\n%s,%s\n\n' % (driveInfo['vid'], driveInfo['serial']))
-                f.write('[shares]\n%s\n\n' % (','.join(config['shares'])))
-
-                f.write('[drives]')
-                f.write(driveConfigList)
-
-                f.close()
-    else:
-        pass
-        # print('You must select at least one share, and at least one drive')
-
 backupHalted = False
-backupTotals = {
-    'master': 0,
-    'delta': 0,
-    'running': 0,
-    'progressBar': 0
-}
-def runBackup():
-    """Once the backup analysis is run, and drives and shares are selected, run the backup.
-
-    This function is run in a new thread, but is only run if the backup config is valid.
-    If sanityCheck() returns False, the backup isn't run.
-    """
-    global backupHalted
-
-    if not analysisValid:
-        return
-
-    progress.setMax(backupTotals['master'])
-
-    # Reset halt flag if it's been tripped
-    backupHalted = False
-
-    # Write config file to drives
-    writeConfigFile()
-
-    for cmd in commandList:
-        cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Pending', fg=color.PENDING)
-        if cmd['type'] == 'fileList':
-            cmdInfoBlocks[cmd['displayIndex']]['currentFileResult'].configure(text='Pending', fg=color.PENDING)
-        cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=color.PENDING)
-
-    startBackupBtn.configure(text='Halt Backup', command=lambda: threadManager.kill('Backup'), style='danger.TButton')
-
-    for cmd in commandList:
-        if cmd['type'] == 'list':
-            for item in cmd['cmdList']:
-                process = subprocess.Popen(item, shell=True, stdout=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text=item, fg=color.NORMAL)
-
-                while not threadManager.threadList['Backup']['killFlag'] and process.poll() is None:
-                    try:
-                        cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=color.RUNNING)
-                    except Exception as e:
-                        print(e)
-                process.terminate()
-
-                if threadManager.threadList['Backup']['killFlag']:
-                    break
-        elif cmd['type'] == 'fileList':
-            cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=color.RUNNING)
-            if cmd['mode'] == 'replace':
-                for file, sourceSize, destSize in cmd['payload']:
-                    sourceFile = sourceDrive + file[3:]
-                    destFile = file
-
-                    guiOptions = {
-                        'displayIndex': cmd['displayIndex']
-                    }
-
-                    doCopy(sourceFile, destFile, guiOptions)
-            elif cmd['mode'] == 'copy':
-                for file, size in cmd['payload']:
-                    sourceFile = sourceDrive + file[3:]
-                    destFile = file
-
-                    guiOptions = {
-                        'displayIndex': cmd['displayIndex']
-                    }
-
-                    doCopy(sourceFile, destFile, guiOptions)
-
-        if not threadManager.threadList['Backup']['killFlag']:
-            cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=color.FINISHED)
-            cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=color.FINISHED)
-        else:
-            cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=color.STOPPED)
-            cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=color.STOPPED)
-            break
-
-    startBackupBtn.configure(text='Run Backup', command=startBackup, style='win.TButton')
 
 def startBackup():
     """Start the backup in a new thread."""
-    if sanityCheck():
+
+    global backup
+
+    if backup:
         def killBackupThread():
             # try:
             #     subprocess.run('taskkill /im robocopy.exe /f', shell=True, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
@@ -1690,9 +1771,6 @@ config = {
 commandList = []
 
 threadManager = ThreadManager()
-
-analysisValid = False
-analysisStarted = False
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -1805,7 +1883,8 @@ destModeFrame.grid(row=0, column=1, pady=(0, elemPadding / 2))
 def handleSplitModeCheck():
     """Handle toggling of split mode based on checkbox value."""
     global destModeSplitEnabled
-    if not analysisStarted:
+    # TODO: Should this reference backup.isRunning() instead?
+    if not backup or not backup.isAnalysisStarted():
         destModeSplitEnabled = destModeSplitCheckVar.get()
         splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=Color.ENABLED if destModeSplitEnabled else Color.DISABLED)
 
