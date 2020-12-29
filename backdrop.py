@@ -14,6 +14,7 @@ import keyboard
 from PIL import Image, ImageTk
 import hashlib
 import sys
+from bin.fileutils import human_filesize, get_directory_size
 from bin.color import Color
 from bin.threadManager import ThreadManager
 from bin.progress import Progress
@@ -41,47 +42,6 @@ def center(win):
     y = win.winfo_screenheight() // 2 - win_height // 2
     win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
     win.deiconify()
-
-def human_filesize(num, suffix='B'):
-    """Convert a number of bytes to a human readable format.
-
-    Args:
-        num (int): The number of bytes.
-        suffix (String, optional): The suffix to use. Defaults to 'B'.
-
-    Returns:
-        String: A string representation of the filesize passed in.
-    """
-    for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
-        if abs(num) < 1024.0:
-            return "%3.2f %s%s" % (num, unit, suffix)
-        num /= 1024.0
-    return "%.1f%s%s" % (num, 'Yi', suffix)
-
-def get_directory_size(directory):
-    """Get the filesize of a directory and its contents.
-
-    Args:
-        directory (String): The directory to check.
-
-    Returns:
-        int: The filesize of the directory.
-    """
-    total = 0
-    try:
-        for entry in os.scandir(directory):
-            # For each entry, either add filesize to the total, or recurse into the directory
-            if entry.is_file():
-                total += entry.stat().st_size
-            elif entry.is_dir():
-                total += get_directory_size(entry.path)
-    except NotADirectoryError:
-        return os.path.getsize(directory)
-    except PermissionError:
-        return 0
-    except OSError:
-        return 0
-    return total
 
 def copyFileObj(sourceFilename, destFilename, callback, guiOptions={}, length=0):
     """Copy a source binary file to a destination.
