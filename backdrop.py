@@ -362,9 +362,9 @@ class Backup:
                 shareTotal += share['size']
 
             driveTotal = sum([drive['capacity'] for drive in self.config['drives']])
-            configTotal = sum([size for drive, size in self.config['vidList'].items()])
+            configTotal = driveTotal + sum([size for drive, size in self.config['missingDrives'].items()])
 
-            if sharesKnown and ((len(self.config['drives']) == len(self.config['vidList']) and shareTotal < driveTotal) or (shareTotal < configTotal and destModeSplitEnabled)):
+            if sharesKnown and ((len(self.config['missingDrives']) == 0 and shareTotal < driveTotal) or (shareTotal < configTotal and destModeSplitEnabled)):
                 # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
 
                 selectedNewDrives = [drive['name'] for drive in self.config['drives'] if drive['hasConfig'] is False]
@@ -1528,6 +1528,7 @@ def loadSourceInBackground(event):
 def loadDest():
     """Load the destination drive info, and display it in the tree."""
     global destDriveMap
+    global destDriveMasterList
 
     progress.startIndeterminate()
 
@@ -1550,6 +1551,7 @@ def loadDest():
     # Enumerate drive list to find info about all non-source drives
     totalUsage = 0
     destDriveMap = {}
+    destDriveMasterList = []
     destDriveLetterToInfo = {}
     for drive in driveList:
         if drive != sourceDrive:
@@ -1575,6 +1577,14 @@ def loadDest():
                 totalUsage = totalUsage + driveSize
                 destTree.insert(parent='', index='end', text=drive, values=(human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
 
+                destDriveMasterList.append({
+                    'name': drive,
+                    'vid': vsn,
+                    'serial': serial,
+                    'capacity': driveSize,
+                    'hasConfig': driveHasConfigFile
+                })
+
     driveTotalSpace.configure(text='Available: ' + human_filesize(totalUsage))
 
     progress.stopIndeterminate()
@@ -1596,7 +1606,8 @@ def selectFromConfig():
     sourceTree.selection_set(tuple(sourceTreeIdList))
 
     # Get list of drives where volume ID is in config
-    driveTreeIdList = [item for item in destTree.get_children() if destTree.item(item, 'values')[3] in config['vidList'].keys()]
+    connectedVidList = [drive['vid'] for drive in config['drives']]
+    driveTreeIdList = [item for item in destTree.get_children() if destTree.item(item, 'values')[3] in connectedVidList]
 
     # If drives aren't mounted that should be, display the warning
     if len(driveTreeIdList) < len(config['drives']):
@@ -1660,26 +1671,24 @@ def readConfigFile(file):
                 # Drives is a list, where each line is one drive, and each drive lists
                 # comma separated volume ID and physical serial
                 newConfig['drives'] = []
-                newConfig['vidList'] = {}
+                newConfig['missingDrives'] = {}
+                driveLookupList = {drive['vid']: drive for drive in destDriveMasterList}
                 for drive in splitChunk:
-                    drive = drive.split(',')
-                    newConfig['vidList'][drive[0]] = int(drive[2])
-                    newConfig['drives'].append({
-                        'name': 'Unknown',
-                        'vid': drive[0],
-                        'serial': drive[1],
-                        'capacity': int(drive[2]),
-                        'hasConfig': None
-                    })
+                    driveVid = drive.split(',')[0]
 
-                    configTotal += int(drive[2])
+                    if driveVid in driveLookupList:
+                        # If drive connected, add it to the config
+                        selectedDrive = driveLookupList[driveVid]
+                        newConfig['drives'].append(selectedDrive)
+                    else:
+                        # If drive is missing, add it to the missing drive list
+                        newConfig['missingDrives'][driveVid] = int(drive.split(',')[2])
+
+                    configTotal += selectedDrive['capacity']
 
         config = newConfig
         configSelectedSpace.configure(text='Config: ' + human_filesize(configTotal))
         selectFromConfig()
-
-        # TODO: This is a really roundabout way of gathering config file and drive letter data. The better way would be to load the drive list into a variable, and pull from that variable for both this function, and the tree, in order to gather drive info
-        handleDriveSelectionClick()
 
 prevSelection = 0
 prevDriveSelection = []
@@ -1726,19 +1735,12 @@ def handleDriveSelectionClick():
 
     selectedTotal = 0
     selectedDriveList = []
+    driveLookupList = {drive['vid']: drive for drive in destDriveMasterList}
     for item in selected:
         # Write drive IDs to config
-        driveVals = destTree.item(item, 'values')
-        selectedDriveList.append({
-            'name': destTree.item(item, 'text'),
-            'vid': driveVals[3],
-            'serial': driveVals[4],
-            'capacity': int(driveVals[1]),
-            'hasConfig': driveVals[2] == 'Yes'
-        })
-
-        driveSize = driveVals[1]
-        selectedTotal = selectedTotal + int(driveSize)
+        selectedDrive = driveLookupList[destTree.item(item, 'values')[3]]
+        selectedDriveList.append(selectedDrive)
+        selectedTotal = selectedTotal + selectedDrive['capacity']
 
     driveSelectedSpace.configure(text='Selected: ' + human_filesize(selectedTotal))
     if not readDrivesFromConfigFile:
@@ -1779,6 +1781,7 @@ config = {
     'shares': [],
     'drives': []
 }
+destDriveMasterList = []
 
 commandList = []
 
