@@ -393,16 +393,19 @@ class Backup:
             Args:
                 index (int): The index of the command to expand or hide.
             """
-            # Check if arrow needs to be expanded
-            expandArrow = self.cmdInfoBlocks[index]['arrow']['text']
-            if expandArrow == rightArrow:
-                # Collapsed turns into expanded
-                self.cmdInfoBlocks[index]['arrow'].configure(text=downArrow)
-                self.cmdInfoBlocks[index]['infoFrame'].pack(anchor='w')
-            else:
-                # Expanded turns into collapsed
-                self.cmdInfoBlocks[index]['arrow'].configure(text=rightArrow)
-                self.cmdInfoBlocks[index]['infoFrame'].pack_forget()
+
+            # Expand only if analysis is not running and the list isn't still being built
+            if not self.analysisRunning:
+                # Check if arrow needs to be expanded
+                expandArrow = self.cmdInfoBlocks[index]['arrow']['text']
+                if expandArrow == rightArrow:
+                    # Collapsed turns into expanded
+                    self.cmdInfoBlocks[index]['arrow'].configure(text=downArrow)
+                    self.cmdInfoBlocks[index]['infoFrame'].pack(anchor='w')
+                else:
+                    # Expanded turns into collapsed
+                    self.cmdInfoBlocks[index]['arrow'].configure(text=rightArrow)
+                    self.cmdInfoBlocks[index]['infoFrame'].pack_forget()
 
             # For some reason, .configure() loses the function bind, so we need to re-set this
             self.cmdInfoBlocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: toggleCmdInfo(index))
