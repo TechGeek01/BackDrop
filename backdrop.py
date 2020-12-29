@@ -460,10 +460,6 @@ class Backup:
             config['arrow'].update_idletasks()
             arrowWidth = config['arrow'].winfo_width()
 
-            # Header toggle action click
-            config['arrow'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
-            config['header'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
-
             # Set up info frame
             config['infoFrame'] = tk.Frame(config['mainFrame'])
 
@@ -590,6 +586,10 @@ class Backup:
                 config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
 
             self.cmdInfoBlocks.append(config)
+
+            # Header toggle action click
+            config['arrow'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
+            config['header'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
 
     # CAVEAT: This @analysis assumes the drives are going to be empty, aside from the config file
     # Other stuff that's not part of the backup will need to be deleted when we actually run it
