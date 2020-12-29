@@ -297,11 +297,10 @@ def doCopy(src, dest, guiOptions={}):
         return True
 
 class Backup:
-    def __init__(self, config, sourceDrive, startBackupFn, killBackupFn, threadManager, progress):
+    def __init__(self, config, startBackupFn, killBackupFn, threadManager, progress):
         """
         Args:
             config (dict): The backup config to be processed.
-            sourceDrive (String): The source drive letter to back up.
             startBackupFn (def): The function to be used to start the backup.
             killBackupFn (def): The function to be used to kill the backup.
             threadManager (ThreadManager): The thread manager to check for kill flags.
@@ -323,7 +322,6 @@ class Backup:
         self.commandList = []
 
         self.config = config
-        self.sourceDrive = sourceDrive
 
         self.startBackupFn = startBackupFn
         self.killBackupFn = killBackupFn
@@ -343,7 +341,7 @@ class Backup:
             bool: True if conditions are good, False otherwise.
         """
 
-        if not self.sourceDrive:
+        if not self.config['sourceDrive']:
             return False
 
         selectionOk = len(self.config['drives']) > 0 and len(self.config['shares']) > 0
@@ -769,7 +767,7 @@ class Backup:
             driveFileList = {drive['vid']: [] for drive in driveInfo}
 
             fileInfo = {}
-            for entry in os.scandir(self.sourceDrive + share):
+            for entry in os.scandir(self.config['sourceDrive'] + share):
                 if entry.is_file():
                     newDirSize = entry.stat().st_size
                 elif entry.is_dir():
@@ -802,9 +800,9 @@ class Backup:
                     listFiles = {}
                     listDirs = {}
                     for file, size in smallFiles.items():
-                        if os.path.isfile(self.sourceDrive + '\\' + share + '\\' + file):
+                        if os.path.isfile(self.config['sourceDrive'] + '\\' + share + '\\' + file):
                             listFiles[file] = size
-                        elif os.path.isdir(self.sourceDrive + '\\' + share + '\\' + file):
+                        elif os.path.isdir(self.config['sourceDrive'] + '\\' + share + '\\' + file):
                             listDirs[file] = size
 
                     # Sort file list by largest first, and truncate to prevent unreasonably large number of combinations
@@ -853,7 +851,7 @@ class Backup:
         # For shares larger than all drives, recurse into each share
         driveExclusions = []
         for share in shareInfo.keys():
-            if os.path.exists(self.sourceDrive + share) and os.path.isdir(self.sourceDrive + share):
+            if os.path.exists(self.config['sourceDrive'] + share) and os.path.isdir(self.config['sourceDrive'] + share):
                 summary = splitShare(share)
 
                 # Each summary contains a split share, and any split subfolders, starting with
@@ -866,7 +864,7 @@ class Backup:
                     allFiles = shareFiles.copy()
                     allFiles['exclusions'] = shareExclusions
 
-                    sourcePathStub = self.sourceDrive + shareName + '\\'
+                    sourcePathStub = self.config['sourceDrive'] + shareName + '\\'
 
                     # For each drive, gather list of files to be written to other drives, and
                     # use that as exclusions
@@ -905,19 +903,19 @@ class Backup:
                     # For each entry, either add filesize to the total, or recurse into the directory
                     if entry.is_file():
                         if (entry.path[3:].find('\\') == -1 # Files should not be on root of drive
-                                or not os.path.isfile(self.sourceDrive + entry.path[3:]) # File doesn't exist in source, so delete it
+                                or not os.path.isfile(self.config['sourceDrive'] + entry.path[3:]) # File doesn't exist in source, so delete it
                                 or entry.path in driveExclusions): # File is excluded from drive
                             fileList['delete'].append((entry.path, entry.stat().st_size))
-                        elif os.path.isfile(self.sourceDrive + entry.path[3:]):
-                            if (entry.stat().st_mtime != os.path.getmtime(self.sourceDrive + entry.path[3:]) # Existing file is older than source
-                                    or entry.stat().st_size != os.path.getsize(self.sourceDrive + entry.path[3:])): # Existing file is different size than source
+                        elif os.path.isfile(self.config['sourceDrive'] + entry.path[3:]):
+                            if (entry.stat().st_mtime != os.path.getmtime(self.config['sourceDrive'] + entry.path[3:]) # Existing file is older than source
+                                    or entry.stat().st_size != os.path.getsize(self.config['sourceDrive'] + entry.path[3:])): # Existing file is different size than source
                                 # If existing dest file is not same time as source, it needs to be replaced
-                                fileList['replace'].append((entry.path, os.path.getsize(self.sourceDrive + entry.path[3:]), entry.stat().st_size))
+                                fileList['replace'].append((entry.path, os.path.getsize(self.config['sourceDrive'] + entry.path[3:]), entry.stat().st_size))
                     elif entry.is_dir():
                         foundShare = False
                         for item in shares:
                             if (entry.path[3:] == item # Dir is share, so it stays
-                                    or (entry.path[3:].find(item + '\\') == 0 and os.path.isdir(self.sourceDrive + entry.path[3:])) # Dir is subdir inside share, and it exists in source
+                                    or (entry.path[3:].find(item + '\\') == 0 and os.path.isdir(self.config['sourceDrive'] + entry.path[3:])) # Dir is subdir inside share, and it exists in source
                                     or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of a share we're copying, so it stays
                                 # Recurse into the share
                                 newList = buildDeltaFileList(entry.path, shares)
@@ -966,7 +964,7 @@ class Backup:
             targetDrive = drive[0:3]
 
             try:
-                for entry in os.scandir(self.sourceDrive + drive[3:]):
+                for entry in os.scandir(self.config['sourceDrive'] + drive[3:]):
                     # For each entry, either add filesize to the total, or recurse into the directory
                     if entry.is_file():
                         if (entry.path[3:].find('\\') > -1 # File is not in root of source
@@ -1276,7 +1274,7 @@ class Backup:
                 self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=Color.RUNNING)
                 if cmd['mode'] == 'replace':
                     for file, sourceSize, destSize in cmd['payload']:
-                        sourceFile = self.sourceDrive + file[3:]
+                        sourceFile = self.config['sourceDrive'] + file[3:]
                         destFile = file
 
                         guiOptions = {
@@ -1286,7 +1284,7 @@ class Backup:
                         doCopy(sourceFile, destFile, guiOptions)
                 elif cmd['mode'] == 'copy':
                     for file, size in cmd['payload']:
-                        sourceFile = self.sourceDrive + file[3:]
+                        sourceFile = self.config['sourceDrive'] + file[3:]
                         destFile = file
 
                         guiOptions = {
@@ -1347,7 +1345,6 @@ def startBackupAnalysis():
     if sourceDriveListValid:
         backup = Backup(
             config=config,
-            sourceDrive=sourceDrive,
             startBackupFn=startBackup,
             killBackupFn=lambda: threadManager.kill('Backup'),
             threadManager=threadManager,
@@ -1415,7 +1412,7 @@ def loadSource():
     shareTotalSpace.configure(text='Total: ~' + human_filesize(0))
 
     # Enumerate list of shares in source
-    for directory in next(os.walk(sourceDrive))[1]:
+    for directory in next(os.walk(config['sourceDrive']))[1]:
         sourceTree.insert(parent='', index='end', text=directory, values=('Unknown', 0))
 
     progress.stopIndeterminate()
@@ -1431,10 +1428,10 @@ def changeSourceDrive(selection):
     Args:
         selection (String): The selection to set as the default.
     """
-    global sourceDrive
-    sourceDrive = selection
+    global config
+    config['sourceDrive'] = selection
     startRefreshSource()
-    writeSettingToFile(sourceDrive, appDataFolder + '\\sourceDrive.default')
+    writeSettingToFile(config['sourceDrive'], appDataFolder + '\\sourceDrive.default')
 
 # IDEA: @Calculate total space of all @shares in background
 prevShareSelection = []
@@ -1457,7 +1454,7 @@ def shareSelectCalc():
             item (String): The identifier for a share in the source tree to be calculated.
         """
         shareName = sourceTree.item(item, 'text')
-        newShareSize = get_directory_size(sourceDrive + shareName)
+        newShareSize = get_directory_size(config['sourceDrive'] + shareName)
         sourceTree.set(item, 'size', human_filesize(newShareSize))
         sourceTree.set(item, 'rawsize', newShareSize)
 
@@ -1554,7 +1551,7 @@ def loadDest():
     destDriveMasterList = []
     destDriveLetterToInfo = {}
     for drive in driveList:
-        if drive != sourceDrive:
+        if drive != config['sourceDrive']:
             driveType = win32file.GetDriveType(drive)
             if driveType not in (4, 6): # Make sure drive isn't REMOTE or RAMDISK
                 driveSize = shutil.disk_usage(drive).total
@@ -1653,7 +1650,9 @@ def readConfigFile(file):
         rawConfig = f.read().split('\n\n')
         f.close()
 
-        newConfig = {}
+        newConfig = {
+            'sourceDrive': config['sourceDrive']
+        }
 
         # Each chunk after splitting on \n\n is a header followed by config stuff
         configTotal = 0
@@ -1770,7 +1769,6 @@ def startBackup():
         threadManager.start(threadManager.KILLABLE, killBackupThread, target=backup.run, name='Backup', daemon=True)
 
 # Set app defaults
-sourceDrive = None
 backupConfigDir = '.backdrop'
 backupConfigFile = 'backup.config'
 appConfigFile = 'defaults.config'
@@ -1778,6 +1776,7 @@ appDataFolder = os.getenv('LocalAppData') + '\\BackDrop'
 elemPadding = 16
 
 config = {
+    'sourceDrive': None,
     'shares': [],
     'drives': []
 }
@@ -1834,11 +1833,11 @@ remoteDrives = [drive for drive in driveList if win32file.GetDriveType(drive) ==
 sourceDriveListValid = len(remoteDrives) > 0
 
 if sourceDriveListValid:
-    sourceDrive = readSettingFromFile(appDataFolder + '\\sourceDrive.default', remoteDrives[0], remoteDrives)
-    sourceDriveDefault.set(sourceDrive)
+    config['sourceDrive'] = readSettingFromFile(appDataFolder + '\\sourceDrive.default', remoteDrives[0], remoteDrives)
+    sourceDriveDefault.set(config['sourceDrive'])
 
     if not os.path.exists(appDataFolder + '\\sourceDrive.default') or not os.path.isfile(appDataFolder + '\\sourceDrive.default'):
-        writeSettingToFile(sourceDrive, appDataFolder + '\\sourceDrive.default')
+        writeSettingToFile(config['sourceDrive'], appDataFolder + '\\sourceDrive.default')
 
     # Tree frames for tree and scrollbar
     sourceTreeFrame = tk.Frame(mainFrame)
@@ -1877,7 +1876,7 @@ if sourceDriveListValid:
     sourceSelectFrame = tk.Frame(mainFrame)
     sourceSelectFrame.grid(row=0, column=0, pady=(0, elemPadding / 2))
     tk.Label(sourceSelectFrame, text='Source:').pack(side='left')
-    sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, sourceDrive, *tuple(remoteDrives), command=changeSourceDrive)
+    sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, config['sourceDrive'], *tuple(remoteDrives), command=changeSourceDrive)
     sourceSelectMenu.pack(side='left', padx=(12, 0))
 
     sourceTree.bind("<<TreeviewSelect>>", loadSourceInBackground)
