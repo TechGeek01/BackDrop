@@ -346,7 +346,6 @@ class Backup:
         if not self.sourceDrive:
             return False
 
-        destSelection = destTree.selection()
         selectionOk = len(self.config['drives']) > 0 and len(self.config['shares']) > 0
 
         if selectionOk:
@@ -368,7 +367,7 @@ class Backup:
             if sharesKnown and ((len(self.config['drives']) == len(self.config['vidList']) and shareTotal < driveTotal) or (shareTotal < configTotal and destModeSplitEnabled)):
                 # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
 
-                selectedNewDrives = [destTree.item(drive, 'text') for drive in destSelection if destTree.item(drive, 'values')[2] != 'Yes']
+                selectedNewDrives = [drive['name'] for drive in self.config['drives'] if drive['hasConfig'] is False]
                 if not self.confirmWipeExistingDrives and len(selectedNewDrives) > 0:
                     driveString = ', '.join(selectedNewDrives[:-2] + [' and '.join(selectedNewDrives[-2:])])
 
@@ -666,7 +665,7 @@ class Backup:
         driveFrame.pack(fill='x', expand=True)
         driveFrame.columnconfigure(2, weight=1)
 
-        driveVidToLetterMap = {destTree.item(item, 'values')[3]: destTree.item(item, 'text') for item in destTree.get_children()}
+        driveVidToLetterMap = {drive['vid']: drive['name'] for drive in self.config['drives']}
 
         driveInfo = []
         driveShareList = {}
@@ -1205,7 +1204,7 @@ class Backup:
         """Write the current running backup config to config files on the drives."""
         if len(self.config['shares']) > 0 and len(self.config['drives']) > 0:
             driveConfigList = ''.join(['\n%s,%s,%d' % (drive['vid'], drive['serial'], drive['capacity']) for drive in self.config['drives']])
-            driveVidToLetterMap = {destTree.item(item, 'values')[3]: destTree.item(item, 'text') for item in destTree.get_children()}
+            driveVidToLetterMap = {drive['vid']: drive['name'] for drive in self.config['drives']}
 
             # For each drive letter, get drive info, and write file
             for drive in self.config['drives']:
@@ -1666,9 +1665,11 @@ def readConfigFile(file):
                     drive = drive.split(',')
                     newConfig['vidList'][drive[0]] = int(drive[2])
                     newConfig['drives'].append({
+                        'name': 'Unknown',
                         'vid': drive[0],
                         'serial': drive[1],
-                        'capacity': int(drive[2])
+                        'capacity': int(drive[2]),
+                        'hasConfig': None
                     })
 
                     configTotal += int(drive[2])
@@ -1676,6 +1677,9 @@ def readConfigFile(file):
         config = newConfig
         configSelectedSpace.configure(text='Config: ' + human_filesize(configTotal))
         selectFromConfig()
+
+        # TODO: This is a really roundabout way of gathering config file and drive letter data. The better way would be to load the drive list into a variable, and pull from that variable for both this function, and the tree, in order to gather drive info
+        handleDriveSelectionClick()
 
 prevSelection = 0
 prevDriveSelection = []
@@ -1726,9 +1730,11 @@ def handleDriveSelectionClick():
         # Write drive IDs to config
         driveVals = destTree.item(item, 'values')
         selectedDriveList.append({
+            'name': destTree.item(item, 'text'),
             'vid': driveVals[3],
             'serial': driveVals[4],
-            'capacity': int(driveVals[1])
+            'capacity': int(driveVals[1]),
+            'hasConfig': driveVals[2] == 'Yes'
         })
 
         driveSize = driveVals[1]
