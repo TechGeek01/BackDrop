@@ -410,14 +410,6 @@ class Backup:
             # For some reason, .configure() loses the function bind, so we need to re-set this
             self.cmdInfoBlocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: toggleCmdInfo(index))
 
-        def copyCmd(index):
-            """Copy a given indexed command to the clipboard.
-
-            Args:
-                index (int): The index of the command to copy.
-            """
-            clipboard.copy(self.cmdInfoBlocks[index]['fullCmd'])
-
         def copyList(index, item):
             """Copy a given indexed command to the clipboard.
 
