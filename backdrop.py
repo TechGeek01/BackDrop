@@ -1780,6 +1780,7 @@ config = {
 }
 destDriveMasterList = []
 
+backup = None
 commandList = []
 
 threadManager = ThreadManager()
