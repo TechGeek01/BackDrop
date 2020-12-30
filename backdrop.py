@@ -296,13 +296,50 @@ def doCopy(src, dest, guiOptions={}):
             return False
         return True
 
+def displayBackupSummaryChunk(title, payload, reset=False):
+    """Display a chunk of a backup analysis summary to the user.
+
+    Args:
+        title (String): The heading title of the chunk.
+        payload (tuple[]): The chunks of data to display.
+        payload tuple[0]: The subject of the data line.
+        payload tuple[1]: The data to associate to the subject.
+        reset (bool): Whether to clear the summary frame first (default: False).
+    """
+
+    if reset:
+        for widget in backupSummaryTextFrame.winfo_children():
+            widget.destroy()
+
+    tk.Label(backupSummaryTextFrame, text=title, font=(None, 14),
+             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+    summaryFrame = tk.Frame(backupSummaryTextFrame)
+    summaryFrame.pack(fill='x', expand=True)
+    summaryFrame.columnconfigure(2, weight=1)
+
+    for i, item in enumerate(payload):
+        if len(item) > 2:
+            textColor = item[2]
+        else:
+            textColor = Color.NORMAL
+
+        tk.Label(summaryFrame, text=item[0], fg=textColor).grid(row=i, column=0, sticky='w')
+        tk.Label(summaryFrame, text='\u27f6', fg=textColor).grid(row=i, column=1, sticky='w')
+        wrapFrame = tk.Frame(summaryFrame)
+        wrapFrame.grid(row=i, column=2, sticky='ew')
+        wrapFrame.update_idletasks()
+        tk.Label(summaryFrame, text=item[1], fg=textColor,
+                 wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+
 class Backup:
-    def __init__(self, config, startBackupFn, killBackupFn, threadManager, progress):
+    def __init__(self, config, startBackupFn, killBackupFn, analysisSummaryDisplayFn, threadManager, progress):
         """
         Args:
             config (dict): The backup config to be processed.
             startBackupFn (def): The function to be used to start the backup.
             killBackupFn (def): The function to be used to kill the backup.
+            analysisSummaryDisplayFn (def): The function to be used to show an analysis
+                    summary.
             threadManager (ThreadManager): The thread manager to check for kill flags.
             progress (Progress): The progress tracker to bind to.
         """
@@ -325,6 +362,7 @@ class Backup:
 
         self.startBackupFn = startBackupFn
         self.killBackupFn = killBackupFn
+        self.analysisSummaryDisplayFn = analysisSummaryDisplayFn
         self.threadManager = threadManager
         self.progress = progress
 
@@ -620,48 +658,21 @@ class Backup:
         destModeSplitEnabled = destModeSplitCheckVar.get()
         splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if destModeSplitEnabled else 'Disabled'), fg=Color.ENABLED if destModeSplitEnabled else Color.DISABLED)
 
-        # Set UI variables
-        summaryHeaderFont = (None, 14)
+        shareInfo = {share['name']: share['size'] for share in self.config['shares']}
+        allShareInfo = {share['name']: share['size'] for share in self.config['shares']}
 
-        for widget in backupSummaryTextFrame.winfo_children():
-            widget.destroy()
-
-        tk.Label(backupSummaryTextFrame, text='Shares', font=summaryHeaderFont,
-                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-        summaryFrame = tk.Frame(backupSummaryTextFrame)
-        summaryFrame.pack(fill='x', expand=True)
-        summaryFrame.columnconfigure(2, weight=1)
-
-        shareInfo = {}
-        allShareInfo = {}
-        for i, item in enumerate(self.config['shares']):
-            shareName = item['name']
-            shareSize = item['size']
-
-            shareInfo[shareName] = shareSize
-            allShareInfo[shareName] = shareSize
-
-            tk.Label(summaryFrame, text=shareName).grid(row=i, column=0, sticky='w')
-            tk.Label(summaryFrame, text='\u27f6').grid(row=i, column=1, sticky='w')
-            wrapFrame = tk.Frame(summaryFrame)
-            wrapFrame.grid(row=i, column=2, sticky='ew')
-            wrapFrame.update_idletasks()
-            tk.Label(summaryFrame, text=human_filesize(shareSize),
-                     wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
-
-        tk.Label(backupSummaryTextFrame, text='Drives', font=summaryHeaderFont,
-                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-        driveFrame = tk.Frame(backupSummaryTextFrame)
-        driveFrame.pack(fill='x', expand=True)
-        driveFrame.columnconfigure(2, weight=1)
-
-        driveVidToLetterMap = {drive['vid']: drive['name'] for drive in self.config['drives']}
+        self.analysisSummaryDisplayFn(
+            title='Shares',
+            payload=[(share['name'], share['size']) for share in self.config['shares']],
+            reset=True
+        )
 
         driveInfo = []
         driveShareList = {}
         masterDriveList = [drive for drive in self.config['drives']]
         masterDriveList.extend([{'vid': vid, 'capacity': capacity} for vid, capacity in self.config['missingDrives'].items()])
         connectedVidList = [drive['vid'] for drive in self.config['drives']]
+        showDriveInfo = []
         for i, drive in enumerate(masterDriveList):
             driveConnected = drive['vid'] in connectedVidList
 
@@ -683,16 +694,12 @@ class Backup:
             # Enumerate list for tracking what shares go where
             driveShareList[drive['vid']] = []
 
-            tk.Label(driveFrame, text=curDriveInfo['name'],
-                     fg=Color.NORMAL if 'name' in curDriveInfo.keys() else Color.FADED).grid(row=i, column=0, sticky='w')
-            tk.Label(driveFrame, text='\u27f6',
-                     fg=Color.NORMAL if 'name' in curDriveInfo.keys() else Color.FADED).grid(row=i, column=1, sticky='w')
-            wrapFrame = tk.Frame(driveFrame)
-            wrapFrame.grid(row=i, column=2, sticky='ew')
-            wrapFrame.update_idletasks()
-            tk.Label(driveFrame, text=human_filesize(drive['capacity']),
-                     fg=Color.NORMAL if 'name' in curDriveInfo.keys() else Color.FADED,
-                     wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+            showDriveInfo.append((curDriveInfo['name'], human_filesize(drive['capacity']), Color.NORMAL if driveConnected else Color.FADED))
+
+        self.analysisSummaryDisplayFn(
+            title='Drives',
+            payload=showDriveInfo
+        )
 
         driveVidToName = {drive['vid']: drive['name'] for drive in driveInfo}
 
@@ -1085,13 +1092,8 @@ class Backup:
                     'mode': 'copy'
                 })
 
-        tk.Label(backupSummaryTextFrame, text='Files', font=summaryHeaderFont,
-                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-        filesFrame = tk.Frame(backupSummaryTextFrame)
-        filesFrame.pack(fill='x', expand=True)
-        filesFrame.columnconfigure(2, weight=1)
-
         # Gather and summarize totals for analysis summary
+        showFileInfo = []
         for i, drive in enumerate(driveShareList.keys()):
             fileSummary = []
             driveTotal = {
@@ -1134,51 +1136,31 @@ class Backup:
             self.totals['delta'] += driveTotal['delta']
 
             if len(fileSummary) > 0:
-                tk.Label(filesFrame, text=driveVidToName[drive],
-                         fg=Color.NORMAL).grid(row=i, column=0, sticky='w')
-                tk.Label(filesFrame, text='\u27f6',
-                         fg=Color.NORMAL).grid(row=i, column=1, sticky='w')
-                wrapFrame = tk.Frame(filesFrame)
-                wrapFrame.grid(row=i, column=2, sticky='ew')
-                wrapFrame.update_idletasks()
-                tk.Label(filesFrame, text='\n'.join(fileSummary), fg=Color.NORMAL,
-                         wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+                showFileInfo.append((driveVidToName[drive], '\n'.join(fileSummary)))
+
+        self.analysisSummaryDisplayFn(
+            title='Files',
+            payload=showFileInfo
+        )
 
         # Concat both lists into command list
-        commandList = []
-        commandList.extend([cmd for cmd in purgeCommandList])
+        commandList = [cmd for cmd in purgeCommandList]
         commandList.extend([cmd for cmd in copyCommandList])
 
         # Concat lists into display command list
-        displayCommandList = []
-        displayCommandList.extend([cmd for cmd in displayPurgeCommandList])
+        displayCommandList = [cmd for cmd in displayPurgeCommandList]
         displayCommandList.extend([cmd for cmd in displayCopyCommandList])
 
         # Fix display index on command list
         for i, cmd in enumerate(commandList):
             commandList[i]['displayIndex'] = i
 
+        self.analysisSummaryDisplayFn(
+            title='Summary',
+            payload=[(driveVidToName[drive], '\n'.join(shares), Color.NORMAL if drive in connectedVidList else Color.FADED) for drive, shares in driveShareList.items()]
+        )
+
         self.enumerateCommandInfo(displayCommandList)
-
-        tk.Label(backupSummaryTextFrame, text='Summary', font=summaryHeaderFont,
-                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-        summaryFrame = tk.Frame(backupSummaryTextFrame)
-        summaryFrame.pack(fill='x', expand=True)
-        summaryFrame.columnconfigure(2, weight=1)
-        i = 0
-        for drive, shares in driveShareList.items():
-            tk.Label(summaryFrame, text=driveVidToName[drive],
-                     fg=Color.NORMAL if drive in driveVidToLetterMap.keys() else Color.FADED).grid(row=i, column=0, sticky='w')
-            tk.Label(summaryFrame, text='\u27f6',
-                     fg=Color.NORMAL if drive in driveVidToLetterMap.keys() else Color.FADED).grid(row=i, column=1, sticky='w')
-            wrapFrame = tk.Frame(summaryFrame)
-            wrapFrame.grid(row=i, column=2, sticky='ew')
-            wrapFrame.update_idletasks()
-            tk.Label(summaryFrame, text='\n'.join(shares),
-                     fg=Color.NORMAL if drive in driveVidToLetterMap.keys() else Color.FADED,
-                     wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
-
-            i += 1
 
         self.analysisValid = True
 
@@ -1345,6 +1327,7 @@ def startBackupAnalysis():
             config=config,
             startBackupFn=startBackup,
             killBackupFn=lambda: threadManager.kill('Backup'),
+            analysisSummaryDisplayFn=displayBackupSummaryChunk,
             threadManager=threadManager,
             progress=progress
         )
