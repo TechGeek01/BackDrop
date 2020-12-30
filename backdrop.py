@@ -678,7 +678,7 @@ class Backup:
 
         self.analysisSummaryDisplayFn(
             title='Shares',
-            payload=[(share['name'], share['size']) for share in self.config['shares']],
+            payload=[(share['name'], human_filesize(share['size'])) for share in self.config['shares']],
             reset=True
         )
 
