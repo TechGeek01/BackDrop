@@ -25,12 +25,14 @@ appVersion = '2.1.0-alpha.1'
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
 # IDEA: Add interactive CLI option if correct parameters are passed in @interface
 
-def center(win):
+def center(win, centerOnWin=None):
     """Center a tkinter window on screen.
 
     Args:
-        win (tkinter.Tk()): The tkinter Tk() object to center.
+        win (tkinter.Tk): The tkinter Tk() object to center.
+        centerOnWin (tkinter.Tk): The window to center the child window on.
     """
+
     win.update_idletasks()
     width = win.winfo_width()
     frm_width = win.winfo_rootx() - win.winfo_x()
@@ -38,8 +40,21 @@ def center(win):
     height = win.winfo_height()
     titlebar_height = win.winfo_rooty() - win.winfo_y()
     win_height = height + titlebar_height + frm_width
-    x = win.winfo_screenwidth() // 2 - win_width // 2
-    y = win.winfo_screenheight() // 2 - win_height // 2
+
+    if centerOnWin is not None:
+        # Center element provided, so use its position for reference
+        root_frm_width = centerOnWin.winfo_rootx() - centerOnWin.winfo_x()
+        root_win_width = centerOnWin.winfo_width() + 2 * root_frm_width
+        root_titlebar_height = centerOnWin.winfo_rooty() - centerOnWin.winfo_y()
+        root_win_height = centerOnWin.winfo_height() + root_titlebar_height + root_frm_width
+
+        x = centerOnWin.winfo_x() + root_win_width // 2 - win_width // 2
+        y = centerOnWin.winfo_y() + root_win_height // 2 - win_height // 2
+    else:
+        # No center element, so center on screen
+        x = win.winfo_screenwidth() // 2 - win_width // 2
+        y = win.winfo_screenheight() // 2 - win_height // 2
+
     win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
     win.deiconify()
 
