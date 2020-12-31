@@ -1349,53 +1349,6 @@ def startBackupAnalysis():
         )
         threadManager.start(threadManager.SINGLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
-def writeSettingToFile(setting, file):
-    """Write a setting to a given file.
-
-    Args:
-        setting (String): The setting to be written.
-        file (String): The filename to write to.
-    """
-    dirParts = file.split('\\')
-    pathDir = '\\'.join(dirParts[:-1])
-
-    if not os.path.exists(pathDir):
-        os.mkdir(pathDir)
-
-    f = open(file, 'w')
-    f.write(setting)
-    f.close()
-
-def readSettingFromFile(file, default, verifyData=None):
-    """Read a setting from a file.
-
-    Args:
-        file (String): The file to read from.
-        default (String): The default value to set if setting can't be read.
-        verifyData (String[], optional): A list of data to verify the read setting against. Defaults to None.
-            If the setting is able to be read from the given file, and this list is
-            defined, the default value will be used if the read setting isn't contained
-            in the verifyData list.
-
-    Returns:
-        String: The setting read from the file if the file exists, and result is
-        contained in optional verifyData list. Default otherwise.
-    """
-    if os.path.exists(file) and os.path.isfile(file):
-        f = open(file, 'r')
-        rawConfig = f.read().split('\n')
-        f.close()
-
-        setting = rawConfig[0]
-
-        if verifyData is not None and setting not in verifyData:
-            setting = default
-            writeSettingToFile(default, file)
-
-        return setting
-    else:
-        return default
-
 def loadSource():
     """Load the source share list, and display it in the tree."""
     global backup
@@ -1427,8 +1380,8 @@ def changeSourceDrive(selection):
     """
     global config
     config['sourceDrive'] = selection
+    preferences.set('sourceDrive', selection)
     startRefreshSource()
-    writeSettingToFile(config['sourceDrive'], appDataFolder + '\\sourceDrive.default')
 
 # IDEA: @Calculate total space of all @shares in background
 prevShareSelection = []
@@ -1838,11 +1791,8 @@ remoteDrives = [drive for drive in driveList if win32file.GetDriveType(drive) ==
 sourceDriveListValid = len(remoteDrives) > 0
 
 if sourceDriveListValid:
-    config['sourceDrive'] = readSettingFromFile(appDataFolder + '\\sourceDrive.default', remoteDrives[0], remoteDrives)
+    config['sourceDrive'] = preferences.get('sourceDrive', remoteDrives[0], remoteDrives)
     sourceDriveDefault.set(config['sourceDrive'])
-
-    if not os.path.exists(appDataFolder + '\\sourceDrive.default') or not os.path.isfile(appDataFolder + '\\sourceDrive.default'):
-        writeSettingToFile(config['sourceDrive'], appDataFolder + '\\sourceDrive.default')
 
     # Tree frames for tree and scrollbar
     sourceTreeFrame = tk.Frame(mainFrame)
