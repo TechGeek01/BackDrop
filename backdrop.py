@@ -11,6 +11,7 @@ import itertools
 import subprocess
 import clipboard
 import keyboard
+import ctypes
 from PIL import Image, ImageTk
 import hashlib
 import sys
@@ -1989,7 +1990,18 @@ def showSettings():
         settingsWin.geometry('450x200')
         settingsWin.iconbitmap(resource_path('media\\icon.ico'))
         center(settingsWin, root)
-        settingsWin.lift()
+        settingsWin.transient(root)
+        settingsWin.grab_set()
+        root.wm_attributes('-disabled', True)
+
+        def onClose():
+            settingsWin.destroy()
+            root.wm_attributes('-disabled', False)
+
+            ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
+            root.focus_set()
+
+        settingsWin.protocol('WM_DELETE_WINDOW', onClose)
 
         mainFrame = tk.Frame(settingsWin)
         mainFrame.pack(fill='both', expand=True, padx=elemPadding, pady=elemPadding)
