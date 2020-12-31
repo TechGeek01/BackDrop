@@ -21,7 +21,7 @@ from bin.preferences import Preferences
 from bin.progress import Progress
 
 # Set meta info
-appVersion = '2.1.0-alpha.1'
+appVersion = '2.1.0-alpha.2'
 
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
 # IDEA: Add interactive CLI option if correct parameters are passed in @interface
@@ -1986,15 +1986,24 @@ def showSettings():
         settingsWin = tk.Toplevel(root)
         settingsWin.title('Settings - Backdrop')
         settingsWin.resizable(False, False)
-        settingsWin.geometry('600x400')
+        settingsWin.geometry('450x200')
         settingsWin.iconbitmap(resource_path('media\\icon.ico'))
         center(settingsWin, root)
         settingsWin.lift()
 
-        mainFrame = tk.Frame(settingsWin, bg='#222')
-        mainFrame.pack(fill='both', expand=True)
-        testLabel = tk.Label(mainFrame, text='This is a test', font=(None, 20))
-        testLabel.pack(fill='both', expand=True)
+        mainFrame = tk.Frame(settingsWin)
+        mainFrame.pack(fill='both', expand=True, padx=elemPadding, pady=elemPadding)
+
+        mainFrame.columnconfigure(0, weight=1)
+        mainFrame.rowconfigure(0, weight=1)
+
+        darkModeCheckVar = tk.BooleanVar(settingsWin, value=uiColor.isDarkMode())
+        darkModeCheck = tk.Checkbutton(mainFrame, text='Enable dark mode (experimental)', variable=darkModeCheckVar, command=lambda: preferences.set('darkMode', darkModeCheckVar.get()))
+        darkModeCheck.grid(row=0, column=0)
+
+        disclaimerFrame = tk.Frame(mainFrame, bg=uiColor.INFO)
+        disclaimerFrame.grid(row=1, column=0, ipadx=elemPadding / 2, ipady=4)
+        tk.Label(disclaimerFrame, text='Changes are saved immediately, and will take effect on the next restart', bg=uiColor.INFO, fg=uiColor.BLACK).pack(fill='y', expand=True)
 
 settingsBtn.configure(command=showSettings)
 
