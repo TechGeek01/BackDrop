@@ -51,8 +51,6 @@ class Preferences:
 
         prefsFile = open(self.file, 'w')
 
-        print(os.linesep)
-
         for pref, value in self.prefs.items():
             prefsFile.write(f"{pref}={value}\n")
 
