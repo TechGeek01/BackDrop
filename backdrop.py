@@ -1801,6 +1801,9 @@ root.geometry('1300x700')
 root.iconbitmap(resource_path('media\\icon.ico'))
 center(root)
 
+if uiColor.isDarkMode():
+    root.tk_setPalette(background=uiColor.BG)
+
 mainFrame = tk.Frame(root)
 mainFrame.pack(fill='both', expand=1, padx=elemPadding, pady=(elemPadding / 2, elemPadding))
 
@@ -1808,6 +1811,8 @@ mainFrame.pack(fill='both', expand=1, padx=elemPadding, pady=(elemPadding / 2, e
 buttonWinStyle = ttk.Style()
 buttonWinStyle.theme_use('vista')
 buttonWinStyle.configure('win.TButton', padding=5)
+if uiColor.isDarkMode():
+    buttonWinStyle.configure('win.TButton', background=uiColor.BG)
 
 buttonWinStyle = ttk.Style()
 buttonWinStyle.theme_use('vista')
@@ -1995,10 +2000,10 @@ backupSummaryFrame.update()
 brandingFrame = tk.Frame(rightSideFrame)
 brandingFrame.pack()
 
-logoImageLoad = Image.open(resource_path('media\\logo_ui.png'))
+logoImageLoad = Image.open(resource_path(f"media\\logo_ui{'_light' if uiColor.isDarkMode() else ''}.png"))
 logoImageRender = ImageTk.PhotoImage(logoImageLoad)
 tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
-tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=Color.FADED).pack(side='left', anchor='s', pady=(0, 12))
+tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
 backupTitle = tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20))
 backupTitle.pack()
