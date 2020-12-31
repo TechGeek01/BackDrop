@@ -1954,6 +1954,10 @@ brandingFrame.pack()
 
 logoImageLoad = Image.open(resource_path(f"media\\logo_ui{'_light' if uiColor.isDarkMode() else ''}.png"))
 logoImageRender = ImageTk.PhotoImage(logoImageLoad)
+settingsIconLoad = Image.open(resource_path(f"media\\settings{'_light' if uiColor.isDarkMode() else ''}.png"))
+settingsIconRender = ImageTk.PhotoImage(settingsIconLoad)
+settingsBtn = tk.Button(brandingFrame, image=settingsIconRender, relief='sunken', borderwidth=0)
+settingsBtn.pack(side='left', padx=(0, 8))
 tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
 tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
@@ -1972,6 +1976,27 @@ startBackupBtn.pack(pady=elemPadding / 2)
 
 # QUESTION: Does init loadDest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
 threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=True)
+
+settingsWin = None
+
+def showSettings():
+    global settingsWin
+
+    if settingsWin is None or not settingsWin.winfo_exists():
+        settingsWin = tk.Toplevel(root)
+        settingsWin.title('Settings - Backdrop')
+        settingsWin.resizable(False, False)
+        settingsWin.geometry('600x400')
+        settingsWin.iconbitmap(resource_path('media\\icon.ico'))
+        center(settingsWin, root)
+        settingsWin.lift()
+
+        mainFrame = tk.Frame(settingsWin, bg='#222')
+        mainFrame.pack(fill='both', expand=True)
+        testLabel = tk.Label(mainFrame, text='This is a test', font=(None, 20))
+        testLabel.pack(fill='both', expand=True)
+
+settingsBtn.configure(command=showSettings)
 
 def onClose():
     if threadManager.is_alive('Backup'):
