@@ -7,7 +7,7 @@
   <img alt="undefined" src="https://img.shields.io/github/downloads/TechGeek01/BackDrop/total" />
   <a href="https://github.com/TechGeek01/BackDrop/blob/master/LICENSE"><img alt="undefined" src="https://img.shields.io/github/license/TechGeek01/BackDrop"></a>
   <br />
-  <a href="https://github.com/TechGeek01/BackDrop/releases/download/v1.1.3/backdrop.exe" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a>
+  <a href="https://github.com/TechGeek01/BackDrop/releases/download/v2.0.1/backdrop-v2.0.1.exe" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a>
   <br /><br />
 </p>
 
