@@ -17,6 +17,7 @@ import sys
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import Color
 from bin.threadManager import ThreadManager
+from bin.preferences import Preferences
 from bin.progress import Progress
 
 # Set meta info
@@ -1765,12 +1766,13 @@ def startBackup():
 # Set app defaults
 backupConfigDir = '.backdrop'
 backupConfigFile = 'backup.config'
-appConfigFile = 'defaults.config'
 appDataFolder = os.getenv('LocalAppData') + '\\BackDrop'
 elemPadding = 16
 
+preferences = Preferences(appDataFolder + '\\' + 'preferences.config')
+
 # Create Color class instance for UI
-uiColor = Color()
+uiColor = Color(preferences.get('darkMode', False))
 
 config = {
     'sourceDrive': None,
