@@ -17,8 +17,10 @@ class Color:
     BG = None
     FG = BLACK
 
-    def __init__(self, darkMode=False):
+    def __init__(self, root, darkMode=False):
         self.darkMode = darkMode
+
+        Color.BG = root.cget('background')
 
         if darkMode:
             Color.BG = '#282822'

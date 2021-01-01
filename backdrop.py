@@ -947,9 +947,6 @@ elemPadding = 16
 
 preferences = Preferences(appDataFolder + '\\' + 'preferences.config')
 
-# Create Color class instance for UI
-uiColor = Color(preferences.get('darkMode', False))
-
 config = {
     'sourceDrive': None,
     'splitMode': False,
@@ -980,6 +977,9 @@ root.geometry('1300x700')
 root.iconbitmap(resource_path('media\\icon.ico'))
 center(root)
 
+# Create Color class instance for UI
+uiColor = Color(root, preferences.get('darkMode', False))
+
 if uiColor.isDarkMode():
     root.tk_setPalette(background=uiColor.BG)
 
@@ -987,19 +987,14 @@ mainFrame = tk.Frame(root)
 mainFrame.pack(fill='both', expand=1, padx=elemPadding, pady=(elemPadding / 2, elemPadding))
 
 # Set some default styling
-buttonWinStyle = ttk.Style()
-buttonWinStyle.theme_use('vista')
-buttonWinStyle.configure('win.TButton', padding=5)
-if uiColor.isDarkMode():
-    buttonWinStyle.configure('win.TButton', background=uiColor.BG)
+tkStyle = ttk.Style()
+tkStyle.theme_use('vista')
+tkStyle.configure('TButton', padding=5)
+tkStyle.configure('danger.TButton', padding=5, background='#b00')
+tkStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(None, 15), background='#00bfe6')
 
-buttonWinStyle = ttk.Style()
-buttonWinStyle.theme_use('vista')
-buttonWinStyle.configure('danger.TButton', padding=5, background='#b00')
-
-buttonIconStyle = ttk.Style()
-buttonIconStyle.theme_use('vista')
-buttonIconStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(None, 15), background='#00bfe6')
+tkStyle.configure('TButton', background=uiColor.BG)
+tkStyle.configure('TCheckbutton', background=uiColor.BG, foreground=uiColor.NORMAL)
 
 # Progress/status values
 progressBar = ttk.Progressbar(mainFrame, maximum=100)
@@ -1087,7 +1082,7 @@ altTooltipFrame = tk.Frame(destModeFrame, bg=uiColor.INFO)
 altTooltipFrame.pack(side='left', ipadx=elemPadding / 2, ipady=4)
 tk.Label(altTooltipFrame, text='Hold ALT while selecting a drive to ignore config files', bg=uiColor.INFO, fg=uiColor.BLACK).pack(fill='y', expand=1)
 
-splitModeCheck = tk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
+splitModeCheck = ttk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
 splitModeCheck.pack(side='left', padx=(12, 0))
 
 destTree = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'))
@@ -1141,7 +1136,7 @@ splitModeStatus.grid(row=0, column=3, padx=(12, 0))
 
 refreshDestBtn = ttk.Button(destMetaFrame, text='\u2b6e', command=startRefreshDest, style='icon.TButton')
 refreshDestBtn.grid(row=0, column=1)
-startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze Backup', command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled', style='win.TButton')
+startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze Backup', command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled')
 startAnalysisBtn.grid(row=0, column=2)
 
 driveSelectBind = destTree.bind("<<TreeviewSelect>>", selectDriveInBackground)
@@ -1179,7 +1174,7 @@ logoImageLoad = Image.open(resource_path(f"media\\logo_ui{'_light' if uiColor.is
 logoImageRender = ImageTk.PhotoImage(logoImageLoad)
 settingsIconLoad = Image.open(resource_path(f"media\\settings{'_light' if uiColor.isDarkMode() else ''}.png"))
 settingsIconRender = ImageTk.PhotoImage(settingsIconLoad)
-settingsBtn = tk.Button(brandingFrame, image=settingsIconRender, relief='sunken', borderwidth=0)
+settingsBtn = tk.Button(brandingFrame, image=settingsIconRender, relief='sunken', borderwidth=0, highlightcolor=uiColor.BG, activebackground=uiColor.BG)
 settingsBtn.pack(side='left', padx=(0, 8))
 tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
 tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
@@ -1194,7 +1189,7 @@ tk.Label(backupSummaryTextFrame, text='This area will summarize the backup that\
          wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
 tk.Label(backupSummaryTextFrame, text='Please start a backup analysis to generate a summary.',
          wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-startBackupBtn = ttk.Button(backupSummaryFrame, text='Run Backup', command=startBackup, state='disable', style='win.TButton')
+startBackupBtn = ttk.Button(backupSummaryFrame, text='Run Backup', command=startBackup, state='disable')
 startBackupBtn.pack(pady=elemPadding / 2)
 
 # QUESTION: Does init loadDest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
@@ -1232,7 +1227,7 @@ def showSettings():
         mainFrame.rowconfigure(0, weight=1)
 
         darkModeCheckVar = tk.BooleanVar(settingsWin, value=uiColor.isDarkMode())
-        darkModeCheck = tk.Checkbutton(mainFrame, text='Enable dark mode (experimental)', variable=darkModeCheckVar, command=lambda: preferences.set('darkMode', darkModeCheckVar.get()))
+        darkModeCheck = ttk.Checkbutton(mainFrame, text='Enable dark mode (experimental)', variable=darkModeCheckVar, command=lambda: preferences.set('darkMode', darkModeCheckVar.get()))
         darkModeCheck.grid(row=0, column=0)
 
         disclaimerFrame = tk.Frame(mainFrame, bg=uiColor.INFO)
