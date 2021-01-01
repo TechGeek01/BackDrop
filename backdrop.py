@@ -376,6 +376,7 @@ class Backup:
         self.commandList = []
 
         self.config = config
+        self.driveVidInfo = {drive['vid']: drive for drive in config['drives']}
 
         self.startBackupFn = startBackupFn
         self.killBackupFn = killBackupFn
@@ -713,8 +714,6 @@ class Backup:
             payload=showDriveInfo
         )
 
-        driveVidToName = {drive['vid']: drive['name'] for drive in driveInfo}
-
         # For each drive, smallest first, filter list of shares to those that fit
         driveInfo.sort(key=lambda x: x['free'])
 
@@ -1028,11 +1027,11 @@ class Backup:
         displayPurgeCommandList = []
         displayCopyCommandList = []
         for drive, shares in driveShareList.items():
-            modifyFileList = buildDeltaFileList(driveVidToName[drive], shares)
+            modifyFileList = buildDeltaFileList(self.driveVidInfo[drive]['name'], shares)
 
             deleteItems = modifyFileList['delete']
             if len(deleteItems) > 0:
-                deleteFileList[driveVidToName[drive]] = deleteItems
+                deleteFileList[self.driveVidInfo[drive]['name']] = deleteItems
                 fileDeleteList = [file for file, size in deleteItems]
 
                 # Format list of files into commands
@@ -1041,7 +1040,7 @@ class Backup:
                 displayPurgeCommandList.append({
                     'enabled': True,
                     'type': 'list',
-                    'drive': driveVidToName[drive],
+                    'drive': self.driveVidInfo[drive]['name'],
                     'size': sum([size for file, size in deleteItems]),
                     'fileList': fileDeleteList,
                     'cmdList': fileDeleteCmdList
@@ -1050,7 +1049,7 @@ class Backup:
                 purgeCommandList.append({
                     'displayIndex': len(displayPurgeCommandList) + 1,
                     'type': 'list',
-                    'drive': driveVidToName[drive],
+                    'drive': self.driveVidInfo[drive]['name'],
                     'fileList': fileDeleteList,
                     'cmdList': fileDeleteCmdList
                 })
@@ -1059,13 +1058,13 @@ class Backup:
             replaceItems = modifyFileList['replace']
             replaceItems.sort(key=lambda x: x[1])
             if len(replaceItems) > 0:
-                replaceFileList[driveVidToName[drive]] = replaceItems
+                replaceFileList[self.driveVidInfo[drive]['name']] = replaceItems
                 fileReplaceList = [file for file, sourceSize, destSize in replaceItems]
 
                 displayCopyCommandList.append({
                     'enabled': True,
                     'type': 'fileList',
-                    'drive': driveVidToName[drive],
+                    'drive': self.driveVidInfo[drive]['name'],
                     'size': sum([sourceSize for file, sourceSize, destSize in replaceItems]),
                     'fileList': fileReplaceList,
                     'mode': 'replace'
@@ -1074,22 +1073,22 @@ class Backup:
                 copyCommandList.append({
                     'displayIndex': len(displayPurgeCommandList) + 1,
                     'type': 'fileList',
-                    'drive': driveVidToName[drive],
+                    'drive': self.driveVidInfo[drive]['name'],
                     'fileList': fileReplaceList,
                     'payload': replaceItems,
                     'mode': 'replace'
                 })
 
             # Build list of new files to copy
-            newItems = buildNewFileList(driveVidToName[drive], shares)['new']
+            newItems = buildNewFileList(self.driveVidInfo[drive]['name'], shares)['new']
             if len(newItems) > 0:
-                newFileList[driveVidToName[drive]] = newItems
+                newFileList[self.driveVidInfo[drive]['name']] = newItems
                 fileCopyList = [file for file, size in newItems]
 
                 displayCopyCommandList.append({
                     'enabled': True,
                     'type': 'fileList',
-                    'drive': driveVidToName[drive],
+                    'drive': self.driveVidInfo[drive]['name'],
                     'size': sum([size for file, size in newItems]),
                     'fileList': fileCopyList,
                     'mode': 'copy'
@@ -1098,7 +1097,7 @@ class Backup:
                 copyCommandList.append({
                     'displayIndex': len(displayPurgeCommandList) + 1,
                     'type': 'fileList',
-                    'drive': driveVidToName[drive],
+                    'drive': self.driveVidInfo[drive]['name'],
                     'fileList': fileCopyList,
                     'payload': newItems,
                     'mode': 'copy'
@@ -1117,38 +1116,38 @@ class Backup:
                 'new': 0
             }
 
-            if driveVidToName[drive] in deleteFileList.keys():
-                driveTotal['delete'] = sum([size for file, size in deleteFileList[driveVidToName[drive]]])
+            if self.driveVidInfo[drive]['name'] in deleteFileList.keys():
+                driveTotal['delete'] = sum([size for file, size in deleteFileList[self.driveVidInfo[drive]['name']]])
 
                 driveTotal['running'] -= driveTotal['delete']
                 self.totals['delta'] -= driveTotal['delete']
 
-                fileSummary.append(f"Deleting {len(deleteFileList[driveVidToName[drive]])} files ({human_filesize(driveTotal['delete'])})")
+                fileSummary.append(f"Deleting {len(deleteFileList[self.driveVidInfo[drive]['name']])} files ({human_filesize(driveTotal['delete'])})")
 
-            if driveVidToName[drive] in replaceFileList.keys():
-                driveTotal['replace'] = sum([sourceSize for file, sourceSize, destSize in replaceFileList[driveVidToName[drive]]])
+            if self.driveVidInfo[drive]['name'] in replaceFileList.keys():
+                driveTotal['replace'] = sum([sourceSize for file, sourceSize, destSize in replaceFileList[self.driveVidInfo[drive]['name']]])
 
                 driveTotal['running'] += driveTotal['replace']
                 driveTotal['copy'] += driveTotal['replace']
-                driveTotal['delta'] += sum([sourceSize - destSize for file, sourceSize, destSize in replaceFileList[driveVidToName[drive]]])
+                driveTotal['delta'] += sum([sourceSize - destSize for file, sourceSize, destSize in replaceFileList[self.driveVidInfo[drive]['name']]])
 
-                fileSummary.append(f"Updating {len(replaceFileList[driveVidToName[drive]])} files ({human_filesize(driveTotal['replace'])})")
+                fileSummary.append(f"Updating {len(replaceFileList[self.driveVidInfo[drive]['name']])} files ({human_filesize(driveTotal['replace'])})")
 
-            if driveVidToName[drive] in newFileList.keys():
-                driveTotal['new'] = sum([size for file, size in newFileList[driveVidToName[drive]]])
+            if self.driveVidInfo[drive]['name'] in newFileList.keys():
+                driveTotal['new'] = sum([size for file, size in newFileList[self.driveVidInfo[drive]['name']]])
 
                 driveTotal['running'] += driveTotal['new']
                 driveTotal['copy'] += driveTotal['new']
                 driveTotal['delta'] += driveTotal['new']
 
-                fileSummary.append(f"{len(newFileList[driveVidToName[drive]])} new files ({human_filesize(driveTotal['new'])})")
+                fileSummary.append(f"{len(newFileList[self.driveVidInfo[drive]['name']])} new files ({human_filesize(driveTotal['new'])})")
 
             # Increment master totals
             self.totals['master'] += driveTotal['running']
             self.totals['delta'] += driveTotal['delta']
 
             if len(fileSummary) > 0:
-                showFileInfo.append((driveVidToName[drive], '\n'.join(fileSummary)))
+                showFileInfo.append((self.driveVidInfo[drive]['name'], '\n'.join(fileSummary)))
 
         self.analysisSummaryDisplayFn(
             title='Files',
@@ -1169,7 +1168,7 @@ class Backup:
 
         self.analysisSummaryDisplayFn(
             title='Summary',
-            payload=[(driveVidToName[drive], '\n'.join(shares), uiColor.NORMAL if drive in connectedVidList else uiColor.FADED) for drive, shares in driveShareList.items()]
+            payload=[(self.driveVidInfo[drive]['name'], '\n'.join(shares), uiColor.NORMAL if drive in connectedVidList else uiColor.FADED) for drive, shares in driveShareList.items()]
         )
 
         self.enumerateCommandInfo(displayCommandList)
@@ -1194,19 +1193,18 @@ class Backup:
         """Write the current running backup config to config files on the drives."""
         if len(self.config['shares']) > 0 and len(self.config['drives']) > 0:
             driveConfigList = ''.join(['\n%s,%s,%d' % (drive['vid'], drive['serial'], drive['capacity']) for drive in self.config['drives']])
-            driveVidToLetterMap = {drive['vid']: drive['name'] for drive in self.config['drives']}
 
             # For each drive letter, get drive info, and write file
             for drive in self.config['drives']:
-                if drive['vid'] in driveVidToLetterMap.keys():
-                    if not os.path.exists('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir)):
+                if drive['vid'] in self.driveVidInfo.keys():
+                    if not os.path.exists(f"{self.driveVidInfo[drive['vid']]['name']}{backupConfigDir}"):
                         # If dir doesn't exist, make it
-                        os.mkdir('%s:/%s' % (destDriveMap[drive['vid']], backupConfigDir))
-                    elif os.path.exists('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)) and os.path.isdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile)):
+                        os.mkdir(f"{self.driveVidInfo[drive['vid']]['name']}{backupConfigDir}")
+                    elif os.path.isdir(f"{self.driveVidInfo[drive['vid']]['name']}{backupConfigDir}\\{backupConfigFile}"):
                         # If dir exists but backup config filename is dir, delete the dir
-                        os.rmdir('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile))
+                        os.rmdir(f"{self.driveVidInfo[drive['vid']]['name']}{backupConfigDir}\\{backupConfigFile}")
 
-                    f = open('%s:/%s/%s' % (destDriveMap[drive['vid']], backupConfigDir, backupConfigFile), 'w')
+                    f = open(f"{self.driveVidInfo[drive['vid']]['name']}{backupConfigDir}\\{backupConfigFile}", 'w')
                     # f.write('[id]\n%s,%s\n\n' % (driveInfo['vid'], driveInfo['serial']))
                     f.write('[shares]\n%s\n\n' % (','.join([item['name'] for item in self.config['shares']])))
 
@@ -1474,7 +1472,6 @@ def loadSourceInBackground(event):
 
 def loadDest():
     """Load the destination drive info, and display it in the tree."""
-    global destDriveMap
     global destDriveMasterList
 
     progress.startIndeterminate()
@@ -1497,7 +1494,6 @@ def loadDest():
 
     # Enumerate drive list to find info about all non-source drives
     totalUsage = 0
-    destDriveMap = {}
     destDriveMasterList = []
     destDriveLetterToInfo = {}
     for drive in driveList:
@@ -1513,7 +1509,6 @@ def loadDest():
                     serial = 'Not Found'
 
                 # Add drive to drive list
-                destDriveMap[vsn] = drive[0]
                 destDriveLetterToInfo[drive[0]] = {
                     'vid': vsn,
                     'serial': serial
