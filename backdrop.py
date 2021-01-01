@@ -1593,10 +1593,7 @@ def readConfigFile(file):
         rawConfig = f.read().split('\n\n')
         f.close()
 
-        newConfig = {
-            'sourceDrive': config['sourceDrive'],
-            'splitMode': False
-        }
+        newConfig = {}
 
         # Each chunk after splitting on \n\n is a header followed by config stuff
         configTotal = 0
@@ -1629,7 +1626,7 @@ def readConfigFile(file):
 
                     configTotal += selectedDrive['capacity']
 
-        config = newConfig
+        config.update(newConfig)
         configSelectedSpace.configure(text='Config: ' + human_filesize(configTotal))
         selectFromConfig()
 
