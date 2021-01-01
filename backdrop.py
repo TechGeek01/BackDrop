@@ -1331,8 +1331,7 @@ def startBackupAnalysis():
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    # URGENT: We need a way to only replace the analysis if an analysis or backup isn't active already, otherwise we end up with ghost threads
-    if sourceDriveListValid:
+    if (not backup or not backup.isRunning()) and sourceDriveListValid:
         # TODO: There has to be a better way to handle stopping and starting this split mode toggling
         splitEnabled = destModeSplitCheckVar.get()
         splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if splitEnabled else 'Disabled'), fg=uiColor.ENABLED if splitEnabled else uiColor.DISABLED)
