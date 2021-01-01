@@ -349,10 +349,12 @@ def displayBackupSummaryChunk(title, payload, reset=False):
                  wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
 
 class Backup:
-    def __init__(self, config, startBackupFn, killBackupFn, analysisSummaryDisplayFn, threadManager, progress):
+    def __init__(self, config, backupConfigDir, backupConfigFile, startBackupFn, killBackupFn, analysisSummaryDisplayFn, threadManager, progress):
         """
         Args:
             config (dict): The backup config to be processed.
+            backupConfigDir (String): The directory to store backup configs on each drive.
+            backupConfigFile (String): The file to store backup configs on each drive.
             startBackupFn (def): The function to be used to start the backup.
             killBackupFn (def): The function to be used to kill the backup.
             analysisSummaryDisplayFn (def): The function to be used to show an analysis
@@ -378,6 +380,8 @@ class Backup:
         self.config = config
         self.driveVidInfo = {drive['vid']: drive for drive in config['drives']}
 
+        self.backupConfigDir = backupConfigDir
+        self.backupConfigFile = backupConfigFile
         self.startBackupFn = startBackupFn
         self.killBackupFn = killBackupFn
         self.analysisSummaryDisplayFn = analysisSummaryDisplayFn
@@ -908,7 +912,7 @@ class Backup:
                     'replace' (tuple(String, int, int)[]): The list of files and source/dest filesizes for replacement.
                 }
             """
-            specialIgnoreList = [backupConfigDir, '$RECYCLE.BIN', 'System Volume Information']
+            specialIgnoreList = [self.backupConfigDir, '$RECYCLE.BIN', 'System Volume Information']
             fileList = {
                 'delete': [],
                 'replace': []
@@ -1197,14 +1201,14 @@ class Backup:
             # For each drive letter, get drive info, and write file
             for drive in self.config['drives']:
                 if drive['vid'] in self.driveVidInfo.keys():
-                    if not os.path.exists(f"{self.driveVidInfo[drive['vid']]['name']}{backupConfigDir}"):
+                    if not os.path.exists(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}"):
                         # If dir doesn't exist, make it
-                        os.mkdir(f"{self.driveVidInfo[drive['vid']]['name']}{backupConfigDir}")
-                    elif os.path.isdir(f"{self.driveVidInfo[drive['vid']]['name']}{backupConfigDir}\\{backupConfigFile}"):
+                        os.mkdir(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}")
+                    elif os.path.isdir(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}"):
                         # If dir exists but backup config filename is dir, delete the dir
-                        os.rmdir(f"{self.driveVidInfo[drive['vid']]['name']}{backupConfigDir}\\{backupConfigFile}")
+                        os.rmdir(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}")
 
-                    f = open(f"{self.driveVidInfo[drive['vid']]['name']}{backupConfigDir}\\{backupConfigFile}", 'w')
+                    f = open(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}", 'w')
                     # f.write('[id]\n%s,%s\n\n' % (driveInfo['vid'], driveInfo['serial']))
                     f.write('[shares]\n%s\n\n' % (','.join([item['name'] for item in self.config['shares']])))
 
@@ -1321,7 +1325,6 @@ class Backup:
         Returns:
             bool: Whether or not the backup is actively running something.
         """
-        # FIXME: Make this function tell when we can and can't change the config. UI config changing should only be allowed if a backup isn't actively running.
         return self.analysisRunning or self.backupRunning
 
 def startBackupAnalysis():
@@ -1338,6 +1341,8 @@ def startBackupAnalysis():
 
         backup = Backup(
             config=config,
+            backupConfigDir=backupConfigDir,
+            backupConfigFile=backupConfigFile,
             startBackupFn=startBackup,
             killBackupFn=lambda: threadManager.kill('Backup'),
             analysisSummaryDisplayFn=displayBackupSummaryChunk,
