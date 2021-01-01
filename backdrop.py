@@ -336,7 +336,7 @@ def displayBackupSummaryChunk(title, payload, reset=False):
 
     for i, item in enumerate(payload):
         if len(item) > 2:
-            textColor = item[2]
+            textColor = uiColor.NORMAL if item[2] else uiColor.FADED
         else:
             textColor = uiColor.NORMAL
 
@@ -348,8 +348,211 @@ def displayBackupSummaryChunk(title, payload, reset=False):
         tk.Label(summaryFrame, text=item[1], fg=textColor,
                  wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
 
+# FIXME: There's definitely a better way to handle working with items in the Backup instance than passing self into this function
+def enumerateCommandInfo(self, displayCommandList):
+    """Enumerate the display widget with command info after a backup analysis."""
+    rightArrow = '\U0001f86a'
+    downArrow = '\U0001f86e'
+
+    cmdHeaderFont = (None, 9, 'bold')
+    cmdStatusFont = (None, 9)
+
+    def toggleCmdInfo(index):
+        """Toggle the command info for a given indexed command.
+
+        Args:
+            index (int): The index of the command to expand or hide.
+        """
+
+        # Expand only if analysis is not running and the list isn't still being built
+        if not self.analysisRunning:
+            # Check if arrow needs to be expanded
+            expandArrow = self.cmdInfoBlocks[index]['arrow']['text']
+            if expandArrow == rightArrow:
+                # Collapsed turns into expanded
+                self.cmdInfoBlocks[index]['arrow'].configure(text=downArrow)
+                self.cmdInfoBlocks[index]['infoFrame'].pack(anchor='w')
+            else:
+                # Expanded turns into collapsed
+                self.cmdInfoBlocks[index]['arrow'].configure(text=rightArrow)
+                self.cmdInfoBlocks[index]['infoFrame'].pack_forget()
+
+        # For some reason, .configure() loses the function bind, so we need to re-set this
+        self.cmdInfoBlocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: toggleCmdInfo(index))
+
+    def copyList(index, item):
+        """Copy a given indexed command to the clipboard.
+
+        Args:
+            index (int): The index of the command to copy.
+            item (String): The name of the list to copy
+        """
+        clipboard.copy('\n'.join(self.cmdInfoBlocks[index][item]))
+
+    for widget in backupActivityScrollableFrame.winfo_children():
+        widget.destroy()
+
+    self.cmdInfoBlocks = []
+    for i, item in enumerate(displayCommandList):
+        config = {}
+
+        config['mainFrame'] = tk.Frame(backupActivityScrollableFrame)
+        config['mainFrame'].pack(anchor='w', expand=1)
+
+        # Set up header arrow, trimmed command, and status
+        config['headLine'] = tk.Frame(config['mainFrame'])
+        config['headLine'].pack(fill='x')
+        config['arrow'] = tk.Label(config['headLine'], text=rightArrow)
+        config['arrow'].pack(side='left')
+
+        if item['type'] == 'list':
+            cmdHeaderText = 'Delete %d files from %s' % (len(item['fileList']), item['drive'])
+        elif item['type'] == 'fileList':
+            if item['mode'] == 'replace':
+                cmdHeaderText = 'Update %d files on %s' % (len(item['fileList']), item['drive'])
+            elif item['mode'] == 'copy':
+                cmdHeaderText = 'Copy %d new files to %s' % (len(item['fileList']), item['drive'])
+
+        config['header'] = tk.Label(config['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=uiColor.NORMAL if item['enabled'] else uiColor.FADED)
+        config['header'].pack(side='left')
+        config['state'] = tk.Label(config['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
+        config['state'].pack(side='left')
+        config['arrow'].update_idletasks()
+        arrowWidth = config['arrow'].winfo_width()
+
+        # Set up info frame
+        config['infoFrame'] = tk.Frame(config['mainFrame'])
+
+        if item['type'] == 'list':
+            config['fileSizeLine'] = tk.Frame(config['infoFrame'])
+            config['fileSizeLine'].pack(anchor='w')
+            tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
+            config['fileSizeLineHeader'] = tk.Label(config['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
+            config['fileSizeLineHeader'].pack(side='left')
+            config['fileSizeLineTotal'] = tk.Label(config['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
+            config['fileSizeLineTotal'].pack(side='left')
+
+            config['fileListLine'] = tk.Frame(config['infoFrame'])
+            config['fileListLine'].pack(anchor='w')
+            tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
+            config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
+            config['fileListLineHeader'].pack(side='left')
+            config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=uiColor.FADED)
+            config['fileListLineTooltip'].pack(side='left')
+            config['fullFileList'] = item['fileList']
+
+            config['cmdListLine'] = tk.Frame(config['infoFrame'])
+            config['cmdListLine'].pack(anchor='w')
+            tk.Frame(config['cmdListLine'], width=arrowWidth).pack(side='left')
+            config['cmdListLineHeader'] = tk.Label(config['cmdListLine'], text='Command list:', font=cmdHeaderFont)
+            config['cmdListLineHeader'].pack(side='left')
+            config['cmdListLineTooltip'] = tk.Label(config['cmdListLine'], text='(Click to copy)', font=cmdStatusFont, fg=uiColor.FADED)
+            config['cmdListLineTooltip'].pack(side='left')
+            config['fullCmdList'] = item['cmdList']
+
+            config['lastOutLine'] = tk.Frame(config['infoFrame'])
+            config['lastOutLine'].pack(anchor='w')
+            tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
+            config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Out:', font=cmdHeaderFont)
+            config['lastOutHeader'].pack(side='left')
+            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
+            config['lastOutResult'].pack(side='left')
+
+            # Handle list trimming
+            listFont = tkfont.Font(family=None, size=10, weight='normal')
+            trimmedFileList = ', '.join(item['fileList'])
+            trimmedCmdList = ', '.join(item['cmdList'])
+            maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
+            actualFileWidth = listFont.measure(', '.join(item['fileList']))
+            actualCmdWidth = listFont.measure(', '.join(item['cmdList']))
+
+            if actualFileWidth > maxWidth:
+                while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
+                    trimmedFileList = trimmedFileList[:-1]
+                    actualFileWidth = listFont.measure(trimmedFileList + '...')
+                trimmedFileList = trimmedFileList + '...'
+
+            if actualCmdWidth > maxWidth:
+                while actualCmdWidth > maxWidth and len(trimmedCmdList) > 1:
+                    trimmedCmdList = trimmedCmdList[:-1]
+                    actualCmdWidth = listFont.measure(trimmedCmdList + '...')
+                trimmedCmdList = trimmedCmdList + '...'
+
+            config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
+            config['fileListLineTrimmed'].pack(side='left')
+            config['cmdListLineTrimmed'] = tk.Label(config['cmdListLine'], text=trimmedCmdList, font=cmdStatusFont)
+            config['cmdListLineTrimmed'].pack(side='left')
+
+            # Command copy action click
+            config['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+            config['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+            config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+
+            config['cmdListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
+            config['cmdListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
+            config['cmdListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
+        elif item['type'] == 'fileList':
+            config['fileSizeLine'] = tk.Frame(config['infoFrame'])
+            config['fileSizeLine'].pack(anchor='w')
+            tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
+            config['fileSizeLineHeader'] = tk.Label(config['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
+            config['fileSizeLineHeader'].pack(side='left')
+            config['fileSizeLineTotal'] = tk.Label(config['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
+            config['fileSizeLineTotal'].pack(side='left')
+
+            config['fileListLine'] = tk.Frame(config['infoFrame'])
+            config['fileListLine'].pack(anchor='w')
+            tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
+            config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
+            config['fileListLineHeader'].pack(side='left')
+            config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=uiColor.FADED)
+            config['fileListLineTooltip'].pack(side='left')
+            config['fullFileList'] = item['fileList']
+
+            config['currentFileLine'] = tk.Frame(config['infoFrame'])
+            config['currentFileLine'].pack(anchor='w')
+            tk.Frame(config['currentFileLine'], width=arrowWidth).pack(side='left')
+            config['currentFileHeader'] = tk.Label(config['currentFileLine'], text='Current file:', font=cmdHeaderFont)
+            config['currentFileHeader'].pack(side='left')
+            config['currentFileResult'] = tk.Label(config['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
+            config['currentFileResult'].pack(side='left')
+
+            config['lastOutLine'] = tk.Frame(config['infoFrame'])
+            config['lastOutLine'].pack(anchor='w')
+            tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
+            config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Progress:', font=cmdHeaderFont)
+            config['lastOutHeader'].pack(side='left')
+            config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
+            config['lastOutResult'].pack(side='left')
+
+            # Handle list trimming
+            listFont = tkfont.Font(family=None, size=10, weight='normal')
+            trimmedFileList = ', '.join(item['fileList'])
+            maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
+            actualFileWidth = listFont.measure(', '.join(item['fileList']))
+
+            if actualFileWidth > maxWidth:
+                while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
+                    trimmedFileList = trimmedFileList[:-1]
+                    actualFileWidth = listFont.measure(trimmedFileList + '...')
+                trimmedFileList = trimmedFileList + '...'
+
+            config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
+            config['fileListLineTrimmed'].pack(side='left')
+
+            # Command copy action click
+            config['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+            config['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+            config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+
+        self.cmdInfoBlocks.append(config)
+
+        # Header toggle action click
+        config['arrow'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
+        config['header'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
+
 class Backup:
-    def __init__(self, config, backupConfigDir, backupConfigFile, startBackupFn, killBackupFn, analysisSummaryDisplayFn, threadManager, progress):
+    def __init__(self, config, backupConfigDir, backupConfigFile, startBackupFn, killBackupFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, progress):
         """
         Args:
             config (dict): The backup config to be processed.
@@ -359,6 +562,8 @@ class Backup:
             killBackupFn (def): The function to be used to kill the backup.
             analysisSummaryDisplayFn (def): The function to be used to show an analysis
                     summary.
+            enumerateCommandInfoFn (def): The function to be used to enumerate command info
+                    in the UI.
             threadManager (ThreadManager): The thread manager to check for kill flags.
             progress (Progress): The progress tracker to bind to.
         """
@@ -385,6 +590,7 @@ class Backup:
         self.startBackupFn = startBackupFn
         self.killBackupFn = killBackupFn
         self.analysisSummaryDisplayFn = analysisSummaryDisplayFn
+        self.enumerateCommandInfoFn = enumerateCommandInfoFn
         self.threadManager = threadManager
         self.progress = progress
 
@@ -438,208 +644,6 @@ class Backup:
                 return True
 
         return False
-
-    def enumerateCommandInfo(self, displayCommandList):
-        """Enumerate the display widget with command info after a backup analysis."""
-        rightArrow = '\U0001f86a'
-        downArrow = '\U0001f86e'
-
-        cmdHeaderFont = (None, 9, 'bold')
-        cmdStatusFont = (None, 9)
-
-        def toggleCmdInfo(index):
-            """Toggle the command info for a given indexed command.
-
-            Args:
-                index (int): The index of the command to expand or hide.
-            """
-
-            # Expand only if analysis is not running and the list isn't still being built
-            if not self.analysisRunning:
-                # Check if arrow needs to be expanded
-                expandArrow = self.cmdInfoBlocks[index]['arrow']['text']
-                if expandArrow == rightArrow:
-                    # Collapsed turns into expanded
-                    self.cmdInfoBlocks[index]['arrow'].configure(text=downArrow)
-                    self.cmdInfoBlocks[index]['infoFrame'].pack(anchor='w')
-                else:
-                    # Expanded turns into collapsed
-                    self.cmdInfoBlocks[index]['arrow'].configure(text=rightArrow)
-                    self.cmdInfoBlocks[index]['infoFrame'].pack_forget()
-
-            # For some reason, .configure() loses the function bind, so we need to re-set this
-            self.cmdInfoBlocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: toggleCmdInfo(index))
-
-        def copyList(index, item):
-            """Copy a given indexed command to the clipboard.
-
-            Args:
-                index (int): The index of the command to copy.
-                item (String): The name of the list to copy
-            """
-            clipboard.copy('\n'.join(self.cmdInfoBlocks[index][item]))
-
-        for widget in backupActivityScrollableFrame.winfo_children():
-            widget.destroy()
-
-        self.cmdInfoBlocks = []
-        for i, item in enumerate(displayCommandList):
-            config = {}
-
-            config['mainFrame'] = tk.Frame(backupActivityScrollableFrame)
-            config['mainFrame'].pack(anchor='w', expand=1)
-
-            # Set up header arrow, trimmed command, and status
-            config['headLine'] = tk.Frame(config['mainFrame'])
-            config['headLine'].pack(fill='x')
-            config['arrow'] = tk.Label(config['headLine'], text=rightArrow)
-            config['arrow'].pack(side='left')
-
-            if item['type'] == 'list':
-                cmdHeaderText = 'Delete %d files from %s' % (len(item['fileList']), item['drive'])
-            elif item['type'] == 'fileList':
-                if item['mode'] == 'replace':
-                    cmdHeaderText = 'Update %d files on %s' % (len(item['fileList']), item['drive'])
-                elif item['mode'] == 'copy':
-                    cmdHeaderText = 'Copy %d new files to %s' % (len(item['fileList']), item['drive'])
-
-            config['header'] = tk.Label(config['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=uiColor.NORMAL if item['enabled'] else uiColor.FADED)
-            config['header'].pack(side='left')
-            config['state'] = tk.Label(config['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
-            config['state'].pack(side='left')
-            config['arrow'].update_idletasks()
-            arrowWidth = config['arrow'].winfo_width()
-
-            # Set up info frame
-            config['infoFrame'] = tk.Frame(config['mainFrame'])
-
-            if item['type'] == 'list':
-                config['fileSizeLine'] = tk.Frame(config['infoFrame'])
-                config['fileSizeLine'].pack(anchor='w')
-                tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
-                config['fileSizeLineHeader'] = tk.Label(config['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
-                config['fileSizeLineHeader'].pack(side='left')
-                config['fileSizeLineTotal'] = tk.Label(config['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
-                config['fileSizeLineTotal'].pack(side='left')
-
-                config['fileListLine'] = tk.Frame(config['infoFrame'])
-                config['fileListLine'].pack(anchor='w')
-                tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
-                config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
-                config['fileListLineHeader'].pack(side='left')
-                config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=uiColor.FADED)
-                config['fileListLineTooltip'].pack(side='left')
-                config['fullFileList'] = item['fileList']
-
-                config['cmdListLine'] = tk.Frame(config['infoFrame'])
-                config['cmdListLine'].pack(anchor='w')
-                tk.Frame(config['cmdListLine'], width=arrowWidth).pack(side='left')
-                config['cmdListLineHeader'] = tk.Label(config['cmdListLine'], text='Command list:', font=cmdHeaderFont)
-                config['cmdListLineHeader'].pack(side='left')
-                config['cmdListLineTooltip'] = tk.Label(config['cmdListLine'], text='(Click to copy)', font=cmdStatusFont, fg=uiColor.FADED)
-                config['cmdListLineTooltip'].pack(side='left')
-                config['fullCmdList'] = item['cmdList']
-
-                config['lastOutLine'] = tk.Frame(config['infoFrame'])
-                config['lastOutLine'].pack(anchor='w')
-                tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
-                config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Out:', font=cmdHeaderFont)
-                config['lastOutHeader'].pack(side='left')
-                config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
-                config['lastOutResult'].pack(side='left')
-
-                # Handle list trimming
-                listFont = tkfont.Font(family=None, size=10, weight='normal')
-                trimmedFileList = ', '.join(item['fileList'])
-                trimmedCmdList = ', '.join(item['cmdList'])
-                maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
-                actualFileWidth = listFont.measure(', '.join(item['fileList']))
-                actualCmdWidth = listFont.measure(', '.join(item['cmdList']))
-
-                if actualFileWidth > maxWidth:
-                    while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
-                        trimmedFileList = trimmedFileList[:-1]
-                        actualFileWidth = listFont.measure(trimmedFileList + '...')
-                    trimmedFileList = trimmedFileList + '...'
-
-                if actualCmdWidth > maxWidth:
-                    while actualCmdWidth > maxWidth and len(trimmedCmdList) > 1:
-                        trimmedCmdList = trimmedCmdList[:-1]
-                        actualCmdWidth = listFont.measure(trimmedCmdList + '...')
-                    trimmedCmdList = trimmedCmdList + '...'
-
-                config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
-                config['fileListLineTrimmed'].pack(side='left')
-                config['cmdListLineTrimmed'] = tk.Label(config['cmdListLine'], text=trimmedCmdList, font=cmdStatusFont)
-                config['cmdListLineTrimmed'].pack(side='left')
-
-                # Command copy action click
-                config['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-                config['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-                config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-
-                config['cmdListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
-                config['cmdListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
-                config['cmdListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
-            elif item['type'] == 'fileList':
-                config['fileSizeLine'] = tk.Frame(config['infoFrame'])
-                config['fileSizeLine'].pack(anchor='w')
-                tk.Frame(config['fileSizeLine'], width=arrowWidth).pack(side='left')
-                config['fileSizeLineHeader'] = tk.Label(config['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
-                config['fileSizeLineHeader'].pack(side='left')
-                config['fileSizeLineTotal'] = tk.Label(config['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
-                config['fileSizeLineTotal'].pack(side='left')
-
-                config['fileListLine'] = tk.Frame(config['infoFrame'])
-                config['fileListLine'].pack(anchor='w')
-                tk.Frame(config['fileListLine'], width=arrowWidth).pack(side='left')
-                config['fileListLineHeader'] = tk.Label(config['fileListLine'], text='File list:', font=cmdHeaderFont)
-                config['fileListLineHeader'].pack(side='left')
-                config['fileListLineTooltip'] = tk.Label(config['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=uiColor.FADED)
-                config['fileListLineTooltip'].pack(side='left')
-                config['fullFileList'] = item['fileList']
-
-                config['currentFileLine'] = tk.Frame(config['infoFrame'])
-                config['currentFileLine'].pack(anchor='w')
-                tk.Frame(config['currentFileLine'], width=arrowWidth).pack(side='left')
-                config['currentFileHeader'] = tk.Label(config['currentFileLine'], text='Current file:', font=cmdHeaderFont)
-                config['currentFileHeader'].pack(side='left')
-                config['currentFileResult'] = tk.Label(config['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
-                config['currentFileResult'].pack(side='left')
-
-                config['lastOutLine'] = tk.Frame(config['infoFrame'])
-                config['lastOutLine'].pack(anchor='w')
-                tk.Frame(config['lastOutLine'], width=arrowWidth).pack(side='left')
-                config['lastOutHeader'] = tk.Label(config['lastOutLine'], text='Progress:', font=cmdHeaderFont)
-                config['lastOutHeader'].pack(side='left')
-                config['lastOutResult'] = tk.Label(config['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
-                config['lastOutResult'].pack(side='left')
-
-                # Handle list trimming
-                listFont = tkfont.Font(family=None, size=10, weight='normal')
-                trimmedFileList = ', '.join(item['fileList'])
-                maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
-                actualFileWidth = listFont.measure(', '.join(item['fileList']))
-
-                if actualFileWidth > maxWidth:
-                    while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
-                        trimmedFileList = trimmedFileList[:-1]
-                        actualFileWidth = listFont.measure(trimmedFileList + '...')
-                    trimmedFileList = trimmedFileList + '...'
-
-                config['fileListLineTrimmed'] = tk.Label(config['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
-                config['fileListLineTrimmed'].pack(side='left')
-
-                # Command copy action click
-                config['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-                config['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-                config['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-
-            self.cmdInfoBlocks.append(config)
-
-            # Header toggle action click
-            config['arrow'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
-            config['header'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
 
     # CAVEAT: This @analysis assumes the drives are going to be empty, aside from the config file
     # Other stuff that's not part of the backup will need to be deleted when we actually run it
@@ -711,7 +715,7 @@ class Backup:
             # Enumerate list for tracking what shares go where
             driveShareList[drive['vid']] = []
 
-            showDriveInfo.append((curDriveInfo['name'], human_filesize(drive['capacity']), uiColor.NORMAL if driveConnected else uiColor.FADED))
+            showDriveInfo.append((curDriveInfo['name'], human_filesize(drive['capacity']), driveConnected))
 
         self.analysisSummaryDisplayFn(
             title='Drives',
@@ -1172,10 +1176,10 @@ class Backup:
 
         self.analysisSummaryDisplayFn(
             title='Summary',
-            payload=[(self.driveVidInfo[drive]['name'], '\n'.join(shares), uiColor.NORMAL if drive in connectedVidList else uiColor.FADED) for drive, shares in driveShareList.items()]
+            payload=[(self.driveVidInfo[drive]['name'], '\n'.join(shares), drive in connectedVidList) for drive, shares in driveShareList.items()]
         )
 
-        self.enumerateCommandInfo(displayCommandList)
+        self.enumerateCommandInfoFn(self, displayCommandList)
 
         self.analysisValid = True
 
@@ -1346,6 +1350,7 @@ def startBackupAnalysis():
             startBackupFn=startBackup,
             killBackupFn=lambda: threadManager.kill('Backup'),
             analysisSummaryDisplayFn=displayBackupSummaryChunk,
+            enumerateCommandInfoFn=enumerateCommandInfo,
             threadManager=threadManager,
             progress=progress
         )
