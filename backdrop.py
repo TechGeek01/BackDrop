@@ -1255,18 +1255,22 @@ def showSettings():
         settingsWin.protocol('WM_DELETE_WINDOW', onClose)
 
         mainFrame = tk.Frame(settingsWin)
-        mainFrame.pack(fill='both', expand=True, padx=elemPadding, pady=elemPadding)
+        mainFrame.pack(fill='both', expand=True, padx=elemPadding)
 
         mainFrame.columnconfigure(0, weight=1)
         mainFrame.rowconfigure(0, weight=1)
 
         darkModeCheckVar = tk.BooleanVar(settingsWin, value=uiColor.isDarkMode())
         darkModeCheck = ttk.Checkbutton(mainFrame, text='Enable dark mode (experimental)', variable=darkModeCheckVar, command=lambda: preferences.set('darkMode', darkModeCheckVar.get()))
-        darkModeCheck.grid(row=0, column=0)
+        darkModeCheck.grid(row=0, column=0, pady=elemPadding)
 
         disclaimerFrame = tk.Frame(mainFrame, bg=uiColor.INFO)
         disclaimerFrame.grid(row=1, column=0, ipadx=elemPadding / 2, ipady=4)
         tk.Label(disclaimerFrame, text='Changes are saved immediately, and will take effect on the next restart', bg=uiColor.INFO, fg=uiColor.BLACK).pack(fill='y', expand=True)
+
+        buttonFrame = tk.Frame(mainFrame)
+        buttonFrame.grid(row=2, column=0, sticky='ew', pady=elemPadding / 2)
+        ttk.Button(buttonFrame, text='OK', command=onClose).pack()
 
 settingsBtn.configure(command=showSettings)
 
