@@ -20,7 +20,7 @@ class Color:
     BGACCENT = '#e9e9e9'
     BGACCENT2 = '#fff'
     BGACCENT3 = '#888'
-    COLORACCENT = '#6db500'
+    COLORACCENT = GREEN
 
     def __init__(self, root, darkMode=False):
         self.darkMode = darkMode

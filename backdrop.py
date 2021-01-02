@@ -996,31 +996,30 @@ tkStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(None, 15),
 tkStyle.configure('TButton', background=uiColor.BG)
 tkStyle.configure('TCheckbutton', background=uiColor.BG, foreground=uiColor.NORMAL)
 
-tkStyle.element_create("custom.Treeheading.border", "from", "default")
-tkStyle.element_create("custom.Treeview.field", "from", "clam")
-tkStyle.layout("custom.Treeview.Heading", [
-    ("custom.Treeheading.cell", {'sticky': 'nswe'}),
-    ("custom.Treeheading.border", {'sticky':'nswe', 'children': [
-        ("custom.Treeheading.padding", {'sticky':'nswe', 'children': [
-            ("custom.Treeheading.image", {'side':'right', 'sticky':''}),
-            ("custom.Treeheading.text", {'sticky':'we'})
+tkStyle.element_create('custom.Treeheading.border', 'from', 'default')
+tkStyle.element_create('custom.Treeview.field', 'from', 'clam')
+tkStyle.layout('custom.Treeview.Heading', [
+    ('custom.Treeheading.cell', {'sticky': 'nswe'}),
+    ('custom.Treeheading.border', {'sticky':'nswe', 'children': [
+        ('custom.Treeheading.padding', {'sticky':'nswe', 'children': [
+            ('custom.Treeheading.image', {'side':'right', 'sticky':''}),
+            ('custom.Treeheading.text', {'sticky':'we'})
         ]})
     ]}),
 ])
-tkStyle.layout("custom.Treeview", [
+tkStyle.layout('custom.Treeview', [
     ('custom.Treeview.field', {'sticky': 'nswe', 'border': '1', 'children': [
         ('custom.Treeview.padding', {'sticky': 'nswe', 'children': [
             ('custom.Treeview.treearea', {'sticky': 'nswe'})
         ]})
     ]})
 ])
-tkStyle.configure("custom.Treeview.Heading", background=uiColor.BGACCENT, foreground=uiColor.FG, padding=2.5)
-tkStyle.configure("custom.Treeview", background=uiColor.BGACCENT2, fieldbackground=uiColor.BGACCENT2, foreground=uiColor.FG, bordercolor=uiColor.BGACCENT3)
+tkStyle.configure('custom.Treeview.Heading', background=uiColor.BGACCENT, foreground=uiColor.FG, padding=2.5)
+tkStyle.configure('custom.Treeview', background=uiColor.BGACCENT2, fieldbackground=uiColor.BGACCENT2, foreground=uiColor.FG, bordercolor=uiColor.BGACCENT3)
 tkStyle.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', uiColor.NORMAL), ('selected', uiColor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', uiColor.BGACCENT2), ('selected', uiColor.COLORACCENT)])
 
-tkStyle.element_create('noborder.Progressbar.pbar', 'from', 'clam')
 tkStyle.element_create('custom.Progressbar.trough', 'from', 'clam')
-tkStyle.layout("custom.Progressbar", [
+tkStyle.layout('custom.Progressbar', [
     ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
         ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
             ('custom.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
@@ -1028,6 +1027,20 @@ tkStyle.layout("custom.Progressbar", [
     ]})
 ])
 tkStyle.configure('custom.Progressbar', padding=4, background=uiColor.COLORACCENT, bordercolor=uiColor.BGACCENT3, borderwidth=0, troughcolor=uiColor.BG, lightcolor=uiColor.COLORACCENT, darkcolor=uiColor.COLORACCENT)
+
+# tkStyle.element_create('custom.Scrollbar.trough', 'from', 'clam')
+# tkStyle.layout('custom.Scrollbar', [
+#     ('custom.Scrollbar.trough', {'sticky': 'ns', 'children': [
+#         ('custom.Scrollbar.uparrow', {'side': 'top', 'sticky': ''}),
+#         ('custom.Scrollbar.downarrow', {'side': 'bottom', 'sticky': ''}),
+#         ('custom.Scrollbar.thumb', {'sticky': 'nswe', 'unit': '1', 'children': [
+#             ('custom.Scrollbar.grip', {'sticky': ''})
+#         ]})
+#     ]})
+# ])
+# tkStyle.configure('custom.Scrollbar', troughcolor=uiColor.BG, background=uiColor.GREEN, arrowcolor=uiColor.GOLD)
+# tkStyle.configure('custom.Scrollbar.uparrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
+# tkStyle.configure('custom.Scrollbar.downarrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
 
 # Progress/status values
 progressBar = ttk.Progressbar(mainFrame, maximum=100, style='custom.Progressbar')
@@ -1172,7 +1185,7 @@ refreshDestBtn.grid(row=0, column=1)
 startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze Backup', command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled')
 startAnalysisBtn.grid(row=0, column=2)
 
-driveSelectBind = destTree.bind("<<TreeviewSelect>>", selectDriveInBackground)
+driveSelectBind = destTree.bind('<<TreeviewSelect>>', selectDriveInBackground)
 
 # Add activity frame for backup status output
 tk.Grid.rowconfigure(mainFrame, 5, weight=1)
