@@ -36,7 +36,7 @@ class Color:
             Color.BGACCENT = '#282828'
             Color.BGACCENT = '#444'
             Color.BGACCENT2 = '#222'
-            Color.BGACCENT3 = '#fff'
+            Color.BGACCENT3 = '#aaa'
 
             Color.RED = '#f53'
 

@@ -1018,20 +1018,19 @@ tkStyle.configure("custom.Treeview.Heading", background=uiColor.BGACCENT, foregr
 tkStyle.configure("custom.Treeview", background=uiColor.BGACCENT2, fieldbackground=uiColor.BGACCENT2, foreground=uiColor.FG, bordercolor=uiColor.BGACCENT3)
 tkStyle.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', uiColor.NORMAL), ('selected', uiColor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', uiColor.BGACCENT2), ('selected', uiColor.COLORACCENT)])
 
-# tkStyle.configure('TProgressbar', background='red', bordercolor=uiColor.BG, troughcolor=uiColor.BG, lightcolor='red', darkcolor='red')
-# tkStyle.element_create('Horizontal.Progressbar', 'from', 'clam')
-# tkStyle.layout("custom.Progressbar", [
-#         ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
-#             ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
-#                 ('custom.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
-#             ]})
-#         ]})
-# ])
-# tkStyle.configure('custom.Progressbar.trough', lightcolor=uiColor.BG)
-# tkStyle.configure('Horizontal.custom.Progressbar', padding=2, background='yellow', bordercolor='#fff', troughcolor=uiColor.BG, lightcolor='yellow', darkcolor='yellow')
+tkStyle.element_create('noborder.Progressbar.pbar', 'from', 'clam')
+tkStyle.element_create('custom.Progressbar.trough', 'from', 'clam')
+tkStyle.layout("custom.Progressbar", [
+    ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
+        ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
+            ('custom.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
+        ]})
+    ]})
+])
+tkStyle.configure('custom.Progressbar', padding=4, background=uiColor.COLORACCENT, bordercolor=uiColor.BGACCENT3, borderwidth=0, troughcolor=uiColor.BG, lightcolor=uiColor.COLORACCENT, darkcolor=uiColor.COLORACCENT)
 
 # Progress/status values
-progressBar = ttk.Progressbar(mainFrame, maximum=100)
+progressBar = ttk.Progressbar(mainFrame, maximum=100, style='custom.Progressbar')
 progressBar.grid(row=10, column=0, columnspan=3, sticky='ew', pady=(elemPadding, 0))
 
 progress = Progress(progressBar, 5)
