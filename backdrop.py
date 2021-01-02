@@ -996,6 +996,40 @@ tkStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(None, 15),
 tkStyle.configure('TButton', background=uiColor.BG)
 tkStyle.configure('TCheckbutton', background=uiColor.BG, foreground=uiColor.NORMAL)
 
+tkStyle.element_create("custom.Treeheading.border", "from", "default")
+tkStyle.element_create("custom.Treeview.field", "from", "clam")
+tkStyle.layout("custom.Treeview.Heading", [
+    ("custom.Treeheading.cell", {'sticky': 'nswe'}),
+    ("custom.Treeheading.border", {'sticky':'nswe', 'children': [
+        ("custom.Treeheading.padding", {'sticky':'nswe', 'children': [
+            ("custom.Treeheading.image", {'side':'right', 'sticky':''}),
+            ("custom.Treeheading.text", {'sticky':'we'})
+        ]})
+    ]}),
+])
+tkStyle.layout("custom.Treeview", [
+    ('custom.Treeview.field', {'sticky': 'nswe', 'border': '1', 'children': [
+        ('custom.Treeview.padding', {'sticky': 'nswe', 'children': [
+            ('custom.Treeview.treearea', {'sticky': 'nswe'})
+        ]})
+    ]})
+])
+tkStyle.configure("custom.Treeview.Heading", background=uiColor.BGACCENT, foreground=uiColor.FG, padding=2.5)
+tkStyle.configure("custom.Treeview", background=uiColor.BGACCENT2, fieldbackground=uiColor.BGACCENT2, foreground=uiColor.FG, bordercolor=uiColor.BGACCENT3)
+tkStyle.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', uiColor.NORMAL), ('selected', uiColor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', uiColor.BGACCENT2), ('selected', uiColor.COLORACCENT)])
+
+# tkStyle.configure('TProgressbar', background='red', bordercolor=uiColor.BG, troughcolor=uiColor.BG, lightcolor='red', darkcolor='red')
+# tkStyle.element_create('Horizontal.Progressbar', 'from', 'clam')
+# tkStyle.layout("custom.Progressbar", [
+#         ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
+#             ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
+#                 ('custom.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
+#             ]})
+#         ]})
+# ])
+# tkStyle.configure('custom.Progressbar.trough', lightcolor=uiColor.BG)
+# tkStyle.configure('Horizontal.custom.Progressbar', padding=2, background='yellow', bordercolor='#fff', troughcolor=uiColor.BG, lightcolor='yellow', darkcolor='yellow')
+
 # Progress/status values
 progressBar = ttk.Progressbar(mainFrame, maximum=100)
 progressBar.grid(row=10, column=0, columnspan=3, sticky='ew', pady=(elemPadding, 0))
@@ -1017,7 +1051,7 @@ if sourceDriveListValid:
     sourceTreeFrame = tk.Frame(mainFrame)
     sourceTreeFrame.grid(row=1, column=0, sticky='ns')
 
-    sourceTree = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'))
+    sourceTree = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'), style='custom.Treeview')
     sourceTree.heading('#0', text='Share')
     sourceTree.column('#0', width=200)
     sourceTree.heading('size', text='Size')
@@ -1085,7 +1119,7 @@ tk.Label(altTooltipFrame, text='Hold ALT while selecting a drive to ignore confi
 splitModeCheck = ttk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
 splitModeCheck.pack(side='left', padx=(12, 0))
 
-destTree = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'))
+destTree = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
 destTree.heading('#0', text='Drive')
 destTree.column('#0', width=50)
 destTree.heading('size', text='Size')

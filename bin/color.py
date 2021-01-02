@@ -17,6 +17,11 @@ class Color:
     BG = None
     FG = BLACK
 
+    BGACCENT = '#e9e9e9'
+    BGACCENT2 = '#fff'
+    BGACCENT3 = '#888'
+    COLORACCENT = '#6db500'
+
     def __init__(self, root, darkMode=False):
         self.darkMode = darkMode
 
@@ -24,12 +29,18 @@ class Color:
 
         if darkMode:
             Color.BG = '#282822'
+            Color.BG = '#333'
             Color.FG = Color.WHITE
             Color.NORMAL = Color.WHITE
 
+            Color.BGACCENT = '#282828'
+            Color.BGACCENT = '#444'
+            Color.BGACCENT2 = '#222'
+            Color.BGACCENT3 = '#fff'
+
             Color.RED = '#f53'
 
-            Color.INFO = '#a2f4ff'#'#12c4ff'
+            Color.INFO = '#a2f4ff'
 
         Color.ENABLED = Color.GREEN
         Color.DISABLED = Color.RED
