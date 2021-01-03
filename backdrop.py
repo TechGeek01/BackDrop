@@ -995,6 +995,7 @@ tkStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(None, 15),
 
 tkStyle.configure('TButton', background=uiColor.BG)
 tkStyle.configure('TCheckbutton', background=uiColor.BG, foreground=uiColor.NORMAL)
+tkStyle.configure('TFrame', background=uiColor.BG, foreground=uiColor.NORMAL)
 
 tkStyle.element_create('custom.Treeheading.border', 'from', 'default')
 tkStyle.element_create('custom.Treeview.field', 'from', 'clam')
