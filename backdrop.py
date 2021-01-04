@@ -13,6 +13,8 @@ import ctypes
 from PIL import Image, ImageTk
 import hashlib
 import sys
+import time
+from datetime import datetime
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import Color
 from bin.threadManager import ThreadManager
@@ -264,6 +266,7 @@ def printProgress(copied, total, guiOptions):
 
         if guiOptions['mode'] == 'copy':
             # Progress bar position should only be updated on copy, not verify
+            backupTotals['buffer'] = copied
             backupTotals['progressBar'] = backupTotals['running'] + copied
             progress.set(backupTotals['progressBar'])
 
@@ -346,6 +349,24 @@ def displayBackupSummaryChunk(title, payload, reset=False):
         wrapFrame.update_idletasks()
         tk.Label(summaryFrame, text=item[1], fg=textColor,
                  wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+
+def updateBackupTimer():
+    while not threadManager.threadList['backupTimer']['killFlag']:
+        backupTotals = backup.getTotals()
+        backupStartTime = backup.getBackupStartTime()
+
+        runningTime = datetime.now() - backupStartTime
+        percentCopied = (backupTotals['running'] + backupTotals['buffer']) / backupTotals['master']
+
+        if percentCopied > 0:
+            remainingTime = runningTime / percentCopied - runningTime
+        else:
+            remainingTime = '\u221e'
+
+        backupEtaLabel.configure(text=f"{str(runningTime).split('.')[0]} elapsed => {str(remainingTime).split('.')[0]} remaining")
+        time.sleep(0.2)
+
+    backupEtaLabel.configure(text='Please start a backup to show ETA')
 
 # FIXME: There's definitely a better way to handle working with items in the Backup instance than passing self into this function
 def enumerateCommandInfo(self, displayCommandList):
@@ -572,6 +593,7 @@ def startBackupAnalysis():
             doCopyFn=doCopy,
             startBackupFn=startBackup,
             killBackupFn=lambda: threadManager.kill('Backup'),
+            startBackupTimerFn=updateBackupTimer,
             analysisSummaryDisplayFn=displayBackupSummaryChunk,
             enumerateCommandInfoFn=enumerateCommandInfo,
             threadManager=threadManager,
