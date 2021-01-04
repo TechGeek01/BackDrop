@@ -1082,7 +1082,7 @@ if sourceDriveListValid:
     # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
     # visible, so 1px needs to be added back
     sourceMetaFrame = tk.Frame(mainFrame)
-    sourceMetaFrame.grid(row=2, column=0, sticky='nsew', pady=(1, elemPadding))
+    sourceMetaFrame.grid(row=2, column=0, sticky='nsew', pady=(1, 0))
     tk.Grid.columnconfigure(sourceMetaFrame, 0, weight=1)
 
     shareSpaceFrame = tk.Frame(sourceMetaFrame)
@@ -1156,7 +1156,7 @@ destTree.configure(xscrollcommand=driveSelectScroll.set)
 # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
 # visible, so 1px needs to be added back
 destMetaFrame = tk.Frame(mainFrame)
-destMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, elemPadding))
+destMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, 0))
 tk.Grid.columnconfigure(destMetaFrame, 0, weight=1)
 
 destSplitWarningFrame = tk.Frame(mainFrame, bg=uiColor.WARNING)
@@ -1191,6 +1191,12 @@ startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze Backup', command=star
 startAnalysisBtn.grid(row=0, column=2)
 
 driveSelectBind = destTree.bind('<<TreeviewSelect>>', selectDriveInBackground)
+
+# Add backup ETA info frame
+backupActivityEtaFrame = tk.Frame(mainFrame)
+backupActivityEtaFrame.grid(row=4, column=0, columnspan=2, pady=elemPadding / 2)
+backupEtaLabel = tk.Label(backupActivityEtaFrame, text='Please start a backup to show ETA')
+backupEtaLabel.pack()
 
 # Add activity frame for backup status output
 tk.Grid.rowconfigure(mainFrame, 5, weight=1)

@@ -2,10 +2,12 @@ from tkinter import messagebox
 import os
 import itertools
 import subprocess
+from datetime import datetime
 from bin.fileutils import human_filesize, get_directory_size
+from bin.threadManager import ThreadManager
 
 class Backup:
-    def __init__(self, config, backupConfigDir, backupConfigFile, uiColor, startBackupBtn, startAnalysisBtn, doCopyFn, startBackupFn, killBackupFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, progress):
+    def __init__(self, config, backupConfigDir, backupConfigFile, uiColor, startBackupBtn, startAnalysisBtn, doCopyFn, startBackupFn, killBackupFn, startBackupTimerFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, progress):
         """
         Args:
             config (dict): The backup config to be processed.
@@ -17,6 +19,7 @@ class Backup:
             doCopy (def): The function to be used to handle file copying. TODO: Move doCopy outside of Backup class.
             startBackupFn (def): The function to be used to start the backup.
             killBackupFn (def): The function to be used to kill the backup.
+            startBackupTimerFn (def): The function to be used to start the backup timer.
             analysisSummaryDisplayFn (def): The function to be used to show an analysis
                     summary.
             enumerateCommandInfoFn (def): The function to be used to enumerate command info
@@ -29,6 +32,7 @@ class Backup:
             'master': 0,
             'delta': 0,
             'running': 0,
+            'buffer': 0,
             'progressBar': 0
         }
 
@@ -37,6 +41,7 @@ class Backup:
         self.analysisStarted = False
         self.analysisRunning = False
         self.backupRunning = False
+        self.backupStartTime = 0
         self.commandList = []
 
         self.config = config
@@ -50,6 +55,7 @@ class Backup:
         self.doCopyFn = doCopyFn
         self.startBackupFn = startBackupFn
         self.killBackupFn = killBackupFn
+        self.startBackupTimerFn = startBackupTimerFn
         self.analysisSummaryDisplayFn = analysisSummaryDisplayFn
         self.enumerateCommandInfoFn = enumerateCommandInfoFn
         self.threadManager = threadManager
@@ -712,6 +718,8 @@ class Backup:
 
         self.startBackupBtn.configure(text='Halt Backup', command=self.killBackupFn, style='danger.TButton')
 
+        timerStarted = False
+
         for cmd in commandList:
             if cmd['type'] == 'list':
                 for item in cmd['cmdList']:
@@ -729,6 +737,13 @@ class Backup:
                         break
             elif cmd['type'] == 'fileList':
                 self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uiColor.RUNNING)
+
+                if not timerStarted and (cmd['mode'] == 'replace' or cmd['mode'] == 'copy'):
+                    timerStarted = True
+                    self.backupStartTime = datetime.now()
+
+                    self.threadManager.start(ThreadManager.KILLABLE, name='backupTimer', target=self.startBackupTimerFn)
+
                 if cmd['mode'] == 'replace':
                     for file, sourceSize, destSize in cmd['payload']:
                         sourceFile = self.config['sourceDrive'] + file[3:]
@@ -758,6 +773,8 @@ class Backup:
                 self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=self.uiColor.STOPPED)
                 break
 
+        self.threadManager.kill('backupTimer')
+
         self.startBackupBtn.configure(text='Run Backup', command=self.startBackupFn, style='win.TButton')
 
         self.backupRunning = False
@@ -768,6 +785,16 @@ class Backup:
             totals (dict): The backup totals for the current instance.
         """
         return self.totals
+
+    def getBackupStartTime(self):
+        """
+        Returns:
+            datetime: The time the backup started. (default 0)
+        """
+        if self.backupStartTime:
+            return self.backupStartTime
+        else:
+            return 0
 
     def getCmdInfoBlocks(self):
         """
