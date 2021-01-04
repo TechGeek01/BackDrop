@@ -1001,10 +1001,10 @@ tkStyle.element_create('custom.Treeheading.border', 'from', 'default')
 tkStyle.element_create('custom.Treeview.field', 'from', 'clam')
 tkStyle.layout('custom.Treeview.Heading', [
     ('custom.Treeheading.cell', {'sticky': 'nswe'}),
-    ('custom.Treeheading.border', {'sticky':'nswe', 'children': [
-        ('custom.Treeheading.padding', {'sticky':'nswe', 'children': [
-            ('custom.Treeheading.image', {'side':'right', 'sticky':''}),
-            ('custom.Treeheading.text', {'sticky':'we'})
+    ('custom.Treeheading.border', {'sticky': 'nswe', 'children': [
+        ('custom.Treeheading.padding', {'sticky': 'nswe', 'children': [
+            ('custom.Treeheading.image', {'side': 'right', 'sticky': ''}),
+            ('custom.Treeheading.text', {'sticky': 'we'})
         ]})
     ]}),
 ])
@@ -1047,7 +1047,10 @@ tkStyle.configure('custom.Progressbar', padding=4, background=uiColor.COLORACCEN
 progressBar = ttk.Progressbar(mainFrame, maximum=100, style='custom.Progressbar')
 progressBar.grid(row=10, column=0, columnspan=3, sticky='ew', pady=(elemPadding, 0))
 
-progress = Progress(progressBar, 5)
+progress = Progress(
+    progressBar=progressBar,
+    threadsForProgressBar=5
+)
 
 # Set source drives and start to set up source dropdown
 sourceDriveDefault = tk.StringVar()
@@ -1161,6 +1164,7 @@ destSplitWarningFrame.rowconfigure(0, weight=1)
 destSplitWarningFrame.columnconfigure(0, weight=1)
 destSplitWarningFrame.columnconfigure(10, weight=1)
 
+# TODO: Can this be cleaned up?
 tk.Frame(destSplitWarningFrame).grid(row=0, column=0)
 splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=uiColor.WARNING)
 splitWarningPrefix.grid(row=0, column=1, sticky='ns')
