@@ -110,8 +110,6 @@ class Backup:
 
         return False
 
-    # CAVEAT: This @analysis assumes the drives are going to be empty, aside from the config file
-    # Other stuff that's not part of the backup will need to be deleted when we actually run it
     # IDEA: When we ignore other stuff on the drives, and delete it, have a dialog popup that summarizes what's being deleted, and ask the user to confirm
     def analyze(self):
         """Analyze the list of selected shares and drives and figure out how to split files.

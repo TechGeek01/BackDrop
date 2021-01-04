@@ -1077,7 +1077,7 @@ if sourceDriveListValid:
     sourceTree.pack(side='left')
     sourceShareScroll = ttk.Scrollbar(sourceTreeFrame, orient='vertical', command=sourceTree.yview)
     sourceShareScroll.pack(side='left', fill='y')
-    sourceTree.configure(xscrollcommand=sourceShareScroll.set)
+    sourceTree.configure(yscrollcommand=sourceShareScroll.set)
 
     # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
     # visible, so 1px needs to be added back
@@ -1151,7 +1151,7 @@ destTree['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
 destTree.pack(side='left')
 driveSelectScroll = ttk.Scrollbar(destTreeFrame, orient='vertical', command=destTree.yview)
 driveSelectScroll.pack(side='left', fill='y')
-destTree.configure(xscrollcommand=driveSelectScroll.set)
+destTree.configure(yscrollcommand=driveSelectScroll.set)
 
 # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
 # visible, so 1px needs to be added back
