@@ -264,9 +264,10 @@ def printProgress(copied, total, guiOptions):
 
         cmdInfoBlocks = backup.getCmdInfoBlocks()
 
+        backupTotals['buffer'] = copied
+
         if guiOptions['mode'] == 'copy':
             # Progress bar position should only be updated on copy, not verify
-            backupTotals['buffer'] = copied
             backupTotals['progressBar'] = backupTotals['running'] + copied
             progress.set(backupTotals['progressBar'])
 
@@ -274,6 +275,7 @@ def printProgress(copied, total, guiOptions):
         elif guiOptions['mode'] == 'verifysource':
             cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'Verifying source \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=uiColor.BLUE)
         elif guiOptions['mode'] == 'verifydest':
+            backupTotals['buffer'] += total
             cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f'Verifying destination \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}', fg=uiColor.BLUE)
 
     if guiOptions['mode'] == 'copy' and copied >= total:
@@ -351,22 +353,32 @@ def displayBackupSummaryChunk(title, payload, reset=False):
                  wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
 
 def updateBackupTimer():
+    backupEtaLabel.configure(fg=uiColor.NORMAL)
+
+    # Total is copy, verify source, verify dest, so total data is 3 * total
+    totalToBackup = backup.getTotals()['master'] * 3
+    backupStartTime = backup.getBackupStartTime()
+
     while not threadManager.threadList['backupTimer']['killFlag']:
         backupTotals = backup.getTotals()
-        backupStartTime = backup.getBackupStartTime()
 
         runningTime = datetime.now() - backupStartTime
-        percentCopied = (backupTotals['running'] + backupTotals['buffer']) / backupTotals['master']
+        percentCopied = (backupTotals['running'] + backupTotals['buffer']) / totalToBackup
 
         if percentCopied > 0:
             remainingTime = runningTime / percentCopied - runningTime
         else:
             remainingTime = '\u221e'
 
-        backupEtaLabel.configure(text=f"{str(runningTime).split('.')[0]} elapsed => {str(remainingTime).split('.')[0]} remaining")
+        backupEtaLabel.configure(text=f"{str(runningTime).split('.')[0]} elapsed \u27f6 {str(remainingTime).split('.')[0]} remaining")
         time.sleep(0.2)
 
-    backupEtaLabel.configure(text='Please start a backup to show ETA')
+    if not threadManager.threadList['Backup']['killFlag']:
+        # Backup not killed, so completed successfully
+        backupEtaLabel.configure(text=f"Backup completed successfully in {str(datetime.now() - backupStartTime).split('.')[0]}", fg=uiColor.FINISHED)
+    else:
+        # Backup aborted
+        backupEtaLabel.configure(text=f"Backup aborted in {str(datetime.now() - backupStartTime).split('.')[0]}", fg=uiColor.STOPPED)
 
 # FIXME: There's definitely a better way to handle working with items in the Backup instance than passing self into this function
 def enumerateCommandInfo(self, displayCommandList):
