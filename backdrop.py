@@ -20,10 +20,11 @@ from bin.color import Color
 from bin.threadManager import ThreadManager
 from bin.preferences import Preferences
 from bin.progress import Progress
+from bin.commandLine import CommandLine
 from bin.backup import Backup
 
 # Set meta info
-appVersion = '2.1.0-alpha.3'
+appVersion = '2.1.0-alpha.4'
 
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
 # IDEA: Add interactive CLI option if correct parameters are passed in @interface
@@ -994,350 +995,408 @@ commandList = []
 
 threadManager = ThreadManager()
 
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+cliMode = len(sys.argv) > 1
 
-    return os.path.join(base_path, relative_path)
+############
+# CLI Mode #
+############
 
-root = tk.Tk()
-root.title('BackDrop - Network Drive Backup Tool')
-root.resizable(False, False)
-root.geometry('1300x700')
-root.iconbitmap(resource_path('media\\icon.ico'))
-center(root)
+if cliMode:
+    commandLine = CommandLine(
+        optionInfoList=[
+            'Usage: backdrop [options]\n',
+            ('-S', '--source', 1, 'The source drive to back up.'),
+            ('-s', '--share', 1, 'The shares to back up from the source.'),
+            ('-d', '--destination', 1, 'The destination drive to back up to.'),
+            '',
+            ('-i', '--interactive', 0, 'Run in interactive mode in lieu of specifying backup configuration.'),
+            ('-l', '--loadconfig', 1, 'Load config file from a drive in lieu of specifying backup configuration.'),
+            ('-sm', '--splitmode', 0, 'Run in split mode if not all destination drives are connected.'),
+            ('-u', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
+            '',
+            ('-h', '--help', 0, 'Display this help menu.'),
+            ('-v', '--version', 0, 'Display the program version.')
+        ]
+    )
 
-# Create Color class instance for UI
-uiColor = Color(root, preferences.get('darkMode', False))
+    if commandLine.hasParam('help'):
+        commandLine.showHelp()
+    elif commandLine.hasParam('version'):
+        print(f'BackDrop {appVersion}')
+    else:
+        print('\nCLI mode is a work in progress, and may not be stable or complete\n') # TODO: Remove CLI mode stability warning
 
-if uiColor.isDarkMode():
-    root.tk_setPalette(background=uiColor.BG)
+        if not commandLine.hasParam('source') or len(commandLine.getParam('source')) == 0:
+            print('Please specify a source drive')
+            exit()
+        elif not commandLine.hasParam('destination') or len(commandLine.getParam('destination')) == 0:
+            print('Please specify at least one destination drive')
+            exit()
+        elif not commandLine.hasParam('share') or len(commandLine.getParam('share')) == 0:
+            print('Please specify at least one share to back up')
+            exit()
 
-mainFrame = tk.Frame(root)
-mainFrame.pack(fill='both', expand=1, padx=elemPadding, pady=(elemPadding / 2, elemPadding))
+        sourceDrive = commandLine.getParam('source')[0][0].upper() + ':\\'
+        destList = [drive[0].upper() + ':\\' for drive in commandLine.getParam('destination')]
+        shareList = sorted(commandLine.getParam('share'))
 
-# Set some default styling
-tkStyle = ttk.Style()
-tkStyle.theme_use('vista')
-tkStyle.configure('TButton', padding=5)
-tkStyle.configure('danger.TButton', padding=5, background='#b00')
-tkStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(None, 15), background='#00bfe6')
+        config['sourceDrive'] = sourceDrive
+        config['drives'] = destList
+        config['shares'] = shareList
 
-tkStyle.configure('TButton', background=uiColor.BG)
-tkStyle.configure('TCheckbutton', background=uiColor.BG, foreground=uiColor.NORMAL)
-tkStyle.configure('TFrame', background=uiColor.BG, foreground=uiColor.NORMAL)
+        print(f"Source:      {sourceDrive}")
+        print(f"Destination: {', '.join(destList)}")
+        print(f"Shares:      {', '.join(shareList)}")
 
-tkStyle.element_create('custom.Treeheading.border', 'from', 'default')
-tkStyle.element_create('custom.Treeview.field', 'from', 'clam')
-tkStyle.layout('custom.Treeview.Heading', [
-    ('custom.Treeheading.cell', {'sticky': 'nswe'}),
-    ('custom.Treeheading.border', {'sticky': 'nswe', 'children': [
-        ('custom.Treeheading.padding', {'sticky': 'nswe', 'children': [
-            ('custom.Treeheading.image', {'side': 'right', 'sticky': ''}),
-            ('custom.Treeheading.text', {'sticky': 'we'})
+############
+# GUI Mode #
+############
+
+if not cliMode:
+    def resource_path(relative_path):
+        """ Get absolute path to resource, works for dev and for PyInstaller """
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+
+        return os.path.join(base_path, relative_path)
+
+    root = tk.Tk()
+    root.title('BackDrop - Network Drive Backup Tool')
+    root.resizable(False, False)
+    root.geometry('1300x700')
+    root.iconbitmap(resource_path('media\\icon.ico'))
+    center(root)
+
+    # Create Color class instance for UI
+    uiColor = Color(root, preferences.get('darkMode', False))
+
+    if uiColor.isDarkMode():
+        root.tk_setPalette(background=uiColor.BG)
+
+    mainFrame = tk.Frame(root)
+    mainFrame.pack(fill='both', expand=1, padx=elemPadding, pady=(elemPadding / 2, elemPadding))
+
+    # Set some default styling
+    tkStyle = ttk.Style()
+    tkStyle.theme_use('vista')
+    tkStyle.configure('TButton', padding=5)
+    tkStyle.configure('danger.TButton', padding=5, background='#b00')
+    tkStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(None, 15), background='#00bfe6')
+
+    tkStyle.configure('TButton', background=uiColor.BG)
+    tkStyle.configure('TCheckbutton', background=uiColor.BG, foreground=uiColor.NORMAL)
+    tkStyle.configure('TFrame', background=uiColor.BG, foreground=uiColor.NORMAL)
+
+    tkStyle.element_create('custom.Treeheading.border', 'from', 'default')
+    tkStyle.element_create('custom.Treeview.field', 'from', 'clam')
+    tkStyle.layout('custom.Treeview.Heading', [
+        ('custom.Treeheading.cell', {'sticky': 'nswe'}),
+        ('custom.Treeheading.border', {'sticky': 'nswe', 'children': [
+            ('custom.Treeheading.padding', {'sticky': 'nswe', 'children': [
+                ('custom.Treeheading.image', {'side': 'right', 'sticky': ''}),
+                ('custom.Treeheading.text', {'sticky': 'we'})
+            ]})
+        ]}),
+    ])
+    tkStyle.layout('custom.Treeview', [
+        ('custom.Treeview.field', {'sticky': 'nswe', 'border': '1', 'children': [
+            ('custom.Treeview.padding', {'sticky': 'nswe', 'children': [
+                ('custom.Treeview.treearea', {'sticky': 'nswe'})
+            ]})
         ]})
-    ]}),
-])
-tkStyle.layout('custom.Treeview', [
-    ('custom.Treeview.field', {'sticky': 'nswe', 'border': '1', 'children': [
-        ('custom.Treeview.padding', {'sticky': 'nswe', 'children': [
-            ('custom.Treeview.treearea', {'sticky': 'nswe'})
+    ])
+    tkStyle.configure('custom.Treeview.Heading', background=uiColor.BGACCENT, foreground=uiColor.FG, padding=2.5)
+    tkStyle.configure('custom.Treeview', background=uiColor.BGACCENT2, fieldbackground=uiColor.BGACCENT2, foreground=uiColor.FG, bordercolor=uiColor.BGACCENT3)
+    tkStyle.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', uiColor.NORMAL), ('selected', uiColor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', uiColor.BGACCENT2), ('selected', uiColor.COLORACCENT)])
+
+    tkStyle.element_create('custom.Progressbar.trough', 'from', 'clam')
+    tkStyle.layout('custom.Progressbar', [
+        ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
+            ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
+                ('custom.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
+            ]})
         ]})
-    ]})
-])
-tkStyle.configure('custom.Treeview.Heading', background=uiColor.BGACCENT, foreground=uiColor.FG, padding=2.5)
-tkStyle.configure('custom.Treeview', background=uiColor.BGACCENT2, fieldbackground=uiColor.BGACCENT2, foreground=uiColor.FG, bordercolor=uiColor.BGACCENT3)
-tkStyle.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', uiColor.NORMAL), ('selected', uiColor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', uiColor.BGACCENT2), ('selected', uiColor.COLORACCENT)])
+    ])
+    tkStyle.configure('custom.Progressbar', padding=4, background=uiColor.COLORACCENT, bordercolor=uiColor.BGACCENT3, borderwidth=0, troughcolor=uiColor.BG, lightcolor=uiColor.COLORACCENT, darkcolor=uiColor.COLORACCENT)
 
-tkStyle.element_create('custom.Progressbar.trough', 'from', 'clam')
-tkStyle.layout('custom.Progressbar', [
-    ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
-        ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
-            ('custom.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
-        ]})
-    ]})
-])
-tkStyle.configure('custom.Progressbar', padding=4, background=uiColor.COLORACCENT, bordercolor=uiColor.BGACCENT3, borderwidth=0, troughcolor=uiColor.BG, lightcolor=uiColor.COLORACCENT, darkcolor=uiColor.COLORACCENT)
+    # tkStyle.element_create('custom.Scrollbar.trough', 'from', 'clam')
+    # tkStyle.layout('custom.Scrollbar', [
+    #     ('custom.Scrollbar.trough', {'sticky': 'ns', 'children': [
+    #         ('custom.Scrollbar.uparrow', {'side': 'top', 'sticky': ''}),
+    #         ('custom.Scrollbar.downarrow', {'side': 'bottom', 'sticky': ''}),
+    #         ('custom.Scrollbar.thumb', {'sticky': 'nswe', 'unit': '1', 'children': [
+    #             ('custom.Scrollbar.grip', {'sticky': ''})
+    #         ]})
+    #     ]})
+    # ])
+    # tkStyle.configure('custom.Scrollbar', troughcolor=uiColor.BG, background=uiColor.GREEN, arrowcolor=uiColor.GOLD)
+    # tkStyle.configure('custom.Scrollbar.uparrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
+    # tkStyle.configure('custom.Scrollbar.downarrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
 
-# tkStyle.element_create('custom.Scrollbar.trough', 'from', 'clam')
-# tkStyle.layout('custom.Scrollbar', [
-#     ('custom.Scrollbar.trough', {'sticky': 'ns', 'children': [
-#         ('custom.Scrollbar.uparrow', {'side': 'top', 'sticky': ''}),
-#         ('custom.Scrollbar.downarrow', {'side': 'bottom', 'sticky': ''}),
-#         ('custom.Scrollbar.thumb', {'sticky': 'nswe', 'unit': '1', 'children': [
-#             ('custom.Scrollbar.grip', {'sticky': ''})
-#         ]})
-#     ]})
-# ])
-# tkStyle.configure('custom.Scrollbar', troughcolor=uiColor.BG, background=uiColor.GREEN, arrowcolor=uiColor.GOLD)
-# tkStyle.configure('custom.Scrollbar.uparrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
-# tkStyle.configure('custom.Scrollbar.downarrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
+    # Progress/status values
+    progressBar = ttk.Progressbar(mainFrame, maximum=100, style='custom.Progressbar')
+    progressBar.grid(row=10, column=0, columnspan=3, sticky='ew', pady=(elemPadding, 0))
 
-# Progress/status values
-progressBar = ttk.Progressbar(mainFrame, maximum=100, style='custom.Progressbar')
-progressBar.grid(row=10, column=0, columnspan=3, sticky='ew', pady=(elemPadding, 0))
+    progress = Progress(
+        progressBar=progressBar,
+        threadsForProgressBar=5
+    )
 
-progress = Progress(
-    progressBar=progressBar,
-    threadsForProgressBar=5
-)
+    # Set source drives and start to set up source dropdown
+    sourceDriveDefault = tk.StringVar()
+    driveList = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+    remoteDrives = [drive for drive in driveList if win32file.GetDriveType(drive) == 4]
 
-# Set source drives and start to set up source dropdown
-sourceDriveDefault = tk.StringVar()
-driveList = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-remoteDrives = [drive for drive in driveList if win32file.GetDriveType(drive) == 4]
+    sourceDriveListValid = len(remoteDrives) > 0
 
-sourceDriveListValid = len(remoteDrives) > 0
+    if sourceDriveListValid:
+        config['sourceDrive'] = preferences.get('sourceDrive', remoteDrives[0], remoteDrives)
+        sourceDriveDefault.set(config['sourceDrive'])
 
-if sourceDriveListValid:
-    config['sourceDrive'] = preferences.get('sourceDrive', remoteDrives[0], remoteDrives)
-    sourceDriveDefault.set(config['sourceDrive'])
+        # Tree frames for tree and scrollbar
+        sourceTreeFrame = tk.Frame(mainFrame)
+        sourceTreeFrame.grid(row=1, column=0, sticky='ns')
 
-    # Tree frames for tree and scrollbar
-    sourceTreeFrame = tk.Frame(mainFrame)
-    sourceTreeFrame.grid(row=1, column=0, sticky='ns')
+        sourceTree = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'), style='custom.Treeview')
+        sourceTree.heading('#0', text='Share')
+        sourceTree.column('#0', width=200)
+        sourceTree.heading('size', text='Size')
+        sourceTree.column('size', width=80)
+        sourceTree['displaycolumns'] = ('size')
 
-    sourceTree = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'), style='custom.Treeview')
-    sourceTree.heading('#0', text='Share')
-    sourceTree.column('#0', width=200)
-    sourceTree.heading('size', text='Size')
-    sourceTree.column('size', width=80)
-    sourceTree['displaycolumns'] = ('size')
+        sourceTree.pack(side='left')
+        sourceShareScroll = ttk.Scrollbar(sourceTreeFrame, orient='vertical', command=sourceTree.yview)
+        sourceShareScroll.pack(side='left', fill='y')
+        sourceTree.configure(yscrollcommand=sourceShareScroll.set)
 
-    sourceTree.pack(side='left')
-    sourceShareScroll = ttk.Scrollbar(sourceTreeFrame, orient='vertical', command=sourceTree.yview)
-    sourceShareScroll.pack(side='left', fill='y')
-    sourceTree.configure(yscrollcommand=sourceShareScroll.set)
+        # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
+        # visible, so 1px needs to be added back
+        sourceMetaFrame = tk.Frame(mainFrame)
+        sourceMetaFrame.grid(row=2, column=0, sticky='nsew', pady=(1, 0))
+        tk.Grid.columnconfigure(sourceMetaFrame, 0, weight=1)
+
+        shareSpaceFrame = tk.Frame(sourceMetaFrame)
+        shareSpaceFrame.grid(row=0, column=0)
+        shareSelectedSpace = tk.Label(shareSpaceFrame, text='Selected: ' + human_filesize(0))
+        shareSelectedSpace.grid(row=0, column=0)
+        shareTotalSpace = tk.Label(shareSpaceFrame, text='Total: ~' + human_filesize(0))
+        shareTotalSpace.grid(row=0, column=1, padx=(12, 0))
+
+        startRefreshSource()
+
+        refreshSourceBtn = ttk.Button(sourceMetaFrame, text='\u2b6e', command=startRefreshSource, style='icon.TButton')
+        refreshSourceBtn.grid(row=0, column=1)
+
+        sourceSelectFrame = tk.Frame(mainFrame)
+        sourceSelectFrame.grid(row=0, column=0, pady=(0, elemPadding / 2))
+        tk.Label(sourceSelectFrame, text='Source:').pack(side='left')
+        sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, config['sourceDrive'], *tuple(remoteDrives), command=changeSourceDrive)
+        sourceSelectMenu.pack(side='left', padx=(12, 0))
+
+        sourceTree.bind("<<TreeviewSelect>>", loadSourceInBackground)
+    else:
+        sourceDriveDefault.set('No remotes')
+
+        # sourceMissingFrame = tk.Frame(mainFrame, width=200)
+        # sourceMissingFrame.grid(row=0, column=0,  rowspan=2, sticky='nsew')
+        sourceWarning = tk.Label(mainFrame, text='No network drives are available to use as source', font=(None, 14), wraplength=250, bg=uiColor.ERROR)
+        sourceWarning.grid(row=0, column=0, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
+
+    destTreeFrame = tk.Frame(mainFrame)
+    destTreeFrame.grid(row=1, column=1, sticky='ns', padx=(elemPadding, 0))
+
+    destModeFrame = tk.Frame(mainFrame)
+    destModeFrame.grid(row=0, column=1, pady=(0, elemPadding / 2))
+
+    def handleSplitModeCheck():
+        """Handle toggling of split mode based on checkbox value."""
+        config['splitMode'] = destModeSplitCheckVar.get()
+
+        # TODO: Should this reference backup.isRunning() instead?
+        if not backup or not backup.isAnalysisStarted():
+            splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if config['splitMode'] else 'Disabled'), fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
+
+    destModeSplitCheckVar = tk.BooleanVar()
+
+    altTooltipFrame = tk.Frame(destModeFrame, bg=uiColor.INFO)
+    altTooltipFrame.pack(side='left', ipadx=elemPadding / 2, ipady=4)
+    tk.Label(altTooltipFrame, text='Hold ALT while selecting a drive to ignore config files', bg=uiColor.INFO, fg=uiColor.BLACK).pack(fill='y', expand=1)
+
+    splitModeCheck = ttk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
+    splitModeCheck.pack(side='left', padx=(12, 0))
+
+    destTree = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
+    destTree.heading('#0', text='Drive')
+    destTree.column('#0', width=50)
+    destTree.heading('size', text='Size')
+    destTree.column('size', width=80)
+    destTree.heading('configfile', text='Config file')
+    destTree.column('configfile', width=100)
+    destTree.heading('vid', text='Volume ID')
+    destTree.column('vid', width=100)
+    destTree.heading('serial', text='Serial')
+    destTree.column('serial', width=200)
+    destTree['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
+
+    destTree.pack(side='left')
+    driveSelectScroll = ttk.Scrollbar(destTreeFrame, orient='vertical', command=destTree.yview)
+    driveSelectScroll.pack(side='left', fill='y')
+    destTree.configure(yscrollcommand=driveSelectScroll.set)
 
     # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
     # visible, so 1px needs to be added back
-    sourceMetaFrame = tk.Frame(mainFrame)
-    sourceMetaFrame.grid(row=2, column=0, sticky='nsew', pady=(1, 0))
-    tk.Grid.columnconfigure(sourceMetaFrame, 0, weight=1)
+    destMetaFrame = tk.Frame(mainFrame)
+    destMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, 0))
+    tk.Grid.columnconfigure(destMetaFrame, 0, weight=1)
 
-    shareSpaceFrame = tk.Frame(sourceMetaFrame)
-    shareSpaceFrame.grid(row=0, column=0)
-    shareSelectedSpace = tk.Label(shareSpaceFrame, text='Selected: ' + human_filesize(0))
-    shareSelectedSpace.grid(row=0, column=0)
-    shareTotalSpace = tk.Label(shareSpaceFrame, text='Total: ~' + human_filesize(0))
-    shareTotalSpace.grid(row=0, column=1, padx=(12, 0))
+    destSplitWarningFrame = tk.Frame(mainFrame, bg=uiColor.WARNING)
+    destSplitWarningFrame.rowconfigure(0, weight=1)
+    destSplitWarningFrame.columnconfigure(0, weight=1)
+    destSplitWarningFrame.columnconfigure(10, weight=1)
 
-    startRefreshSource()
+    # TODO: Can this be cleaned up?
+    tk.Frame(destSplitWarningFrame).grid(row=0, column=0)
+    splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=uiColor.WARNING)
+    splitWarningPrefix.grid(row=0, column=1, sticky='ns')
+    splitWarningMissingDriveCount = tk.Label(destSplitWarningFrame, text='0', bg=uiColor.WARNING, font=(None, 18, 'bold'))
+    splitWarningMissingDriveCount.grid(row=0, column=2, sticky='ns')
+    splitWarningSuffix = tk.Label(destSplitWarningFrame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=uiColor.WARNING)
+    splitWarningSuffix.grid(row=0, column=3, sticky='ns')
+    tk.Frame(destSplitWarningFrame).grid(row=0, column=10)
 
-    refreshSourceBtn = ttk.Button(sourceMetaFrame, text='\u2b6e', command=startRefreshSource, style='icon.TButton')
-    refreshSourceBtn.grid(row=0, column=1)
+    driveSpaceFrame = tk.Frame(destMetaFrame)
+    driveSpaceFrame.grid(row=0, column=0)
+    configSelectedSpace = tk.Label(driveSpaceFrame, text='Config: ' + human_filesize(0))
+    configSelectedSpace.grid(row=0, column=0)
+    driveSelectedSpace = tk.Label(driveSpaceFrame, text='Selected: ' + human_filesize(0))
+    driveSelectedSpace.grid(row=0, column=1, padx=(12, 0))
+    driveTotalSpace = tk.Label(driveSpaceFrame, text='Available: ' + human_filesize(0))
+    driveTotalSpace.grid(row=0, column=2, padx=(12, 0))
+    splitModeStatus = tk.Label(driveSpaceFrame, text='Split mode\n%s' % ('Enabled' if config['splitMode'] else 'Disabled'), fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
+    splitModeStatus.grid(row=0, column=3, padx=(12, 0))
 
-    sourceSelectFrame = tk.Frame(mainFrame)
-    sourceSelectFrame.grid(row=0, column=0, pady=(0, elemPadding / 2))
-    tk.Label(sourceSelectFrame, text='Source:').pack(side='left')
-    sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, config['sourceDrive'], *tuple(remoteDrives), command=changeSourceDrive)
-    sourceSelectMenu.pack(side='left', padx=(12, 0))
+    refreshDestBtn = ttk.Button(destMetaFrame, text='\u2b6e', command=startRefreshDest, style='icon.TButton')
+    refreshDestBtn.grid(row=0, column=1)
+    startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze Backup', command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled')
+    startAnalysisBtn.grid(row=0, column=2)
 
-    sourceTree.bind("<<TreeviewSelect>>", loadSourceInBackground)
-else:
-    sourceDriveDefault.set('No remotes')
+    driveSelectBind = destTree.bind('<<TreeviewSelect>>', selectDriveInBackground)
 
-    # sourceMissingFrame = tk.Frame(mainFrame, width=200)
-    # sourceMissingFrame.grid(row=0, column=0,  rowspan=2, sticky='nsew')
-    sourceWarning = tk.Label(mainFrame, text='No network drives are available to use as source', font=(None, 14), wraplength=250, bg=uiColor.ERROR)
-    sourceWarning.grid(row=0, column=0, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
+    # Add backup ETA info frame
+    backupActivityEtaFrame = tk.Frame(mainFrame)
+    backupActivityEtaFrame.grid(row=4, column=0, columnspan=2, pady=elemPadding / 2)
+    backupEtaLabel = tk.Label(backupActivityEtaFrame, text='Please start a backup to show ETA')
+    backupEtaLabel.pack()
 
-destTreeFrame = tk.Frame(mainFrame)
-destTreeFrame.grid(row=1, column=1, sticky='ns', padx=(elemPadding, 0))
+    # Add activity frame for backup status output
+    tk.Grid.rowconfigure(mainFrame, 5, weight=1)
+    backupActivityFrame = tk.Frame(mainFrame)
+    backupActivityFrame.grid(row=5, column=0, columnspan=2, sticky='nsew')
 
-destModeFrame = tk.Frame(mainFrame)
-destModeFrame.grid(row=0, column=1, pady=(0, elemPadding / 2))
+    backupActivityInfoCanvas = tk.Canvas(backupActivityFrame)
+    backupActivityInfoCanvas.pack(side='left', fill='both', expand=1)
+    backupActivityScroll = ttk.Scrollbar(backupActivityFrame, orient='vertical', command=backupActivityInfoCanvas.yview)
+    backupActivityScroll.pack(side='left', fill='y')
+    backupActivityScrollableFrame = ttk.Frame(backupActivityInfoCanvas)
+    backupActivityScrollableFrame.bind('<Configure>', lambda e: backupActivityInfoCanvas.configure(
+        scrollregion=backupActivityInfoCanvas.bbox('all')
+    ))
 
-def handleSplitModeCheck():
-    """Handle toggling of split mode based on checkbox value."""
-    config['splitMode'] = destModeSplitCheckVar.get()
+    backupActivityInfoCanvas.create_window((0, 0), window=backupActivityScrollableFrame, anchor='nw')
+    backupActivityInfoCanvas.configure(yscrollcommand=backupActivityScroll.set)
 
-    # TODO: Should this reference backup.isRunning() instead?
-    if not backup or not backup.isAnalysisStarted():
-        splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if config['splitMode'] else 'Disabled'), fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
+    tk.Grid.columnconfigure(mainFrame, 2, weight=1)
 
-destModeSplitCheckVar = tk.BooleanVar()
+    rightSideFrame = tk.Frame(mainFrame)
+    rightSideFrame.grid(row=0, column=2, rowspan=6, sticky='nsew', pady=(elemPadding / 2, 0))
 
-altTooltipFrame = tk.Frame(destModeFrame, bg=uiColor.INFO)
-altTooltipFrame.pack(side='left', ipadx=elemPadding / 2, ipady=4)
-tk.Label(altTooltipFrame, text='Hold ALT while selecting a drive to ignore config files', bg=uiColor.INFO, fg=uiColor.BLACK).pack(fill='y', expand=1)
+    backupSummaryFrame = tk.Frame(rightSideFrame)
+    backupSummaryFrame.pack(fill='both', expand=1, padx=(elemPadding, 0))
+    backupSummaryFrame.update()
 
-splitModeCheck = ttk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
-splitModeCheck.pack(side='left', padx=(12, 0))
+    brandingFrame = tk.Frame(rightSideFrame)
+    brandingFrame.pack()
 
-destTree = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
-destTree.heading('#0', text='Drive')
-destTree.column('#0', width=50)
-destTree.heading('size', text='Size')
-destTree.column('size', width=80)
-destTree.heading('configfile', text='Config file')
-destTree.column('configfile', width=100)
-destTree.heading('vid', text='Volume ID')
-destTree.column('vid', width=100)
-destTree.heading('serial', text='Serial')
-destTree.column('serial', width=200)
-destTree['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
+    logoImageLoad = Image.open(resource_path(f"media\\logo_ui{'_light' if uiColor.isDarkMode() else ''}.png"))
+    logoImageRender = ImageTk.PhotoImage(logoImageLoad)
+    settingsIconLoad = Image.open(resource_path(f"media\\settings{'_light' if uiColor.isDarkMode() else ''}.png"))
+    settingsIconRender = ImageTk.PhotoImage(settingsIconLoad)
+    settingsBtn = tk.Button(brandingFrame, image=settingsIconRender, relief='sunken', borderwidth=0, highlightcolor=uiColor.BG, activebackground=uiColor.BG)
+    settingsBtn.pack(side='left', padx=(0, 8))
+    tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
+    tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
-destTree.pack(side='left')
-driveSelectScroll = ttk.Scrollbar(destTreeFrame, orient='vertical', command=destTree.yview)
-driveSelectScroll.pack(side='left', fill='y')
-destTree.configure(yscrollcommand=driveSelectScroll.set)
+    backupTitle = tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20))
+    backupTitle.pack()
 
-# There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
-# visible, so 1px needs to be added back
-destMetaFrame = tk.Frame(mainFrame)
-destMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, 0))
-tk.Grid.columnconfigure(destMetaFrame, 0, weight=1)
+    # Add placeholder to backup analysis
+    backupSummaryTextFrame = tk.Frame(backupSummaryFrame)
+    backupSummaryTextFrame.pack(fill='x')
+    tk.Label(backupSummaryTextFrame, text='This area will summarize the backup that\'s been configured.',
+             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+    tk.Label(backupSummaryTextFrame, text='Please start a backup analysis to generate a summary.',
+             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
+    startBackupBtn = ttk.Button(backupSummaryFrame, text='Run Backup', command=startBackup, state='disable')
+    startBackupBtn.pack(pady=elemPadding / 2)
 
-destSplitWarningFrame = tk.Frame(mainFrame, bg=uiColor.WARNING)
-destSplitWarningFrame.rowconfigure(0, weight=1)
-destSplitWarningFrame.columnconfigure(0, weight=1)
-destSplitWarningFrame.columnconfigure(10, weight=1)
+    # QUESTION: Does init loadDest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
+    threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=True)
 
-# TODO: Can this be cleaned up?
-tk.Frame(destSplitWarningFrame).grid(row=0, column=0)
-splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=uiColor.WARNING)
-splitWarningPrefix.grid(row=0, column=1, sticky='ns')
-splitWarningMissingDriveCount = tk.Label(destSplitWarningFrame, text='0', bg=uiColor.WARNING, font=(None, 18, 'bold'))
-splitWarningMissingDriveCount.grid(row=0, column=2, sticky='ns')
-splitWarningSuffix = tk.Label(destSplitWarningFrame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=uiColor.WARNING)
-splitWarningSuffix.grid(row=0, column=3, sticky='ns')
-tk.Frame(destSplitWarningFrame).grid(row=0, column=10)
+    settingsWin = None
 
-driveSpaceFrame = tk.Frame(destMetaFrame)
-driveSpaceFrame.grid(row=0, column=0)
-configSelectedSpace = tk.Label(driveSpaceFrame, text='Config: ' + human_filesize(0))
-configSelectedSpace.grid(row=0, column=0)
-driveSelectedSpace = tk.Label(driveSpaceFrame, text='Selected: ' + human_filesize(0))
-driveSelectedSpace.grid(row=0, column=1, padx=(12, 0))
-driveTotalSpace = tk.Label(driveSpaceFrame, text='Available: ' + human_filesize(0))
-driveTotalSpace.grid(row=0, column=2, padx=(12, 0))
-splitModeStatus = tk.Label(driveSpaceFrame, text='Split mode\n%s' % ('Enabled' if config['splitMode'] else 'Disabled'), fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
-splitModeStatus.grid(row=0, column=3, padx=(12, 0))
+    def showSettings():
+        global settingsWin
 
-refreshDestBtn = ttk.Button(destMetaFrame, text='\u2b6e', command=startRefreshDest, style='icon.TButton')
-refreshDestBtn.grid(row=0, column=1)
-startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze Backup', command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled')
-startAnalysisBtn.grid(row=0, column=2)
+        if settingsWin is None or not settingsWin.winfo_exists():
+            settingsWin = tk.Toplevel(root)
+            settingsWin.title('Settings - Backdrop')
+            settingsWin.resizable(False, False)
+            settingsWin.geometry('450x200')
+            settingsWin.iconbitmap(resource_path('media\\icon.ico'))
+            center(settingsWin, root)
+            settingsWin.transient(root)
+            settingsWin.grab_set()
+            root.wm_attributes('-disabled', True)
 
-driveSelectBind = destTree.bind('<<TreeviewSelect>>', selectDriveInBackground)
+            def onClose():
+                settingsWin.destroy()
+                root.wm_attributes('-disabled', False)
 
-# Add backup ETA info frame
-backupActivityEtaFrame = tk.Frame(mainFrame)
-backupActivityEtaFrame.grid(row=4, column=0, columnspan=2, pady=elemPadding / 2)
-backupEtaLabel = tk.Label(backupActivityEtaFrame, text='Please start a backup to show ETA')
-backupEtaLabel.pack()
+                ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
+                root.focus_set()
 
-# Add activity frame for backup status output
-tk.Grid.rowconfigure(mainFrame, 5, weight=1)
-backupActivityFrame = tk.Frame(mainFrame)
-backupActivityFrame.grid(row=5, column=0, columnspan=2, sticky='nsew')
+            settingsWin.protocol('WM_DELETE_WINDOW', onClose)
 
-backupActivityInfoCanvas = tk.Canvas(backupActivityFrame)
-backupActivityInfoCanvas.pack(side='left', fill='both', expand=1)
-backupActivityScroll = ttk.Scrollbar(backupActivityFrame, orient='vertical', command=backupActivityInfoCanvas.yview)
-backupActivityScroll.pack(side='left', fill='y')
-backupActivityScrollableFrame = ttk.Frame(backupActivityInfoCanvas)
-backupActivityScrollableFrame.bind('<Configure>', lambda e: backupActivityInfoCanvas.configure(
-    scrollregion=backupActivityInfoCanvas.bbox('all')
-))
+            mainFrame = tk.Frame(settingsWin)
+            mainFrame.pack(fill='both', expand=True, padx=elemPadding)
 
-backupActivityInfoCanvas.create_window((0, 0), window=backupActivityScrollableFrame, anchor='nw')
-backupActivityInfoCanvas.configure(yscrollcommand=backupActivityScroll.set)
+            mainFrame.columnconfigure(0, weight=1)
+            mainFrame.rowconfigure(0, weight=1)
 
-tk.Grid.columnconfigure(mainFrame, 2, weight=1)
+            darkModeCheckVar = tk.BooleanVar(settingsWin, value=uiColor.isDarkMode())
+            darkModeCheck = ttk.Checkbutton(mainFrame, text='Enable dark mode (experimental)', variable=darkModeCheckVar, command=lambda: preferences.set('darkMode', darkModeCheckVar.get()))
+            darkModeCheck.grid(row=0, column=0, pady=elemPadding)
 
-rightSideFrame = tk.Frame(mainFrame)
-rightSideFrame.grid(row=0, column=2, rowspan=6, sticky='nsew', pady=(elemPadding / 2, 0))
+            disclaimerFrame = tk.Frame(mainFrame, bg=uiColor.INFO)
+            disclaimerFrame.grid(row=1, column=0, ipadx=elemPadding / 2, ipady=4)
+            tk.Label(disclaimerFrame, text='Changes are saved immediately, and will take effect on the next restart', bg=uiColor.INFO, fg=uiColor.BLACK).pack(fill='y', expand=True)
 
-backupSummaryFrame = tk.Frame(rightSideFrame)
-backupSummaryFrame.pack(fill='both', expand=1, padx=(elemPadding, 0))
-backupSummaryFrame.update()
+            buttonFrame = tk.Frame(mainFrame)
+            buttonFrame.grid(row=2, column=0, sticky='ew', pady=elemPadding / 2)
+            ttk.Button(buttonFrame, text='OK', command=onClose).pack()
 
-brandingFrame = tk.Frame(rightSideFrame)
-brandingFrame.pack()
+    settingsBtn.configure(command=showSettings)
 
-logoImageLoad = Image.open(resource_path(f"media\\logo_ui{'_light' if uiColor.isDarkMode() else ''}.png"))
-logoImageRender = ImageTk.PhotoImage(logoImageLoad)
-settingsIconLoad = Image.open(resource_path(f"media\\settings{'_light' if uiColor.isDarkMode() else ''}.png"))
-settingsIconRender = ImageTk.PhotoImage(settingsIconLoad)
-settingsBtn = tk.Button(brandingFrame, image=settingsIconRender, relief='sunken', borderwidth=0, highlightcolor=uiColor.BG, activebackground=uiColor.BG)
-settingsBtn.pack(side='left', padx=(0, 8))
-tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
-tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
-
-backupTitle = tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20))
-backupTitle.pack()
-
-# Add placeholder to backup analysis
-backupSummaryTextFrame = tk.Frame(backupSummaryFrame)
-backupSummaryTextFrame.pack(fill='x')
-tk.Label(backupSummaryTextFrame, text='This area will summarize the backup that\'s been configured.',
-         wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-tk.Label(backupSummaryTextFrame, text='Please start a backup analysis to generate a summary.',
-         wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-startBackupBtn = ttk.Button(backupSummaryFrame, text='Run Backup', command=startBackup, state='disable')
-startBackupBtn.pack(pady=elemPadding / 2)
-
-# QUESTION: Does init loadDest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
-threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=True)
-
-settingsWin = None
-
-def showSettings():
-    global settingsWin
-
-    if settingsWin is None or not settingsWin.winfo_exists():
-        settingsWin = tk.Toplevel(root)
-        settingsWin.title('Settings - Backdrop')
-        settingsWin.resizable(False, False)
-        settingsWin.geometry('450x200')
-        settingsWin.iconbitmap(resource_path('media\\icon.ico'))
-        center(settingsWin, root)
-        settingsWin.transient(root)
-        settingsWin.grab_set()
-        root.wm_attributes('-disabled', True)
-
-        def onClose():
-            settingsWin.destroy()
-            root.wm_attributes('-disabled', False)
-
-            ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
-            root.focus_set()
-
-        settingsWin.protocol('WM_DELETE_WINDOW', onClose)
-
-        mainFrame = tk.Frame(settingsWin)
-        mainFrame.pack(fill='both', expand=True, padx=elemPadding)
-
-        mainFrame.columnconfigure(0, weight=1)
-        mainFrame.rowconfigure(0, weight=1)
-
-        darkModeCheckVar = tk.BooleanVar(settingsWin, value=uiColor.isDarkMode())
-        darkModeCheck = ttk.Checkbutton(mainFrame, text='Enable dark mode (experimental)', variable=darkModeCheckVar, command=lambda: preferences.set('darkMode', darkModeCheckVar.get()))
-        darkModeCheck.grid(row=0, column=0, pady=elemPadding)
-
-        disclaimerFrame = tk.Frame(mainFrame, bg=uiColor.INFO)
-        disclaimerFrame.grid(row=1, column=0, ipadx=elemPadding / 2, ipady=4)
-        tk.Label(disclaimerFrame, text='Changes are saved immediately, and will take effect on the next restart', bg=uiColor.INFO, fg=uiColor.BLACK).pack(fill='y', expand=True)
-
-        buttonFrame = tk.Frame(mainFrame)
-        buttonFrame.grid(row=2, column=0, sticky='ew', pady=elemPadding / 2)
-        ttk.Button(buttonFrame, text='OK', command=onClose).pack()
-
-settingsBtn.configure(command=showSettings)
-
-def onClose():
-    if threadManager.is_alive('Backup'):
-        if messagebox.askyesno('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?'):
-            threadManager.kill('Backup')
+    def onClose():
+        if threadManager.is_alive('Backup'):
+            if messagebox.askyesno('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?'):
+                threadManager.kill('Backup')
+                root.destroy()
+        else:
             root.destroy()
-    else:
-        root.destroy()
 
-root.protocol('WM_DELETE_WINDOW', onClose)
-root.mainloop()
+    root.protocol('WM_DELETE_WINDOW', onClose)
+    root.mainloop()
