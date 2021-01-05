@@ -1017,8 +1017,8 @@ if cliMode:
             ('-s', '--share', 1, 'The shares to back up from the source.'),
             ('-d', '--destination', 1, 'The destination drive to back up to.'),
             '',
-            ('-i', '--interactive', 0, 'Run in interactive mode in lieu of specifying backup configuration.'),
-            ('-l', '--loadconfig', 1, 'Load config file from a drive in lieu of specifying backup configuration.'),
+            ('-i', '--interactive', 0, 'Run in interactive mode instead of specifying backup configuration.'),
+            ('-l', '--loadconfig', 1, 'Load config file from a drive instead of specifying backup configuration.'),
             ('-sm', '--splitmode', 0, 'Run in split mode if not all destination drives are connected.'),
             ('-u', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
             '',
@@ -1032,7 +1032,14 @@ if cliMode:
     elif commandLine.hasParam('version'):
         print(f'BackDrop {appVersion}')
     else:
+        # Backup config mode
         print(f"\n{bcolor.WARNING}{'CLI mode is a work in progress, and may not be stable or complete': ^{os.get_terminal_size().columns}}{bcolor.ENDC}\n") # TODO: Remove CLI mode stability warning
+
+        ### Sanity check ###
+        # TODO: Add interactive mode check here
+        # TODO: Add load config mode check here
+        # TODO: Add split mode check here
+        # TODO: Add unattended mode check here
 
         if not commandLine.hasParam('source') or len(commandLine.getParam('source')) == 0:
             print('Please specify a source drive')
@@ -1047,6 +1054,8 @@ if cliMode:
         sourceDrive = commandLine.getParam('source')[0][0].upper() + ':\\'
         destList = [drive[0].upper() + ':\\' for drive in commandLine.getParam('destination')]
         shareList = sorted(commandLine.getParam('share'))
+
+        ### Input validation ###
 
         # Validate drive selection
         driveList = win32api.GetLogicalDriveStrings().split('\000')[:-1]
@@ -1100,20 +1109,28 @@ if cliMode:
             print(f"{bcolor.FAIL}One or more shares are not valid for selection{bcolor.ENDC}")
             exit()
 
+        ### Save config ###
+
         config['sourceDrive'] = sourceDrive
         config['drives'] = destList
         config['shares'] = shareList
+
+        ### Show summary ###
 
         print(f"Source:      {sourceDrive}")
         print(f"Destination: {', '.join(destList)}")
         print(f"Shares:      {', '.join(shareList)}\n")
 
-        if commandLine.validateYesNo('Do you want to continue?', True):
-            print(f"{bcolor.WARNING}{'Still working on it': ^{os.get_terminal_size().columns}}{bcolor.ENDC}")
-            exit()
-        else:
+        ### Confirm ###
+
+        if not commandLine.validateYesNo('Do you want to continue?', True):
             print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
             exit()
+
+        ### Analysis ###
+
+        print(f"{bcolor.WARNING}{'Still working on it': ^{os.get_terminal_size().columns}}{bcolor.ENDC}")
+        exit()
 
 ############
 # GUI Mode #
