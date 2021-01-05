@@ -1,5 +1,6 @@
 import os
 import sys
+from bin.color import bcolor
 
 class CommandLine:
     def __init__(self, optionInfoList):
@@ -72,6 +73,32 @@ class CommandLine:
                 print(f"{param[1]: <{longLength}}  {param[0]: <{shortLength}}  {parseString(param[3], longLength + shortLength + 4)}")
             else:
                 print(param)
+
+    def validateYesNo(self, message, default):
+        """Validate a yes/no answer input.
+
+        Args:
+            message (String): The message to display
+            default (bool): Whether the default should be yes.
+
+        Returns:
+            bool: Whether or not yes has been selected.
+        """
+
+        defaultString = '(Y/n)' if default else '(y/N)'
+
+        userInput = False
+
+        while userInput not in ['y', 'n', 'yes', 'no', '']:
+            userInput = input(f"{bcolor.OKCYAN}{message} {defaultString}{bcolor.ENDC} ").lower()
+
+            if userInput not in ['y', 'n', 'yes', 'no', '']:
+                print('Please enter either Yes or No')
+
+        if userInput in ['y', 'n', 'yes', 'no']:
+            return userInput in ['y', 'yes']
+        else:
+            return default
 
     def hasParam(self, param):
         """Check if a param is specified in the command line.

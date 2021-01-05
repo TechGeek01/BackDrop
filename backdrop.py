@@ -16,7 +16,7 @@ import sys
 import time
 from datetime import datetime
 from bin.fileutils import human_filesize, get_directory_size
-from bin.color import Color
+from bin.color import Color, bcolor
 from bin.threadManager import ThreadManager
 from bin.preferences import Preferences
 from bin.progress import Progress
@@ -740,23 +740,27 @@ def loadDest():
     """Load the destination drive info, and display it in the tree."""
     global destDriveMasterList
 
-    progress.startIndeterminate()
+    if not cliMode:
+        progress.startIndeterminate()
 
     driveList = win32api.GetLogicalDriveStrings()
     driveList = driveList.split('\000')[:-1]
 
     # Associate logical drives with physical drives, and map them to physical serial numbers
     logicalPhysicalMap = {}
-    pythoncom.CoInitialize()
+    if not cliMode:
+        pythoncom.CoInitialize()
     try:
         for physicalDisk in wmi.WMI().Win32_DiskDrive():
             for partition in physicalDisk.associators("Win32_DiskDriveToDiskPartition"):
                 logicalPhysicalMap.update({logicalDisk.DeviceID[0]: physicalDisk.SerialNumber.strip() for logicalDisk in partition.associators("Win32_LogicalDiskToPartition")})
     finally:
-        pythoncom.CoUninitialize()
+        if not cliMode:
+            pythoncom.CoUninitialize()
 
     # Empty tree in case this is being refreshed
-    destTree.delete(*destTree.get_children())
+    if not cliMode:
+        destTree.delete(*destTree.get_children())
 
     # Enumerate drive list to find info about all non-source drives
     totalUsage = 0
@@ -783,7 +787,8 @@ def loadDest():
                 driveHasConfigFile = os.path.exists('%s%s/%s' % (drive, backupConfigDir, backupConfigFile)) and os.path.isfile('%s%s/%s' % (drive, backupConfigDir, backupConfigFile))
 
                 totalUsage = totalUsage + driveSize
-                destTree.insert(parent='', index='end', text=drive, values=(human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
+                if not cliMode:
+                    destTree.insert(parent='', index='end', text=drive, values=(human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
 
                 destDriveMasterList.append({
                     'name': drive,
@@ -793,9 +798,10 @@ def loadDest():
                     'hasConfig': driveHasConfigFile
                 })
 
-    driveTotalSpace.configure(text='Available: ' + human_filesize(totalUsage))
+    if not cliMode:
+        driveTotalSpace.configure(text='Available: ' + human_filesize(totalUsage))
 
-    progress.stopIndeterminate()
+        progress.stopIndeterminate()
 
 def startRefreshDest():
     """Start the loading of the destination drive info in a new thread."""
@@ -1002,6 +1008,8 @@ cliMode = len(sys.argv) > 1
 ############
 
 if cliMode:
+    os.system('')
+
     commandLine = CommandLine(
         optionInfoList=[
             'Usage: backdrop [options]\n',
@@ -1024,7 +1032,7 @@ if cliMode:
     elif commandLine.hasParam('version'):
         print(f'BackDrop {appVersion}')
     else:
-        print('\nCLI mode is a work in progress, and may not be stable or complete\n') # TODO: Remove CLI mode stability warning
+        print(f"\n{bcolor.WARNING}{'CLI mode is a work in progress, and may not be stable or complete': ^{os.get_terminal_size().columns}}{bcolor.ENDC}\n") # TODO: Remove CLI mode stability warning
 
         if not commandLine.hasParam('source') or len(commandLine.getParam('source')) == 0:
             print('Please specify a source drive')
@@ -1040,13 +1048,72 @@ if cliMode:
         destList = [drive[0].upper() + ':\\' for drive in commandLine.getParam('destination')]
         shareList = sorted(commandLine.getParam('share'))
 
+        # Validate drive selection
+        driveList = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+        remoteDrives = [drive for drive in driveList if win32file.GetDriveType(drive) == 4]
+
+        if len(remoteDrives) <= 0:
+            print(f"{bcolor.FAIL}No network drives are available{bcolor.ENDC}")
+            exit()
+
+        loadDest()
+        if len(destDriveMasterList) <= 0:
+            print(f"{bcolor.FAIL}No destination drives are available{bcolor.ENDC}")
+            exit()
+
+        if sourceDrive not in remoteDrives:
+            print(f"{bcolor.FAIL}Source drive is not valid for selection{bcolor.ENDC}")
+            exit()
+
+        destDriveNameList = [drive['name'] for drive in destDriveMasterList]
+        for drive in destList:
+            if drive not in destDriveNameList:
+                print(f"{bcolor.FAIL}One or more destinations are not valid for selection.\nAvailable drives are as follows:{bcolor.ENDC}")
+
+                # TODO: Generalize this into function for table-izing data?
+                driveNameList = ['Drive']
+                driveSizeList = ['Size']
+                driveConfigList = ['Config file']
+                driveVidList = ['Volume ID']
+                driveSerialList = ['Serial']
+                driveNameList.extend([drive['name'] for drive in destDriveMasterList])
+                driveSizeList.extend([human_filesize(drive['capacity']) for drive in destDriveMasterList])
+                driveConfigList.extend(['Yes' if drive['hasConfig'] else '' for drive in destDriveMasterList])
+                driveVidList.extend([drive['vid'] for drive in destDriveMasterList])
+                driveSerialList.extend([drive['serial'] for drive in destDriveMasterList])
+
+                driveDisplayLength = {
+                    'name': len(max(driveNameList, key=len)),
+                    'size': len(max(driveSizeList, key=len)),
+                    'config': len(max(driveConfigList, key=len)),
+                    'vid': len(max(driveVidList, key=len))
+                }
+
+                for i, drive in enumerate(driveNameList):
+                    print(f"{drive: <{driveDisplayLength['name']}}  {driveSizeList[i]: <{driveDisplayLength['size']}}  {driveConfigList[i]: <{driveDisplayLength['config']}}  {driveVidList[i]: <{driveDisplayLength['vid']}}  {driveSerialList[i]}")
+
+                exit()
+
+        sourceShareList = [directory for directory in next(os.walk(sourceDrive))[1]]
+        filteredShareInput = [share for share in shareList if share in sourceShareList]
+        if len(filteredShareInput) < len(shareList):
+            print(f"{bcolor.FAIL}One or more shares are not valid for selection{bcolor.ENDC}")
+            exit()
+
         config['sourceDrive'] = sourceDrive
         config['drives'] = destList
         config['shares'] = shareList
 
         print(f"Source:      {sourceDrive}")
         print(f"Destination: {', '.join(destList)}")
-        print(f"Shares:      {', '.join(shareList)}")
+        print(f"Shares:      {', '.join(shareList)}\n")
+
+        if commandLine.validateYesNo('Do you want to continue?', True):
+            print(f"{bcolor.WARNING}{'Still working on it': ^{os.get_terminal_size().columns}}{bcolor.ENDC}")
+            exit()
+        else:
+            print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
+            exit()
 
 ############
 # GUI Mode #
