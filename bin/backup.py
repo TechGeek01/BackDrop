@@ -8,15 +8,12 @@ from bin.color import bcolor
 from bin.threadManager import ThreadManager
 
 class Backup:
-    def __init__(self, config, backupConfigDir, backupConfigFile, uiColor, startBackupBtn, startAnalysisBtn, doCopyFn, startBackupFn, killBackupFn, startBackupTimerFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, progress):
+    def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, startBackupFn, killBackupFn, startBackupTimerFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, uiColor=None, startBackupBtn=None, startAnalysisBtn=None, progress=None):
         """
         Args:
             config (dict): The backup config to be processed.
             backupConfigDir (String): The directory to store backup configs on each drive.
             backupConfigFile (String): The file to store backup configs on each drive.
-            uiColor (Color): The UI color instance to reference for styling. TODO: Move uiColor outside of Backup class
-            startBackupBtn (tk.Button): The backup button to use in the UI. TODO: Move startBackupBtn outside of Backup class
-            startAnalysisBtn (tk.Button): The analysis button to use in the UI. TODO: Move startAnalysisBtn outside of Backup class
             doCopy (def): The function to be used to handle file copying. TODO: Move doCopy outside of Backup class.
             startBackupFn (def): The function to be used to start the backup.
             killBackupFn (def): The function to be used to kill the backup.
@@ -26,6 +23,9 @@ class Backup:
             enumerateCommandInfoFn (def): The function to be used to enumerate command info
                     in the UI.
             threadManager (ThreadManager): The thread manager to check for kill flags.
+            uiColor (Color): The UI color instance to reference for styling (default None). TODO: Move uiColor outside of Backup class
+            startBackupBtn (tk.Button): The backup button to use in the UI (default None). TODO: Move startBackupBtn outside of Backup class
+            startAnalysisBtn (tk.Button): The analysis button to use in the UI (default None). TODO: Move startAnalysisBtn outside of Backup class
             progress (Progress): The progress tracker to bind to.
         """
 
@@ -695,16 +695,11 @@ class Backup:
         This function is run in a new thread, but is only run if the backup config is valid.
         If sanityCheck() returns False, the backup isn't run.
         """
-        global backupHalted
 
         self.backupRunning = True
 
         if not self.analysisValid or not self.sanityCheck():
             return
-
-        # Reset halt flag if it's been tripped
-        # FIXME: This should be handled by the kill flag
-        backupHalted = False
 
         # Write config file to drives
         self.writeConfigFile()

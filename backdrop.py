@@ -1014,8 +1014,6 @@ def selectDriveInBackground(event):
     """Start the drive selection handling in a new thread."""
     threadManager.start(threadManager.MULTIPLE, target=handleDriveSelectionClick, name='Drive Select', daemon=True)
 
-backupHalted = False
-
 def startBackup():
     """Start the backup in a new thread."""
 
@@ -1217,23 +1215,17 @@ if config['cliMode']:
 
         ### Analysis ###
 
-        # FIXME: Find a better way to ignore these options in CLI mode than passing None
-        # Could be defaulted to None in the class?
         backup = Backup(
             config=config,
             backupConfigDir=backupConfigDir,
             backupConfigFile=backupConfigFile,
-            uiColor=None,
-            startBackupBtn=None,
-            startAnalysisBtn=None,
             doCopyFn=doCopy,
             startBackupFn=startBackup,
             killBackupFn=lambda: threadManager.kill('Backup'),
             startBackupTimerFn=updateBackupTimer,
             analysisSummaryDisplayFn=displayBackupSummaryChunk,
             enumerateCommandInfoFn=enumerateCommandInfo,
-            threadManager=threadManager,
-            progress=None
+            threadManager=threadManager
         )
         threadManager.start(threadManager.SINGLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
@@ -1424,7 +1416,6 @@ if not config['cliMode']:
         """Handle toggling of split mode based on checkbox value."""
         config['splitMode'] = destModeSplitCheckVar.get()
 
-        # TODO: Should this reference backup.isRunning() instead?
         if not backup or not backup.isAnalysisStarted():
             splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if config['splitMode'] else 'Disabled'), fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
 
