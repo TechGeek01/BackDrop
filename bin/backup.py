@@ -773,19 +773,19 @@ class Backup:
 
                         self.doCopyFn(sourceFile, destFile, guiOptions)
 
-            if not self.threadManager.threadList['Backup']['killFlag']:
-                if not self.config['cliMode']:
-                    self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=self.uiColor.FINISHED)
-                    self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=self.uiColor.FINISHED)
-                else:
-                    print(f"{bcolor.SUCCESS}Backup finished{bcolor.ENDC}")
-            else:
+            if self.threadManager.threadList['Backup']['killFlag']:
                 if not self.config['cliMode']:
                     self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=self.uiColor.STOPPED)
                     self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=self.uiColor.STOPPED)
                 else:
                     print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 break
+        if not self.threadManager.threadList['Backup']['killFlag']:
+            if not self.config['cliMode']:
+                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=self.uiColor.FINISHED)
+                self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=self.uiColor.FINISHED)
+            else:
+                print(f"{bcolor.OKGREEN}Backup finished{bcolor.ENDC}")
 
         self.threadManager.kill('backupTimer')
 

@@ -25,7 +25,7 @@ from bin.commandLine import CommandLine
 from bin.backup import Backup
 
 # Set meta info
-appVersion = '2.1.0-alpha.4'
+appVersion = '2.1.0-beta.1'
 
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
 
@@ -247,7 +247,6 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
     else:
         return False
 
-lastPercentCopied = 0
 def printProgress(copied, total, guiOptions):
     """Display the copy progress of a transfer
 
@@ -256,8 +255,6 @@ def printProgress(copied, total, guiOptions):
         total (int): The total file size.
         guiOptions (obj): The options for updating the GUI.
     """
-
-    global lastPercentCopied
 
     backupTotals = backup.getTotals()
 
@@ -280,22 +277,19 @@ def printProgress(copied, total, guiOptions):
                 progress.set(backupTotals['progressBar'])
 
                 cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"{percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uiColor.NORMAL)
-            elif int(percentCopied) > lastPercentCopied or copied == total:
-                lastPercentCopied = percentCopied
-                print(f"{percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}")
+            else:
+                print(f"{percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
         elif guiOptions['mode'] == 'verifysource':
             if not config['cliMode']:
                 cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Verifying source \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uiColor.BLUE)
-            elif int(percentCopied) > lastPercentCopied or copied == total:
-                lastPercentCopied = percentCopied
-                print(f"{bcolor.OKCYAN}Verifying source => {percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}")
+            else:
+                print(f"{bcolor.OKCYAN}Verifying source => {percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
         elif guiOptions['mode'] == 'verifydest':
             backupTotals['buffer'] += total
             if not config['cliMode']:
                 cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Verifying destination \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uiColor.BLUE)
-            elif int(percentCopied) > lastPercentCopied or copied == total:
-                lastPercentCopied = percentCopied
-                print(f"{bcolor.OKCYAN}Verifying destination => {percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}")
+            else:
+                print(f"{bcolor.OKCYAN}Verifying destination => {percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
 
     if guiOptions['mode'] == 'copy' and copied >= total:
         backupTotals['running'] += total
@@ -380,6 +374,8 @@ def displayBackupSummaryChunk(title, payload, reset=False):
             else:
                 print(f"{item[0]} => {item[1]}")
 
+# FIXME: Can progress bar and status updating be rolled into the same function?
+# QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
 def updateBackupTimer():
     if not config['cliMode']:
         backupEtaLabel.configure(fg=uiColor.NORMAL)
@@ -403,7 +399,7 @@ def updateBackupTimer():
             backupEtaLabel.configure(text=f"{str(runningTime).split('.')[0]} elapsed \u27f6 {str(remainingTime).split('.')[0]} remaining")
         else:
             print(f"{str(runningTime).split('.')[0]} elapsed => {str(remainingTime).split('.')[0]} remaining")
-        time.sleep(0.5)
+        time.sleep(0.25)
 
     if not threadManager.threadList['Backup']['killFlag']:
         # Backup not killed, so completed successfully
@@ -638,6 +634,7 @@ def enumerateCommandInfo(self, displayCommandList):
     if config['cliMode']:
         print('')
 
+# URGENT: Replace CLI mode call for analysis with this function call
 def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
 
@@ -1056,6 +1053,9 @@ def cleanupHandler(signal_received, frame):
 
             while threadManager.is_alive('Backup'):
                 pass
+
+        if threadManager.is_alive('backupTimer'):
+            threadManager.kill('backupTimer')
     else:
         print(f"{bcolor.FAIL}SIGINT or Ctrl-C detected. Force closing...{bcolor.ENDC}")
 
@@ -1253,7 +1253,6 @@ if config['cliMode']:
         while threadManager.is_alive('Backup'):
             pass
 
-        print(f"{bcolor.WARNING}{'Still working on it': ^{os.get_terminal_size().columns}}{bcolor.ENDC}")
         exit()
 
 ############
@@ -1261,6 +1260,8 @@ if config['cliMode']:
 ############
 
 if not config['cliMode']:
+    os.system('')
+
     def resource_path(relative_path):
         """ Get absolute path to resource, works for dev and for PyInstaller """
         try:
