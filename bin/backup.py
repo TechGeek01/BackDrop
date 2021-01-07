@@ -4,6 +4,7 @@ import itertools
 import subprocess
 from datetime import datetime
 from bin.fileutils import human_filesize, get_directory_size
+from bin.color import bcolor
 from bin.threadManager import ThreadManager
 
 class Backup:
@@ -137,10 +138,10 @@ class Backup:
         if not self.sanityCheck():
             return
 
-        self.progress.startIndeterminate()
-
-        self.startBackupBtn.configure(state='disable')
-        self.startAnalysisBtn.configure(state='disable')
+        if not self.config['cliMode']:
+            self.progress.startIndeterminate()
+            self.startBackupBtn.configure(state='disable')
+            self.startAnalysisBtn.configure(state='disable')
 
         shareInfo = {share['name']: share['size'] for share in self.config['shares']}
         allShareInfo = {share['name']: share['size'] for share in self.config['shares']}
@@ -165,6 +166,7 @@ class Backup:
 
             # If drive is connected, collect info about config size and free space
             if driveConnected:
+                # TODO: Replace hardcoded .backdrop with variable dir name from main file
                 curDriveInfo['configSize'] = get_directory_size(drive['name'] + '.backdrop')
             else:
                 curDriveInfo['name'] = f"[{drive['vid']}]"
@@ -646,10 +648,10 @@ class Backup:
 
         self.analysisValid = True
 
-        self.startBackupBtn.configure(state='normal')
-        self.startAnalysisBtn.configure(state='normal')
-
-        self.progress.stopIndeterminate()
+        if not self.config['cliMode']:
+            self.startBackupBtn.configure(state='normal')
+            self.startAnalysisBtn.configure(state='normal')
+            self.progress.stopIndeterminate()
 
         self.analysisRunning = False
 
@@ -700,21 +702,23 @@ class Backup:
         if not self.analysisValid or not self.sanityCheck():
             return
 
-        self.progress.setMax(self.totals['master'])
-
         # Reset halt flag if it's been tripped
+        # FIXME: This should be handled by the kill flag
         backupHalted = False
 
         # Write config file to drives
         self.writeConfigFile()
 
-        for cmd in commandList:
-            self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Pending', fg=self.uiColor.PENDING)
-            if cmd['type'] == 'fileList':
-                self.cmdInfoBlocks[cmd['displayIndex']]['currentFileResult'].configure(text='Pending', fg=self.uiColor.PENDING)
-            self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=self.uiColor.PENDING)
+        if not self.config['cliMode']:
+            self.progress.setMax(self.totals['master'])
 
-        self.startBackupBtn.configure(text='Halt Backup', command=self.killBackupFn, style='danger.TButton')
+            for cmd in commandList:
+                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Pending', fg=self.uiColor.PENDING)
+                if cmd['type'] == 'fileList':
+                    self.cmdInfoBlocks[cmd['displayIndex']]['currentFileResult'].configure(text='Pending', fg=self.uiColor.PENDING)
+                self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=self.uiColor.PENDING)
+
+            self.startBackupBtn.configure(text='Halt Backup', command=self.killBackupFn, style='danger.TButton')
 
         timerStarted = False
 
@@ -722,11 +726,16 @@ class Backup:
             if cmd['type'] == 'list':
                 for item in cmd['cmdList']:
                     process = subprocess.Popen(item, shell=True, stdout=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text=item, fg=self.uiColor.NORMAL)
 
-                    while not self.threadManager.threadList['Backup']['killFlag'] and process.poll() is None:
+                    if not self.config['cliMode']:
+                        self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text=item, fg=self.uiColor.NORMAL)
+                    else:
+                        print(item)
+
+                    while (self.config['cliMode'] or not self.threadManager.threadList['Backup']['killFlag']) and process.poll() is None:
                         try:
-                            self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uiColor.RUNNING)
+                            if not self.config['cliMode']:
+                                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uiColor.RUNNING)
                         except Exception as e:
                             print(e)
                     process.terminate()
@@ -734,7 +743,8 @@ class Backup:
                     if self.threadManager.threadList['Backup']['killFlag']:
                         break
             elif cmd['type'] == 'fileList':
-                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uiColor.RUNNING)
+                if not self.config['cliMode']:
+                    self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uiColor.RUNNING)
 
                 if not timerStarted and (cmd['mode'] == 'replace' or cmd['mode'] == 'copy'):
                     timerStarted = True
@@ -764,16 +774,23 @@ class Backup:
                         self.doCopyFn(sourceFile, destFile, guiOptions)
 
             if not self.threadManager.threadList['Backup']['killFlag']:
-                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=self.uiColor.FINISHED)
-                self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=self.uiColor.FINISHED)
+                if not self.config['cliMode']:
+                    self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=self.uiColor.FINISHED)
+                    self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=self.uiColor.FINISHED)
+                else:
+                    print(f"{bcolor.SUCCESS}Backup finished{bcolor.ENDC}")
             else:
-                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=self.uiColor.STOPPED)
-                self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=self.uiColor.STOPPED)
+                if not self.config['cliMode']:
+                    self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=self.uiColor.STOPPED)
+                    self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=self.uiColor.STOPPED)
+                else:
+                    print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 break
 
         self.threadManager.kill('backupTimer')
 
-        self.startBackupBtn.configure(text='Run Backup', command=self.startBackupFn, style='win.TButton')
+        if not self.config['cliMode']:
+            self.startBackupBtn.configure(text='Run Backup', command=self.startBackupFn, style='win.TButton')
 
         self.backupRunning = False
 
