@@ -52,7 +52,7 @@ class ThreadManager:
             String: If a thread is successfully created, the thread name is returned.
             bool: False if an active thread exists with that name.
         """
-        if kwargs['name']:
+        if 'name' in kwargs:
             threadName = kwargs['name']
         else:
             threadName = 'thread%d' % (self.counter)
@@ -68,14 +68,14 @@ class ThreadManager:
         # REPLACEABLE: SINGLE thread, but instead of blocking, kill and restart
 
         if threadType == self.SINGLE or threadType == self.KILLABLE or threadType == self.REPLACEABLE:
-            if kwargs['name']:
+            if 'name' in kwargs:
                 threadName = kwargs['name']
             else:
                 self.counter += 1
                 threadName = 'thread%d' % (self.counter)
         elif threadType == self.MULTIPLE:
             self.counter += 1
-            threadName = '%s_%d' % (kwargs['name'] if kwargs['name'] else 'thread', self.counter)
+            threadName = '%s_%d' % (kwargs['name'] if 'name' in kwargs else 'thread', self.counter)
 
         # If the thread either isn't in the list, or isn't active, create and run the thread
         if threadType == self.SINGLE and not self.is_alive(threadName):
