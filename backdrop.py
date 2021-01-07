@@ -1122,7 +1122,6 @@ if config['cliMode']:
         # TODO: Add interactive mode check here
         # TODO: Add load config mode check here
         # TODO: Add split mode check here
-        # TODO: Add unattended mode check here
 
         if not commandLine.hasParam('source') or len(commandLine.getParam('source')) == 0:
             print('Please specify a source drive')
@@ -1209,7 +1208,7 @@ if config['cliMode']:
 
         ### Confirm ###
 
-        if not commandLine.validateYesNo('Do you want to continue?', True):
+        if not commandLine.hasParam('unattended') and not commandLine.validateYesNo('Do you want to continue?', True):
             print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
             exit()
 
@@ -1234,7 +1233,7 @@ if config['cliMode']:
 
         ### Confirm ###
 
-        if not commandLine.validateYesNo('Do you want to continue?', True):
+        if not commandLine.hasParam('unattended') and not commandLine.validateYesNo('Do you want to continue?', True):
             print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
             exit()
 
