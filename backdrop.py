@@ -14,6 +14,7 @@ from PIL import Image, ImageTk
 import hashlib
 import sys
 import time
+from signal import signal, SIGINT
 from datetime import datetime
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import Color, bcolor
@@ -1034,6 +1035,33 @@ def startBackup():
 
         threadManager.start(threadManager.KILLABLE, killBackupThread, target=backup.run, name='Backup', daemon=True)
 
+forceNonGracefulCleanup = False
+def cleanupHandler(signal_received, frame):
+    """Handle cleanup when exiting with Ctrl-C.
+
+    Args:
+        signal_received: The signal number received.
+        frame: The current stack frame.
+    """
+    global forceNonGracefulCleanup
+
+    if not forceNonGracefulCleanup:
+        print(f"{bcolor.FAIL}SIGINT or Ctrl-C detected. Exiting gracefully...{bcolor.ENDC}")
+
+        if threadManager.is_alive('Backup'):
+            threadManager.kill('Backup')
+
+            if threadManager.is_alive('Backup'):
+                forceNonGracefulCleanup = True
+                print(f"{bcolor.FAIL}Press Ctrl-C again to force stop{bcolor.ENDC}")
+
+            while threadManager.is_alive('Backup'):
+                pass
+    else:
+        print(f"{bcolor.FAIL}SIGINT or Ctrl-C detected. Force closing...{bcolor.ENDC}")
+
+    exit(0)
+
 # Set app defaults
 backupConfigDir = '.backdrop'
 backupConfigFile = 'backup.config'
@@ -1055,6 +1083,7 @@ destDriveMasterList = []
 backup = None
 commandList = []
 
+signal(SIGINT, cleanupHandler)
 
 threadManager = ThreadManager()
 
