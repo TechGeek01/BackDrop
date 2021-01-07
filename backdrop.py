@@ -28,7 +28,6 @@ from bin.backup import Backup
 appVersion = '2.1.0-alpha.4'
 
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
-# IDEA: Add interactive CLI option if correct parameters are passed in @interface
 
 def center(win, centerOnWin=None):
     """Center a tkinter window on screen.
@@ -1184,8 +1183,8 @@ if config['cliMode']:
                     'vid': len(max(driveVidList, key=len))
                 }
 
-                for i, drive in enumerate(driveNameList):
-                    print(f"{drive: <{driveDisplayLength['name']}}  {driveSizeList[i]: <{driveDisplayLength['size']}}  {driveConfigList[i]: <{driveDisplayLength['config']}}  {driveVidList[i]: <{driveDisplayLength['vid']}}  {driveSerialList[i]}")
+                for i, curDrive in enumerate(driveNameList):
+                    print(f"{curDrive: <{driveDisplayLength['name']}}  {driveSizeList[i]: <{driveDisplayLength['size']}}  {driveConfigList[i]: <{driveDisplayLength['config']}}  {driveVidList[i]: <{driveDisplayLength['vid']}}  {driveSerialList[i]}")
 
                 exit()
 
@@ -1249,7 +1248,6 @@ if config['cliMode']:
 
         ### Backup ###
 
-        # URGENT: Find a way to capture Ctrl C in command line to have both CLI and GUI clean up rather than crash with KeyboardInnterrupt
         startBackup()
 
         while threadManager.is_alive('Backup'):
