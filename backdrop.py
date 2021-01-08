@@ -1110,7 +1110,7 @@ if config['cliMode']:
         ]
     )
 
-    # FIXME: Allow destination and loadconfig to be specified with drive letter or volume ID
+    # FIXME: Allow destination and config to be specified with drive letter or volume ID
 
     if commandLine.hasParam('help'):
         commandLine.showHelp()
@@ -1147,7 +1147,7 @@ if config['cliMode']:
             print('\nAvailable drives are as follows:\n')
             print(f"Available drives: {', '.join(remoteDrives)}\n")
             config['sourceDrive'] = commandLine.validateChoice(
-                message=f"Which source drive would you like to use?",
+                message='Which source drive would you like to use?',
                 choices=remoteDrives,
                 default=sourceDrive,
                 charsRequired=1
@@ -1190,7 +1190,7 @@ if config['cliMode']:
             print('')
 
             driveList = commandLine.validateChoiceList(
-                message=f"Which destination drives (space separated) would you like to use?",
+                message='Which destination drives (space separated) would you like to use?',
                 choices=[drive['name'] for drive in destDriveMasterList],
                 default=None,
                 charsRequired=1
@@ -1268,7 +1268,7 @@ if config['cliMode']:
             print('\n'.join(allShareList) + '\n')
 
             shareList = commandLine.validateChoiceList(
-                message=f"Which shares (space separated) would you like to use?",
+                message='Which shares (space separated) would you like to use?',
                 choices=allShareList,
                 default=None,
                 caseSensitive=True
