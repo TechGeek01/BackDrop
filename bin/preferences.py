@@ -112,7 +112,7 @@ class Preferences:
             return setting
         else:
             # Preference doesn't exist, so write changes
-            self.set(prefName, setting)
+            self.set(prefName, default)
             return default
 
     def set(self, prefName, prefVal):
