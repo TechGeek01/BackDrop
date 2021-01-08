@@ -1141,8 +1141,8 @@ if config['cliMode']:
         if commandLine.hasParam('interactive'):
             sourceDrive = preferences.get('sourceDrive', remoteDrives[0], remoteDrives)
         else:
-            sourceDrive = commandLine.getParam('source')[0][0].upper() + ':\\' if commandLine.hasParam('source') else remoteDrives[0]
-            sourceDrive = preferences.get('sourceDrive', sourceDrive, remoteDrives)
+            sourceDrive = preferences.get('sourceDrive', remoteDrives[0], remoteDrives)
+            sourceDrive = commandLine.getParam('source')[0][0].upper() + ':\\' if commandLine.hasParam('source') and commandLine.getParam('source')[0] in remoteDrives else sourceDrive
 
         if commandLine.hasParam('interactive') and not commandLine.validateYesNo(f"Source drive {sourceDrive} loaded from preferences. Is this ok?", True):
             print('\nAvailable drives are as follows:\n')
@@ -1162,6 +1162,8 @@ if config['cliMode']:
                 exit()
 
             config['sourceDrive'] = sourceDrive
+
+        sharesLoadedFromConfig = False
 
         # Destination drives
         if commandLine.hasParam('interactive'):
@@ -1205,6 +1207,8 @@ if config['cliMode']:
             if type(loadConfigDrive) is list and f"{loadConfigDrive[0][0].upper()}:\\" in destDriveNameList:
                 readConfigFile(f"{loadConfigDrive[0][0].upper()}:\\{backupConfigDir}\\{backupConfigFile}")
 
+                sharesLoadedFromConfig = True
+
                 destList = [drive['name'] for drive in config['drives']]
                 shareList = [share['name'] for share in config['shares']]
 
@@ -1231,32 +1235,32 @@ if config['cliMode']:
 
                 destList = [drive[0].upper() + ':\\' for drive in commandLine.getParam('destination')]
 
-            for drive in destList:
-                if drive not in destDriveNameList:
-                    print(f"{bcolor.FAIL}One or more destinations are not valid for selection.\nAvailable drives are as follows:{bcolor.ENDC}")
+                for drive in destList:
+                    if drive not in destDriveNameList:
+                        print(f"{bcolor.FAIL}One or more destinations are not valid for selection.\nAvailable drives are as follows:{bcolor.ENDC}")
 
-                    driveNameList = ['Drive']
-                    driveSizeList = ['Size']
-                    driveConfigList = ['Config file']
-                    driveVidList = ['Volume ID']
-                    driveSerialList = ['Serial']
-                    driveNameList.extend([drive['name'] for drive in destDriveMasterList])
-                    driveSizeList.extend([human_filesize(drive['capacity']) for drive in destDriveMasterList])
-                    driveConfigList.extend(['Yes' if drive['hasConfig'] else '' for drive in destDriveMasterList])
-                    driveVidList.extend([drive['vid'] for drive in destDriveMasterList])
-                    driveSerialList.extend([drive['serial'] for drive in destDriveMasterList])
+                        driveNameList = ['Drive']
+                        driveSizeList = ['Size']
+                        driveConfigList = ['Config file']
+                        driveVidList = ['Volume ID']
+                        driveSerialList = ['Serial']
+                        driveNameList.extend([drive['name'] for drive in destDriveMasterList])
+                        driveSizeList.extend([human_filesize(drive['capacity']) for drive in destDriveMasterList])
+                        driveConfigList.extend(['Yes' if drive['hasConfig'] else '' for drive in destDriveMasterList])
+                        driveVidList.extend([drive['vid'] for drive in destDriveMasterList])
+                        driveSerialList.extend([drive['serial'] for drive in destDriveMasterList])
 
-                    driveDisplayLength = {
-                        'name': len(max(driveNameList, key=len)),
-                        'size': len(max(driveSizeList, key=len)),
-                        'config': len(max(driveConfigList, key=len)),
-                        'vid': len(max(driveVidList, key=len))
-                    }
+                        driveDisplayLength = {
+                            'name': len(max(driveNameList, key=len)),
+                            'size': len(max(driveSizeList, key=len)),
+                            'config': len(max(driveConfigList, key=len)),
+                            'vid': len(max(driveVidList, key=len))
+                        }
 
-                    for i, curDrive in enumerate(driveNameList):
-                        print(f"{curDrive: <{driveDisplayLength['name']}}  {driveSizeList[i]: <{driveDisplayLength['size']}}  {driveConfigList[i]: <{driveDisplayLength['config']}}  {driveVidList[i]: <{driveDisplayLength['vid']}}  {driveSerialList[i]}")
+                        for i, curDrive in enumerate(driveNameList):
+                            print(f"{curDrive: <{driveDisplayLength['name']}}  {driveSizeList[i]: <{driveDisplayLength['size']}}  {driveConfigList[i]: <{driveDisplayLength['config']}}  {driveVidList[i]: <{driveDisplayLength['vid']}}  {driveSerialList[i]}")
 
-                    exit()
+                        exit()
 
             config['drives'] = [drive for drive in destDriveMasterList if drive['name'] in destList]
             config['splitMode'] = splitMode
@@ -1283,9 +1287,11 @@ if config['cliMode']:
             if len(config['shares']) <= 0 and (not commandLine.hasParam('share') or len(commandLine.getParam('share')) == 0):
                 print('Please specify at least one share to back up')
                 exit()
-            shareList = sorted(commandLine.getParam('share'))
 
-            sourceShareList = [directory for directory in next(os.walk(sourceDrive))[1]]
+            if not sharesLoadedFromConfig:
+                shareList = sorted(commandLine.getParam('share'))
+
+            sourceShareList = [directory for directory in next(os.walk(config['sourceDrive']))[1]]
             filteredShareInput = [share for share in shareList if share in sourceShareList]
             if len(filteredShareInput) < len(shareList):
                 print(f"{bcolor.FAIL}One or more shares are not valid for selection{bcolor.ENDC}")
@@ -1293,7 +1299,7 @@ if config['cliMode']:
 
             config['shares'] = [{
                 'name': share,
-                'size': get_directory_size(sourceDrive + share)
+                'size': get_directory_size(config['sourceDrive'] + share)
             } for share in shareList]
 
         ### Show summary ###
