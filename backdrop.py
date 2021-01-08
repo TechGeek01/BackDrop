@@ -1102,7 +1102,7 @@ if config['cliMode']:
             '',
             ('-i', '--interactive', 0, 'Run in interactive mode instead of specifying backup configuration.'),
             ('-c', '--config', 1, 'Load config file from a drive instead of specifying backup configuration.'),
-            ('-sp', '--split', 0, 'Run in split mode if not all destination drives are connected.'),
+            (None, '--split', 0, 'Run in split mode if not all destination drives are connected.'),
             ('-u', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
             '',
             ('-h', '--help', 0, 'Display this help menu.'),

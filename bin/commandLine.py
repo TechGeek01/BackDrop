@@ -29,8 +29,8 @@ class CommandLine:
 
     def showHelp(self):
         """Show the help menu."""
-        longLength = len(max([item[1] for item in self.optionList if type], key=len))
-        shortLength = len(max([item[0] for item in self.optionList if type], key=len))
+        longLength = len(max([item[1] for item in self.optionList], key=len))
+        shortLength = 3
 
         def parseString(helpString, indentSize):
             """Convert a help string into a line-broken message for console output.
@@ -70,7 +70,8 @@ class CommandLine:
 
         for param in self.optionInfoList:
             if type(param) is tuple:
-                print(f"{param[1]: <{longLength}}  {param[0]: <{shortLength}}  {parseString(param[3], longLength + shortLength + 4)}")
+                displayShortOption = param[0] + ',' if type(param[0]) is str else ''
+                print(f"{displayShortOption: <{shortLength}} {param[1]: <{longLength}}    {parseString(param[3], longLength + shortLength + 5)}")
             else:
                 print(param)
 
