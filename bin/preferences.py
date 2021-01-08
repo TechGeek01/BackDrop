@@ -104,7 +104,7 @@ class Preferences:
             setting = self.prefs[prefName]
 
             if type(verifyData) is list and setting not in verifyData:
-                setting = default
+                setting = default if default in verifyData else None
 
                 # Preference has been changed from read value, so write changes
                 self.set(prefName, setting)

@@ -1120,9 +1120,6 @@ if config['cliMode']:
         # Backup config mode
         print(f"\n{bcolor.WARNING}{'CLI mode is a work in progress, and may not be stable or complete': ^{os.get_terminal_size().columns}}{bcolor.ENDC}\n") # TODO: Remove CLI mode stability warning
 
-        ### Sanity check ###
-        # TODO: Add interactive mode check here
-
         ### Input validation ###
 
         # Validate drive selection
@@ -1133,102 +1130,170 @@ if config['cliMode']:
             print(f"{bcolor.FAIL}No network drives are available{bcolor.ENDC}")
             exit()
 
-        sourceDrive = commandLine.getParam('source')[0][0].upper() + ':\\' if commandLine.hasParam('source') else None
-        sourceDrive = preferences.get('sourceDrive', sourceDrive, remoteDrives)
-
-        if sourceDrive is None:
-            print('Please specify a source drive')
-            exit()
-        elif sourceDrive not in remoteDrives:
-            print(f"{bcolor.FAIL}Source drive is not valid for selection{bcolor.ENDC}")
-            exit()
-
         loadDest()
         if len(destDriveMasterList) <= 0:
             print(f"{bcolor.FAIL}No destination drives are available{bcolor.ENDC}")
             exit()
-
         destDriveNameList = [drive['name'] for drive in destDriveMasterList]
 
-        # Load from config
-        splitMode = commandLine.hasParam('split')
-        loadConfigDrive = commandLine.getParam('config')
-        if type(loadConfigDrive) is list and f"{loadConfigDrive[0][0].upper()}:\\" in destDriveNameList:
-            readConfigFile(f"{loadConfigDrive[0][0].upper()}:\\{backupConfigDir}\\{backupConfigFile}")
-
-            destList = [drive['name'] for drive in config['drives']]
-            shareList = [share['name'] for share in config['shares']]
-
-            # If drives aren't mounted that should be, display the warning
-            missingDriveCount = len(config['missingDrives'])
-            if missingDriveCount > 0 and not splitMode:
-                configMissingVids = [vid for vid in config['missingDrives'].keys()]
-
-                missingVidString = ', '.join(configMissingVids[:-2] + [' and '.join(configMissingVids[-2:])])
-                warningMessage = f"The drive{'s' if len(configMissingVids) > 1 else ''} with volume ID{'s' if len(configMissingVids) > 1 else ''} {missingVidString} {'are' if len(configMissingVids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
-                warningTitle = f"Drive{'s' if len(configMissingVids) > 1 else ''} missing"
-
-                driveParts = [
-                    'is' if missingDriveCount == 1 else 'are',
-                    'drive' if missingDriveCount == 1 else 'drives',
-                    'isn\'t' if missingDriveCount == 1 else 'aren\'t',
-                    'it' if missingDriveCount == 1 else 'them'
-                ]
-                print(f"{bcolor.WARNING}There {driveParts[0]} {missingDriveCount} {driveParts[1]} in the config that {driveParts[2]} connected. Please connect {driveParts[3]}, or enable split mode.{bcolor.ENDC}\n")
+        # Source drive
+        if commandLine.hasParam('interactive'):
+            sourceDrive = preferences.get('sourceDrive', remoteDrives[0], remoteDrives)
         else:
-            if len(config['drives']) <= 0 and (not commandLine.hasParam('destination') or len(commandLine.getParam('destination')) == 0):
-                print('Please specify at least one destination drive')
+            sourceDrive = commandLine.getParam('source')[0][0].upper() + ':\\' if commandLine.hasParam('source') else remoteDrives[0]
+            sourceDrive = preferences.get('sourceDrive', sourceDrive, remoteDrives)
+
+        if commandLine.hasParam('interactive') and not commandLine.validateYesNo(f"Source drive {sourceDrive} loaded from preferences. Is this ok?", True):
+            print('\nAvailable drives are as follows:\n')
+            print(f"Available drives: {', '.join(remoteDrives)}\n")
+            config['sourceDrive'] = commandLine.validateChoice(
+                message=f"Which source drive would you like to use?",
+                choices=remoteDrives,
+                default=sourceDrive,
+                charsRequired=1
+            )
+        else:
+            if sourceDrive is None:
+                print('Please specify a source drive')
                 exit()
-            elif len(config['shares']) <= 0 and (not commandLine.hasParam('share') or len(commandLine.getParam('share')) == 0):
+            elif sourceDrive not in remoteDrives:
+                print(f"{bcolor.FAIL}Source drive is not valid for selection{bcolor.ENDC}")
+                exit()
+
+            config['sourceDrive'] = sourceDrive
+
+        # Destination drives
+        if commandLine.hasParam('interactive'):
+            print('\nAvailable destination drives are as follows:\n')
+
+            # TODO: Generalize this into function for table-izing data?
+            driveNameList = ['Drive']
+            driveSizeList = ['Size']
+            driveConfigList = ['Config file']
+            driveVidList = ['Volume ID']
+            driveSerialList = ['Serial']
+            driveNameList.extend([drive['name'] for drive in destDriveMasterList])
+            driveSizeList.extend([human_filesize(drive['capacity']) for drive in destDriveMasterList])
+            driveConfigList.extend(['Yes' if drive['hasConfig'] else '' for drive in destDriveMasterList])
+            driveVidList.extend([drive['vid'] for drive in destDriveMasterList])
+            driveSerialList.extend([drive['serial'] for drive in destDriveMasterList])
+
+            driveDisplayLength = {
+                'name': len(max(driveNameList, key=len)),
+                'size': len(max(driveSizeList, key=len)),
+                'config': len(max(driveConfigList, key=len)),
+                'vid': len(max(driveVidList, key=len))
+            }
+
+            for i, curDrive in enumerate(driveNameList):
+                print(f"{curDrive: <{driveDisplayLength['name']}}  {driveSizeList[i]: <{driveDisplayLength['size']}}  {driveConfigList[i]: <{driveDisplayLength['config']}}  {driveVidList[i]: <{driveDisplayLength['vid']}}  {driveSerialList[i]}")
+            print('')
+
+            driveList = commandLine.validateChoiceList(
+                message=f"Which destination drives (space separated) would you like to use?",
+                choices=[drive['name'] for drive in destDriveMasterList],
+                default=None,
+                charsRequired=1
+            )
+
+            config['drives'] = [drive for drive in destDriveMasterList if drive['name'] in driveList]
+        else:
+            # Load from config
+            splitMode = commandLine.hasParam('split')
+            loadConfigDrive = commandLine.getParam('config')
+            if type(loadConfigDrive) is list and f"{loadConfigDrive[0][0].upper()}:\\" in destDriveNameList:
+                readConfigFile(f"{loadConfigDrive[0][0].upper()}:\\{backupConfigDir}\\{backupConfigFile}")
+
+                destList = [drive['name'] for drive in config['drives']]
+                shareList = [share['name'] for share in config['shares']]
+
+                # If drives aren't mounted that should be, display the warning
+                missingDriveCount = len(config['missingDrives'])
+                if missingDriveCount > 0 and not splitMode:
+                    configMissingVids = [vid for vid in config['missingDrives'].keys()]
+
+                    missingVidString = ', '.join(configMissingVids[:-2] + [' and '.join(configMissingVids[-2:])])
+                    warningMessage = f"The drive{'s' if len(configMissingVids) > 1 else ''} with volume ID{'s' if len(configMissingVids) > 1 else ''} {missingVidString} {'are' if len(configMissingVids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
+                    warningTitle = f"Drive{'s' if len(configMissingVids) > 1 else ''} missing"
+
+                    driveParts = [
+                        'is' if missingDriveCount == 1 else 'are',
+                        'drive' if missingDriveCount == 1 else 'drives',
+                        'isn\'t' if missingDriveCount == 1 else 'aren\'t',
+                        'it' if missingDriveCount == 1 else 'them'
+                    ]
+                    print(f"{bcolor.WARNING}There {driveParts[0]} {missingDriveCount} {driveParts[1]} in the config that {driveParts[2]} connected. Please connect {driveParts[3]}, or enable split mode.{bcolor.ENDC}\n")
+            else:
+                if len(config['drives']) <= 0 and (not commandLine.hasParam('destination') or len(commandLine.getParam('destination')) == 0):
+                    print('Please specify at least one destination drive')
+                    exit()
+
+                destList = [drive[0].upper() + ':\\' for drive in commandLine.getParam('destination')]
+
+            for drive in destList:
+                if drive not in destDriveNameList:
+                    print(f"{bcolor.FAIL}One or more destinations are not valid for selection.\nAvailable drives are as follows:{bcolor.ENDC}")
+
+                    driveNameList = ['Drive']
+                    driveSizeList = ['Size']
+                    driveConfigList = ['Config file']
+                    driveVidList = ['Volume ID']
+                    driveSerialList = ['Serial']
+                    driveNameList.extend([drive['name'] for drive in destDriveMasterList])
+                    driveSizeList.extend([human_filesize(drive['capacity']) for drive in destDriveMasterList])
+                    driveConfigList.extend(['Yes' if drive['hasConfig'] else '' for drive in destDriveMasterList])
+                    driveVidList.extend([drive['vid'] for drive in destDriveMasterList])
+                    driveSerialList.extend([drive['serial'] for drive in destDriveMasterList])
+
+                    driveDisplayLength = {
+                        'name': len(max(driveNameList, key=len)),
+                        'size': len(max(driveSizeList, key=len)),
+                        'config': len(max(driveConfigList, key=len)),
+                        'vid': len(max(driveVidList, key=len))
+                    }
+
+                    for i, curDrive in enumerate(driveNameList):
+                        print(f"{curDrive: <{driveDisplayLength['name']}}  {driveSizeList[i]: <{driveDisplayLength['size']}}  {driveConfigList[i]: <{driveDisplayLength['config']}}  {driveVidList[i]: <{driveDisplayLength['vid']}}  {driveSerialList[i]}")
+
+                    exit()
+
+            config['drives'] = [drive for drive in destDriveMasterList if drive['name'] in destList]
+            config['splitMode'] = splitMode
+
+        # Shares
+        if commandLine.hasParam('interactive'):
+            print('\nAvailable shares drives are as follows:\n')
+
+            allShareList = [share for share in next(os.walk(config['sourceDrive']))[1]]
+            print('\n'.join(allShareList) + '\n')
+
+            shareList = commandLine.validateChoiceList(
+                message=f"Which shares (space separated) would you like to use?",
+                choices=allShareList,
+                default=None,
+                caseSensitive=True
+            )
+
+            config['shares'] = [{
+                'name': share,
+                'size': get_directory_size(sourceDrive + share)
+            } for share in shareList]
+        else:
+            if len(config['shares']) <= 0 and (not commandLine.hasParam('share') or len(commandLine.getParam('share')) == 0):
                 print('Please specify at least one share to back up')
                 exit()
-
-            destList = [drive[0].upper() + ':\\' for drive in commandLine.getParam('destination')]
             shareList = sorted(commandLine.getParam('share'))
 
-        for drive in destList:
-            if drive not in destDriveNameList:
-                print(f"{bcolor.FAIL}One or more destinations are not valid for selection.\nAvailable drives are as follows:{bcolor.ENDC}")
-
-                # TODO: Generalize this into function for table-izing data?
-                driveNameList = ['Drive']
-                driveSizeList = ['Size']
-                driveConfigList = ['Config file']
-                driveVidList = ['Volume ID']
-                driveSerialList = ['Serial']
-                driveNameList.extend([drive['name'] for drive in destDriveMasterList])
-                driveSizeList.extend([human_filesize(drive['capacity']) for drive in destDriveMasterList])
-                driveConfigList.extend(['Yes' if drive['hasConfig'] else '' for drive in destDriveMasterList])
-                driveVidList.extend([drive['vid'] for drive in destDriveMasterList])
-                driveSerialList.extend([drive['serial'] for drive in destDriveMasterList])
-
-                driveDisplayLength = {
-                    'name': len(max(driveNameList, key=len)),
-                    'size': len(max(driveSizeList, key=len)),
-                    'config': len(max(driveConfigList, key=len)),
-                    'vid': len(max(driveVidList, key=len))
-                }
-
-                for i, curDrive in enumerate(driveNameList):
-                    print(f"{curDrive: <{driveDisplayLength['name']}}  {driveSizeList[i]: <{driveDisplayLength['size']}}  {driveConfigList[i]: <{driveDisplayLength['config']}}  {driveVidList[i]: <{driveDisplayLength['vid']}}  {driveSerialList[i]}")
-
+            sourceShareList = [directory for directory in next(os.walk(sourceDrive))[1]]
+            filteredShareInput = [share for share in shareList if share in sourceShareList]
+            if len(filteredShareInput) < len(shareList):
+                print(f"{bcolor.FAIL}One or more shares are not valid for selection{bcolor.ENDC}")
                 exit()
 
-        sourceShareList = [directory for directory in next(os.walk(sourceDrive))[1]]
-        filteredShareInput = [share for share in shareList if share in sourceShareList]
-        if len(filteredShareInput) < len(shareList):
-            print(f"{bcolor.FAIL}One or more shares are not valid for selection{bcolor.ENDC}")
-            exit()
-
-        ### Save config ###
-
-        config['sourceDrive'] = sourceDrive
-        config['drives'] = [drive for drive in destDriveMasterList if drive['name'] in destList]
-        config['shares'] = [{
-            'name': share,
-            'size': get_directory_size(sourceDrive + share)
-        } for share in shareList]
-        config['splitMode'] = splitMode
+            config['shares'] = [{
+                'name': share,
+                'size': get_directory_size(sourceDrive + share)
+            } for share in shareList]
 
         ### Show summary ###
 
@@ -1237,14 +1302,15 @@ if config['cliMode']:
             headerList.extend(['Missing drives', 'Split mode'])
         headerSpacing = len(max(headerList, key=len)) + 1
 
-        print(f"{'Source:': <{headerSpacing}} {sourceDrive}")
-        print(f"{'Destination:': <{headerSpacing}} {', '.join(destList)}")
+        print('')
+        print(f"{'Source:': <{headerSpacing}} {config['sourceDrive']}")
+        print(f"{'Destination:': <{headerSpacing}} {', '.join([drive['name'] for drive in config['drives']])}")
 
         if len(config['missingDrives']) > 0:
             print(f"{'Missing drives:': <{headerSpacing}} {', '.join([drive for drive in config['missingDrives'].keys()])}")
             print(f"{'Split mode:': <{headerSpacing}} {bcolor.OKGREEN + 'Enabled' + bcolor.ENDC if splitMode else bcolor.FAIL + 'Disabled' + bcolor.ENDC}")
 
-        print(f"{'Shares:': <{headerSpacing}} {', '.join(shareList)}\n")
+        print(f"{'Shares:': <{headerSpacing}} {', '.join([share['name'] for share in config['shares']])}\n")
 
         if len(config['missingDrives']) > 0 and not splitMode:
             print(f"{bcolor.FAIL}Missing drives; split mode disabled{bcolor.ENDC}")
