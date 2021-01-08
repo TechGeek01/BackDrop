@@ -79,7 +79,7 @@ class CommandLine:
         """Validate a yes/no answer input.
 
         Args:
-            message (String): The message to display
+            message (String): The message to display.
             default (bool): Whether the default should be yes.
 
         Returns:
@@ -98,6 +98,92 @@ class CommandLine:
 
         if userInput in ['y', 'n', 'yes', 'no']:
             return userInput in ['y', 'yes']
+        else:
+            return default
+
+    def validateChoice(self, message, choices, default, caseSensitive=False, charsRequired=None):
+        """Validate a yes/no answer input.
+
+        Args:
+            message (String): The message to display.
+            choices (String[]): The list of options to verify against.
+            default (String): The option to default to.
+            caseSenstive (bool): Whether or not the input is case sensitive (default False).
+            charsRequired (int): How many characters required if not requiring an exact
+                    match (Defaults to None).
+
+        Returns:
+            String: The selected option.
+        """
+
+        defaultString = f" ({default})" if default is not None else ''
+
+        if type(charsRequired) is int:
+            fullChoices = [choice[:charsRequired] for choice in choices]
+        else:
+            fullChoices = [choice for choice in choices]
+
+        if not caseSensitive:
+            fullChoices = [choice.lower() for choice in fullChoices]
+
+        fullChoices.append('')
+        userInput = False
+        while userInput not in fullChoices:
+            userInput = input(f"{bcolor.OKCYAN}{message}{defaultString}{bcolor.ENDC} ")
+            if not caseSensitive:
+                userInput = userInput.lower()
+            if type(charsRequired) is int:
+                userInput = userInput[:charsRequired]
+
+            if userInput not in fullChoices:
+                print('Please choose an option from the list')
+
+        if userInput in fullChoices and userInput != '':
+            return choices[fullChoices.index(userInput)]
+        else:
+            return default
+
+    def validateChoiceList(self, message, choices, default, caseSensitive=False, charsRequired=None):
+        """Validate a yes/no answer input.
+
+        Args:
+            message (String): The message to display.
+            choices (String[]): The list of options to verify against.
+            default (String): The option to default to.
+            caseSensitive (bool): Whether or not the input is case sensitive (default False).
+            charsRequired (int): How many characters required if not requiring an exact
+                    match (Defaults to None).
+
+        Returns:
+            String: The selected option.
+        """
+
+        defaultString = f" ({default})" if default is not None else ''
+
+        if type(charsRequired) is int:
+            fullChoices = [choice[:charsRequired] for choice in choices]
+        else:
+            fullChoices = [choice for choice in choices]
+
+        if not caseSensitive:
+            fullChoices = [choice.lower() for choice in fullChoices]
+
+        inputValid = False
+        while not inputValid:
+            userInput = input(f"{bcolor.OKCYAN}{message}{defaultString}{bcolor.ENDC} ")
+            if not caseSensitive:
+                userInput = userInput.lower()
+
+            userInput = userInput.split(' ')
+            if type(charsRequired) is int:
+                userInput = [entry[:charsRequired] for entry in userInput]
+
+            inputValid = False not in [option in fullChoices for option in userInput]
+            if not inputValid:
+                print('Please choose options from the list')
+
+        if inputValid:
+            return [choices[fullChoices.index(option)] for option in userInput]
         else:
             return default
 
