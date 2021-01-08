@@ -1123,20 +1123,6 @@ if config['cliMode']:
         # TODO: Add load config mode check here
         # TODO: Add split mode check here
 
-        if not commandLine.hasParam('source') or len(commandLine.getParam('source')) == 0:
-            print('Please specify a source drive')
-            exit()
-        elif not commandLine.hasParam('destination') or len(commandLine.getParam('destination')) == 0:
-            print('Please specify at least one destination drive')
-            exit()
-        elif not commandLine.hasParam('share') or len(commandLine.getParam('share')) == 0:
-            print('Please specify at least one share to back up')
-            exit()
-
-        sourceDrive = commandLine.getParam('source')[0][0].upper() + ':\\'
-        destList = [drive[0].upper() + ':\\' for drive in commandLine.getParam('destination')]
-        shareList = sorted(commandLine.getParam('share'))
-
         ### Input validation ###
 
         # Validate drive selection
@@ -1145,6 +1131,23 @@ if config['cliMode']:
 
         if len(remoteDrives) <= 0:
             print(f"{bcolor.FAIL}No network drives are available{bcolor.ENDC}")
+            exit()
+
+        sourceDrive = commandLine.getParam('source')[0][0].upper() + ':\\' if commandLine.hasParam('source') else None
+        destList = [drive[0].upper() + ':\\' for drive in commandLine.getParam('destination')]
+        shareList = sorted(commandLine.getParam('share'))
+
+        sourceDrive = preferences.get('sourceDrive', sourceDrive, remoteDrives)
+
+        if sourceDrive is None:
+            print('Please specify a source drive')
+            exit()
+
+        if not commandLine.hasParam('destination') or len(commandLine.getParam('destination')) == 0:
+            print('Please specify at least one destination drive')
+            exit()
+        elif not commandLine.hasParam('share') or len(commandLine.getParam('share')) == 0:
+            print('Please specify at least one share to back up')
             exit()
 
         loadDest()
