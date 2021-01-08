@@ -63,96 +63,10 @@ def center(win, centerOnWin=None):
     win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
     win.deiconify()
 
-def copyFileObj(sourceFilename, destFilename, callback, guiOptions={}, length=0):
-    """Copy a source binary file to a destination.
-
-    Args:
-        sourceFilename (String): The source to copy.
-        destFilename (String): The destination to copy to.
-        callback (def): The function to call on progress change.
-        guiOptions (obj): Options to handle GUI interaction (optional).
-        length (int): The buffer length to use (default 0).
-
-    Returns:
-        bool: True if file was copied and verified successfully, False otherwise.
-    """
-
-    fsrc = open(sourceFilename, 'rb')
-    fdst = open(destFilename, 'wb')
-
-    try:
-        # check for optimisation opportunity
-        if "b" in fsrc.mode and "b" in fdst.mode and fsrc.readinto:
-            return copyFile(fsrc, fdst, callback, length)
-    except AttributeError:
-        # one or both file objects do not support a .mode or .readinto attribute
-        pass
-
-    if not length:
-        length = shutil.COPY_BUFSIZE
-
-    fsrc_read = fsrc.read
-    fdst_write = fdst.write
-
-    file_size = os.path.getsize(sourceFilename)
-
-    cmdInfoBlocks = backup.getCmdInfoBlocks()
-    cmdInfoBlocks[guiOptions['displayIndex']]['currentFileResult'].configure(text=destFilename, fg=uiColor.NORMAL)
-    guiOptions['mode'] = 'copy'
-
-    copied = 0
-    while True:
-        if threadManager.threadList['Backup']['killFlag']:
-            break
-
-        buf = fsrc_read(length)
-        if not buf:
-            break
-        fdst_write(buf)
-        copied += len(buf)
-        callback(copied, file_size, guiOptions)
-
-    fsrc.close()
-    fdst.close()
-
-    # If file copied in full, copy meta, and verify
-    if copied == file_size:
-        shutil.copymode(sourceFilename, destFilename)
-        shutil.copystat(sourceFilename, destFilename)
-
-        with open(sourceFilename, 'rb') as f:
-            guiOptions['mode'] = 'verifysource'
-            source_hash = hashlib.blake2b()
-            copied = 0
-            chunk_size = 2**16
-            while chunk := f.read(chunk_size):
-                copied += chunk_size
-                source_hash.update(chunk)
-                callback(copied, file_size, guiOptions)
-
-        with open(destFilename, 'rb') as f:
-            guiOptions['mode'] = 'verifydest'
-            dest_hash = hashlib.blake2b()
-            copied = 0
-            chunk_size = 2**16
-            while chunk := f.read(chunk_size):
-                copied += chunk_size
-                dest_hash.update(chunk)
-                callback(copied, file_size, guiOptions)
-
-        print(source_hash.hexdigest())
-        print(dest_hash.hexdigest())
-        if source_hash.hexdigest() == dest_hash.hexdigest():
-            print('Files are identical')
-
-        return source_hash.hexdigest() == dest_hash.hexdigest()
-    else:
-        return False
-
 # differs from shutil.COPY_BUFSIZE on platforms != Windows
 READINTO_BUFSIZE = 1024 * 1024
 
-def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
+def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
     """Copy a source binary file to a destination.
 
     Args:
@@ -160,29 +74,10 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
         destFilename (String): The destination to copy to.
         callback (def): The function to call on progress change.
         guiOptions (obj): Options to handle GUI interaction (optional).
-        length (int): The buffer length to use (default 0).
 
     Returns:
         bool: True if file was copied and verified successfully, False otherwise.
     """
-
-    """readinto()/memoryview() based variant of copyfileobj().
-    *fsrc* must support readinto() method and both files must be
-    open in binary mode.
-    """
-
-    fsrc = open(sourceFilename, 'rb')
-    fdst = open(destFilename, 'wb')
-
-    fsrc_readinto = fsrc.readinto
-    fdst_write = fdst.write
-
-    if not length:
-        try:
-            file_size = os.stat(fsrc.fileno()).st_size
-        except OSError:
-            file_size = READINTO_BUFSIZE
-        length = min(file_size, READINTO_BUFSIZE)
 
     if not config['cliMode']:
         cmdInfoBlocks = backup.getCmdInfoBlocks()
@@ -191,60 +86,57 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}, length=0):
         print(f"Copying {destFilename}")
     guiOptions['mode'] = 'copy'
 
+    h = hashlib.blake2b()
+    b = bytearray(128 * 1024)
+    mv = memoryview(b)
+
     copied = 0
-    with memoryview(bytearray(length)) as mv:
-        while True:
+    with open(sourceFilename, 'rb', buffering=0) as f:
+        try:
+            file_size = os.stat(f.fileno()).st_size
+        except OSError:
+            file_size = READINTO_BUFSIZE
+
+        fdst = open(destFilename, 'wb')
+        for n in iter(lambda: f.readinto(mv), 0):
             if threadManager.threadList['Backup']['killFlag']:
                 break
 
-            n = fsrc_readinto(mv)
-            if not n:
-                break
-            elif n < length:
-                with mv[:n] as smv:
-                    fdst.write(smv)
-            else:
-                fdst_write(mv)
+            fdst.write(mv[:n])
+            h.update(mv[:n])
+
             copied += n
             callback(copied, file_size, guiOptions)
-
-    fsrc.close()
-    fdst.close()
+        fdst.close()
 
     # If file copied in full, copy meta, and verify
     if copied == file_size:
         shutil.copymode(sourceFilename, destFilename)
         shutil.copystat(sourceFilename, destFilename)
 
-        with open(sourceFilename, 'rb') as f:
-            guiOptions['mode'] = 'verifysource'
-            source_hash = hashlib.blake2b()
+        dest_hash = hashlib.blake2b()
+        dest_b = bytearray(128 * 1024)
+        dest_mv = memoryview(dest_b)
+
+        with open(destFilename, 'rb', buffering=0) as f:
+            guiOptions['mode'] = 'verify'
             copied = 0
-            chunk_size = 2**16
-            while chunk := f.read(chunk_size):
-                copied += chunk_size
-                source_hash.update(chunk)
+
+            for n in iter(lambda: f.readinto(dest_mv), 0):
+                dest_hash.update(dest_mv[:n])
+
+                copied += n
                 callback(copied, file_size, guiOptions)
 
-        with open(destFilename, 'rb') as f:
-            guiOptions['mode'] = 'verifydest'
-            dest_hash = hashlib.blake2b()
-            copied = 0
-            chunk_size = 2**16
-            while chunk := f.read(chunk_size):
-                copied += chunk_size
-                dest_hash.update(chunk)
-                callback(copied, file_size, guiOptions)
-
-        if source_hash.hexdigest() == dest_hash.hexdigest():
+        if h.hexdigest() == dest_hash.hexdigest():
             print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
         else:
             # TODO: Add in way to gather this data as a list of mis-copied files
             print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
-            print(f"    Source: {source_hash.hexdigest()}")
+            print(f"    Source: {h.hexdigest()}")
             print(F"    Dest:   {dest_hash.hexdigest()}")
 
-        return source_hash.hexdigest() == dest_hash.hexdigest()
+        return h.hexdigest() == dest_hash.hexdigest()
     else:
         return False
 
@@ -280,20 +172,15 @@ def printProgress(copied, total, guiOptions):
                 cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"{percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uiColor.NORMAL)
             else:
                 print(f"{percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
-        elif guiOptions['mode'] == 'verifysource':
-            if not config['cliMode']:
-                cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Verifying source \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uiColor.BLUE)
-            else:
-                print(f"{bcolor.OKCYAN}Verifying source => {percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
-        elif guiOptions['mode'] == 'verifydest':
+        elif guiOptions['mode'] == 'verify':
             backupTotals['buffer'] += total
             if not config['cliMode']:
-                cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Verifying destination \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uiColor.BLUE)
+                cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Verifying \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uiColor.BLUE)
             else:
-                print(f"{bcolor.OKCYAN}Verifying destination => {percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
+                print(f"{bcolor.OKCYAN}Verifying => {percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
 
-    if guiOptions['mode'] == 'copy' and copied >= total:
-        backupTotals['running'] += total
+    if guiOptions['mode'] == 'verify' and copied >= total:
+        backupTotals['running'] += backupTotals['buffer']
 
 def doCopy(src, dest, guiOptions={}):
     """Copy a source to a destination.
@@ -381,8 +268,8 @@ def updateBackupTimer():
     if not config['cliMode']:
         backupEtaLabel.configure(fg=uiColor.NORMAL)
 
-    # Total is copy, verify source, verify dest, so total data is 3 * total
-    totalToBackup = backup.getTotals()['master'] * 3
+    # Total is copy source, verify dest, so total data is 2 * total
+    totalToBackup = backup.getTotals()['master'] * 2
     backupStartTime = backup.getBackupStartTime()
 
     while not threadManager.threadList['backupTimer']['killFlag']:
@@ -1103,7 +990,7 @@ if config['cliMode']:
             '',
             ('-i', '--interactive', 0, 'Run in interactive mode instead of specifying backup configuration.'),
             ('-c', '--config', 1, 'Load config file from a drive instead of specifying backup configuration.'),
-            (None, '--split', 0, 'Run in split mode if not all destination drives are connected.'),
+            ('-m', '--split-mode', 0, 'Run in split mode if not all destination drives are connected.'),
             ('-u', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
             '',
             ('-h', '--help', 0, 'Display this help menu.'),
