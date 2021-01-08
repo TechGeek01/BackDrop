@@ -25,8 +25,9 @@ from bin.commandLine import CommandLine
 from bin.backup import Backup
 
 # Set meta info
-appVersion = '2.1.0-beta.1'
+appVersion = '2.1.0-rc.1'
 
+# IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
 
 def center(win, centerOnWin=None):
@@ -1276,7 +1277,7 @@ if config['cliMode']:
 
             config['shares'] = [{
                 'name': share,
-                'size': get_directory_size(sourceDrive + share)
+                'size': get_directory_size(config['sourceDrive'] + share)
             } for share in shareList]
         else:
             if len(config['shares']) <= 0 and (not commandLine.hasParam('share') or len(commandLine.getParam('share')) == 0):
