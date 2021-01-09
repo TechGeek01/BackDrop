@@ -7,7 +7,7 @@
   <img alt="undefined" src="https://img.shields.io/github/downloads/TechGeek01/BackDrop/total" />
   <a href="https://github.com/TechGeek01/BackDrop/blob/master/LICENSE"><img alt="undefined" src="https://img.shields.io/github/license/TechGeek01/BackDrop"></a>
   <br />
-  <a href="https://github.com/TechGeek01/BackDrop/releases/download/v2.0.1/backdrop-v2.0.1.exe" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a>
+  <a href="https://github.com/TechGeek01/BackDrop/releases/download/v2.1.0/backdrop.exe" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a>
   <br /><br />
 </p>
 
@@ -39,4 +39,5 @@ The fun part is that these file lists are calculated before each backup. This me
 * **Split share mode:** If you can't connect all of the drives at once when updating an existing config, there's an option for split mode. With split mode enabled, the backup will be analyzed and processed as though all drives are connected, but commands to drives that are disconnected will be skipped.
 * **Drive split mode warnings:** If a config is loaded from a drive, and not all drives are connected, it will automatically warn you, and only let you continue with analysis if you connect the missing drives, or enable split mode.
 * **Backup config memory:** Config files about your backups are stored on each drive. This means that when you select a drive you've previously used for backup, BackDrop will automatically select the other drives in the config, and the shares you had selected, so that you can update the backup that's already on the drive.
+* **Command line:** There's a built-in command line mode that's able to take parameters to configure and run a backup. This makes it possible to script and automate backups with BackDrop.
 * **Portability:** The best part about it is that there is no installation, and it's all a single executable! This means you can take it with you if you want, or run it on multiple computers. And because there's no installation, when you're not using it, BackDrop is completely out of the way.

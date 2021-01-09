@@ -1,6 +1,25 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2020-01-08
+### Added
+- Added settings menu
+- Added ETA to backups
+- Added command line mode
+- Experimental WIP dark mode
+
+### Fixed
+- Fixed expanding command arrows causing issues while analysis is still running
+- Analysis button now checks if an existing backup is running, to prevent it from being replaced before finishing
+- Fixed missing sliders on scrollbars for source and destination trees
+
+### Changed
+- Significantly improved copy speed
+	- ***Note:** CLI mode is significantly slower than the GUI. A fix is in the works.*
+- Windows can now be centered on top of other windows, rather than just the screen
+- Separated classes into their own files
+- Restructured code
+
 ## [2.0.1] - 2020-12-25
 ### Fixed
 - Functions for gathering file lists during analysis no longer break when trying to query missing drives
