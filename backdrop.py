@@ -1097,7 +1097,6 @@ if config['cliMode']:
                 sharesLoadedFromConfig = True
 
                 destList = [drive['name'] for drive in config['drives']]
-                shareList = [share['name'] for share in config['shares']]
 
                 # If drives aren't mounted that should be, display the warning
                 missingDriveCount = len(config['missingDrives'])
@@ -1159,17 +1158,15 @@ if config['cliMode']:
             allShareList = [share for share in next(os.walk(config['sourceDrive']))[1]]
             print('\n'.join(allShareList) + '\n')
 
-            shareList = commandLine.validateChoiceList(
+            config['shares'] = [{
+                'name': share,
+                'size': get_directory_size(config['sourceDrive'] + share)
+            } for share in commandLine.validateChoiceList(
                 message='Which shares (space separated) would you like to use?',
                 choices=allShareList,
                 default=None,
                 caseSensitive=True
-            )
-
-            config['shares'] = [{
-                'name': share,
-                'size': get_directory_size(config['sourceDrive'] + share)
-            } for share in shareList]
+            )]
         else:
             if len(config['shares']) <= 0 and (not commandLine.hasParam('share') or len(commandLine.getParam('share')) == 0):
                 print('Please specify at least one share to back up')
@@ -1177,6 +1174,8 @@ if config['cliMode']:
 
             if not sharesLoadedFromConfig:
                 shareList = sorted(commandLine.getParam('share'))
+            else:
+                shareList = [share['name'] for share in config['shares']]
 
             sourceShareList = [directory for directory in next(os.walk(config['sourceDrive']))[1]]
             filteredShareInput = [share for share in shareList if share in sourceShareList]

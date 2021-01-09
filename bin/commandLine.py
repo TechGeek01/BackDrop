@@ -182,10 +182,7 @@ class CommandLine:
             if not inputValid:
                 print('Please choose options from the list')
 
-        if inputValid:
-            return [choices[fullChoices.index(option)] for option in userInput]
-        else:
-            return default
+        return [choices[fullChoices.index(option)] for option in userInput]
 
     def hasParam(self, param):
         """Check if a param is specified in the command line.
