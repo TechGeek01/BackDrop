@@ -1,6 +1,13 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [2.1.1] - TBD
+### Fixed
+- Fixed "Done" text not showing on list items when completed
+
+### Changed
+- Progress bar now counts verification to avoid "pauses" during verification passes
+
 ## [2.1.0] - 2020-01-08
 ### Added
 - Added settings menu
