@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## [2.1.1] - TBD
+## [2.1.1] - 2020-01-10
 ### Fixed
 - Fixed "Done" text not showing on list items when completed
 
