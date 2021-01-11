@@ -622,6 +622,9 @@ class Backup:
             if len(fileSummary) > 0:
                 showFileInfo.append((self.driveVidInfo[drive]['name'], '\n'.join(fileSummary)))
 
+        # Double total to account for both copy and verify operations
+        self.totals['master'] += driveTotal['new'] + driveTotal['replace']
+
         self.analysisSummaryDisplayFn(
             title='Files',
             payload=showFileInfo

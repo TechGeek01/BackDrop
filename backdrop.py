@@ -25,7 +25,7 @@ from bin.commandLine import CommandLine
 from bin.backup import Backup
 
 # Set meta info
-appVersion = '2.1.0'
+appVersion = '2.1.1'
 
 # IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -174,12 +174,16 @@ def printProgress(copied, total, guiOptions):
                 print(f"{percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
         elif guiOptions['mode'] == 'verify':
             backupTotals['buffer'] += total
+
+            backupTotals['progressBar'] = backupTotals['running'] + copied
             if not config['cliMode']:
+                progress.set(backupTotals['progressBar'])
+
                 cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Verifying \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uiColor.BLUE)
             else:
                 print(f"{bcolor.OKCYAN}Verifying => {percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
 
-    if guiOptions['mode'] == 'verify' and copied >= total:
+    if copied >= total:
         backupTotals['running'] += backupTotals['buffer']
 
 def doCopy(src, dest, guiOptions={}):
