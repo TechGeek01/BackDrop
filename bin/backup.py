@@ -616,14 +616,12 @@ class Backup:
                 fileSummary.append(f"{len(newFileList[self.driveVidInfo[drive]['name']])} new files ({human_filesize(driveTotal['new'])})")
 
             # Increment master totals
-            self.totals['master'] += driveTotal['running']
+            # Double total to account for both copy and verify operations
+            self.totals['master'] += driveTotal['copy'] * 2
             self.totals['delta'] += driveTotal['delta']
 
             if len(fileSummary) > 0:
                 showFileInfo.append((self.driveVidInfo[drive]['name'], '\n'.join(fileSummary)))
-
-        # Double total to account for both copy and verify operations
-        self.totals['master'] += driveTotal['new'] + driveTotal['replace']
 
         self.analysisSummaryDisplayFn(
             title='Files',
