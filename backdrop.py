@@ -25,7 +25,7 @@ from bin.commandLine import CommandLine
 from bin.backup import Backup
 
 # Set meta info
-appVersion = '2.1.1'
+appVersion = '2.1.2'
 
 # IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -993,7 +993,7 @@ if config['cliMode']:
             ('-d', '--destination', 1, 'The destination drive to back up to.'),
             '',
             ('-i', '--interactive', 0, 'Run in interactive mode instead of specifying backup configuration.'),
-            ('-c', '--config', 1, 'Load config file from a drive instead of specifying backup configuration.'),
+            ('-l', '--config', 1, 'Load config file from a drive instead of specifying backup configuration.'),
             ('-m', '--split-mode', 0, 'Run in split mode if not all destination drives are connected.'),
             ('-u', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
             '',
