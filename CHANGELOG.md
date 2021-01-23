@@ -1,7 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## [2.1.1] - 2020-01-10
+## [2.1.2] - 2021-01-22
+### Fixed
+- Fixed progress bar and ETA not reporting correct progress
+
+## [2.1.1] - 2021-01-10
 ### Fixed
 - Fixed "Done" text not showing on list items when completed
 
