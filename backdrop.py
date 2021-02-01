@@ -25,7 +25,7 @@ from bin.commandLine import CommandLine
 from bin.backup import Backup
 
 # Set meta info
-appVersion = '2.1.2'
+appVersion = '2.1.3-alpha.1'
 
 # IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -835,11 +835,14 @@ def readConfigFile(file):
                         # If drive connected, add it to the config
                         selectedDrive = driveLookupList[driveVid]
                         newConfig['drives'].append(selectedDrive)
+
+                        configTotal += selectedDrive['capacity']
                     else:
                         # If drive is missing, add it to the missing drive list
                         newConfig['missingDrives'][driveVid] = int(drive.split(',')[2])
 
-                    configTotal += selectedDrive['capacity']
+                        # Drive not connected, to add reported size from config file to total
+                        configTotal += int(drive.split(',')[2])
 
         config.update(newConfig)
 
