@@ -8,7 +8,7 @@ from bin.color import bcolor
 from bin.threadManager import ThreadManager
 
 class Backup:
-    def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, startBackupFn, killBackupFn, startBackupTimerFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, uiColor=None, startBackupBtn=None, startAnalysisBtn=None, progress=None):
+    def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, startBackupFn, killBackupFn, startBackupTimerFn, updateFileDetailListFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, uiColor=None, startBackupBtn=None, startAnalysisBtn=None, progress=None):
         """
         Args:
             config (dict): The backup config to be processed.
@@ -18,6 +18,7 @@ class Backup:
             startBackupFn (def): The function to be used to start the backup.
             killBackupFn (def): The function to be used to kill the backup.
             startBackupTimerFn (def): The function to be used to start the backup timer.
+            updateFileDetailListFn (def): The function to be used to update file lists.
             analysisSummaryDisplayFn (def): The function to be used to show an analysis
                     summary.
             enumerateCommandInfoFn (def): The function to be used to enumerate command info
@@ -57,6 +58,7 @@ class Backup:
         self.startBackupFn = startBackupFn
         self.killBackupFn = killBackupFn
         self.startBackupTimerFn = startBackupTimerFn
+        self.updateFileDetailListFn = updateFileDetailListFn
         self.analysisSummaryDisplayFn = analysisSummaryDisplayFn
         self.enumerateCommandInfoFn = enumerateCommandInfoFn
         self.threadManager = threadManager
@@ -396,11 +398,13 @@ class Backup:
                                 or not os.path.isfile(sourcePath) # File doesn't exist in source, so delete it
                                 or sourcePath in driveExclusions): # File is excluded from drive
                             fileList['delete'].append((entry.path, entry.stat().st_size))
+                            self.updateFileDetailListFn('delete', entry.path)
                         elif os.path.isfile(sourcePath):
                             if (entry.stat().st_mtime != os.path.getmtime(sourcePath) # Existing file is older than source
                                     or entry.stat().st_size != os.path.getsize(sourcePath)): # Existing file is different size than source
                                 # If existing dest file is not same time as source, it needs to be replaced
                                 fileList['replace'].append((entry.path, os.path.getsize(sourcePath), entry.stat().st_size))
+                                self.updateFileDetailListFn('copy', entry.path)
                     elif entry.is_dir():
                         foundShare = False
                         stubPath = entry.path[3:]
@@ -420,6 +424,7 @@ class Backup:
                             # Directory isn't share, or part of one, and isn't a special folder or
                             # exclusion, so delete it
                             fileList['delete'].append((entry.path, get_directory_size(entry.path)))
+                            self.updateFileDetailListFn('delete', entry.path)
             except NotADirectoryError:
                 return {
                     'delete': [],
@@ -464,6 +469,7 @@ class Backup:
                                 and not os.path.isfile(targetDrive + entry.path[3:]) # File doesn't exist in destination drive
                                 and targetDrive + entry.path[3:] not in driveExclusions): # File isn't part of drive exclusion
                             fileList['new'].append((targetDrive + entry.path[3:], entry.stat().st_size))
+                            self.updateFileDetailListFn('copy', targetDrive + entry.path[3:])
                     elif entry.is_dir():
                         for item in shares:
                             if (entry.path[3:] == item # Dir is share, so it stays
@@ -477,6 +483,7 @@ class Backup:
                                 elif targetDrive + entry.path[3:] not in driveExclusions:
                                     # Path doesn't exist on dest, so add to list if not excluded
                                     fileList['new'].append((targetDrive + entry.path[3:], get_directory_size(entry.path)))
+                                    self.updateFileDetailListFn('copy', targetDrive + entry.path[3:])
             except NotADirectoryError:
                 return {
                     'new': []

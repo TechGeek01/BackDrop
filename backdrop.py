@@ -63,6 +63,31 @@ def center(win, centerOnWin=None):
     win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
     win.deiconify()
 
+def updateFileDetailList(listName, fileName):
+    """Update the file lists for the detail file view.
+
+    Args:
+        listName (String): The list name to update.
+        fileName (String): The file path to add to the list.
+    """
+
+    global fileDetailList
+
+    fileDetailList[listName].append({
+        'displayName': fileName.split('\\')[-1],
+        'fileName': fileName
+    })
+
+    if not config['cliMode']:
+        if listName == 'delete':
+            fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
+        elif listName == 'copy':
+            fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
+        elif listName == 'success':
+            tk.Label(fileDetailsCopiedScrollableFrame, text=fileName.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
+        elif listName == 'fail':
+            tk.Label(fileDetailsFailedScrollableFrame, text=fileName.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
+
 # differs from shutil.COPY_BUFSIZE on platforms != Windows
 READINTO_BUFSIZE = 1024 * 1024
 
@@ -78,6 +103,8 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
     Returns:
         bool: True if file was copied and verified successfully, False otherwise.
     """
+
+    global fileDetailList
 
     if not config['cliMode']:
         cmdInfoBlocks = backup.getCmdInfoBlocks()
@@ -129,12 +156,20 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
                 callback(copied, file_size, guiOptions)
 
         if h.hexdigest() == dest_hash.hexdigest():
-            print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
+            updateFileDetailList('success', destFilename)
+
+            if config['cliMode']:
+                print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
         else:
             # TODO: Add in way to gather this data as a list of mis-copied files
-            print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
-            print(f"    Source: {h.hexdigest()}")
-            print(F"    Dest:   {dest_hash.hexdigest()}")
+            # URGENT: Make this delete the failed file
+
+            updateFileDetailList('fail', destFilename)
+
+            if config['cliMode']:
+                print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
+                print(f"    Source: {h.hexdigest()}")
+                print(F"    Dest:   {dest_hash.hexdigest()}")
 
         return h.hexdigest() == dest_hash.hexdigest()
     else:
@@ -550,6 +585,7 @@ def startBackupAnalysis():
             startBackupFn=startBackup,
             killBackupFn=lambda: threadManager.kill('Backup'),
             startBackupTimerFn=updateBackupTimer,
+            updateFileDetailListFn=updateFileDetailList,
             analysisSummaryDisplayFn=displayBackupSummaryChunk,
             enumerateCommandInfoFn=enumerateCommandInfo,
             threadManager=threadManager,
@@ -1232,6 +1268,7 @@ if config['cliMode']:
             startBackupFn=startBackup,
             killBackupFn=lambda: threadManager.kill('Backup'),
             startBackupTimerFn=updateBackupTimer,
+            updateFileDetailListFn=updateFileDetailList,
             analysisSummaryDisplayFn=displayBackupSummaryChunk,
             enumerateCommandInfoFn=enumerateCommandInfo,
             threadManager=threadManager
@@ -1260,6 +1297,13 @@ if config['cliMode']:
 # GUI Mode #
 ############
 
+fileDetailList = {
+    'delete': [],
+    'copy': [],
+    'success': [],
+    'fail': []
+}
+
 if not config['cliMode']:
     os.system('')
 
@@ -1276,7 +1320,9 @@ if not config['cliMode']:
     root = tk.Tk()
     root.title('BackDrop - Network Drive Backup Tool')
     root.resizable(False, False)
-    root.geometry('1300x700')
+    rootWidth = 1200
+    rootHeight = 720
+    root.geometry(f'{rootWidth}x{rootHeight}')
     root.iconbitmap(resource_path('media\\icon.ico'))
     center(root)
 
@@ -1292,9 +1338,9 @@ if not config['cliMode']:
     # Set some default styling
     tkStyle = ttk.Style()
     tkStyle.theme_use('vista')
-    tkStyle.configure('TButton', padding=5)
-    tkStyle.configure('danger.TButton', padding=5, background='#b00')
-    tkStyle.configure('icon.TButton', width=2, height=1, padding=1, font=(None, 15), background='#00bfe6')
+    tkStyle.configure('TButton', padding=(6, 4))
+    tkStyle.configure('danger.TButton', padding=(6, 4), background='#b00')
+    tkStyle.configure('icon.TButton', width=2, height=1, padding=0, font=(None, 15), background='#00bfe6')
 
     tkStyle.configure('TButton', background=uiColor.BG)
     tkStyle.configure('TCheckbutton', background=uiColor.BG, foreground=uiColor.NORMAL)
@@ -1348,7 +1394,7 @@ if not config['cliMode']:
 
     # Progress/status values
     progressBar = ttk.Progressbar(mainFrame, maximum=100, style='custom.Progressbar')
-    progressBar.grid(row=10, column=0, columnspan=3, sticky='ew', pady=(elemPadding, 0))
+    progressBar.grid(row=10, column=1, columnspan=3, sticky='ew', pady=(elemPadding, 0))
 
     progress = Progress(
         progressBar=progressBar,
@@ -1368,13 +1414,13 @@ if not config['cliMode']:
 
         # Tree frames for tree and scrollbar
         sourceTreeFrame = tk.Frame(mainFrame)
-        sourceTreeFrame.grid(row=1, column=0, sticky='ns')
+        sourceTreeFrame.grid(row=1, column=1, sticky='ns')
 
         sourceTree = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'), style='custom.Treeview')
         sourceTree.heading('#0', text='Share')
-        sourceTree.column('#0', width=200)
+        sourceTree.column('#0', width=175)
         sourceTree.heading('size', text='Size')
-        sourceTree.column('size', width=80)
+        sourceTree.column('size', width=75)
         sourceTree['displaycolumns'] = ('size')
 
         sourceTree.pack(side='left')
@@ -1385,7 +1431,7 @@ if not config['cliMode']:
         # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
         # visible, so 1px needs to be added back
         sourceMetaFrame = tk.Frame(mainFrame)
-        sourceMetaFrame.grid(row=2, column=0, sticky='nsew', pady=(1, 0))
+        sourceMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, 0))
         tk.Grid.columnconfigure(sourceMetaFrame, 0, weight=1)
 
         shareSpaceFrame = tk.Frame(sourceMetaFrame)
@@ -1401,7 +1447,7 @@ if not config['cliMode']:
         refreshSourceBtn.grid(row=0, column=1)
 
         sourceSelectFrame = tk.Frame(mainFrame)
-        sourceSelectFrame.grid(row=0, column=0, pady=(0, elemPadding / 2))
+        sourceSelectFrame.grid(row=0, column=1, pady=(0, elemPadding / 2))
         tk.Label(sourceSelectFrame, text='Source:').pack(side='left')
         sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, config['sourceDrive'], *tuple(remoteDrives), command=changeSourceDrive)
         sourceSelectMenu.pack(side='left', padx=(12, 0))
@@ -1411,15 +1457,15 @@ if not config['cliMode']:
         sourceDriveDefault.set('No remotes')
 
         # sourceMissingFrame = tk.Frame(mainFrame, width=200)
-        # sourceMissingFrame.grid(row=0, column=0,  rowspan=2, sticky='nsew')
+        # sourceMissingFrame.grid(row=0, column=1,  rowspan=2, sticky='nsew')
         sourceWarning = tk.Label(mainFrame, text='No network drives are available to use as source', font=(None, 14), wraplength=250, bg=uiColor.ERROR)
-        sourceWarning.grid(row=0, column=0, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
+        sourceWarning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
     destTreeFrame = tk.Frame(mainFrame)
-    destTreeFrame.grid(row=1, column=1, sticky='ns', padx=(elemPadding, 0))
+    destTreeFrame.grid(row=1, column=2, sticky='ns', padx=(elemPadding, 0))
 
     destModeFrame = tk.Frame(mainFrame)
-    destModeFrame.grid(row=0, column=1, pady=(0, elemPadding / 2))
+    destModeFrame.grid(row=0, column=2, pady=(0, elemPadding / 2))
 
     def handleSplitModeCheck():
         """Handle toggling of split mode based on checkbox value."""
@@ -1441,13 +1487,13 @@ if not config['cliMode']:
     destTree.heading('#0', text='Drive')
     destTree.column('#0', width=50)
     destTree.heading('size', text='Size')
-    destTree.column('size', width=80)
+    destTree.column('size', width=90)
     destTree.heading('configfile', text='Config file')
-    destTree.column('configfile', width=100)
+    destTree.column('configfile', width=80)
     destTree.heading('vid', text='Volume ID')
-    destTree.column('vid', width=100)
+    destTree.column('vid', width=90)
     destTree.heading('serial', text='Serial')
-    destTree.column('serial', width=200)
+    destTree.column('serial', width=170)
     destTree['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
 
     destTree.pack(side='left')
@@ -1458,7 +1504,7 @@ if not config['cliMode']:
     # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
     # visible, so 1px needs to be added back
     destMetaFrame = tk.Frame(mainFrame)
-    destMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, 0))
+    destMetaFrame.grid(row=2, column=2, sticky='nsew', pady=(1, 0))
     tk.Grid.columnconfigure(destMetaFrame, 0, weight=1)
 
     destSplitWarningFrame = tk.Frame(mainFrame, bg=uiColor.WARNING)
@@ -1467,12 +1513,12 @@ if not config['cliMode']:
     destSplitWarningFrame.columnconfigure(10, weight=1)
 
     # TODO: Can this be cleaned up?
-    tk.Frame(destSplitWarningFrame).grid(row=0, column=0)
-    splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=uiColor.WARNING)
+    tk.Frame(destSplitWarningFrame).grid(row=0, column=1)
+    splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=uiColor.WARNING, fg=uiColor.BLACK)
     splitWarningPrefix.grid(row=0, column=1, sticky='ns')
-    splitWarningMissingDriveCount = tk.Label(destSplitWarningFrame, text='0', bg=uiColor.WARNING, font=(None, 18, 'bold'))
+    splitWarningMissingDriveCount = tk.Label(destSplitWarningFrame, text='0', bg=uiColor.WARNING, fg=uiColor.BLACK, font=(None, 18, 'bold'))
     splitWarningMissingDriveCount.grid(row=0, column=2, sticky='ns')
-    splitWarningSuffix = tk.Label(destSplitWarningFrame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=uiColor.WARNING)
+    splitWarningSuffix = tk.Label(destSplitWarningFrame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=uiColor.WARNING, fg=uiColor.BLACK)
     splitWarningSuffix.grid(row=0, column=3, sticky='ns')
     tk.Frame(destSplitWarningFrame).grid(row=0, column=10)
 
@@ -1489,21 +1535,26 @@ if not config['cliMode']:
 
     refreshDestBtn = ttk.Button(destMetaFrame, text='\u2b6e', command=startRefreshDest, style='icon.TButton')
     refreshDestBtn.grid(row=0, column=1)
-    startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze Backup', command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled')
+    startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze', width=7, command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled')
     startAnalysisBtn.grid(row=0, column=2)
 
     driveSelectBind = destTree.bind('<<TreeviewSelect>>', selectDriveInBackground)
 
+    backupMidControlFrame = tk.Frame(mainFrame)
+    backupMidControlFrame.grid(row=4, column=1, columnspan=2, pady=elemPadding / 2, sticky='ew')
+
     # Add backup ETA info frame
-    backupActivityEtaFrame = tk.Frame(mainFrame)
-    backupActivityEtaFrame.grid(row=4, column=0, columnspan=2, pady=elemPadding / 2)
+    backupActivityEtaFrame = tk.Frame(backupMidControlFrame)
+    backupActivityEtaFrame.grid(row=0, column=1)
+    tk.Grid.columnconfigure(backupMidControlFrame, 1, weight=1)
+
     backupEtaLabel = tk.Label(backupActivityEtaFrame, text='Please start a backup to show ETA')
     backupEtaLabel.pack()
 
     # Add activity frame for backup status output
     tk.Grid.rowconfigure(mainFrame, 5, weight=1)
     backupActivityFrame = tk.Frame(mainFrame)
-    backupActivityFrame.grid(row=5, column=0, columnspan=2, sticky='nsew')
+    backupActivityFrame.grid(row=5, column=1, columnspan=2, sticky='nsew')
 
     backupActivityInfoCanvas = tk.Canvas(backupActivityFrame)
     backupActivityInfoCanvas.pack(side='left', fill='both', expand=1)
@@ -1517,10 +1568,109 @@ if not config['cliMode']:
     backupActivityInfoCanvas.create_window((0, 0), window=backupActivityScrollableFrame, anchor='nw')
     backupActivityInfoCanvas.configure(yscrollcommand=backupActivityScroll.set)
 
-    tk.Grid.columnconfigure(mainFrame, 2, weight=1)
+    backupFileDetailsFrame = tk.Frame(mainFrame, width=400)
+    backupFileDetailsFrame.grid_propagate(0)
+
+    # URGENT: File details items, and analysis detail list need to be cleared out the second analysis is started, so that the counts and lists aren't stacked on top of existing stuff
+
+    fileDetailsPendingDeleteHeaderLine = tk.Frame(backupFileDetailsFrame)
+    fileDetailsPendingDeleteHeaderLine.grid(row=0, column=0, sticky='w')
+    fileDetailsPendingDeleteHeader = tk.Label(fileDetailsPendingDeleteHeaderLine, text='Files to delete', font=(None, 11, 'bold'))
+    fileDetailsPendingDeleteHeader.pack(side='left')
+    fileDetailsPendingDeleteTooltip = tk.Label(fileDetailsPendingDeleteHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
+    fileDetailsPendingDeleteTooltip.pack(side='left')
+    fileDetailsPendingDeleteCounter = tk.Label(backupFileDetailsFrame, text='...', font=(None, 28))
+    fileDetailsPendingDeleteCounter.grid(row=1, column=0, sticky='ew')
+
+    fileDetailsPendingCopyHeaderLine = tk.Frame(backupFileDetailsFrame)
+    fileDetailsPendingCopyHeaderLine.grid(row=0, column=1, sticky='e')
+    fileDetailsPendingCopyHeader = tk.Label(fileDetailsPendingCopyHeaderLine, text='Files to copy', font=(None, 11, 'bold'))
+    fileDetailsPendingCopyHeader.pack(side='right')
+    fileDetailsPendingCopyTooltip = tk.Label(fileDetailsPendingCopyHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
+    fileDetailsPendingCopyTooltip.pack(side='right')
+    fileDetailsPendingCopyCounter = tk.Label(backupFileDetailsFrame, text='...', font=(None, 28))
+    fileDetailsPendingCopyCounter.grid(row=1, column=1, sticky='ew')
+
+    fileDetailsCopiedHeaderLine = tk.Frame(backupFileDetailsFrame)
+    fileDetailsCopiedHeaderLine.grid(row=2, column=0, columnspan=2, sticky='w')
+    fileDetailsCopiedHeader = tk.Label(fileDetailsCopiedHeaderLine, text='Successful', font=(None, 11, 'bold'))
+    fileDetailsCopiedHeader.pack(side='left')
+    fileDetailsCopiedTooltip = tk.Label(fileDetailsCopiedHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
+    fileDetailsCopiedTooltip.pack(side='left')
+    fileDetailsCopiedFrame = tk.Frame(backupFileDetailsFrame)
+    fileDetailsCopiedFrame.grid(row=3, column=0, columnspan=2, pady=(0, elemPadding / 2), sticky='nsew')
+    fileDetailsCopiedFrame.pack_propagate(0)
+    fileDetailsCopiedInfoCanvas = tk.Canvas(fileDetailsCopiedFrame)
+    fileDetailsCopiedInfoCanvas.pack(side='left', fill='both', expand=1)
+    fileDetailsCopiedScroll = ttk.Scrollbar(fileDetailsCopiedFrame, orient='vertical', command=fileDetailsCopiedInfoCanvas.yview)
+    fileDetailsCopiedScroll.pack(side='left', fill='y')
+    fileDetailsCopiedScrollableFrame = ttk.Frame(fileDetailsCopiedInfoCanvas)
+    fileDetailsCopiedScrollableFrame.bind('<Configure>', lambda e: fileDetailsCopiedInfoCanvas.configure(
+        scrollregion=fileDetailsCopiedInfoCanvas.bbox('all')
+    ))
+
+    fileDetailsCopiedInfoCanvas.create_window((0, 0), window=fileDetailsCopiedScrollableFrame, anchor='nw')
+    fileDetailsCopiedInfoCanvas.configure(yscrollcommand=fileDetailsCopiedScroll.set)
+
+    fileDetailsFailedHeaderLine = tk.Frame(backupFileDetailsFrame)
+    fileDetailsFailedHeaderLine.grid(row=4, column=0, columnspan=2, sticky='w')
+    fileDetailsFailedHeader = tk.Label(fileDetailsFailedHeaderLine, text='Failed', font=(None, 11, 'bold'))
+    fileDetailsFailedHeader.pack(side='left')
+    fileDetailsFailedTooltip = tk.Label(fileDetailsFailedHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
+    fileDetailsFailedTooltip.pack(side='left')
+    fileDetailsFailedFrame = tk.Frame(backupFileDetailsFrame)
+    fileDetailsFailedFrame.grid(row=5, column=0, columnspan=2, sticky='nsew')
+    fileDetailsFailedFrame.pack_propagate(0)
+    fileDetailsFailedInfoCanvas = tk.Canvas(fileDetailsFailedFrame)
+    fileDetailsFailedInfoCanvas.pack(side='left', fill='both', expand=1)
+    fileDetailsFailedScroll = ttk.Scrollbar(fileDetailsFailedFrame, orient='vertical', command=fileDetailsFailedInfoCanvas.yview)
+    fileDetailsFailedScroll.pack(side='left', fill='y')
+    fileDetailsFailedScrollableFrame = ttk.Frame(fileDetailsFailedInfoCanvas)
+    fileDetailsFailedScrollableFrame.bind('<Configure>', lambda e: fileDetailsFailedInfoCanvas.configure(
+        scrollregion=fileDetailsFailedInfoCanvas.bbox('all')
+    ))
+
+    fileDetailsFailedInfoCanvas.create_window((0, 0), window=fileDetailsFailedScrollableFrame, anchor='nw')
+    fileDetailsFailedInfoCanvas.configure(yscrollcommand=fileDetailsFailedScroll.set)
+
+    # Set grid weights
+    tk.Grid.rowconfigure(backupFileDetailsFrame, 3, weight=2)
+    tk.Grid.rowconfigure(backupFileDetailsFrame, 5, weight=1)
+    tk.Grid.columnconfigure(backupFileDetailsFrame, (0, 1), weight=1)
+
+    # Set click to copy key bindings
+    fileDetailsPendingDeleteHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['delete']])))
+    fileDetailsPendingDeleteTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['delete']])))
+    fileDetailsPendingCopyHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['copy']])))
+    fileDetailsPendingCopyTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['copy']])))
+    fileDetailsCopiedHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['success']])))
+    fileDetailsCopiedTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['success']])))
+    fileDetailsFailedHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['fail']])))
+    fileDetailsFailedTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['fail']])))
+
+    def toggleFileDetails():
+        # FIXME: Is fixing the flicker effect here possible?
+        if bool(backupFileDetailsFrame.grid_info()):
+            backupFileDetailsFrame.grid_remove()
+            root.geometry(f'{rootWidth}x{rootHeight}+{root.winfo_x() + 400 + elemPadding}+{root.winfo_y()}')
+            # root.geometry(f'{rootWidth}x{rootHeight}')
+            backupFileDetailsToggle.configure(text='Show Details')
+        else:
+            root.geometry(f'{1600 + elemPadding}x{rootHeight}+{root.winfo_x() - 400 - elemPadding}+{root.winfo_y()}')
+            # root.geometry(f'{1600 + elemPadding}x{rootHeight}')
+            backupFileDetailsFrame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, elemPadding), pady=(elemPadding / 2, 0))
+            backupFileDetailsToggle.configure(text='Hide Details')
+
+    # settingsIcon2Load = Image.open(resource_path(f"media\\settings{'_light' if uiColor.isDarkMode() else ''}.png"))
+    # settingsIcon2Render = ImageTk.PhotoImage(settingsIcon2Load)
+    # backupFileDetailsToggle = tk.Button(backupMidControlFrame, image=settingsIcon2Render, relief='sunken', borderwidth=0, highlightcolor=uiColor.BG, activebackground=uiColor.BG)
+    backupFileDetailsToggle = ttk.Button(backupMidControlFrame, text='Show Details', command=toggleFileDetails) # TODO: Add command to file detials button
+    backupFileDetailsToggle.grid(row=0, column=0)
+
+    tk.Grid.columnconfigure(mainFrame, 3, weight=1)
 
     rightSideFrame = tk.Frame(mainFrame)
-    rightSideFrame.grid(row=0, column=2, rowspan=6, sticky='nsew', pady=(elemPadding / 2, 0))
+    rightSideFrame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(elemPadding / 2, 0))
 
     backupSummaryFrame = tk.Frame(rightSideFrame)
     backupSummaryFrame.pack(fill='both', expand=1, padx=(elemPadding, 0))
@@ -1533,8 +1683,9 @@ if not config['cliMode']:
     logoImageRender = ImageTk.PhotoImage(logoImageLoad)
     settingsIconLoad = Image.open(resource_path(f"media\\settings{'_light' if uiColor.isDarkMode() else ''}.png"))
     settingsIconRender = ImageTk.PhotoImage(settingsIconLoad)
-    settingsBtn = tk.Button(brandingFrame, image=settingsIconRender, relief='sunken', borderwidth=0, highlightcolor=uiColor.BG, activebackground=uiColor.BG)
-    settingsBtn.pack(side='left', padx=(0, 8))
+    settingsBtn = tk.Button(backupMidControlFrame, image=settingsIconRender, relief='sunken', borderwidth=0, highlightcolor=uiColor.BG, activebackground=uiColor.BG)
+    # settingsBtn.pack(side='left', padx=(0, 8))
+    settingsBtn.grid(row=0, column=2)
     tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
     tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
