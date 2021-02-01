@@ -480,7 +480,8 @@ class Backup:
                                     newList = buildNewFileList(targetDrive + entry.path[3:], shares)
                                     fileList['new'].extend(newList['new'])
                                     break
-                                elif targetDrive + entry.path[3:] not in driveExclusions:
+                                elif entry.path not in driveExclusions:
+                                    print(f"{targetDrive + entry.path[3:]} => {', '.join(driveExclusions)}")
                                     # Path doesn't exist on dest, so add to list if not excluded
                                     fileList['new'].append((targetDrive + entry.path[3:], get_directory_size(entry.path)))
                                     self.updateFileDetailListFn('copy', targetDrive + entry.path[3:])
