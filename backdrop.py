@@ -814,7 +814,7 @@ def selectFromConfig():
         splitWarningPrefix.configure(text='There %s' % ('is' if missingDriveCount == 1 else 'are'))
         splitWarningSuffix.configure(text='%s in the config that %s connected. Please connect %s, or enable split mode.' % ('drive' if missingDriveCount == 1 else 'drives', 'isn\'t' if missingDriveCount == 1 else 'aren\'t', 'it' if missingDriveCount == 1 else 'them'))
         splitWarningMissingDriveCount.configure(text='%d' % (missingDriveCount))
-        destSplitWarningFrame.grid(row=3, column=0, columnspan=2, sticky='nsew', pady=(0, elemPadding), ipady=elemPadding / 4)
+        destSplitWarningFrame.grid(row=3, column=0, columnspan=3, sticky='nsew', pady=(0, elemPadding), ipady=elemPadding / 4)
 
         messagebox.showwarning(warningTitle, warningMessage)
 
