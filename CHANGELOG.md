@@ -1,18 +1,18 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## [2.1.2] - 2021-01-22
+## 2.1.2 - 2021-01-22
 ### Fixed
 - Fixed progress bar and ETA not reporting correct progress
 
-## [2.1.1] - 2021-01-10
+## 2.1.1 - 2021-01-10
 ### Fixed
 - Fixed "Done" text not showing on list items when completed
 
 ### Changed
 - Progress bar now counts verification to avoid "pauses" during verification passes
 
-## [2.1.0] - 2020-01-08
+## 2.1.0 - 2020-01-08
 ### Added
 - Added settings menu
 - Added ETA to backups
@@ -31,11 +31,11 @@ All notable changes to this project will be documented in this file.
 - Separated classes into their own files
 - Restructured code
 
-## [2.0.1] - 2020-12-25
+## 2.0.1 - 2020-12-25
 ### Fixed
 - Functions for gathering file lists during analysis no longer break when trying to query missing drives
 
-## [2.0.0] - 2020-12-25
+## 2.0.0 - 2020-12-25
 ### Added
 - Progress bar now shows overall copy progress based on how much data needs to be copied
 - Files are now verified when copying
@@ -49,11 +49,11 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Moved from robocopy for file copying to a custom function that allows reporting of progress
 
-## [1.1.3] - 2020-11-02
+## 1.1.3 - 2020-11-02
 ### Fixed
 - BackDrop no longer crashes when no network drives are present to use as source
 
-## [1.1.2] - 2020-11-02
+## 1.1.2 - 2020-11-02
 ### Fixed
 - Summary no longer shows split folders on all drives
 - Improved detection of leftover files to delete
@@ -63,14 +63,14 @@ All notable changes to this project will be documented in this file.
 - Adjusted window size
 - Replaced text label branding with Logo
 
-## [1.1.1] - 2020-10-21
+## 1.1.1 - 2020-10-21
 ### Fixed
 - Deleting files that are no longer allocated to a drive now happens before the robocopy in order to prevent running out of space while copying new files
 
 ### Changed
 - Holding `Alt` while clicking on a drive now ignores config files and just selects the drive
 
-## [1.1.0] - 2020-09-17
+## 1.1.0 - 2020-09-17
 ### Fixed
 - Fixed refresh threads running when a refresh is already active
 - Fixed shares being calculated in multiple threads when Ctrl + clicking
@@ -81,10 +81,10 @@ All notable changes to this project will be documented in this file.
 - Added ThreadManager class
 - Added split mode backup option for backing up a subset of the drives in a config
 
-## [1.0.1] - 2020-09-11
+## 1.0.1 - 2020-09-11
 ### Changed
 - Added proper branding
 - Performance improvements
 
-## [1.0.0] - 2020-09-11
+## 1.0.0 - 2020-09-11
 Initial release
