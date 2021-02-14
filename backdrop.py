@@ -124,6 +124,12 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
         except OSError:
             file_size = READINTO_BUFSIZE
 
+        # Make sure destination path exists before copying
+        pathStub = destFilename[0:destFilename.rindex('\\')]
+        destDir = os.path.dirname(pathStub)
+        if not os.path.exists(destDir):
+            os.makedirs(destDir)
+
         fdst = open(destFilename, 'wb')
         for n in iter(lambda: f.readinto(mv), 0):
             if threadManager.threadList['Backup']['killFlag']:
@@ -235,8 +241,8 @@ def doCopy(src, dest, guiOptions={}):
             copyFile(src, dest, printProgress, guiOptions)
     elif os.path.isdir(src):
         # Make dir if it doesn't exist
-        if not os.path.isdir(dest):
-            os.mkdir(dest)
+        if not os.path.exists(dest):
+            os.makedirs(dest)
 
         try:
             for entry in os.scandir(src):

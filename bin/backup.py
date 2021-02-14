@@ -625,11 +625,14 @@ class Backup:
 
             # Increment master totals
             # Double total to account for both copy and verify operations
-            self.totals['master'] += driveTotal['copy'] * 2
+            self.totals['master'] += driveTotal['copy']
             self.totals['delta'] += driveTotal['delta']
 
             if len(fileSummary) > 0:
                 showFileInfo.append((self.driveVidInfo[drive]['name'], '\n'.join(fileSummary)))
+
+        # Double total to account for both copy and verify operations
+        self.totals['master'] *= 2
 
         self.analysisSummaryDisplayFn(
             title='Files',
