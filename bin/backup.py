@@ -192,6 +192,8 @@ class Backup:
         # For each drive, smallest first, filter list of shares to those that fit
         driveInfo.sort(key=lambda x: x['free'])
 
+        allDriveFilesBuffer = {drive['name']: [] for drive in masterDriveList}
+
         for i, drive in enumerate(driveInfo):
             # Get list of shares small enough to fit on drive
             smallShares = {share: size for share, size in shareInfo.items() if size <= drive['free']}
@@ -238,6 +240,7 @@ class Backup:
                     # If overflow for next drive is more than can fit on that drive, ignore it, put overflow
                     # back in pool of shares to sort, and put small drive shares only in current drive
                     driveShareList[drive['vid']].extend(sharesThatFit) # Shares that fit on current drive
+                    allDriveFilesBuffer[drive['name']].extend([f"{drive['name']}{share}" for share in sharesThatFit])
 
                     # Put remaining small shares back into pool to work with for next drive
                     shareInfo.update({share: size for share, size in remainingSmallShares.items()})
@@ -341,10 +344,21 @@ class Backup:
             return shareSplitSummary
 
         # For shares larger than all drives, recurse into each share
-        driveExclusions = []
+        driveExclusions = {drive['name']: [] for drive in masterDriveList}
         for share in shareInfo.keys():
             if os.path.exists(self.config['sourceDrive'] + share) and os.path.isdir(self.config['sourceDrive'] + share):
                 summary = splitShare(share)
+
+                # Build exclusion list for other drives\
+                # This is done by "inverting" the file list for each drive into a list of exclusions for other drives
+                for summaryItem in summary:
+                    fileList = summaryItem['files']
+
+                    for drive, files in fileList.items():
+                        driveLetter = self.driveVidInfo[drive]['name']
+
+                        # Add files to file list
+                        allDriveFilesBuffer[driveLetter].extend(files)
 
                 # Each summary contains a split share, and any split subfolders, starting with
                 # the share and recursing into the directories
@@ -356,7 +370,8 @@ class Backup:
                     allFiles = shareFiles.copy()
                     allFiles['exclusions'] = shareExclusions
 
-                    sourcePathStub = self.config['sourceDrive'] + shareName + '\\'
+                    # sourcePathStub = self.config['sourceDrive'] + shareName + '\\'
+                    sourcePathStub = shareName + '\\'
 
                     # For each drive, gather list of files to be written to other drives, and
                     # use that as exclusions
@@ -366,16 +381,59 @@ class Backup:
                             rawExclusions.pop(drive, None)
 
                             masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
-                            driveExclusions.extend([sourcePathStub + file for file in masterExclusions])
+
+                            # Remove share if excluded in parent splitting
+                            if shareName in driveExclusions[self.driveVidInfo[drive]['name']]:
+                                driveExclusions[self.driveVidInfo[drive]['name']].remove(shareName)
+
+                            # Add new exclusions to list
+                            driveExclusions[self.driveVidInfo[drive]['name']].extend([sourcePathStub + file for file in masterExclusions])
                             driveShareList[drive].append(shareName)
 
-        def buildDeltaFileList(drive, shares):
+        def recurseFileList(directory):
+            """Get a complete list of files in a directory.
+
+            Args:
+                directory (String): The directory to check.
+
+            Returns:
+                String[]: The file list.
+            """
+            fileList = []
+            try:
+                if len(os.scandir(directory)) > 0:
+                    for entry in os.scandir(directory):
+                        # For each entry, either add filesize to the total, or recurse into the directory
+                        if entry.is_file():
+                            fileList.append(entry.path)
+                        elif entry.is_dir():
+                            fileList.append(entry.path)
+                            fileList.extend(recurseFileList(entry.path))
+                else:
+                    # No files, so append dir to list
+                    fileList.append(entry.path)
+            except NotADirectoryError:
+                return []
+            except PermissionError:
+                return []
+            except OSError:
+                return []
+            return fileList
+
+        # For each drive in file list buffer, recurse into each directory and build a complete file list
+        allDriveFiles = {drive['name']: [] for drive in masterDriveList}
+        for drive, files in allDriveFilesBuffer.items():
+            for file in files:
+                allDriveFiles[drive].extend(recurseFileList(file))
+
+        def buildDeltaFileList(drive, shares, exclusions):
             """Get lists of files to delete and replace from the destination drive, that no longer
             exist in the source, or have changed.
 
             Args:
                 drive (String): The drive to check.
-                shares (String[]): The list of shares to check
+                shares (String[]): The list of shares to check.
+                exclusions (String[]): The list of files and folders to exclude.
 
             Returns:
                 {
@@ -383,12 +441,14 @@ class Backup:
                     'replace' (tuple(String, int, int)[]): The list of files and source/dest filesizes for replacement.
                 }
             """
+
             specialIgnoreList = [self.backupConfigDir, '$RECYCLE.BIN', 'System Volume Information']
             fileList = {
                 'delete': [],
                 'replace': []
             }
             try:
+                sharesBeingProcessed = [share for share in shares if share == drive[3:] or share + '\\' in drive[3:]]
                 for entry in os.scandir(drive):
                     # For each entry, either add filesize to the total, or recurse into the directory
                     if entry.is_file():
@@ -396,7 +456,8 @@ class Backup:
                         sourcePath = self.config['sourceDrive'] + stubPath
                         if (stubPath.find('\\') == -1 # Files should not be on root of drive
                                 or not os.path.isfile(sourcePath) # File doesn't exist in source, so delete it
-                                or sourcePath in driveExclusions): # File is excluded from drive
+                                or stubPath in exclusions # File is excluded from drive
+                                or len(sharesBeingProcessed) == 0): # File should only count if dir is share or child, not parent
                             fileList['delete'].append((entry.path, entry.stat().st_size))
                             self.updateFileDetailListFn('delete', entry.path)
                         elif os.path.isfile(sourcePath):
@@ -414,13 +475,13 @@ class Backup:
                                     or (stubPath.find(item + '\\') == 0 and os.path.isdir(sourcePath)) # Dir is subdir inside share, and it exists in source
                                     or item.find(stubPath + '\\') == 0): # Dir is parent directory of a share we're copying, so it stays
                                 # Recurse into the share
-                                newList = buildDeltaFileList(entry.path, shares)
+                                newList = buildDeltaFileList(entry.path, shares, exclusions)
                                 fileList['delete'].extend(newList['delete'])
                                 fileList['replace'].extend(newList['replace'])
                                 foundShare = True
                                 break
 
-                        if not foundShare and stubPath not in specialIgnoreList and entry.path not in driveExclusions:
+                        if not foundShare and stubPath not in specialIgnoreList and stubPath not in exclusions:
                             # Directory isn't share, or part of one, and isn't a special folder or
                             # exclusion, so delete it
                             fileList['delete'].append((entry.path, get_directory_size(entry.path)))
@@ -442,19 +503,21 @@ class Backup:
                 }
             return fileList
 
-        def buildNewFileList(drive, shares):
+        def buildNewFileList(drive, shares, exclusions):
             """Get lists of files to copy to the destination drive, that only exist on the
             source.
 
             Args:
                 drive (String): The drive to check.
                 shares (String[]): The list of shares the drive should contain.
+                exclusions (String[]): The list of files and folders to exclude.
 
             Returns:
                 {
                     'new' (tuple(String, int)[]): The list of file destinations and filesizes to copy.
                 }
             """
+
             fileList = {
                 'new': []
             }
@@ -462,29 +525,41 @@ class Backup:
             targetDrive = drive[0:3]
 
             try:
-                for entry in os.scandir(self.config['sourceDrive'] + drive[3:]):
-                    # For each entry, either add filesize to the total, or recurse into the directory
-                    if entry.is_file():
-                        if (entry.path[3:].find('\\') > -1 # File is not in root of source
-                                and not os.path.isfile(targetDrive + entry.path[3:]) # File doesn't exist in destination drive
-                                and targetDrive + entry.path[3:] not in driveExclusions): # File isn't part of drive exclusion
-                            fileList['new'].append((targetDrive + entry.path[3:], entry.stat().st_size))
-                            self.updateFileDetailListFn('copy', targetDrive + entry.path[3:])
-                    elif entry.is_dir():
-                        for item in shares:
-                            if (entry.path[3:] == item # Dir is share, so it stays
-                                    or entry.path[3:].find(item + '\\') == 0 # Dir is subdir inside share
-                                    or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of share
-                                if os.path.isdir(targetDrive + entry.path[3:]):
-                                    # If exists on dest, recurse into it
-                                    newList = buildNewFileList(targetDrive + entry.path[3:], shares)
-                                    fileList['new'].extend(newList['new'])
-                                    break
-                                elif entry.path not in driveExclusions:
-                                    print(f"{targetDrive + entry.path[3:]} => {', '.join(driveExclusions)}")
-                                    # Path doesn't exist on dest, so add to list if not excluded
-                                    fileList['new'].append((targetDrive + entry.path[3:], get_directory_size(entry.path)))
-                                    self.updateFileDetailListFn('copy', targetDrive + entry.path[3:])
+                if len(os.listdir(self.config['sourceDrive'] + drive[3:])) > 0:
+                    sharesBeingProcessed = [share for share in shares if share == drive[3:] or share + '\\' in drive[3:]]
+                    for entry in os.scandir(self.config['sourceDrive'] + drive[3:]):
+                        # For each entry, either add filesize to the total, or recurse into the directory
+                        if entry.is_file():
+                            if (entry.path[3:].find('\\') > -1 # File is not in root of source
+                                    and not os.path.isfile(targetDrive + entry.path[3:]) # File doesn't exist in destination drive
+                                    and entry.path[3:] not in exclusions # File isn't part of drive exclusion
+                                    and len(sharesBeingProcessed) > 0): # File should only count if dir is share or child, not parent
+                                fileList['new'].append((targetDrive + entry.path[3:], entry.stat().st_size))
+                                self.updateFileDetailListFn('copy', targetDrive + entry.path[3:])
+                        elif entry.is_dir():
+                            for item in shares:
+                                if (entry.path[3:] == item # Dir is share, so it stays
+                                        or entry.path[3:].find(item + '\\') == 0 # Dir is subdir inside share
+                                        or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of share
+                                    if os.path.isdir(targetDrive + entry.path[3:]):
+                                        # If exists on dest, recurse into it
+                                        newList = buildNewFileList(targetDrive + entry.path[3:], shares, exclusions)
+                                        fileList['new'].extend(newList['new'])
+                                        break
+                                    elif entry.path[3:] not in exclusions:
+                                        # Path doesn't exist on dest, so add to list if not excluded
+                                        # fileList['new'].append((targetDrive + entry.path[3:], get_directory_size(entry.path)))
+                                        # self.updateFileDetailListFn('copy', targetDrive + entry.path[3:])
+
+                                        newList = buildNewFileList(targetDrive + entry.path[3:], shares, exclusions)
+                                        fileList['new'].extend(newList['new'])
+                                        break
+                elif not os.path.isdir(drive):
+                    # If no files in folder on source, create empty folder in destination
+                    return {
+                        'new': [(targetDrive + drive[3:], get_directory_size(self.config['sourceDrive'] + drive[3:]))]
+                    }
+
             except NotADirectoryError:
                 return {
                     'new': []
@@ -508,7 +583,7 @@ class Backup:
         displayPurgeCommandList = []
         displayCopyCommandList = []
         for drive, shares in driveShareList.items():
-            modifyFileList = buildDeltaFileList(self.driveVidInfo[drive]['name'], shares)
+            modifyFileList = buildDeltaFileList(self.driveVidInfo[drive]['name'], shares, driveExclusions[self.driveVidInfo[drive]['name']])
 
             deleteItems = modifyFileList['delete']
             if len(deleteItems) > 0:
@@ -561,7 +636,7 @@ class Backup:
                 })
 
             # Build list of new files to copy
-            newItems = buildNewFileList(self.driveVidInfo[drive]['name'], shares)['new']
+            newItems = buildNewFileList(self.driveVidInfo[drive]['name'], shares, driveExclusions[self.driveVidInfo[drive]['name']])['new']
             if len(newItems) > 0:
                 newFileList[self.driveVidInfo[drive]['name']] = newItems
                 fileCopyList = [file for file, size in newItems]
