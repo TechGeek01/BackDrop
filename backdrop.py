@@ -126,9 +126,8 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
 
         # Make sure destination path exists before copying
         pathStub = destFilename[0:destFilename.rindex('\\')]
-        destDir = os.path.dirname(pathStub)
-        if not os.path.exists(destDir):
-            os.makedirs(destDir)
+        if not os.path.exists(pathStub):
+            os.makedirs(pathStub)
 
         fdst = open(destFilename, 'wb')
         for n in iter(lambda: f.readinto(mv), 0):
