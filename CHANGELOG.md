@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Fixed regression where split shares would cause the analysis to either miss files, or double count them, and cause drives to run out of space and the backup to soft crash
 
+### Changed
+- Optimized file transfer buffer size to increase speed
+
 ## 2.1.2 - 2021-01-22
 ### Fixed
 - Fixed progress bar and ETA not reporting correct progress

@@ -113,8 +113,15 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
         print(f"Copying {destFilename}")
     guiOptions['mode'] = 'copy'
 
+    buffer_size = 1024 * 1024
+
+    # Optimize the buffer for small files
+    buffer_size = min(buffer_size,os.path.getsize(sourceFilename))
+    if buffer_size == 0:
+        buffer_size = 1024
+
     h = hashlib.blake2b()
-    b = bytearray(128 * 1024)
+    b = bytearray(buffer_size)
     mv = memoryview(b)
 
     copied = 0
@@ -147,7 +154,7 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
         shutil.copystat(sourceFilename, destFilename)
 
         dest_hash = hashlib.blake2b()
-        dest_b = bytearray(128 * 1024)
+        dest_b = bytearray(buffer_size)
         dest_mv = memoryview(dest_b)
 
         with open(destFilename, 'rb', buffering=0) as f:
