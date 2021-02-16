@@ -81,11 +81,29 @@ def updateFileDetailList(listName, fileName):
     if not config['cliMode']:
         if listName == 'delete':
             fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
+            fileDetailsPendingDeleteCounterTotal.configure(text=str(len(fileDetailList['delete'])))
         elif listName == 'copy':
             fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
+            fileDetailsPendingCopyCounterTotal.configure(text=str(len(fileDetailList['copy'])))
+        elif listName == 'deleteSuccess':
+            pass
         elif listName == 'success':
+            # Remove file from copy list and update counter
+            fileNameList = [file['fileName'] for file in fileDetailList['copy']]
+            if fileName in fileNameList:
+                del fileDetailList['copy'][fileNameList.index(fileName)]
+            fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
+
+            # Update copy list scrollable
             tk.Label(fileDetailsCopiedScrollableFrame, text=fileName.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
         elif listName == 'fail':
+            # Remove file from copy list and update counter
+            fileNameList = [file['fileName'] for file in fileDetailList['copy']]
+            if fileName in fileNameList:
+                del fileDetailList['copy'][fileNameList.index(fileName)]
+            fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
+
+            # Update copy list scrollable
             tk.Label(fileDetailsFailedScrollableFrame, text=fileName.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
 
 # differs from shutil.COPY_BUFSIZE on platforms != Windows
@@ -1591,8 +1609,13 @@ if not config['cliMode']:
     fileDetailsPendingDeleteHeader.pack(side='left')
     fileDetailsPendingDeleteTooltip = tk.Label(fileDetailsPendingDeleteHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
     fileDetailsPendingDeleteTooltip.pack(side='left')
-    fileDetailsPendingDeleteCounter = tk.Label(backupFileDetailsFrame, text='...', font=(None, 28))
-    fileDetailsPendingDeleteCounter.grid(row=1, column=0, sticky='ew')
+    fileDetailsPendingDeleteCounterFrame = tk.Frame(backupFileDetailsFrame)
+    fileDetailsPendingDeleteCounterFrame.grid(row=1, column=0)
+    fileDetailsPendingDeleteCounter = tk.Label(fileDetailsPendingDeleteCounterFrame, text='0', font=(None, 28))
+    fileDetailsPendingDeleteCounter.pack(side='left', anchor='s')
+    tk.Label(fileDetailsPendingDeleteCounterFrame, text='of', font=(None, 11), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 5))
+    fileDetailsPendingDeleteCounterTotal = tk.Label(fileDetailsPendingDeleteCounterFrame, text='0', font=(None, 12), fg=uiColor.FADED)
+    fileDetailsPendingDeleteCounterTotal.pack(side='left', anchor='s', pady=(0, 5))
 
     fileDetailsPendingCopyHeaderLine = tk.Frame(backupFileDetailsFrame)
     fileDetailsPendingCopyHeaderLine.grid(row=0, column=1, sticky='e')
@@ -1600,8 +1623,13 @@ if not config['cliMode']:
     fileDetailsPendingCopyHeader.pack(side='right')
     fileDetailsPendingCopyTooltip = tk.Label(fileDetailsPendingCopyHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
     fileDetailsPendingCopyTooltip.pack(side='right')
-    fileDetailsPendingCopyCounter = tk.Label(backupFileDetailsFrame, text='...', font=(None, 28))
-    fileDetailsPendingCopyCounter.grid(row=1, column=1, sticky='ew')
+    fileDetailsPendingCopyCounterFrame = tk.Frame(backupFileDetailsFrame)
+    fileDetailsPendingCopyCounterFrame.grid(row=1, column=1)
+    fileDetailsPendingCopyCounter = tk.Label(fileDetailsPendingCopyCounterFrame, text='0', font=(None, 28))
+    fileDetailsPendingCopyCounter.pack(side='left', anchor='s')
+    tk.Label(fileDetailsPendingCopyCounterFrame, text='of', font=(None, 11), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 5))
+    fileDetailsPendingCopyCounterTotal = tk.Label(fileDetailsPendingCopyCounterFrame, text='0', font=(None, 12), fg=uiColor.FADED)
+    fileDetailsPendingCopyCounterTotal.pack(side='left', anchor='s', pady=(0, 5))
 
     fileDetailsCopiedHeaderLine = tk.Frame(backupFileDetailsFrame)
     fileDetailsCopiedHeaderLine.grid(row=2, column=0, columnspan=2, sticky='w')
