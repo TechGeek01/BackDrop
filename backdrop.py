@@ -25,7 +25,7 @@ from bin.commandLine import CommandLine
 from bin.backup import Backup
 
 # Set meta info
-appVersion = '2.1.3'
+appVersion = '2.1.4'
 
 # IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -619,7 +619,6 @@ def resetUi():
         for child in fileDetailsFailedScrollableFrame.winfo_children():
             child.destroy()
 
-# URGENT: Replace CLI mode call for analysis with this function call
 def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
 
@@ -627,30 +626,46 @@ def startBackupAnalysis():
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    if (not backup or not backup.isRunning()) and sourceDriveListValid:
+    if (not backup or not backup.isRunning()) and (config['cliMode'] or sourceDriveListValid):
         # TODO: There has to be a better way to handle stopping and starting this split mode toggling
-        splitEnabled = destModeSplitCheckVar.get()
-        splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if splitEnabled else 'Disabled'), fg=uiColor.ENABLED if splitEnabled else uiColor.DISABLED)
+        if not config['cliMode']:
+            splitEnabled = destModeSplitCheckVar.get()
+            splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if splitEnabled else 'Disabled'), fg=uiColor.ENABLED if splitEnabled else uiColor.DISABLED)
 
         resetUi()
 
-        backup = Backup(
-            config=config,
-            backupConfigDir=backupConfigDir,
-            backupConfigFile=backupConfigFile,
-            uiColor=uiColor,
-            startBackupBtn=startBackupBtn,
-            startAnalysisBtn=startAnalysisBtn,
-            doCopyFn=doCopy,
-            startBackupFn=startBackup,
-            killBackupFn=lambda: threadManager.kill('Backup'),
-            startBackupTimerFn=updateBackupTimer,
-            updateFileDetailListFn=updateFileDetailList,
-            analysisSummaryDisplayFn=displayBackupSummaryChunk,
-            enumerateCommandInfoFn=enumerateCommandInfo,
-            threadManager=threadManager,
-            progress=progress
-        )
+        if not config['cliMode']:
+            backup = Backup(
+                config=config,
+                backupConfigDir=backupConfigDir,
+                backupConfigFile=backupConfigFile,
+                uiColor=uiColor,
+                startBackupBtn=startBackupBtn,
+                startAnalysisBtn=startAnalysisBtn,
+                doCopyFn=doCopy,
+                startBackupFn=startBackup,
+                killBackupFn=lambda: threadManager.kill('Backup'),
+                startBackupTimerFn=updateBackupTimer,
+                updateFileDetailListFn=updateFileDetailList,
+                analysisSummaryDisplayFn=displayBackupSummaryChunk,
+                enumerateCommandInfoFn=enumerateCommandInfo,
+                threadManager=threadManager,
+                progress=progress
+            )
+        else:
+            backup = Backup(
+                config=config,
+                backupConfigDir=backupConfigDir,
+                backupConfigFile=backupConfigFile,
+                doCopyFn=doCopy,
+                startBackupFn=startBackup,
+                killBackupFn=lambda: threadManager.kill('Backup'),
+                startBackupTimerFn=updateBackupTimer,
+                updateFileDetailListFn=updateFileDetailList,
+                analysisSummaryDisplayFn=displayBackupSummaryChunk,
+                enumerateCommandInfoFn=enumerateCommandInfo,
+                threadManager=threadManager
+            )
         threadManager.start(threadManager.SINGLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
 def loadSource():
@@ -1320,22 +1335,7 @@ if config['cliMode']:
 
         ### Analysis ###
 
-        resetUi()
-
-        backup = Backup(
-            config=config,
-            backupConfigDir=backupConfigDir,
-            backupConfigFile=backupConfigFile,
-            doCopyFn=doCopy,
-            startBackupFn=startBackup,
-            killBackupFn=lambda: threadManager.kill('Backup'),
-            startBackupTimerFn=updateBackupTimer,
-            updateFileDetailListFn=updateFileDetailList,
-            analysisSummaryDisplayFn=displayBackupSummaryChunk,
-            enumerateCommandInfoFn=enumerateCommandInfo,
-            threadManager=threadManager
-        )
-        threadManager.start(threadManager.SINGLE, target=backup.analyze, name='Backup Analysis', daemon=True)
+        startBackupAnalysis()
 
         while threadManager.is_alive('Backup Analysis'):
             pass
