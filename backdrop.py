@@ -25,7 +25,7 @@ from bin.commandLine import CommandLine
 from bin.backup import Backup
 
 # Set meta info
-appVersion = '2.1.3-alpha.1'
+appVersion = '2.1.3-beta.1'
 
 # IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -591,6 +591,36 @@ def enumerateCommandInfo(self, displayCommandList):
     if config['cliMode']:
         print('')
 
+def resetUi():
+    """Reset the UI when we run a backup analysis."""
+
+    if not config['cliMode']:
+        # Empty backup summary pane
+        for child in backupSummaryTextFrame.winfo_children():
+            child.destroy()
+
+        # Reset ETA counter
+        backupEtaLabel.configure(text='Analysis in progress. Please wait...', fg=uiColor.NORMAL)
+
+        # Empty backup operation list pane
+        for child in backupActivityScrollableFrame.winfo_children():
+            child.destroy()
+
+        # Clear file lists for file details pane
+        [fileDetailList[listName].clear() for listName in fileDetailList.keys()]
+
+        # Reset file details counters
+        fileDetailsPendingDeleteCounter.configure(text='0')
+        fileDetailsPendingDeleteCounterTotal.configure(text='0')
+        fileDetailsPendingCopyCounter.configure(text='0')
+        fileDetailsPendingCopyCounterTotal.configure(text='0')
+
+        # Empty file details list panes
+        for child in fileDetailsCopiedScrollableFrame.winfo_children():
+            child.destroy()
+        for child in fileDetailsFailedScrollableFrame.winfo_children():
+            child.destroy()
+
 # URGENT: Replace CLI mode call for analysis with this function call
 def startBackupAnalysis():
     """Start the backup analysis in a separate thread."""
@@ -603,6 +633,8 @@ def startBackupAnalysis():
         # TODO: There has to be a better way to handle stopping and starting this split mode toggling
         splitEnabled = destModeSplitCheckVar.get()
         splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if splitEnabled else 'Disabled'), fg=uiColor.ENABLED if splitEnabled else uiColor.DISABLED)
+
+        resetUi()
 
         backup = Backup(
             config=config,
@@ -1289,6 +1321,8 @@ if config['cliMode']:
             exit()
 
         ### Analysis ###
+
+        resetUi()
 
         backup = Backup(
             config=config,
