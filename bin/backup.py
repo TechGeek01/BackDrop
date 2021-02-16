@@ -174,7 +174,6 @@ class Backup:
                 curDriveInfo['name'] = f"[{drive['vid']}]"
                 curDriveInfo['configSize'] = 20000 # Assume 20K config size
 
-            # TODO: Find a way to properly determine free space left of drive here
             curDriveInfo['free'] = drive['capacity'] - drive['configSize']
 
             driveInfo.append(curDriveInfo)

@@ -1633,8 +1633,6 @@ if not config['cliMode']:
     backupFileDetailsFrame = tk.Frame(mainFrame, width=400)
     backupFileDetailsFrame.grid_propagate(0)
 
-    # URGENT: File details items, and analysis detail list need to be cleared out the second analysis is started, so that the counts and lists aren't stacked on top of existing stuff
-
     fileDetailsPendingDeleteHeaderLine = tk.Frame(backupFileDetailsFrame)
     fileDetailsPendingDeleteHeaderLine.grid(row=0, column=0, sticky='w')
     fileDetailsPendingDeleteHeader = tk.Label(fileDetailsPendingDeleteHeaderLine, text='Files to delete', font=(None, 11, 'bold'))
@@ -1733,10 +1731,7 @@ if not config['cliMode']:
             backupFileDetailsFrame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, elemPadding), pady=(elemPadding / 2, 0))
             backupFileDetailsToggle.configure(text='Hide Details')
 
-    # settingsIcon2Load = Image.open(resource_path(f"media\\settings{'_light' if uiColor.isDarkMode() else ''}.png"))
-    # settingsIcon2Render = ImageTk.PhotoImage(settingsIcon2Load)
-    # backupFileDetailsToggle = tk.Button(backupMidControlFrame, image=settingsIcon2Render, relief='sunken', borderwidth=0, highlightcolor=uiColor.BG, activebackground=uiColor.BG)
-    backupFileDetailsToggle = ttk.Button(backupMidControlFrame, text='Show Details', command=toggleFileDetails) # TODO: Add command to file detials button
+    backupFileDetailsToggle = ttk.Button(backupMidControlFrame, text='Show Details', command=toggleFileDetails)
     backupFileDetailsToggle.grid(row=0, column=0)
 
     tk.Grid.columnconfigure(mainFrame, 3, weight=1)
