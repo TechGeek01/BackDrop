@@ -25,7 +25,7 @@ from bin.commandLine import CommandLine
 from bin.backup import Backup
 
 # Set meta info
-appVersion = '2.1.3-beta.1'
+appVersion = '2.1.3'
 
 # IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -71,14 +71,12 @@ def updateFileDetailList(listName, fileName):
         fileName (String): The file path to add to the list.
     """
 
-    global fileDetailList
-
-    fileDetailList[listName].append({
-        'displayName': fileName.split('\\')[-1],
-        'fileName': fileName
-    })
-
     if not config['cliMode']:
+        fileDetailList[listName].append({
+            'displayName': fileName.split('\\')[-1],
+            'fileName': fileName
+        })
+
         if listName == 'delete':
             fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
             fileDetailsPendingDeleteCounterTotal.configure(text=str(len(fileDetailList['delete'])))

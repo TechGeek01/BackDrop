@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 2.1.3 - TBA
+## 2.1.3 - 2021-02-16
 ### Added
 - Added file details pane
 
