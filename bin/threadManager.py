@@ -111,6 +111,10 @@ class ThreadManager:
             if replaceableThread:
                 self.kill(replaceableThread)
 
+                # Wait until thread is killed
+                while self.is_alive(threadName):
+                    pass
+
             self.threadList[threadName] = {
                 'type': threadType,
                 'thread': threading.Thread(**kwargs),
