@@ -84,7 +84,23 @@ def updateFileDetailList(listName, fileName):
             fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
             fileDetailsPendingCopyCounterTotal.configure(text=str(len(fileDetailList['copy'])))
         elif listName == 'deleteSuccess':
-            pass
+            # Remove file from delete list and update counter
+            fileNameList = [file['fileName'] for file in fileDetailList['delete']]
+            if fileName in fileNameList:
+                del fileDetailList['delete'][fileNameList.index(fileName)]
+            fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
+
+            # Update copy list scrollable
+            tk.Label(fileDetailsCopiedScrollableFrame, text=fileName.split('\\')[-1], fg=uiColor.FADED).pack(fill='x', expand=True, anchor='w')
+        elif listName == 'deleteFail':
+            # Remove file from delete list and update counter
+            fileNameList = [file['fileName'] for file in fileDetailList['delete']]
+            if fileName in fileNameList:
+                del fileDetailList['delete'][fileNameList.index(fileName)]
+            fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
+
+            # Update copy list scrollable
+            tk.Label(fileDetailsFailedScrollableFrame, text=fileName.split('\\')[-1], fg=uiColor.FADED).pack(fill='x', expand=True, anchor='w')
         elif listName == 'success':
             # Remove file from copy list and update counter
             fileNameList = [file['fileName'] for file in fileDetailList['copy']]
@@ -103,6 +119,29 @@ def updateFileDetailList(listName, fileName):
 
             # Update copy list scrollable
             tk.Label(fileDetailsFailedScrollableFrame, text=fileName.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
+
+def delFile(sourceFilename):
+    """Delete a file or directory.
+
+    Args:
+        sourceFilename (String): The file or folder to delete.
+    """
+
+    if os.path.exists(sourceFilename):
+        if os.path.isfile(sourceFilename):
+            os.remove(sourceFilename)
+        elif os.path.isdir(sourceFilename):
+            shutil.rmtree(sourceFilename)
+
+        fileSize = get_directory_size(sourceFilename)
+
+        # If file deleted successfully, remove it from the list
+        if not os.path.exists(sourceFilename):
+            printProgress(fileSize, fileSize, {'mode': 'delete', 'fileName': sourceFilename.split('\\')[-1]})
+            updateFileDetailList('deleteSuccess', sourceFilename)
+        else:
+            printProgress(fileSize, fileSize, {'mode': 'delete', 'fileName': sourceFilename.split('\\')[-1]})
+            updateFileDetailList('deleteFail', sourceFilename)
 
 # differs from shutil.COPY_BUFSIZE on platforms != Windows
 READINTO_BUFSIZE = 1024 * 1024
@@ -216,7 +255,11 @@ def printProgress(copied, total, guiOptions):
 
     if copied > total:
         copied = total
-    percentCopied = copied / total * 100
+
+    if total > 0:
+        percentCopied = copied / total * 100
+    else:
+        percentCopied = 100
 
     # If display index has been specified, write progress to GUI
     if 'displayIndex' in guiOptions.keys():
@@ -226,9 +269,18 @@ def printProgress(copied, total, guiOptions):
 
         backupTotals['buffer'] = copied
 
-        if guiOptions['mode'] == 'copy':
-            # Progress bar position should only be updated on copy, not verify
+        if guiOptions['mode'] == 'delete':
             backupTotals['progressBar'] = backupTotals['running'] + copied
+
+            if not config['cliMode']:
+                progress.set(backupTotals['progressBar'])
+
+                cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Deleted {guiOptions['fileName']}", fg=uiColor.NORMAL)
+            else:
+                print(f"Deleted {guiOptions['fileName']}")
+        elif guiOptions['mode'] == 'copy':
+            backupTotals['progressBar'] = backupTotals['running'] + copied
+
             if not config['cliMode']:
                 progress.set(backupTotals['progressBar'])
 
@@ -418,13 +470,15 @@ def enumerateCommandInfo(self, displayCommandList):
 
     self.cmdInfoBlocks = []
     for i, item in enumerate(displayCommandList):
-        if item['type'] == 'list':
-            cmdHeaderText = 'Delete %d files from %s' % (len(item['fileList']), item['drive'])
-        elif item['type'] == 'fileList':
-            if item['mode'] == 'replace':
-                cmdHeaderText = 'Update %d files on %s' % (len(item['fileList']), item['drive'])
+        if item['type'] == 'fileList':
+            if item['mode'] == 'delete':
+                cmdHeaderText = f"Delete {len(item['fileList'])} files from {item['drive']}"
+            elif item['mode'] == 'replace':
+                cmdHeaderText = f"Update {len(item['fileList'])} files on {item['drive']}"
             elif item['mode'] == 'copy':
-                cmdHeaderText = 'Copy %d new files to %s' % (len(item['fileList']), item['drive'])
+                cmdHeaderText = f"Copy {len(item['fileList'])} new files to {item['drive']}"
+            else:
+                cmdHeaderText = f"Work with {len(item['fileList'])} files on {item['drive']}"
 
         if not config['cliMode']:
             infoConfig = {}
@@ -438,9 +492,7 @@ def enumerateCommandInfo(self, displayCommandList):
             infoConfig['arrow'] = tk.Label(infoConfig['headLine'], text=rightArrow)
             infoConfig['arrow'].pack(side='left')
 
-            if item['type'] == 'list':
-                cmdHeaderText = 'Delete %d files from %s' % (len(item['fileList']), item['drive'])
-            elif item['type'] == 'fileList':
+            if item['type'] == 'fileList':
                 if item['mode'] == 'replace':
                     cmdHeaderText = 'Update %d files on %s' % (len(item['fileList']), item['drive'])
                 elif item['mode'] == 'copy':
@@ -456,75 +508,7 @@ def enumerateCommandInfo(self, displayCommandList):
             # Set up info frame
             infoConfig['infoFrame'] = tk.Frame(infoConfig['mainFrame'])
 
-            if item['type'] == 'list':
-                infoConfig['fileSizeLine'] = tk.Frame(infoConfig['infoFrame'])
-                infoConfig['fileSizeLine'].pack(anchor='w')
-                tk.Frame(infoConfig['fileSizeLine'], width=arrowWidth).pack(side='left')
-                infoConfig['fileSizeLineHeader'] = tk.Label(infoConfig['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
-                infoConfig['fileSizeLineHeader'].pack(side='left')
-                infoConfig['fileSizeLineTotal'] = tk.Label(infoConfig['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
-                infoConfig['fileSizeLineTotal'].pack(side='left')
-
-                infoConfig['fileListLine'] = tk.Frame(infoConfig['infoFrame'])
-                infoConfig['fileListLine'].pack(anchor='w')
-                tk.Frame(infoConfig['fileListLine'], width=arrowWidth).pack(side='left')
-                infoConfig['fileListLineHeader'] = tk.Label(infoConfig['fileListLine'], text='File list:', font=cmdHeaderFont)
-                infoConfig['fileListLineHeader'].pack(side='left')
-                infoConfig['fileListLineTooltip'] = tk.Label(infoConfig['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=uiColor.FADED)
-                infoConfig['fileListLineTooltip'].pack(side='left')
-                infoConfig['fullFileList'] = item['fileList']
-
-                infoConfig['cmdListLine'] = tk.Frame(infoConfig['infoFrame'])
-                infoConfig['cmdListLine'].pack(anchor='w')
-                tk.Frame(infoConfig['cmdListLine'], width=arrowWidth).pack(side='left')
-                infoConfig['cmdListLineHeader'] = tk.Label(infoConfig['cmdListLine'], text='Command list:', font=cmdHeaderFont)
-                infoConfig['cmdListLineHeader'].pack(side='left')
-                infoConfig['cmdListLineTooltip'] = tk.Label(infoConfig['cmdListLine'], text='(Click to copy)', font=cmdStatusFont, fg=uiColor.FADED)
-                infoConfig['cmdListLineTooltip'].pack(side='left')
-                infoConfig['fullCmdList'] = item['cmdList']
-
-                infoConfig['lastOutLine'] = tk.Frame(infoConfig['infoFrame'])
-                infoConfig['lastOutLine'].pack(anchor='w')
-                tk.Frame(infoConfig['lastOutLine'], width=arrowWidth).pack(side='left')
-                infoConfig['lastOutHeader'] = tk.Label(infoConfig['lastOutLine'], text='Out:', font=cmdHeaderFont)
-                infoConfig['lastOutHeader'].pack(side='left')
-                infoConfig['lastOutResult'] = tk.Label(infoConfig['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
-                infoConfig['lastOutResult'].pack(side='left')
-
-                # Handle list trimming
-                listFont = tkfont.Font(family=None, size=10, weight='normal')
-                trimmedFileList = ', '.join(item['fileList'])
-                trimmedCmdList = ', '.join(item['cmdList'])
-                maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
-                actualFileWidth = listFont.measure(', '.join(item['fileList']))
-                actualCmdWidth = listFont.measure(', '.join(item['cmdList']))
-
-                if actualFileWidth > maxWidth:
-                    while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
-                        trimmedFileList = trimmedFileList[:-1]
-                        actualFileWidth = listFont.measure(trimmedFileList + '...')
-                    trimmedFileList = trimmedFileList + '...'
-
-                if actualCmdWidth > maxWidth:
-                    while actualCmdWidth > maxWidth and len(trimmedCmdList) > 1:
-                        trimmedCmdList = trimmedCmdList[:-1]
-                        actualCmdWidth = listFont.measure(trimmedCmdList + '...')
-                    trimmedCmdList = trimmedCmdList + '...'
-
-                infoConfig['fileListLineTrimmed'] = tk.Label(infoConfig['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
-                infoConfig['fileListLineTrimmed'].pack(side='left')
-                infoConfig['cmdListLineTrimmed'] = tk.Label(infoConfig['cmdListLine'], text=trimmedCmdList, font=cmdStatusFont)
-                infoConfig['cmdListLineTrimmed'].pack(side='left')
-
-                # Command copy action click
-                infoConfig['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-                infoConfig['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-                infoConfig['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-
-                infoConfig['cmdListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
-                infoConfig['cmdListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
-                infoConfig['cmdListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullCmdList'))
-            elif item['type'] == 'fileList':
+            if item['type'] == 'fileList':
                 infoConfig['fileSizeLine'] = tk.Frame(infoConfig['infoFrame'])
                 infoConfig['fileSizeLine'].pack(anchor='w')
                 tk.Frame(infoConfig['fileSizeLine'], width=arrowWidth).pack(side='left')
@@ -643,6 +627,7 @@ def startBackupAnalysis():
                 startBackupBtn=startBackupBtn,
                 startAnalysisBtn=startAnalysisBtn,
                 doCopyFn=doCopy,
+                doDelFn=delFile,
                 startBackupFn=startBackup,
                 killBackupFn=lambda: threadManager.kill('Backup'),
                 startBackupTimerFn=updateBackupTimer,
@@ -658,6 +643,7 @@ def startBackupAnalysis():
                 backupConfigDir=backupConfigDir,
                 backupConfigFile=backupConfigFile,
                 doCopyFn=doCopy,
+                doDelFn=delFile,
                 startBackupFn=startBackup,
                 killBackupFn=lambda: threadManager.kill('Backup'),
                 startBackupTimerFn=updateBackupTimer,
@@ -666,7 +652,7 @@ def startBackupAnalysis():
                 enumerateCommandInfoFn=enumerateCommandInfo,
                 threadManager=threadManager
             )
-        threadManager.start(threadManager.SINGLE, target=backup.analyze, name='Backup Analysis', daemon=True)
+        threadManager.start(threadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
 def loadSource():
     """Load the source share list, and display it in the tree."""
@@ -1362,6 +1348,8 @@ if config['cliMode']:
 fileDetailList = {
     'delete': [],
     'copy': [],
+    'deleteSuccess': [],
+    'deleteFail': [],
     'success': [],
     'fail': []
 }

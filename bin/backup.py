@@ -1,20 +1,20 @@
 from tkinter import messagebox
 import os
 import itertools
-import subprocess
 from datetime import datetime
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import bcolor
 from bin.threadManager import ThreadManager
 
 class Backup:
-    def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, startBackupFn, killBackupFn, startBackupTimerFn, updateFileDetailListFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, uiColor=None, startBackupBtn=None, startAnalysisBtn=None, progress=None):
+    def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, doDelFn, startBackupFn, killBackupFn, startBackupTimerFn, updateFileDetailListFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, uiColor=None, startBackupBtn=None, startAnalysisBtn=None, progress=None):
         """
         Args:
             config (dict): The backup config to be processed.
             backupConfigDir (String): The directory to store backup configs on each drive.
             backupConfigFile (String): The file to store backup configs on each drive.
-            doCopy (def): The function to be used to handle file copying. TODO: Move doCopy outside of Backup class.
+            doCopyFn (def): The function to be used to handle file copying. TODO: Move doCopyFn outside of Backup class.
+            doDelFn (def): The function to be used to handle file copying. TODO: Move doDelFn outside of Backup class.
             startBackupFn (def): The function to be used to start the backup.
             killBackupFn (def): The function to be used to kill the backup.
             startBackupTimerFn (def): The function to be used to start the backup timer.
@@ -55,6 +55,7 @@ class Backup:
         self.startBackupBtn = startBackupBtn
         self.startAnalysisBtn = startAnalysisBtn
         self.doCopyFn = doCopyFn
+        self.doDelFn = doDelFn
         self.startBackupFn = startBackupFn
         self.killBackupFn = killBackupFn
         self.startBackupTimerFn = startBackupTimerFn
@@ -589,24 +590,22 @@ class Backup:
                 deleteFileList[self.driveVidInfo[drive]['name']] = deleteItems
                 fileDeleteList = [file for file, size in deleteItems]
 
-                # Format list of files into commands
-                fileDeleteCmdList = [('del /f "%s"' % (file) if os.path.isfile(file) else 'rmdir /s /q "%s"' % (file)) for file in fileDeleteList]
-
                 displayPurgeCommandList.append({
                     'enabled': True,
-                    'type': 'list',
+                    'type': 'fileList',
                     'drive': self.driveVidInfo[drive]['name'],
                     'size': sum([size for file, size in deleteItems]),
                     'fileList': fileDeleteList,
-                    'cmdList': fileDeleteCmdList
+                    'mode': 'delete'
                 })
 
                 purgeCommandList.append({
                     'displayIndex': len(displayPurgeCommandList) + 1,
-                    'type': 'list',
+                    'type': 'fileList',
                     'drive': self.driveVidInfo[drive]['name'],
                     'fileList': fileDeleteList,
-                    'cmdList': fileDeleteCmdList
+                    'payload': deleteItems,
+                    'mode': 'delete'
                 })
 
             # Build list of files to replace
@@ -698,15 +697,12 @@ class Backup:
                 fileSummary.append(f"{len(newFileList[self.driveVidInfo[drive]['name']])} new files ({human_filesize(driveTotal['new'])})")
 
             # Increment master totals
-            # Double total to account for both copy and verify operations
-            self.totals['master'] += driveTotal['copy']
+            # Double copy total to account for both copy and verify operations
+            self.totals['master'] += 2 * driveTotal['copy'] + driveTotal['delete']
             self.totals['delta'] += driveTotal['delta']
 
             if len(fileSummary) > 0:
                 showFileInfo.append((self.driveVidInfo[drive]['name'], '\n'.join(fileSummary)))
-
-        # Double total to account for both copy and verify operations
-        self.totals['master'] *= 2
 
         self.analysisSummaryDisplayFn(
             title='Files',
@@ -804,35 +800,23 @@ class Backup:
         timerStarted = False
 
         for cmd in commandList:
-            if cmd['type'] == 'list':
-                for item in cmd['cmdList']:
-                    process = subprocess.Popen(item, shell=True, stdout=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-                    if not self.config['cliMode']:
-                        self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text=item, fg=self.uiColor.NORMAL)
-                    else:
-                        print(item)
-
-                    while (self.config['cliMode'] or not self.threadManager.threadList['Backup']['killFlag']) and process.poll() is None:
-                        try:
-                            if not self.config['cliMode']:
-                                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uiColor.RUNNING)
-                        except Exception as e:
-                            print(e)
-                    process.terminate()
-
-                    if self.threadManager.threadList['Backup']['killFlag']:
-                        break
-            elif cmd['type'] == 'fileList':
+            if cmd['type'] == 'fileList':
                 if not self.config['cliMode']:
                     self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uiColor.RUNNING)
 
-                if not timerStarted and (cmd['mode'] == 'replace' or cmd['mode'] == 'copy'):
+                if not timerStarted:
                     timerStarted = True
                     self.backupStartTime = datetime.now()
 
                     self.threadManager.start(ThreadManager.KILLABLE, name='backupTimer', target=self.startBackupTimerFn)
 
+                if cmd['mode'] == 'delete':
+                    for file, size in cmd['payload']:
+                        guiOptions = {
+                            'displayIndex': cmd['displayIndex']
+                        }
+
+                        self.doDelFn(file, size, guiOptions)
                 if cmd['mode'] == 'replace':
                     for file, sourceSize, destSize in cmd['payload']:
                         sourceFile = self.config['sourceDrive'] + file[3:]
