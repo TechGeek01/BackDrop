@@ -268,8 +268,8 @@ class Backup:
                 elif entry.is_dir():
                     newDirSize = get_directory_size(entry.path)
 
-                fileName = entry.path.split('\\')[-1]
-                fileInfo[fileName] = newDirSize
+                filename = entry.path.split('\\')[-1]
+                fileInfo[filename] = newDirSize
 
             # For splitting shares, sort by largest free space first
             driveInfo.sort(reverse=True, key=lambda x: x['free'])
@@ -835,6 +835,9 @@ class Backup:
                         self.doCopyFn(sourceFile, destFile, guiOptions)
                 elif cmd['mode'] == 'copy':
                     for file, size in cmd['payload']:
+                        if self.threadManager.threadList['Backup']['killFlag']:
+                            break
+
                         sourceFile = self.config['sourceDrive'] + file[3:]
                         destFile = file
 

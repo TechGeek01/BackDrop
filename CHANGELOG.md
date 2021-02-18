@@ -47,7 +47,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Significantly improved copy speed
-	- ***Note:** CLI mode is significantly slower than the GUI. A fix is in the works.*
+	- * CLI mode is significantly slower than the GUI. A fix is in the works.*
 - Windows can now be centered on top of other windows, rather than just the screen
 - Separated classes into their own files
 - Restructured code

@@ -63,18 +63,18 @@ def center(win, centerOnWin=None):
     win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
     win.deiconify()
 
-def updateFileDetailList(listName, fileName):
+def updateFileDetailList(listName, filename):
     """Update the file lists for the detail file view.
 
     Args:
         listName (String): The list name to update.
-        fileName (String): The file path to add to the list.
+        filename (String): The file path to add to the list.
     """
 
     if not config['cliMode']:
         fileDetailList[listName].append({
-            'displayName': fileName.split('\\')[-1],
-            'fileName': fileName
+            'displayName': filename.split('\\')[-1],
+            'filename': filename
         })
 
         if listName == 'delete':
@@ -85,40 +85,40 @@ def updateFileDetailList(listName, fileName):
             fileDetailsPendingCopyCounterTotal.configure(text=str(len(fileDetailList['copy'])))
         elif listName == 'deleteSuccess':
             # Remove file from delete list and update counter
-            fileNameList = [file['fileName'] for file in fileDetailList['delete']]
-            if fileName in fileNameList:
-                del fileDetailList['delete'][fileNameList.index(fileName)]
+            filenameList = [file['filename'] for file in fileDetailList['delete']]
+            if filename in filenameList:
+                del fileDetailList['delete'][filenameList.index(filename)]
             fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
 
             # Update copy list scrollable
-            tk.Label(fileDetailsCopiedScrollableFrame, text=fileName.split('\\')[-1], fg=uiColor.FADED).pack(fill='x', expand=True, anchor='w')
+            tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.FADED).pack(fill='x', expand=True, anchor='w')
         elif listName == 'deleteFail':
             # Remove file from delete list and update counter
-            fileNameList = [file['fileName'] for file in fileDetailList['delete']]
-            if fileName in fileNameList:
-                del fileDetailList['delete'][fileNameList.index(fileName)]
+            filenameList = [file['filename'] for file in fileDetailList['delete']]
+            if filename in filenameList:
+                del fileDetailList['delete'][filenameList.index(filename)]
             fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
 
             # Update copy list scrollable
-            tk.Label(fileDetailsFailedScrollableFrame, text=fileName.split('\\')[-1], fg=uiColor.FADED).pack(fill='x', expand=True, anchor='w')
+            tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.FADED).pack(fill='x', expand=True, anchor='w')
         elif listName == 'success':
             # Remove file from copy list and update counter
-            fileNameList = [file['fileName'] for file in fileDetailList['copy']]
-            if fileName in fileNameList:
-                del fileDetailList['copy'][fileNameList.index(fileName)]
+            filenameList = [file['filename'] for file in fileDetailList['copy']]
+            if filename in filenameList:
+                del fileDetailList['copy'][filenameList.index(filename)]
             fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
 
             # Update copy list scrollable
-            tk.Label(fileDetailsCopiedScrollableFrame, text=fileName.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
+            tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
         elif listName == 'fail':
             # Remove file from copy list and update counter
-            fileNameList = [file['fileName'] for file in fileDetailList['copy']]
-            if fileName in fileNameList:
-                del fileDetailList['copy'][fileNameList.index(fileName)]
+            filenameList = [file['filename'] for file in fileDetailList['copy']]
+            if filename in filenameList:
+                del fileDetailList['copy'][filenameList.index(filename)]
             fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
 
             # Update copy list scrollable
-            tk.Label(fileDetailsFailedScrollableFrame, text=fileName.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
+            tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
 
 def delFile(sourceFilename, size, guiOptions={}):
     """Delete a file or directory.
@@ -131,7 +131,7 @@ def delFile(sourceFilename, size, guiOptions={}):
 
     if not threadManager.threadList['Backup']['killFlag'] and os.path.exists(sourceFilename):
         guiOptions['mode'] = 'delete'
-        guiOptions['fileName'] = sourceFilename.split('\\')[-1]
+        guiOptions['filename'] = sourceFilename.split('\\')[-1]
 
         if os.path.isfile(sourceFilename):
             os.remove(sourceFilename)
@@ -174,7 +174,7 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
     buffer_size = 1024 * 1024
 
     # Optimize the buffer for small files
-    buffer_size = min(buffer_size,os.path.getsize(sourceFilename))
+    buffer_size = min(buffer_size, os.path.getsize(sourceFilename))
     if buffer_size == 0:
         buffer_size = 1024
 
@@ -268,25 +268,23 @@ def printProgress(copied, total, guiOptions):
         percentCopied = 100
 
     # If display index has been specified, write progress to GUI
+    # URGENT: Refactor printProgress so calculations are done separate from progress displaying
     if 'displayIndex' in guiOptions.keys():
         displayIndex = guiOptions['displayIndex']
 
         cmdInfoBlocks = backup.getCmdInfoBlocks()
 
         backupTotals['buffer'] = copied
+        backupTotals['progressBar'] = backupTotals['running'] + copied
 
         if guiOptions['mode'] == 'delete':
-            backupTotals['progressBar'] = backupTotals['running'] + copied
-
             if not config['cliMode']:
                 progress.set(backupTotals['progressBar'])
 
-                cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Deleted {guiOptions['fileName']}", fg=uiColor.NORMAL)
+                cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Deleted {guiOptions['filename']}", fg=uiColor.NORMAL)
             else:
-                print(f"Deleted {guiOptions['fileName']}")
+                print(f"Deleted {guiOptions['filename']}")
         elif guiOptions['mode'] == 'copy':
-            backupTotals['progressBar'] = backupTotals['running'] + copied
-
             if not config['cliMode']:
                 progress.set(backupTotals['progressBar'])
 
@@ -294,10 +292,6 @@ def printProgress(copied, total, guiOptions):
             else:
                 print(f"{percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
         elif guiOptions['mode'] == 'verify':
-            # backupTotals['buffer'] += total
-
-            backupTotals['progressBar'] = backupTotals['running'] + copied
-
             if not config['cliMode']:
                 progress.set(backupTotals['progressBar'])
 
@@ -330,12 +324,11 @@ def doCopy(src, dest, guiOptions={}):
                 if threadManager.threadList['Backup']['killFlag']:
                     break
 
+                filename = entry.path.split('\\')[-1]
                 if entry.is_file():
-                    fileName = entry.path.split('\\')[-1]
-                    copyFile(src + '\\' + fileName, dest + '\\' + fileName, printProgress, guiOptions)
+                    copyFile(src + '\\' + filename, dest + '\\' + filename, printProgress, guiOptions)
                 elif entry.is_dir():
-                    fileName = entry.path.split('\\')[-1]
-                    doCopy(src + '\\' + fileName, dest + '\\' + fileName)
+                    doCopy(src + '\\' + filename, dest + '\\' + filename)
 
             # Handle changing attributes of folders if we copy a new folder
             shutil.copymode(src, dest)
@@ -1704,14 +1697,14 @@ if not config['cliMode']:
     tk.Grid.columnconfigure(backupFileDetailsFrame, (0, 1), weight=1)
 
     # Set click to copy key bindings
-    fileDetailsPendingDeleteHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['delete']])))
-    fileDetailsPendingDeleteTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['delete']])))
-    fileDetailsPendingCopyHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['copy']])))
-    fileDetailsPendingCopyTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['copy']])))
-    fileDetailsCopiedHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['success']])))
-    fileDetailsCopiedTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['success']])))
-    fileDetailsFailedHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['fail']])))
-    fileDetailsFailedTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['fileName'] for file in fileDetailList['fail']])))
+    fileDetailsPendingDeleteHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['delete']])))
+    fileDetailsPendingDeleteTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['delete']])))
+    fileDetailsPendingCopyHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['copy']])))
+    fileDetailsPendingCopyTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['copy']])))
+    fileDetailsCopiedHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['success']])))
+    fileDetailsCopiedTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['success']])))
+    fileDetailsFailedHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['fail']])))
+    fileDetailsFailedTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['fail']])))
 
     def toggleFileDetails():
         # FIXME: Is fixing the flicker effect here possible?

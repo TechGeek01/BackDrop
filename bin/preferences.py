@@ -7,14 +7,14 @@ class Preferences:
     HEXADECIMAL = 'hexadecimal'
     STRING = 'string'
 
-    def __init__(self, fileName):
+    def __init__(self, filename):
         """Initialize a preference object.
 
         Args:
-            fileName: The filename and location of the preference file.
+            filename: The filename and location of the preference file.
         """
 
-        self.file = fileName
+        self.file = filename
 
         self.types = {
             'sourceDrive': Preferences.STRING,
