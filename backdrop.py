@@ -839,7 +839,7 @@ def loadDest():
                 })
 
     if not config['cliMode']:
-        driveTotalSpace.configure(text='Available: ' + human_filesize(totalUsage))
+        driveTotalSpace.configure(text=human_filesize(totalUsage), fg=uiColor.NORMAL if totalUsage > 0 else uiColor.FADED)
 
         progress.stopIndeterminate()
 
@@ -999,7 +999,7 @@ def handleDriveSelectionClick():
         selectedDriveList.append(selectedDrive)
         selectedTotal = selectedTotal + selectedDrive['capacity']
 
-    driveSelectedSpace.configure(text=human_filesize(selectedTotal))
+    driveSelectedSpace.configure(text=human_filesize(selectedTotal), fg=uiColor.NORMAL if selectedTotal > 0 else uiColor.FADED)
     if not readDrivesFromConfigFile:
         config['drives'] = selectedDriveList
         configSelectedSpace.configure(text='None', fg=uiColor.FADED)
@@ -1588,11 +1588,15 @@ if not config['cliMode']:
     driveSelectedSpaceFrame.grid(row=0, column=1, padx=(12, 0))
     driveSelectedSpaceLabel = tk.Label(driveSelectedSpaceFrame, text='Selected:')
     driveSelectedSpaceLabel.pack(side='left')
-    driveSelectedSpace = tk.Label(driveSelectedSpaceFrame, text=human_filesize(0))
+    driveSelectedSpace = tk.Label(driveSelectedSpaceFrame, text=human_filesize(0), fg=uiColor.FADED)
     driveSelectedSpace.pack(side='left')
 
-    driveTotalSpace = tk.Label(driveSpaceFrame, text='Available: ' + human_filesize(0))
-    driveTotalSpace.grid(row=0, column=2, padx=(12, 0))
+    driveTotalSpaceFrame = tk.Frame(driveSpaceFrame)
+    driveTotalSpaceFrame.grid(row=0, column=2, padx=(12, 0))
+    driveTotalSpaceLabel = tk.Label(driveTotalSpaceFrame, text='Available:')
+    driveTotalSpaceLabel.pack(side='left')
+    driveTotalSpace = tk.Label(driveTotalSpaceFrame, text=human_filesize(0), fg=uiColor.FADED)
+    driveTotalSpace.pack(side='left')
     splitModeStatus = tk.Label(driveSpaceFrame, text='Split mode\n%s' % ('Enabled' if config['splitMode'] else 'Disabled'), fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
     splitModeStatus.grid(row=0, column=3, padx=(12, 0))
 
@@ -1604,7 +1608,7 @@ if not config['cliMode']:
     driveSelectBind = destTree.bind('<<TreeviewSelect>>', selectDriveInBackground)
 
     backupMidControlFrame = tk.Frame(mainFrame)
-    backupMidControlFrame.grid(row=4, column=1, columnspan=2, pady=elemPadding / 2, sticky='ew')
+    backupMidControlFrame.grid(row=4, column=1, columnspan=2, pady=(0, elemPadding / 2), sticky='ew')
 
     # Add backup ETA info frame
     backupActivityEtaFrame = tk.Frame(backupMidControlFrame)

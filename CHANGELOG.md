@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Backup run function now breaks immediately when aborted
+- UI improvements
 
 ## 2.1.3 - 2021-02-16
 ### Added
