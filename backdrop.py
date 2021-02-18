@@ -977,8 +977,9 @@ def handleDriveSelectionClick():
     # Check if newly selected drive has a config file
     # We only want to do this if the click is the first selection (that is, there
     # are no other drives selected except the one we clicked).
-    selectedDriveLetter = destTree.item(selected[0], 'text')[0]
-    configFilePath = '%s:/%s/%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
+    if len(selected) > 0:
+        selectedDriveLetter = destTree.item(selected[0], 'text')[0]
+        configFilePath = '%s:/%s/%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
     readDrivesFromConfigFile = False
     if not keyboard.is_pressed('alt') and prevSelection <= len(selected) and len(selected) == 1 and os.path.exists(configFilePath) and os.path.isfile(configFilePath):
         # Found config file, so read it
