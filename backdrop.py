@@ -231,8 +231,11 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
             if config['cliMode']:
                 print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
         else:
-            # TODO: Add in way to gather this data as a list of mis-copied files
-            # URGENT: Make this delete the failed file
+            # If file wasn't copied successfully, delete it
+            if os.path.isfile(destFilename):
+                os.remove(destFilename)
+            elif os.path.isdir(destFilename):
+                shutil.rmtree(destFilename)
 
             updateFileDetailList('fail', destFilename)
 

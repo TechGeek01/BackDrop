@@ -1,6 +1,17 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 2.1.4 - TBD
+### Added
+- Files are now deleted from destination if they're not copied successfully
+- Deleting is now handled in code, rather than with subprocess
+
+### Fixed
+- Progress bar now increments correctly
+
+### Changed
+- Backup run function now breaks immediately when aborted
+
 ## 2.1.3 - 2021-02-16
 ### Added
 - Added file details pane
