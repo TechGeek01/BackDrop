@@ -120,27 +120,30 @@ def updateFileDetailList(listName, fileName):
             # Update copy list scrollable
             tk.Label(fileDetailsFailedScrollableFrame, text=fileName.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
 
-def delFile(sourceFilename):
+def delFile(sourceFilename, size, guiOptions={}):
     """Delete a file or directory.
 
     Args:
         sourceFilename (String): The file or folder to delete.
+        size (int): The size in bytes of the file or folder.
+        guiOptions (obj): Options to handle GUI interaction (optional).
     """
 
-    if os.path.exists(sourceFilename):
+    if not threadManager.threadList['Backup']['killFlag'] and os.path.exists(sourceFilename):
+        guiOptions['mode'] = 'delete'
+        guiOptions['fileName'] = sourceFilename.split('\\')[-1]
+
         if os.path.isfile(sourceFilename):
             os.remove(sourceFilename)
         elif os.path.isdir(sourceFilename):
             shutil.rmtree(sourceFilename)
 
-        fileSize = get_directory_size(sourceFilename)
-
         # If file deleted successfully, remove it from the list
         if not os.path.exists(sourceFilename):
-            printProgress(fileSize, fileSize, {'mode': 'delete', 'fileName': sourceFilename.split('\\')[-1]})
+            printProgress(size, size, guiOptions)
             updateFileDetailList('deleteSuccess', sourceFilename)
         else:
-            printProgress(fileSize, fileSize, {'mode': 'delete', 'fileName': sourceFilename.split('\\')[-1]})
+            printProgress(size, size, guiOptions)
             updateFileDetailList('deleteFail', sourceFilename)
 
 # differs from shutil.COPY_BUFSIZE on platforms != Windows
