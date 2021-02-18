@@ -812,6 +812,9 @@ class Backup:
 
                 if cmd['mode'] == 'delete':
                     for file, size in cmd['payload']:
+                        if self.threadManager.threadList['Backup']['killFlag']:
+                            break
+
                         guiOptions = {
                             'displayIndex': cmd['displayIndex']
                         }
@@ -819,6 +822,9 @@ class Backup:
                         self.doDelFn(file, size, guiOptions)
                 if cmd['mode'] == 'replace':
                     for file, sourceSize, destSize in cmd['payload']:
+                        if self.threadManager.threadList['Backup']['killFlag']:
+                            break
+
                         sourceFile = self.config['sourceDrive'] + file[3:]
                         destFile = file
 
