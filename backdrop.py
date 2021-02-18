@@ -291,9 +291,10 @@ def printProgress(copied, total, guiOptions):
             else:
                 print(f"{percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
         elif guiOptions['mode'] == 'verify':
-            backupTotals['buffer'] += total
+            # backupTotals['buffer'] += total
 
             backupTotals['progressBar'] = backupTotals['running'] + copied
+
             if not config['cliMode']:
                 progress.set(backupTotals['progressBar'])
 
