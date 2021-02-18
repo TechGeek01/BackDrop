@@ -944,7 +944,7 @@ def readConfigFile(file):
         config.update(newConfig)
 
         if not config['cliMode']:
-            configSelectedSpace.configure(text='Config: ' + human_filesize(configTotal))
+            configSelectedSpace.configure(text=human_filesize(configTotal), fg=uiColor.NORMAL)
             selectFromConfig()
 
 prevSelection = 0
@@ -998,9 +998,10 @@ def handleDriveSelectionClick():
         selectedDriveList.append(selectedDrive)
         selectedTotal = selectedTotal + selectedDrive['capacity']
 
-    driveSelectedSpace.configure(text='Selected: ' + human_filesize(selectedTotal))
+    driveSelectedSpace.configure(text=human_filesize(selectedTotal))
     if not readDrivesFromConfigFile:
         config['drives'] = selectedDriveList
+        configSelectedSpace.configure(text='None', fg=uiColor.FADED)
 
     progress.stopIndeterminate()
 
@@ -1574,10 +1575,21 @@ if not config['cliMode']:
 
     driveSpaceFrame = tk.Frame(destMetaFrame)
     driveSpaceFrame.grid(row=0, column=0)
-    configSelectedSpace = tk.Label(driveSpaceFrame, text='Config: ' + human_filesize(0))
-    configSelectedSpace.grid(row=0, column=0)
-    driveSelectedSpace = tk.Label(driveSpaceFrame, text='Selected: ' + human_filesize(0))
-    driveSelectedSpace.grid(row=0, column=1, padx=(12, 0))
+
+    configSelectedSpaceFrame = tk.Frame(driveSpaceFrame)
+    configSelectedSpaceFrame.grid(row=0, column=0)
+    configSelectedSpaceLabel = tk.Label(configSelectedSpaceFrame, text='Config:')
+    configSelectedSpaceLabel.pack(side='left')
+    configSelectedSpace = tk.Label(configSelectedSpaceFrame, text='None', fg=uiColor.FADED)
+    configSelectedSpace.pack(side='left')
+
+    driveSelectedSpaceFrame = tk.Frame(driveSpaceFrame)
+    driveSelectedSpaceFrame.grid(row=0, column=1, padx=(12, 0))
+    driveSelectedSpaceLabel = tk.Label(driveSelectedSpaceFrame, text='Selected:')
+    driveSelectedSpaceLabel.pack(side='left')
+    driveSelectedSpace = tk.Label(driveSelectedSpaceFrame, text=human_filesize(0))
+    driveSelectedSpace.pack(side='left')
+
     driveTotalSpace = tk.Label(driveSpaceFrame, text='Available: ' + human_filesize(0))
     driveTotalSpace.grid(row=0, column=2, padx=(12, 0))
     splitModeStatus = tk.Label(driveSpaceFrame, text='Split mode\n%s' % ('Enabled' if config['splitMode'] else 'Disabled'), fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
