@@ -749,7 +749,9 @@ class Backup:
         """Write the current running backup config to config files on the drives."""
         if len(self.config['shares']) > 0 and len(self.config['drives']) > 0:
             shareList = ','.join([item['name'] for item in self.config['shares']])
-            vidList = ','.join([drive['vid'] for drive in self.config['drives']])
+            rawVidList = [drive['vid'] for drive in self.config['drives']]
+            rawVidList.extend(self.config['missingDrives'].keys())
+            vidList = ','.join(rawVidList)
 
             # For each drive letter, get drive info, and write file
             for drive in self.config['drives']:
@@ -766,6 +768,12 @@ class Backup:
                         backupConfigFile.set(curDrive['vid'], 'vid', curDrive['vid'])
                         backupConfigFile.set(curDrive['vid'], 'serial', curDrive['serial'])
                         backupConfigFile.set(curDrive['vid'], 'capacity', curDrive['capacity'])
+
+                    # Write info for missing drives
+                    for driveVid, capacity in self.config['missingDrives'].items():
+                        backupConfigFile.set(driveVid, 'vid', driveVid)
+                        backupConfigFile.set(driveVid, 'serial', 'Unknown')
+                        backupConfigFile.set(driveVid, 'capacity', capacity)
         else:
             pass
             # print('You must select at least one share, and at least one drive')
