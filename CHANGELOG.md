@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 - Deleting is now handled in code, rather than with subprocess
 
 ### Fixed
+- Removed system drive from destination drive list
 - Progress bar now increments correctly
 - Drive selection now changes config selection back to "none" when selecting drive that doesn't have a config file
 - Fixed crash on drive select click when selection length is 0

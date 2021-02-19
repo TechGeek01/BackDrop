@@ -806,8 +806,9 @@ def loadDest():
     totalUsage = 0
     destDriveMasterList = []
     destDriveLetterToInfo = {}
+    systemDrive = f"{os.getenv('SystemDrive')[0]}:\\"
     for drive in driveList:
-        if drive != config['sourceDrive']:
+        if drive != config['sourceDrive'] and drive != systemDrive:
             driveType = win32file.GetDriveType(drive)
             if driveType not in (4, 6): # Make sure drive isn't REMOTE or RAMDISK
                 driveSize = shutil.disk_usage(drive).total
