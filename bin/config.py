@@ -1,4 +1,5 @@
 from configparser import ConfigParser
+import os
 
 class Config:
     BOOLEAN = 'boolean'
@@ -18,6 +19,12 @@ class Config:
 
         self.filename = filename
         self.config = ConfigParser()
+
+        # Make sure destination path exists before copying
+        pathStub = filename[0:filename.rindex('\\')]
+        if not os.path.exists(pathStub):
+            os.makedirs(pathStub)
+
         self.config.read(filename)
 
     def get(self, sectionName, prefName, default=None, verifyData=None, dataType=None):
