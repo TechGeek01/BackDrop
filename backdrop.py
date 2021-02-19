@@ -9,7 +9,6 @@ import re
 import pythoncom
 import clipboard
 import keyboard
-import ctypes
 from PIL import Image, ImageTk
 import hashlib
 import sys
@@ -1078,6 +1077,7 @@ threadManager = ThreadManager()
 ############
 
 if config['cliMode']:
+    # Colored text does not work without this empty call first
     os.system('')
 
     commandLine = CommandLine(
