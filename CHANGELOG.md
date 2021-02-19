@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 2.1.4 - TBD
+## 3.0.0 - TBD
 ### Added
 - Files are now deleted from destination if they're not copied successfully
 - Deleting is now handled in code, rather than with subprocess
@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 - Fixed crash on drive select click when selection length is 0
 
 ### Changed
+- Preferences are now converted to INI format
+	- * Any existing preferences will be lost due to the file change *
 - Backup run function now breaks immediately when aborted
 - UI improvements
 

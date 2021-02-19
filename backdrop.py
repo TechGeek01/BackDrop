@@ -19,13 +19,13 @@ from datetime import datetime
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import Color, bcolor
 from bin.threadManager import ThreadManager
-from bin.preferences import Preferences
+from bin.config import Config
 from bin.progress import Progress
 from bin.commandLine import CommandLine
 from bin.backup import Backup
 
 # Set meta info
-appVersion = '2.1.4'
+appVersion = '3.0.0'
 
 # IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -685,7 +685,8 @@ def changeSourceDrive(selection):
     """
     global config
     config['sourceDrive'] = selection
-    preferences.set('sourceDrive', selection)
+    prefs.set('selection', 'sourceDrive', selection)
+
     startRefreshSource()
 
 # IDEA: @Calculate total space of all @shares in background
@@ -1062,7 +1063,7 @@ backupConfigFile = 'backup.config'
 appDataFolder = os.getenv('LocalAppData') + '\\BackDrop'
 elemPadding = 16
 
-preferences = Preferences(appDataFolder + '\\' + 'preferences.config')
+prefs = Config(appDataFolder + '\\' + 'preferences.ini')
 
 config = {
     'sourceDrive': None,
@@ -1133,9 +1134,9 @@ if config['cliMode']:
 
         # Source drive
         if commandLine.hasParam('interactive'):
-            sourceDrive = preferences.get('sourceDrive', remoteDrives[0], remoteDrives)
+            sourceDrive = prefs.get('selection', 'sourceDrive', remoteDrives[0], verifyData=remoteDrives)
         else:
-            sourceDrive = preferences.get('sourceDrive', remoteDrives[0], remoteDrives)
+            sourceDrive = prefs.get('selection', 'sourceDrive', remoteDrives[0], verifyData=remoteDrives)
             sourceDrive = commandLine.getParam('source')[0][0].upper() + ':\\' if commandLine.hasParam('source') and commandLine.getParam('source')[0] in remoteDrives else sourceDrive
 
         if commandLine.hasParam('interactive') and not commandLine.validateYesNo(f"Source drive {sourceDrive} loaded from preferences. Is this ok?", True):
@@ -1380,7 +1381,7 @@ if not config['cliMode']:
     center(root)
 
     # Create Color class instance for UI
-    uiColor = Color(root, preferences.get('darkMode', False))
+    uiColor = Color(root, prefs.get('ui', 'darkMode', False, dataType=Config.BOOLEAN))
 
     if uiColor.isDarkMode():
         root.tk_setPalette(background=uiColor.BG)
@@ -1474,7 +1475,7 @@ if not config['cliMode']:
 
     preferencesMenu = tk.Menu(menubar, tearoff=0)
     settings_darkModeEnabled = tk.BooleanVar(value=uiColor.isDarkMode())
-    preferencesMenu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: preferences.set('darkMode', settings_darkModeEnabled.get()))
+    preferencesMenu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'darkMode', settings_darkModeEnabled.get()))
     menubar.add_cascade(label='Preferences', menu=preferencesMenu)
 
     # Key bindings
@@ -1499,7 +1500,7 @@ if not config['cliMode']:
     sourceDriveListValid = len(remoteDrives) > 0
 
     if sourceDriveListValid:
-        config['sourceDrive'] = preferences.get('sourceDrive', remoteDrives[0], remoteDrives)
+        config['sourceDrive'] = prefs.get('selection', 'sourceDrive', remoteDrives[0], verifyData=remoteDrives)
         sourceDriveDefault.set(config['sourceDrive'])
 
         # Tree frames for tree and scrollbar
