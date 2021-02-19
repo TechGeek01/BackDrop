@@ -5,6 +5,7 @@ from datetime import datetime
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import bcolor
 from bin.threadManager import ThreadManager
+from bin.config import Config
 
 class Backup:
     def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, doDelFn, startBackupFn, killBackupFn, startBackupTimerFn, updateFileDetailListFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, uiColor=None, startBackupBtn=None, startAnalysisBtn=None, progress=None):
@@ -747,26 +748,24 @@ class Backup:
     def writeConfigFile(self):
         """Write the current running backup config to config files on the drives."""
         if len(self.config['shares']) > 0 and len(self.config['drives']) > 0:
-            driveConfigList = ''.join(['\n%s,%s,%d' % (drive['vid'], drive['serial'], drive['capacity']) for drive in self.config['drives']])
+            shareList = ','.join([item['name'] for item in self.config['shares']])
+            vidList = ','.join([drive['vid'] for drive in self.config['drives']])
 
             # For each drive letter, get drive info, and write file
             for drive in self.config['drives']:
+                # Only write config to drives that are connected
                 if drive['vid'] in self.driveVidInfo.keys():
-                    if not os.path.exists(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}"):
-                        # If dir doesn't exist, make it
-                        os.mkdir(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}")
-                    elif os.path.isdir(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}"):
-                        # If dir exists but backup config filename is dir, delete the dir
-                        os.rmdir(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}")
+                    backupConfigFile = Config(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}")
 
-                    f = open(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}", 'w')
-                    # f.write('[id]\n%s,%s\n\n' % (driveInfo['vid'], driveInfo['serial']))
-                    f.write('[shares]\n%s\n\n' % (','.join([item['name'] for item in self.config['shares']])))
+                    # Write shares and VIDs to config file
+                    backupConfigFile.set('selection', 'shares', shareList)
+                    backupConfigFile.set('selection', 'vids', vidList)
 
-                    f.write('[drives]')
-                    f.write(driveConfigList)
-
-                    f.close()
+                    # Write info for each drive to its own section
+                    for curDrive in self.config['drives']:
+                        backupConfigFile.set(curDrive['vid'], 'vid', curDrive['vid'])
+                        backupConfigFile.set(curDrive['vid'], 'serial', curDrive['serial'])
+                        backupConfigFile.set(curDrive['vid'], 'capacity', curDrive['capacity'])
         else:
             pass
             # print('You must select at least one share, and at least one drive')

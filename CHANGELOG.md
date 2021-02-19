@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 - Fixed crash on drive select click when selection length is 0
 
 ### Changed
-- Preferences are now converted to INI format
+- Preferences and backup configs are now stored in INI format
 	- * Any existing preferences will be lost due to the file change *
 - Backup run function now breaks immediately when aborted
 - UI improvements

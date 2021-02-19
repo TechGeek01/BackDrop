@@ -902,52 +902,43 @@ def readConfigFile(file):
         file (String): The file to read from.
     """
     global config
-    if os.path.exists(file) and os.path.isfile(file):
-        f = open(file, 'r')
-        rawConfig = f.read().split('\n\n')
-        f.close()
 
-        newConfig = {}
+    newConfig = {}
 
-        # Each chunk after splitting on \n\n is a header followed by config stuff
-        configTotal = 0
-        for chunk in rawConfig:
-            splitChunk = chunk.split('\n')
-            header = re.search(r'\[(.*)\]', splitChunk.pop(0)).group(1)
+    configFile = Config(file)
 
-            if header == 'shares':
-                # Shares is a single line, comma separated list of shares
-                newConfig['shares'] = [{
-                    'name': share,
-                    'size': None
-                } for share in splitChunk[0].split(',')]
-            elif header == 'drives':
-                # Drives is a list, where each line is one drive, and each drive lists
-                # comma separated volume ID and physical serial
-                newConfig['drives'] = []
-                newConfig['missingDrives'] = {}
-                driveLookupList = {drive['vid']: drive for drive in destDriveMasterList}
-                for drive in splitChunk:
-                    driveVid = drive.split(',')[0]
+    # Get shares
+    shares = configFile.get('selection', 'shares')
+    if shares is not None and len(shares) > 0:
+        newConfig['shares'] = [{
+            'name': share,
+            'size': None
+        } for share in shares.split(',')]
 
-                    if driveVid in driveLookupList:
-                        # If drive connected, add it to the config
-                        selectedDrive = driveLookupList[driveVid]
-                        newConfig['drives'].append(selectedDrive)
+    # Get VID list
+    vids = configFile.get('selection', 'vids').split(',')
 
-                        configTotal += selectedDrive['capacity']
-                    else:
-                        # If drive is missing, add it to the missing drive list
-                        newConfig['missingDrives'][driveVid] = int(drive.split(',')[2])
+    # Get drive info
+    configTotal = 0
+    newConfig['drives'] = []
+    newConfig['missingDrives'] = {}
+    driveLookupList = {drive['vid']: drive for drive in destDriveMasterList}
+    for drive in vids:
+        if drive in driveLookupList.keys():
+            # If drive connected, add to drive list
+            newConfig['drives'].append(driveLookupList[drive])
+            configTotal += driveLookupList[drive]['capacity']
+        else:
+            # Add drive capacity info to missing drive list
+            reportedCapacity = configFile.get(drive, 'capacity', 0, dataType=Config.INTEGER)
+            newConfig['missingDrives'][drive] = reportedCapacity
+            configTotal += reportedCapacity
 
-                        # Drive not connected, to add reported size from config file to total
-                        configTotal += int(drive.split(',')[2])
+    config.update(newConfig)
 
-        config.update(newConfig)
-
-        if not config['cliMode']:
-            configSelectedSpace.configure(text=human_filesize(configTotal), fg=uiColor.NORMAL)
-            selectFromConfig()
+    if not config['cliMode']:
+        configSelectedSpace.configure(text=human_filesize(configTotal), fg=uiColor.NORMAL)
+        selectFromConfig()
 
 prevSelection = 0
 prevDriveSelection = []
@@ -981,7 +972,7 @@ def handleDriveSelectionClick():
     # are no other drives selected except the one we clicked).
     if len(selected) > 0:
         selectedDriveLetter = destTree.item(selected[0], 'text')[0]
-        configFilePath = '%s:/%s/%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
+        configFilePath = '%s:\\%s\\%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
     readDrivesFromConfigFile = False
     if not keyboard.is_pressed('alt') and prevSelection <= len(selected) and len(selected) == 1 and os.path.exists(configFilePath) and os.path.isfile(configFilePath):
         # Found config file, so read it
@@ -1059,7 +1050,7 @@ def cleanupHandler(signal_received, frame):
 
 # Set app defaults
 backupConfigDir = '.backdrop'
-backupConfigFile = 'backup.config'
+backupConfigFile = 'backup.ini'
 appDataFolder = os.getenv('LocalAppData') + '\\BackDrop'
 elemPadding = 16
 
