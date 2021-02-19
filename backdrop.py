@@ -1445,6 +1445,11 @@ if not config['cliMode']:
     # tkStyle.configure('custom.Scrollbar.uparrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
     # tkStyle.configure('custom.Scrollbar.downarrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
 
+    def openConfigFile():
+        from tkinter import filedialog
+        filename = filedialog.askopenfilename(initialdir='', title='Select drive config file', filetypes=(('Backup config files', 'backup.config'), ('All files', '*.*')))
+        readConfigFile(filename)
+
     def onClose():
         if threadManager.is_alive('Backup'):
             if messagebox.askyesno('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?'):
@@ -1457,6 +1462,8 @@ if not config['cliMode']:
     menubar = tk.Menu(root)
 
     fileMenu = tk.Menu(menubar, tearoff=0)
+    fileMenu.add_command(label='Open Backup Config', accelerator='Ctrl+O', command=openConfigFile)
+    fileMenu.add_separator()
     fileMenu.add_command(label='Exit', command=onClose)
     menubar.add_cascade(label='File', menu=fileMenu)
 
@@ -1469,6 +1476,9 @@ if not config['cliMode']:
     settings_darkModeEnabled = tk.BooleanVar(value=uiColor.isDarkMode())
     preferencesMenu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: preferences.set('darkMode', settings_darkModeEnabled.get()))
     menubar.add_cascade(label='Preferences', menu=preferencesMenu)
+
+    # Key bindings
+    root.bind('<Control-o>', lambda x: openConfigFile())
 
     root.config(menu=menubar)
 
