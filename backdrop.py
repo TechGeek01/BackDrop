@@ -1469,8 +1469,13 @@ if not config['cliMode']:
     preferencesMenu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'darkMode', settings_darkModeEnabled.get()))
     menubar.add_cascade(label='Preferences', menu=preferencesMenu)
 
+    def toggleFileDetailsHotkey():
+        show_fileDetailsPane.set(not show_fileDetailsPane.get())
+        toggleFileDetails()
+
     # Key bindings
     root.bind('<Control-o>', lambda x: openConfigFile())
+    root.bind('<Control-d>', lambda x: toggleFileDetailsHotkey())
 
     root.config(menu=menubar)
 
@@ -1762,7 +1767,8 @@ if not config['cliMode']:
             backupFileDetailsFrame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, elemPadding), pady=(elemPadding / 2, 0))
 
     show_fileDetailsPane = tk.BooleanVar()
-    viewMenu.add_checkbutton(label='File details pane', onvalue=1, offvalue=0, variable=show_fileDetailsPane, command=toggleFileDetails)
+    viewMenu.add_separator()
+    viewMenu.add_checkbutton(label='File details pane', onvalue=1, offvalue=0, variable=show_fileDetailsPane, accelerator='Ctrl+D', command=toggleFileDetails)
 
     tk.Grid.columnconfigure(mainFrame, 3, weight=1)
 
