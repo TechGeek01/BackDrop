@@ -1445,6 +1445,33 @@ if not config['cliMode']:
     # tkStyle.configure('custom.Scrollbar.uparrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
     # tkStyle.configure('custom.Scrollbar.downarrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
 
+    def onClose():
+        if threadManager.is_alive('Backup'):
+            if messagebox.askyesno('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?'):
+                threadManager.kill('Backup')
+                root.destroy()
+        else:
+            root.destroy()
+
+    # Add mmenu bar
+    menubar = tk.Menu(root)
+
+    fileMenu = tk.Menu(menubar, tearoff=0)
+    fileMenu.add_command(label='Exit', command=onClose)
+    menubar.add_cascade(label='File', menu=fileMenu)
+
+    viewMenu = tk.Menu(menubar, tearoff=0)
+    viewMenu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=startRefreshSource)
+    viewMenu.add_command(label='Refresh Destination', accelerator='F5', command=startRefreshDest)
+    menubar.add_cascade(label='View', menu=viewMenu)
+
+    preferencesMenu = tk.Menu(menubar, tearoff=0)
+    settings_darkModeEnabled = tk.BooleanVar(value=uiColor.isDarkMode())
+    preferencesMenu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: preferences.set('darkMode', settings_darkModeEnabled.get()))
+    menubar.add_cascade(label='Preferences', menu=preferencesMenu)
+
+    root.config(menu=menubar)
+
     # Progress/status values
     progressBar = ttk.Progressbar(mainFrame, maximum=100, style='custom.Progressbar')
     progressBar.grid(row=10, column=1, columnspan=3, sticky='ew', pady=(elemPadding, 0))
@@ -1481,10 +1508,12 @@ if not config['cliMode']:
         sourceShareScroll.pack(side='left', fill='y')
         sourceTree.configure(yscrollcommand=sourceShareScroll.set)
 
+        root.bind('<Control-F5>', lambda x: startRefreshSource())
+
         # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
         # visible, so 1px needs to be added back
         sourceMetaFrame = tk.Frame(mainFrame)
-        sourceMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(1, 0))
+        sourceMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(elemPadding / 2, 0))
         tk.Grid.columnconfigure(sourceMetaFrame, 0, weight=1)
 
         shareSpaceFrame = tk.Frame(sourceMetaFrame)
@@ -1495,9 +1524,6 @@ if not config['cliMode']:
         shareTotalSpace.grid(row=0, column=1, padx=(12, 0))
 
         startRefreshSource()
-
-        refreshSourceBtn = ttk.Button(sourceMetaFrame, text='\u2b6e', command=startRefreshSource, style='icon.TButton')
-        refreshSourceBtn.grid(row=0, column=1)
 
         sourceSelectFrame = tk.Frame(mainFrame)
         sourceSelectFrame.grid(row=0, column=1, pady=(0, elemPadding / 2))
@@ -1554,6 +1580,8 @@ if not config['cliMode']:
     driveSelectScroll.pack(side='left', fill='y')
     destTree.configure(yscrollcommand=driveSelectScroll.set)
 
+    root.bind('<F5>', lambda x: startRefreshDest())
+
     # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
     # visible, so 1px needs to be added back
     destMetaFrame = tk.Frame(mainFrame)
@@ -1601,8 +1629,6 @@ if not config['cliMode']:
     splitModeStatus = tk.Label(driveSpaceFrame, text='Split mode\n%s' % ('Enabled' if config['splitMode'] else 'Disabled'), fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
     splitModeStatus.grid(row=0, column=3, padx=(12, 0))
 
-    refreshDestBtn = ttk.Button(destMetaFrame, text='\u2b6e', command=startRefreshDest, style='icon.TButton')
-    refreshDestBtn.grid(row=0, column=1)
     startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze', width=7, command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled')
     startAnalysisBtn.grid(row=0, column=2)
 
@@ -1729,16 +1755,12 @@ if not config['cliMode']:
         if bool(backupFileDetailsFrame.grid_info()):
             backupFileDetailsFrame.grid_remove()
             root.geometry(f'{rootWidth}x{rootHeight}+{root.winfo_x() + 400 + elemPadding}+{root.winfo_y()}')
-            # root.geometry(f'{rootWidth}x{rootHeight}')
-            backupFileDetailsToggle.configure(text='Show Details')
         else:
             root.geometry(f'{1600 + elemPadding}x{rootHeight}+{root.winfo_x() - 400 - elemPadding}+{root.winfo_y()}')
-            # root.geometry(f'{1600 + elemPadding}x{rootHeight}')
             backupFileDetailsFrame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, elemPadding), pady=(elemPadding / 2, 0))
-            backupFileDetailsToggle.configure(text='Hide Details')
 
-    backupFileDetailsToggle = ttk.Button(backupMidControlFrame, text='Show Details', command=toggleFileDetails)
-    backupFileDetailsToggle.grid(row=0, column=0)
+    show_fileDetailsPane = tk.BooleanVar()
+    viewMenu.add_checkbutton(label='File details pane', onvalue=1, offvalue=0, variable=show_fileDetailsPane, command=toggleFileDetails)
 
     tk.Grid.columnconfigure(mainFrame, 3, weight=1)
 
@@ -1754,11 +1776,6 @@ if not config['cliMode']:
 
     logoImageLoad = Image.open(resource_path(f"media\\logo_ui{'_light' if uiColor.isDarkMode() else ''}.png"))
     logoImageRender = ImageTk.PhotoImage(logoImageLoad)
-    settingsIconLoad = Image.open(resource_path(f"media\\settings{'_light' if uiColor.isDarkMode() else ''}.png"))
-    settingsIconRender = ImageTk.PhotoImage(settingsIconLoad)
-    settingsBtn = tk.Button(backupMidControlFrame, image=settingsIconRender, relief='sunken', borderwidth=0, highlightcolor=uiColor.BG, activebackground=uiColor.BG)
-    # settingsBtn.pack(side='left', padx=(0, 8))
-    settingsBtn.grid(row=0, column=2)
     tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
     tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
@@ -1777,59 +1794,6 @@ if not config['cliMode']:
 
     # QUESTION: Does init loadDest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
     threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=True)
-
-    settingsWin = None
-
-    def showSettings():
-        global settingsWin
-
-        if settingsWin is None or not settingsWin.winfo_exists():
-            settingsWin = tk.Toplevel(root)
-            settingsWin.title('Settings - Backdrop')
-            settingsWin.resizable(False, False)
-            settingsWin.geometry('450x200')
-            settingsWin.iconbitmap(resource_path('media\\icon.ico'))
-            center(settingsWin, root)
-            settingsWin.transient(root)
-            settingsWin.grab_set()
-            root.wm_attributes('-disabled', True)
-
-            def onClose():
-                settingsWin.destroy()
-                root.wm_attributes('-disabled', False)
-
-                ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
-                root.focus_set()
-
-            settingsWin.protocol('WM_DELETE_WINDOW', onClose)
-
-            mainFrame = tk.Frame(settingsWin)
-            mainFrame.pack(fill='both', expand=True, padx=elemPadding)
-
-            mainFrame.columnconfigure(0, weight=1)
-            mainFrame.rowconfigure(0, weight=1)
-
-            darkModeCheckVar = tk.BooleanVar(settingsWin, value=uiColor.isDarkMode())
-            darkModeCheck = ttk.Checkbutton(mainFrame, text='Enable dark mode (experimental)', variable=darkModeCheckVar, command=lambda: preferences.set('darkMode', darkModeCheckVar.get()))
-            darkModeCheck.grid(row=0, column=0, pady=elemPadding)
-
-            disclaimerFrame = tk.Frame(mainFrame, bg=uiColor.INFO)
-            disclaimerFrame.grid(row=1, column=0, ipadx=elemPadding / 2, ipady=4)
-            tk.Label(disclaimerFrame, text='Changes are saved immediately, and will take effect on the next restart', bg=uiColor.INFO, fg=uiColor.BLACK).pack(fill='y', expand=True)
-
-            buttonFrame = tk.Frame(mainFrame)
-            buttonFrame.grid(row=2, column=0, sticky='ew', pady=elemPadding / 2)
-            ttk.Button(buttonFrame, text='OK', command=onClose).pack()
-
-    settingsBtn.configure(command=showSettings)
-
-    def onClose():
-        if threadManager.is_alive('Backup'):
-            if messagebox.askyesno('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?'):
-                threadManager.kill('Backup')
-                root.destroy()
-        else:
-            root.destroy()
 
     root.protocol('WM_DELETE_WINDOW', onClose)
     root.mainloop()

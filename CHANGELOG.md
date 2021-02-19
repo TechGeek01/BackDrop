@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Files are now deleted from destination if they're not copied successfully
 - Deleting is now handled in code, rather than with subprocess
+- Added menu bar and consolidated some options and controls
 
 ### Fixed
 - Removed system drive from destination drive list
