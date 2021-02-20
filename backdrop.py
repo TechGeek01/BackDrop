@@ -5,7 +5,7 @@ import win32file
 import shutil
 import os
 import wmi
-import re
+import webbrowser
 import pythoncom
 import clipboard
 import keyboard
@@ -13,6 +13,8 @@ from PIL import Image, ImageTk
 import hashlib
 import sys
 import time
+import ctypes
+import urllib.request
 from signal import signal, SIGINT
 from datetime import datetime
 from bin.fileutils import human_filesize, get_directory_size
@@ -22,9 +24,10 @@ from bin.config import Config
 from bin.progress import Progress
 from bin.commandLine import CommandLine
 from bin.backup import Backup
+from bin.update import UpdateHandler
 
 # Set meta info
-appVersion = '3.0.0'
+appVersion = '3.0.0-beta.1'
 
 # IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -1047,6 +1050,96 @@ def cleanupHandler(signal_received, frame):
 
     exit(0)
 
+updateWin = None
+
+def displayUpdateScreen(updateInfo):
+    """Display information about updates.
+
+    Args:
+        updateInfo (dict): The update info returned by the UpdateHandler.
+    """
+
+    global updateWin
+    if updateWin is None or not updateWin.winfo_exists():
+        updateWin = tk.Toplevel(root)
+        updateWin.title('Update Available')
+        updateWin.resizable(False, False)
+        updateWin.geometry('600x300')
+        updateWin.iconbitmap(resource_path('media\\icon.ico'))
+        center(updateWin, root)
+        updateWin.transient(root)
+        updateWin.grab_set()
+        root.wm_attributes('-disabled', True)
+
+        def onClose():
+            updateWin.destroy()
+            root.wm_attributes('-disabled', False)
+
+            ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
+            root.focus_set()
+
+        updateWin.protocol('WM_DELETE_WINDOW', onClose)
+
+        mainFrame = tk.Frame(updateWin)
+        mainFrame.grid(row=0, column=0, sticky='')
+        updateWin.grid_rowconfigure(0, weight=1)
+        updateWin.grid_columnconfigure(0, weight=1)
+
+        updateHeader = tk.Label(mainFrame, text='Update Available!', font=(None, 30), fg=uiColor.GREEN)
+        updateHeader.pack()
+
+        updateText = tk.Label(mainFrame, text='An update to BackDrop is avaiable. Please update to get the latest features and fixes.', font=(None, 10))
+        updateText.pack(pady=16)
+
+        currentVersionFrame = tk.Frame(mainFrame)
+        currentVersionFrame.pack()
+        tk.Label(currentVersionFrame, text='Current Version:', font=(None, 14)).pack(side='left')
+        tk.Label(currentVersionFrame, text=appVersion, font=(None, 14), fg=uiColor.FADED).pack(side='left')
+
+        latestVersionFrame = tk.Frame(mainFrame)
+        latestVersionFrame.pack(pady=(2, 12))
+        tk.Label(latestVersionFrame, text='Latest Version:', font=(None, 14)).pack(side='left')
+        tk.Label(latestVersionFrame, text=updateInfo['latestVersion'], font=(None, 14), fg=uiColor.FADED).pack(side='left')
+
+        downloadFrame = tk.Frame(mainFrame)
+        downloadFrame.pack()
+
+        for url in updateInfo['download']:
+            fileType = url[-3:].upper()
+            ttk.Button(downloadFrame, text=fileType, width=3, command=lambda url=url: webbrowser.open_new(url), state='normal').pack(side='left', padx=2)
+
+def checkForUpdates(info):
+    """Process the update information provided by the UpdateHandler class.
+
+    Args:
+        updateInfo (dict): The Update info from the update handler.
+    """
+
+    global updateInfo
+
+    updateInfo = info
+
+    if info['updateAvailable']:
+        if not config['cliMode']:
+            displayUpdateScreen(info)
+        else:
+            downloadUrl = None
+            for item in info['download']:
+                # TODO: For cross platform, make sure the right filetype is selected
+                if item[-4:].lower() == '.exe':
+                    downloadUrl = item
+                    break
+
+            if downloadUrl is not None:
+                print('Downloading update. Please wait...')
+
+                downloadFilename = f"{os.getcwd()}\\{downloadUrl.split('/')[-1]}"
+                urllib.request.urlretrieve(downloadUrl, downloadFilename)
+
+                print('Update downloaded successfully')
+            else:
+                print('Unable to find suitable download. Please try again, or update manually.')
+
 # Set app defaults
 backupConfigDir = '.backdrop'
 backupConfigFile = 'backup.ini'
@@ -1090,10 +1183,11 @@ if config['cliMode']:
             ('-i', '--interactive', 0, 'Run in interactive mode instead of specifying backup configuration.'),
             ('-l', '--config', 1, 'Load config file from a drive instead of specifying backup configuration.'),
             ('-m', '--split-mode', 0, 'Run in split mode if not all destination drives are connected.'),
-            ('-u', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
+            ('-U', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
             '',
             ('-h', '--help', 0, 'Display this help menu.'),
-            ('-v', '--version', 0, 'Display the program version.')
+            ('-v', '--version', 0, 'Display the program version.'),
+            ('-u', '--update', 0, 'Check for and download updates.')
         ]
     )
 
@@ -1103,6 +1197,12 @@ if config['cliMode']:
         commandLine.showHelp()
     elif commandLine.hasParam('version'):
         print(f'BackDrop {appVersion}')
+    elif commandLine.hasParam('update'):
+        updateHandler = UpdateHandler(
+            currentVersion=appVersion,
+            updateCallback=checkForUpdates
+        )
+        updateHandler.check()
     else:
         # Backup config mode
         print(f"\n{bcolor.WARNING}{'CLI mode is a work in progress, and may not be stable or complete': ^{os.get_terminal_size().columns}}{bcolor.ENDC}\n") # TODO: Remove CLI mode stability warning
@@ -1352,6 +1452,11 @@ fileDetailList = {
 if not config['cliMode']:
     os.system('')
 
+    updateHandler = UpdateHandler(
+        currentVersion=appVersion,
+        updateCallback=checkForUpdates
+    )
+
     def resource_path(relative_path):
         """ Get absolute path to resource, works for dev and for PyInstaller """
         try:
@@ -1468,6 +1573,15 @@ if not config['cliMode']:
     settings_darkModeEnabled = tk.BooleanVar(value=uiColor.isDarkMode())
     preferencesMenu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'darkMode', settings_darkModeEnabled.get()))
     menubar.add_cascade(label='Preferences', menu=preferencesMenu)
+
+    helpMenu = tk.Menu(menubar, tearoff=0)
+    helpMenu.add_command(label='Check for Updates', command=lambda: threadManager.start(
+        threadManager.SINGLE,
+        target=updateHandler.check,
+        name='Update Check',
+        daemon=True
+    ))
+    menubar.add_cascade(label='Help', menu=helpMenu)
 
     def toggleFileDetailsHotkey():
         show_fileDetailsPane.set(not show_fileDetailsPane.get())
@@ -1802,6 +1916,14 @@ if not config['cliMode']:
 
     # QUESTION: Does init loadDest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
     threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=True)
+
+    # Check for updates on startup
+    threadManager.start(
+        threadManager.SINGLE,
+        target=updateHandler.check,
+        name='Update Check',
+        daemon=True
+    )
 
     root.protocol('WM_DELETE_WINDOW', onClose)
     root.mainloop()

@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## 3.0.0 - TBD
 ### Added
+- Added update checking
 - Files are now deleted from destination if they're not copied successfully
 - Deleting is now handled in code, rather than with subprocess
 - Added menu bar and consolidated some options and controls
