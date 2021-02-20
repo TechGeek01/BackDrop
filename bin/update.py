@@ -45,7 +45,7 @@ class UpdateHandler:
                 dict.dev.count (int): Development version.
         """
 
-        m = re.search('(\d+)\.(\d+)\.(\d+)(?:-([A_Za-z]+)\.(\d+))?', versionString)
+        m = re.search(r'(\d+)\.(\d+)\.(\d+)(?:-([A_Za-z]+)\.(\d+))?', versionString)
 
         if m.group(4) is not None and m.group(5) is not None:
             # Dev version exists
