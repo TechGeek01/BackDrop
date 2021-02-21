@@ -1,11 +1,8 @@
 import requests
 import re
+from bin.status import Status
 
 class UpdateHandler:
-    STATUS_UPDATING = 0
-    STATUS_UPDATEAVAILABLE = 1
-    STATUS_UPTODATE = 2
-
     def __init__(self, currentVersion, updateCallback, statusChangeFn=None):
         """
         Args:
@@ -157,7 +154,7 @@ class UpdateHandler:
             dict.download (String[]): A list of downloads for each latest asset.
         """
 
-        self.statusChangeFn(UpdateHandler.STATUS_UPDATING)
+        self.statusChangeFn(Status.UPDATE_CHECKING)
 
         latestVersion = self.__getLatestVersion()
         updateInfo = {
@@ -167,7 +164,7 @@ class UpdateHandler:
             'download': latestVersion['download']
         }
 
-        self.statusChangeFn(UpdateHandler.STATUS_UPDATEAVAILABLE if updateInfo['updateAvailable'] else UpdateHandler.STATUS_UPTODATE)
+        self.statusChangeFn(Status.UPDATE_AVAILABLE if updateInfo['updateAvailable'] else Status.UPDATE_UP_TO_DATE)
         self.updateCallback(updateInfo)
 
         return updateInfo
