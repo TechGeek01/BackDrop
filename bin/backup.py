@@ -6,9 +6,10 @@ from bin.fileutils import human_filesize, get_directory_size
 from bin.color import bcolor
 from bin.threadManager import ThreadManager
 from bin.config import Config
+from bin.status import Status
 
 class Backup:
-    def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, doDelFn, startBackupFn, killBackupFn, startBackupTimerFn, updateFileDetailListFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, uiColor=None, startBackupBtn=None, startAnalysisBtn=None, progress=None):
+    def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, doDelFn, startBackupFn, killBackupFn, startBackupTimerFn, updateFileDetailListFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, uiColor=None, updateStatusBarFn=None, startBackupBtn=None, startAnalysisBtn=None, progress=None):
         """
         Args:
             config (dict): The backup config to be processed.
@@ -19,6 +20,7 @@ class Backup:
             startBackupFn (def): The function to be used to start the backup.
             killBackupFn (def): The function to be used to kill the backup.
             startBackupTimerFn (def): The function to be used to start the backup timer.
+            updateStatusBarFn (def): The function to be used to update the status bar.
             updateFileDetailListFn (def): The function to be used to update file lists.
             analysisSummaryDisplayFn (def): The function to be used to show an analysis
                     summary.
@@ -60,6 +62,7 @@ class Backup:
         self.startBackupFn = startBackupFn
         self.killBackupFn = killBackupFn
         self.startBackupTimerFn = startBackupTimerFn
+        self.updateStatusBarFn = updateStatusBarFn
         self.updateFileDetailListFn = updateFileDetailListFn
         self.analysisSummaryDisplayFn = analysisSummaryDisplayFn
         self.enumerateCommandInfoFn = enumerateCommandInfoFn
@@ -137,6 +140,8 @@ class Backup:
 
         self.analysisRunning = True
         self.analysisStarted = True
+
+        self.updateStatusBarFn(Status.BACKUP_ANALYSIS_RUNNING)
 
         # Sanity check for space requirements
         if not self.sanityCheck():
@@ -730,6 +735,7 @@ class Backup:
         self.enumerateCommandInfoFn(self, displayCommandList)
 
         self.analysisValid = True
+        self.updateStatusBarFn(Status.BACKUP_READY_FOR_BACKUP)
 
         if not self.config['cliMode']:
             self.startBackupBtn.configure(state='normal')
@@ -786,6 +792,7 @@ class Backup:
         """
 
         self.backupRunning = True
+        self.updateStatusBarFn(Status.BACKUP_BACKUP_RUNNING)
 
         if not self.analysisValid or not self.sanityCheck():
             return
@@ -873,6 +880,7 @@ class Backup:
         if not self.config['cliMode']:
             self.startBackupBtn.configure(text='Run Backup', command=self.startBackupFn, style='win.TButton')
 
+        self.updateStatusBarFn(Status.BACKUP_IDLE)
         self.backupRunning = False
 
     def getTotals(self):

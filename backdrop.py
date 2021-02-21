@@ -25,6 +25,7 @@ from bin.progress import Progress
 from bin.commandLine import CommandLine
 from bin.backup import Backup
 from bin.update import UpdateHandler
+from bin.status import Status
 
 # Set meta info
 appVersion = '3.0.0-beta.1'
@@ -633,6 +634,7 @@ def startBackupAnalysis():
                 startBackupFn=startBackup,
                 killBackupFn=lambda: threadManager.kill('Backup'),
                 startBackupTimerFn=updateBackupTimer,
+                updateStatusBarFn=updateBackupStatusBar,
                 updateFileDetailListFn=updateFileDetailList,
                 analysisSummaryDisplayFn=displayBackupSummaryChunk,
                 enumerateCommandInfoFn=enumerateCommandInfo,
@@ -755,10 +757,17 @@ def shareSelectCalc():
                 sharesAllKnown = False
         if sharesAllKnown:
             startAnalysisBtn.configure(state='normal')
+            updateSelectionStatusBar()
 
         progress.stopIndeterminate()
 
     selected = sourceTree.selection()
+
+    config['shares'] = [{
+        'name': sourceTree.item(item, 'text'),
+        'size': int(sourceTree.item(item, 'values')[1]) if sourceTree.item(item, 'values')[0] != 'Unknown' else None
+    } for item in sourceTree.selection()]
+    updateSelectionStatusBar()
 
     # If selection is different than last time, invalidate the analysis
     selectMatch = [share for share in selected if share in prevShareSelection]
@@ -771,6 +780,7 @@ def shareSelectCalc():
     for item in selected:
         # If new selected item hasn't been calculated, calculate it on the fly
         if sourceTree.item(item, 'values')[0] == 'Unknown':
+            updateSelectionStatusBar(Status.BACKUPSELECT_CALCULATING_SOURCE)
             startAnalysisBtn.configure(state='disable')
             shareName = sourceTree.item(item, 'text')
             threadManager.start(threadManager.SINGLE, target=lambda: updateShareSize(item), name='shareCalc_%s' % (shareName), daemon=True)
@@ -988,6 +998,7 @@ def handleDriveSelectionClick():
     selectedTotal = 0
     selectedDriveList = []
     driveLookupList = {drive['vid']: drive for drive in destDriveMasterList}
+    # TODO: Can this reference the config capacity with sum(), instead of the tree?
     for item in selected:
         # Write drive IDs to config
         selectedDrive = driveLookupList[destTree.item(item, 'values')[3]]
@@ -998,6 +1009,8 @@ def handleDriveSelectionClick():
     if not readDrivesFromConfigFile:
         config['drives'] = selectedDriveList
         configSelectedSpace.configure(text='None', fg=uiColor.FADED)
+
+    updateSelectionStatusBar()
 
     progress.stopIndeterminate()
 
@@ -1436,6 +1449,66 @@ if config['cliMode']:
 
         exit()
 
+def updateSelectionStatusBar(status=None):
+    """Update the status bar selection status.
+
+    Args:
+        status (String): The status code to use.
+    """
+
+    if len(config['shares']) == 0 and len(config['drives']) == 0 and len(config['missingDrives']) == 0:
+        # No selection in config
+        status = Status.BACKUPSELECT_NO_SELECTION
+    elif len(config['shares']) == 0:
+        # No shares selected
+        status = Status.BACKUPSELECT_MISSING_SOURCE
+    elif len(config['drives']) == 0 and len(config['missingDrives']) == 0:
+        # No drives selected
+        status = Status.BACKUPSELECT_MISSING_DEST
+    elif len([share for share in config['shares'] if share['size'] is None]) > 0:
+        # Not all shares calculated
+        status = Status.BACKUPSELECT_CALCULATING_SOURCE
+    else:
+        sharesSelected = sum([share['size'] for share in config['shares']])
+        driveSelected = sum([drive['capacity'] for drive in config['drives']]) + sum(config['missingDrives'].values())
+
+        if sharesSelected < driveSelected:
+            # Selected enough drive space
+            status = Status.BACKUPSELECT_ANALYSIS_WAITING
+        else:
+            # Shares larger than drive space
+            status = Status.BACKUPSELECT_INSUFFICIENT_SPACE
+
+    # Set status
+    if status == Status.BACKUPSELECT_NO_SELECTION:
+        selectionStatus.configure(text='No selection')
+    elif status == Status.BACKUPSELECT_MISSING_SOURCE:
+        selectionStatus.configure(text='No shares selected')
+    elif status == Status.BACKUPSELECT_MISSING_DEST:
+        selectionStatus.configure(text='No drives selected')
+    elif status == Status.BACKUPSELECT_CALCULATING_SOURCE:
+        selectionStatus.configure(text='Calculating share size')
+    elif status == Status.BACKUPSELECT_INSUFFICIENT_SPACE:
+        selectionStatus.configure(text='Destination too small for shares')
+    elif status == Status.BACKUPSELECT_ANALYSIS_WAITING:
+        selectionStatus.configure(text='Selection OK, ready for analysis')
+
+def updateBackupStatusBar(status):
+    """Update the status bar backup status.
+
+    Args:
+        status (String): The status code to use.
+    """
+
+    if status == Status.BACKUP_IDLE:
+        backupStatus.configure(text='Idle')
+    elif status == Status.BACKUP_ANALYSIS_RUNNING:
+        backupStatus.configure(text='Analysis running')
+    elif status == Status.BACKUP_READY_FOR_BACKUP:
+        backupStatus.configure(text='Analysis finished, ready for backup')
+    elif status == Status.BACKUP_BACKUP_RUNNING:
+        backupStatus.configure(text='Backup running')
+
 def updateUpdateStatusBar(status):
     """Update the status bar update message.
 
@@ -1443,11 +1516,11 @@ def updateUpdateStatusBar(status):
         status (String): The status code to use.
     """
 
-    if status == UpdateHandler.STATUS_UPDATING:
+    if status == Status.UPDATE_CHECKING:
         updateStatus.configure(text='Checking for updates', fg=uiColor.NORMAL)
-    elif status == UpdateHandler.STATUS_UPDATEAVAILABLE:
+    elif status == Status.UPDATE_AVAILABLE:
         updateStatus.configure(text='Update available!', fg=uiColor.INFOTEXT)
-    elif status == UpdateHandler.STATUS_UPTODATE:
+    elif status == Status.UPDATE_UP_TO_DATE:
         updateStatus.configure(text='Up to date', fg=uiColor.NORMAL)
 
 ############
@@ -1500,11 +1573,20 @@ if not config['cliMode']:
     mainFrame = tk.Frame(root)
     mainFrame.pack(fill='both', expand=1, padx=elemPadding, pady=(elemPadding / 2, elemPadding))
 
-    statusBarFrame = tk.Frame(root, bg=uiColor.BGACCENT)
+    statusBarFrame = tk.Frame(root, bg=uiColor.STATUS_BAR)
     statusBarFrame.pack(fill='x', pady=0)
     statusBarFrame.columnconfigure(50, weight=1)
 
-    updateStatus = tk.Label(statusBarFrame, text='', bg=uiColor.BGACCENT)
+    # Selection and backup status, left side
+    selectionStatus = tk.Label(statusBarFrame, bg=uiColor.STATUS_BAR)
+    selectionStatus.grid(row=0, column=0, padx=6)
+    updateSelectionStatusBar()
+    backupStatus = tk.Label(statusBarFrame, bg=uiColor.STATUS_BAR)
+    backupStatus.grid(row=0, column=1, padx=6)
+    updateBackupStatusBar(Status.BACKUP_IDLE)
+
+    # Update status, right side
+    updateStatus = tk.Label(statusBarFrame, text='', bg=uiColor.STATUS_BAR)
     updateStatus.grid(row=0, column=100, padx=6)
     updateStatus.bind('<Button-1>', lambda e: displayUpdateScreen(updateInfo))
 
