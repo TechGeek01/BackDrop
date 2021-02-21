@@ -30,12 +30,12 @@ class Progress:
 
     def startIndeterminate(self):
         """Start indeterminate mode on the progress bar."""
-        if len(threading.enumerate()) <= self.threadsForProgressBar:
+        if len([thread for thread in threading.enumerate() if thread.name != 'Update Check']) <= self.threadsForProgressBar:
             self.progressBar.configure(mode='indeterminate')
             self.progressBar.start()
 
     def stopIndeterminate(self):
         """Stop indeterminate mode on the progress bar."""
-        if len(threading.enumerate()) <= self.threadsForProgressBar:
+        if len([thread for thread in threading.enumerate() if thread.name != 'Update Check']) <= self.threadsForProgressBar:
             self.progressBar.configure(mode='determinate')
             self.progressBar.stop()
