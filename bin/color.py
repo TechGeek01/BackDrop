@@ -11,6 +11,7 @@ class Color:
     NORMAL = BLACK
 
     INFO = '#bbe6ff'
+    INFOTEXT = '#0094c5'
     WARNING = '#ffe69d'
     ERROR = '#ffd0d0'
 
@@ -40,7 +41,8 @@ class Color:
 
             Color.RED = '#f53'
 
-            Color.INFO = '#a2f4ff'
+            Color.INFO = '#3bceff'
+            Color.INFOTEXT = '#3bceff'
 
         Color.ENABLED = Color.GREEN
         Color.DISABLED = Color.RED

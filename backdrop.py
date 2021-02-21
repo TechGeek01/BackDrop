@@ -1060,7 +1060,7 @@ def displayUpdateScreen(updateInfo):
     """
 
     global updateWin
-    if updateWin is None or not updateWin.winfo_exists():
+    if updateInfo['updateAvailable'] and (updateWin is None or not updateWin.winfo_exists()):
         updateWin = tk.Toplevel(root)
         updateWin.title('Update Available')
         updateWin.resizable(False, False)
@@ -1436,6 +1436,20 @@ if config['cliMode']:
 
         exit()
 
+def updateUpdateStatusBar(status):
+    """Update the status bar update message.
+
+    Args:
+        status (String): The status code to use.
+    """
+
+    if status == UpdateHandler.STATUS_UPDATING:
+        updateStatus.configure(text='Checking for updates', fg=uiColor.NORMAL)
+    elif status == UpdateHandler.STATUS_UPDATEAVAILABLE:
+        updateStatus.configure(text='Update available!', fg=uiColor.INFOTEXT)
+    elif status == UpdateHandler.STATUS_UPTODATE:
+        updateStatus.configure(text='Up to date', fg=uiColor.NORMAL)
+
 ############
 # GUI Mode #
 ############
@@ -1454,6 +1468,7 @@ if not config['cliMode']:
 
     updateHandler = UpdateHandler(
         currentVersion=appVersion,
+        statusChangeFn=updateUpdateStatusBar,
         updateCallback=checkForUpdates
     )
 
@@ -1484,6 +1499,14 @@ if not config['cliMode']:
 
     mainFrame = tk.Frame(root)
     mainFrame.pack(fill='both', expand=1, padx=elemPadding, pady=(elemPadding / 2, elemPadding))
+
+    statusBarFrame = tk.Frame(root, bg=uiColor.BGACCENT)
+    statusBarFrame.pack(fill='x', pady=0)
+    statusBarFrame.columnconfigure(50, weight=1)
+
+    updateStatus = tk.Label(statusBarFrame, text='', bg=uiColor.BGACCENT)
+    updateStatus.grid(row=0, column=100, padx=6)
+    updateStatus.bind('<Button-1>', lambda e: displayUpdateScreen(updateInfo))
 
     # Set some default styling
     tkStyle = ttk.Style()

@@ -2,14 +2,25 @@ import requests
 import re
 
 class UpdateHandler:
-    def __init__(self, currentVersion, updateCallback):
+    STATUS_UPDATING = 0
+    STATUS_UPDATEAVAILABLE = 1
+    STATUS_UPTODATE = 2
+
+    def __init__(self, currentVersion, updateCallback, statusChangeFn=None):
         """
         Args:
             currentVersion (String): The current version of the program.
             updateCallback (def): The function to call with update results.
+            statusChangeFn (def): The function to call when changing status.
         """
 
         self.currentVersion = currentVersion
+
+        if statusChangeFn is not None:
+            self.statusChangeFn = statusChangeFn
+        else:
+            self.statusChangeFn = None
+
         self.updateCallback = updateCallback
 
     def __getLatestVersion(self):
@@ -146,6 +157,8 @@ class UpdateHandler:
             dict.download (String[]): A list of downloads for each latest asset.
         """
 
+        self.statusChangeFn(UpdateHandler.STATUS_UPDATING)
+
         latestVersion = self.__getLatestVersion()
         updateInfo = {
             'currentVersion': self.currentVersion,
@@ -154,6 +167,7 @@ class UpdateHandler:
             'download': latestVersion['download']
         }
 
+        self.statusChangeFn(UpdateHandler.STATUS_UPDATEAVAILABLE if updateInfo['updateAvailable'] else UpdateHandler.STATUS_UPTODATE)
         self.updateCallback(updateInfo)
 
         return updateInfo
