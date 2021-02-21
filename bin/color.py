@@ -18,6 +18,8 @@ class Color:
     BG = None
     FG = BLACK
 
+    STATUS_BAR = '#d4d4d4'
+
     BGACCENT = '#e9e9e9'
     BGACCENT2 = '#fff'
     BGACCENT3 = '#888'
@@ -29,12 +31,12 @@ class Color:
         Color.BG = root.cget('background')
 
         if darkMode:
-            Color.BG = '#282822'
             Color.BG = '#333'
             Color.FG = Color.WHITE
             Color.NORMAL = Color.WHITE
 
-            Color.BGACCENT = '#282828'
+            Color.STATUS_BAR = '#444'
+
             Color.BGACCENT = '#444'
             Color.BGACCENT2 = '#222'
             Color.BGACCENT3 = '#aaa'
