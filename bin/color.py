@@ -11,7 +11,8 @@ class Color:
     NORMAL = BLACK
 
     INFO = '#bbe6ff'
-    INFOTEXT = '#0094c5'
+    INFOTEXT = '#0095c7'
+    INFOTEXTDARK = '#0095c7'
     WARNING = '#ffe69d'
     ERROR = '#ffd0d0'
 
@@ -35,7 +36,7 @@ class Color:
             Color.FG = Color.WHITE
             Color.NORMAL = Color.WHITE
 
-            Color.STATUS_BAR = '#444'
+            Color.STATUS_BAR = '#4a4a4a'
 
             Color.BGACCENT = '#444'
             Color.BGACCENT2 = '#222'
@@ -44,7 +45,7 @@ class Color:
             Color.RED = '#f53'
 
             Color.INFO = '#3bceff'
-            Color.INFOTEXT = '#3bceff'
+            Color.INFOTEXT = '#00b2ee'
 
         Color.ENABLED = Color.GREEN
         Color.DISABLED = Color.RED

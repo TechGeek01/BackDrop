@@ -1098,7 +1098,7 @@ def displayUpdateScreen(updateInfo):
         updateWin.grid_rowconfigure(0, weight=1)
         updateWin.grid_columnconfigure(0, weight=1)
 
-        updateHeader = tk.Label(mainFrame, text='Update Available!', font=(None, 30), fg=uiColor.GREEN)
+        updateHeader = tk.Label(mainFrame, text='Update Available!', font=(None, 30, 'bold italic'), fg=uiColor.INFOTEXTDARK)
         updateHeader.pack()
 
         updateText = tk.Label(mainFrame, text='An update to BackDrop is avaiable. Please update to get the latest features and fixes.', font=(None, 10))
@@ -1117,9 +1117,25 @@ def displayUpdateScreen(updateInfo):
         downloadFrame = tk.Frame(mainFrame)
         downloadFrame.pack()
 
-        for url in updateInfo['download']:
-            fileType = url[-3:].upper()
-            ttk.Button(downloadFrame, text=fileType, width=3, command=lambda url=url: webbrowser.open_new(url), state='normal').pack(side='left', padx=2)
+        iconInfo = {
+            'exe': {
+                'flat': windowsIcon,
+                'color': colorWindowsIcon
+            },
+            'zip': {
+                'flat': zipIcon,
+                'color': colorZipIcon
+            }
+        }
+        downloadMap = {url[-3:].lower(): url for url in updateInfo['download']}
+
+        for fileType, icons in iconInfo.items():
+            if fileType in downloadMap.keys():
+                downloadBtn = tk.Label(downloadFrame, image=icons['flat'])
+                downloadBtn.pack(side='left', padx=8)
+                downloadBtn.bind('<Enter>', lambda e, icon=icons['color']: e.widget.configure(image=icon))
+                downloadBtn.bind('<Leave>', lambda e, icon=icons['flat']: e.widget.configure(image=icon))
+                downloadBtn.bind('<Button-1>', lambda e, url=downloadMap[fileType]: webbrowser.open_new(url))
 
 def checkForUpdates(info):
     """Process the update information provided by the UpdateHandler class.
@@ -1697,6 +1713,11 @@ if not config['cliMode']:
     root.bind('<Control-d>', lambda x: toggleFileDetailsHotkey())
 
     root.config(menu=menubar)
+
+    windowsIcon = ImageTk.PhotoImage(Image.open(resource_path(f"media\\windows{'_light' if uiColor.isDarkMode() else ''}.png")))
+    colorWindowsIcon = ImageTk.PhotoImage(Image.open(resource_path('media\\windows_color.png')))
+    zipIcon = ImageTk.PhotoImage(Image.open(resource_path(f"media\\zip{'_light' if uiColor.isDarkMode() else ''}.png")))
+    colorZipIcon = ImageTk.PhotoImage(Image.open(resource_path('media\\zip_color.png')))
 
     # Progress/status values
     progressBar = ttk.Progressbar(mainFrame, maximum=100, style='custom.Progressbar')
