@@ -1,0 +1,11 @@
+certifi==2020.12.5
+chardet==4.0.0
+clipboard==0.0.4
+idna==2.10
+keyboard==0.13.5
+Pillow==8.1.0
+pyperclip==1.8.2
+pywin32==300
+requests==2.25.1
+urllib3==1.26.3
+WMI==1.5.1
