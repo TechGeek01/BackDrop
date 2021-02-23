@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## 3.0.0 - TBD
+*Previously compiled Windows binaries had CLI mode broken due to lacking console. This has been fixed, but now means there's a console window in the background that will open when launched. As far as I know, this is unavoidable due to the nature of Python.*
+
 ### Added
 - Added update checking
 - Files are now deleted from destination if they're not copied successfully
@@ -56,7 +58,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Significantly improved copy speed
-	- * CLI mode is significantly slower than the GUI. A fix is in the works.*
+	- *CLI mode is significantly slower than the GUI. A fix is in the works.*
 - Windows can now be centered on top of other windows, rather than just the screen
 - Separated classes into their own files
 - Restructured code

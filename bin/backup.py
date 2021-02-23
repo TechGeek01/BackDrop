@@ -9,7 +9,7 @@ from bin.config import Config
 from bin.status import Status
 
 class Backup:
-    def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, doDelFn, startBackupFn, killBackupFn, startBackupTimerFn, updateFileDetailListFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, uiColor=None, updateStatusBarFn=None, startBackupBtn=None, startAnalysisBtn=None, progress=None):
+    def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, doDelFn, startBackupTimerFn, updateFileDetailListFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, updateUiComponentFn=None, uiColor=None, progress=None):
         """
         Args:
             config (dict): The backup config to be processed.
@@ -17,10 +17,8 @@ class Backup:
             backupConfigFile (String): The file to store backup configs on each drive.
             doCopyFn (def): The function to be used to handle file copying. TODO: Move doCopyFn outside of Backup class.
             doDelFn (def): The function to be used to handle file copying. TODO: Move doDelFn outside of Backup class.
-            startBackupFn (def): The function to be used to start the backup.
-            killBackupFn (def): The function to be used to kill the backup.
             startBackupTimerFn (def): The function to be used to start the backup timer.
-            updateStatusBarFn (def): The function to be used to update the status bar.
+            updateUiComponentFn (def): The function to be used to update UI components (default None).
             updateFileDetailListFn (def): The function to be used to update file lists.
             analysisSummaryDisplayFn (def): The function to be used to show an analysis
                     summary.
@@ -28,8 +26,6 @@ class Backup:
                     in the UI.
             threadManager (ThreadManager): The thread manager to check for kill flags.
             uiColor (Color): The UI color instance to reference for styling (default None). TODO: Move uiColor outside of Backup class
-            startBackupBtn (tk.Button): The backup button to use in the UI (default None). TODO: Move startBackupBtn outside of Backup class
-            startAnalysisBtn (tk.Button): The analysis button to use in the UI (default None). TODO: Move startAnalysisBtn outside of Backup class
             progress (Progress): The progress tracker to bind to.
         """
 
@@ -55,14 +51,10 @@ class Backup:
         self.backupConfigDir = backupConfigDir
         self.backupConfigFile = backupConfigFile
         self.uiColor = uiColor
-        self.startBackupBtn = startBackupBtn
-        self.startAnalysisBtn = startAnalysisBtn
         self.doCopyFn = doCopyFn
         self.doDelFn = doDelFn
-        self.startBackupFn = startBackupFn
-        self.killBackupFn = killBackupFn
         self.startBackupTimerFn = startBackupTimerFn
-        self.updateStatusBarFn = updateStatusBarFn
+        self.updateUiComponentFn = updateUiComponentFn
         self.updateFileDetailListFn = updateFileDetailListFn
         self.analysisSummaryDisplayFn = analysisSummaryDisplayFn
         self.enumerateCommandInfoFn = enumerateCommandInfoFn
@@ -142,7 +134,7 @@ class Backup:
         self.analysisRunning = True
         self.analysisStarted = True
 
-        self.updateStatusBarFn(Status.BACKUP_ANALYSIS_RUNNING)
+        self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
 
         # Sanity check for space requirements
         if not self.sanityCheck():
@@ -150,8 +142,8 @@ class Backup:
 
         if not self.config['cliMode']:
             self.progress.startIndeterminate()
-            self.startBackupBtn.configure(state='disable')
-            self.startAnalysisBtn.configure(state='disable')
+            self.updateUiComponentFn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
+            self.updateUiComponentFn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'disable'})
 
         shareInfo = {share['name']: share['size'] for share in self.config['shares']}
         allShareInfo = {share['name']: share['size'] for share in self.config['shares']}
@@ -738,11 +730,11 @@ class Backup:
         self.enumerateCommandInfoFn(self, displayCommandList)
 
         self.analysisValid = True
-        self.updateStatusBarFn(Status.BACKUP_READY_FOR_BACKUP)
+        self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
 
         if not self.config['cliMode']:
-            self.startBackupBtn.configure(state='normal')
-            self.startAnalysisBtn.configure(state='normal')
+            self.updateUiComponentFn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
+            self.updateUiComponentFn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'normal'})
             self.progress.stopIndeterminate()
 
         self.analysisRunning = False
@@ -796,7 +788,7 @@ class Backup:
         """
 
         self.backupRunning = True
-        self.updateStatusBarFn(Status.BACKUP_BACKUP_RUNNING)
+        self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_BACKUP_RUNNING)
 
         if not self.analysisValid or not self.sanityCheck():
             return
@@ -813,7 +805,7 @@ class Backup:
                     self.cmdInfoBlocks[cmd['displayIndex']]['currentFileResult'].configure(text='Pending', fg=self.uiColor.PENDING)
                 self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=self.uiColor.PENDING)
 
-            self.startBackupBtn.configure(text='Halt Backup', command=self.killBackupFn, style='danger.TButton')
+            self.updateUiComponentFn(Status.UPDATEUI_STOP_BACKUP_BTN)
 
         timerStarted = False
 
@@ -882,9 +874,9 @@ class Backup:
         self.threadManager.kill('backupTimer')
 
         if not self.config['cliMode']:
-            self.startBackupBtn.configure(text='Run Backup', command=self.startBackupFn, style='win.TButton')
+            self.updateUiComponentFn(Status.UPDATEUI_START_BACKUP_BTN)
 
-        self.updateStatusBarFn(Status.BACKUP_IDLE)
+        self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_IDLE)
         self.backupRunning = False
 
     def getTotals(self):

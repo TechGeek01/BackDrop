@@ -450,11 +450,11 @@ def enumerateCommandInfo(self, displayCommandList):
             if expandArrow == rightArrow:
                 # Collapsed turns into expanded
                 self.cmdInfoBlocks[index]['arrow'].configure(text=downArrow)
-                self.cmdInfoBlocks[index]['infoFrame'].pack(anchor='w')
+                self.cmdInfoBlocks[index]['infoFrame'].grid(row=1, column=1, sticky='w')
             else:
                 # Expanded turns into collapsed
                 self.cmdInfoBlocks[index]['arrow'].configure(text=rightArrow)
-                self.cmdInfoBlocks[index]['infoFrame'].pack_forget()
+                self.cmdInfoBlocks[index]['infoFrame'].grid_forget()
 
         # For some reason, .configure() loses the function bind, so we need to re-set this
         self.cmdInfoBlocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: toggleCmdInfo(index))
@@ -492,19 +492,18 @@ def enumerateCommandInfo(self, displayCommandList):
 
             infoConfig['mainFrame'] = tk.Frame(backupActivityScrollableFrame)
             infoConfig['mainFrame'].pack(anchor='w', expand=1)
+            infoConfig['mainFrame'].grid_columnconfigure(1, weight=1)
 
             # Set up header arrow, trimmed command, and status
+            infoConfig['arrow'] = tk.Label(infoConfig['mainFrame'], text=rightArrow)
+            infoConfig['arrow'].grid(row=0, column=0)
             infoConfig['headLine'] = tk.Frame(infoConfig['mainFrame'])
-            infoConfig['headLine'].pack(fill='x')
-            infoConfig['arrow'] = tk.Label(infoConfig['headLine'], text=rightArrow)
-            infoConfig['arrow'].pack(side='left')
+            infoConfig['headLine'].grid(row=0, column=1, sticky='w')
 
             infoConfig['header'] = tk.Label(infoConfig['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=uiColor.NORMAL if item['enabled'] else uiColor.FADED)
             infoConfig['header'].pack(side='left')
             infoConfig['state'] = tk.Label(infoConfig['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
             infoConfig['state'].pack(side='left')
-            infoConfig['arrow'].update_idletasks()
-            arrowWidth = infoConfig['arrow'].winfo_width()
 
             # Set up info frame
             infoConfig['infoFrame'] = tk.Frame(infoConfig['mainFrame'])
@@ -512,15 +511,11 @@ def enumerateCommandInfo(self, displayCommandList):
             if item['type'] == 'fileList':
                 infoConfig['fileSizeLine'] = tk.Frame(infoConfig['infoFrame'])
                 infoConfig['fileSizeLine'].pack(anchor='w')
-                tk.Frame(infoConfig['fileSizeLine'], width=arrowWidth).pack(side='left')
-                infoConfig['fileSizeLineHeader'] = tk.Label(infoConfig['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
-                infoConfig['fileSizeLineHeader'].pack(side='left')
-                infoConfig['fileSizeLineTotal'] = tk.Label(infoConfig['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
-                infoConfig['fileSizeLineTotal'].pack(side='left')
+                tk.Label(infoConfig['fileSizeLine'], text='Total size:', font=cmdHeaderFont).pack(side='left')
+                tk.Label(infoConfig['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont).pack(side='left')
 
                 infoConfig['fileListLine'] = tk.Frame(infoConfig['infoFrame'])
                 infoConfig['fileListLine'].pack(anchor='w')
-                tk.Frame(infoConfig['fileListLine'], width=arrowWidth).pack(side='left')
                 infoConfig['fileListLineHeader'] = tk.Label(infoConfig['fileListLine'], text='File list:', font=cmdHeaderFont)
                 infoConfig['fileListLineHeader'].pack(side='left')
                 infoConfig['fileListLineTooltip'] = tk.Label(infoConfig['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=uiColor.FADED)
@@ -529,7 +524,6 @@ def enumerateCommandInfo(self, displayCommandList):
 
                 infoConfig['currentFileLine'] = tk.Frame(infoConfig['infoFrame'])
                 infoConfig['currentFileLine'].pack(anchor='w')
-                tk.Frame(infoConfig['currentFileLine'], width=arrowWidth).pack(side='left')
                 infoConfig['currentFileHeader'] = tk.Label(infoConfig['currentFileLine'], text='Current file:', font=cmdHeaderFont)
                 infoConfig['currentFileHeader'].pack(side='left')
                 infoConfig['currentFileResult'] = tk.Label(infoConfig['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
@@ -537,7 +531,6 @@ def enumerateCommandInfo(self, displayCommandList):
 
                 infoConfig['lastOutLine'] = tk.Frame(infoConfig['infoFrame'])
                 infoConfig['lastOutLine'].pack(anchor='w')
-                tk.Frame(infoConfig['lastOutLine'], width=arrowWidth).pack(side='left')
                 infoConfig['lastOutHeader'] = tk.Label(infoConfig['lastOutLine'], text='Progress:', font=cmdHeaderFont)
                 infoConfig['lastOutHeader'].pack(side='left')
                 infoConfig['lastOutResult'] = tk.Label(infoConfig['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
@@ -627,14 +620,10 @@ def startBackupAnalysis():
                 backupConfigDir=backupConfigDir,
                 backupConfigFile=backupConfigFile,
                 uiColor=uiColor,
-                startBackupBtn=startBackupBtn,
-                startAnalysisBtn=startAnalysisBtn,
                 doCopyFn=doCopy,
                 doDelFn=delFile,
-                startBackupFn=startBackup,
-                killBackupFn=lambda: threadManager.kill('Backup'),
                 startBackupTimerFn=updateBackupTimer,
-                updateStatusBarFn=updateBackupStatusBar,
+                updateUiComponentFn=updateUiComponent,
                 updateFileDetailListFn=updateFileDetailList,
                 analysisSummaryDisplayFn=displayBackupSummaryChunk,
                 enumerateCommandInfoFn=enumerateCommandInfo,
@@ -648,8 +637,6 @@ def startBackupAnalysis():
                 backupConfigFile=backupConfigFile,
                 doCopyFn=doCopy,
                 doDelFn=delFile,
-                startBackupFn=startBackup,
-                killBackupFn=lambda: threadManager.kill('Backup'),
                 startBackupTimerFn=updateBackupTimer,
                 updateFileDetailListFn=updateFileDetailList,
                 analysisSummaryDisplayFn=displayBackupSummaryChunk,
@@ -1034,17 +1021,8 @@ def selectDriveInBackground(event):
 def startBackup():
     """Start the backup in a new thread."""
 
-    global backup
-
     if backup:
-        def killBackupThread():
-            # try:
-            #     subprocess.run('taskkill /im robocopy.exe /f', shell=True, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-            # except Exception as e:
-            #     print(e)
-            pass
-
-        threadManager.start(threadManager.KILLABLE, killBackupThread, target=backup.run, name='Backup', daemon=True)
+        threadManager.start(threadManager.KILLABLE, lambda: None, target=backup.run, name='Backup', daemon=True)
 
 forceNonGracefulCleanup = False
 def cleanupHandler(signal_received, frame):
@@ -1485,7 +1463,7 @@ def updateSelectionStatusBar(status=None):
     """Update the status bar selection status.
 
     Args:
-        status (String): The status code to use.
+        status (int): The status code to use.
     """
 
     if len(config['shares']) == 0 and len(config['drives']) == 0 and len(config['missingDrives']) == 0:
@@ -1529,7 +1507,7 @@ def updateBackupStatusBar(status):
     """Update the status bar backup status.
 
     Args:
-        status (String): The status code to use.
+        status (int): The status code to use.
     """
 
     if status == Status.BACKUP_IDLE:
@@ -1545,7 +1523,7 @@ def updateUpdateStatusBar(status):
     """Update the status bar update message.
 
     Args:
-        status (String): The status code to use.
+        status (int): The status code to use.
     """
 
     if status == Status.UPDATE_CHECKING:
@@ -1554,6 +1532,25 @@ def updateUpdateStatusBar(status):
         updateStatus.configure(text='Update available!', fg=uiColor.INFOTEXT)
     elif status == Status.UPDATE_UP_TO_DATE:
         updateStatus.configure(text='Up to date', fg=uiColor.NORMAL)
+
+def updateUiComponent(status, data=None):
+    """Update UI elements with given data..
+
+    Args:
+        status (int): The status code to use.
+        data (*): The data to update (optional).
+    """
+
+    if status == Status.UPDATEUI_ANALYSIS_BTN:
+        startAnalysisBtn.configure(**data)
+    elif status == Status.UPDATEUI_BACKUP_BTN:
+        startBackupBtn.configure(**data)
+    elif status == Status.UPDATEUI_START_BACKUP_BTN:
+        startBackupBtn.configure(text='Run Backup', command=startBackup, style='win.TButton')
+    elif status == Status.UPDATEUI_STOP_BACKUP_BTN:
+        startBackupBtn.configure(text='Halt Backup', command=lambda: threadManager.kill('Backup'), style='danger.TButton')
+    elif status == Status.UPDATEUI_STATUS_BAR:
+        updateBackupStatusBar(data)
 
 ############
 # GUI Mode #
