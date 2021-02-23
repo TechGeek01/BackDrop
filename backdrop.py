@@ -499,12 +499,6 @@ def enumerateCommandInfo(self, displayCommandList):
             infoConfig['arrow'] = tk.Label(infoConfig['headLine'], text=rightArrow)
             infoConfig['arrow'].pack(side='left')
 
-            if item['type'] == 'fileList':
-                if item['mode'] == 'replace':
-                    cmdHeaderText = f"Update {len(item['fileList'])} files on {item['drive']}"
-                elif item['mode'] == 'copy':
-                    cmdHeaderText = f"Copy {len(item['fileList'])} new files to {item['drive']}"
-
             infoConfig['header'] = tk.Label(infoConfig['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=uiColor.NORMAL if item['enabled'] else uiColor.FADED)
             infoConfig['header'].pack(side='left')
             infoConfig['state'] = tk.Label(infoConfig['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
@@ -551,9 +545,9 @@ def enumerateCommandInfo(self, displayCommandList):
 
                 # Handle list trimming
                 listFont = tkfont.Font(family=None, size=10, weight='normal')
-                trimmedFileList = ', '.join(item['fileList'])
+                trimmedFileList = ', '.join(item['fileList'])[:500]
                 maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
-                actualFileWidth = listFont.measure(', '.join(item['fileList']))
+                actualFileWidth = listFont.measure(trimmedFileList)
 
                 if actualFileWidth > maxWidth:
                     while actualFileWidth > maxWidth and len(trimmedFileList) > 1:

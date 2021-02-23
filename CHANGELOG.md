@@ -13,10 +13,11 @@ All notable changes to this project will be documented in this file.
 - Progress bar now increments correctly
 - Drive selection now changes config selection back to "none" when selecting drive that doesn't have a config file
 - Fixed crash on drive select click when selection length is 0
+- Analysis no longer hangs when trying to truncate long file lists in the backup details pane
 
 ### Changed
 - Preferences and backup configs are now stored in INI format
-	- * Any existing preferences will be lost due to the file change *
+	- *Any existing preferences will be lost due to the file change*
 - Backup run function now breaks immediately when aborted
 - UI improvements
 
