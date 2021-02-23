@@ -10,6 +10,7 @@ def human_filesize(num, suffix='B'):
     Returns:
         String: A string representation of the filesize passed in.
     """
+
     for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
         if abs(num) < 1024.0:
             return "%3.2f %s%s" % (num, unit, suffix)
@@ -25,6 +26,7 @@ def get_directory_size(directory):
     Returns:
         int: The filesize of the directory.
     """
+
     total = 0
     try:
         for entry in os.scandir(directory):

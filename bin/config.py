@@ -92,4 +92,5 @@ class Config:
 
     def show(self):
         """Show config."""
+
         return self.config

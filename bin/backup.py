@@ -131,6 +131,7 @@ class Backup:
         This function is run in a new thread, but is only run if the backup config is valid.
         If sanityCheck() returns False, the analysis isn't run.
         """
+
         global backupSummaryTextFrame
         global commandList
 
@@ -179,7 +180,7 @@ class Backup:
                 curDriveInfo['configSize'] = get_directory_size(drive['name'] + '.backdrop')
             else:
                 curDriveInfo['name'] = f"[{drive['vid']}]"
-                curDriveInfo['configSize'] = 20000 # Assume 20K config size
+                curDriveInfo['configSize'] = 20000  # Assume 20K config size
 
             curDriveInfo['free'] = drive['capacity'] - drive['configSize']
 
@@ -237,15 +238,15 @@ class Backup:
                     totalSmallShareSpace = sum(size for size in smallShares.values())
                     if nextDriveFreeSpace < drive['free'] and totalSmallShareSpace <= nextDrive['free']:
                         # Next drive free space less than total on current, so it's optimal to store on next drive instead
-                        driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys()]) # All small shares on next drive
+                        driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys()])  # All small shares on next drive
                     else:
                         # Better to leave on current, but overflow to next drive
-                        driveShareList[drive['vid']].extend(sharesThatFit) # Shares that fit on current drive
-                        driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys() if share not in sharesThatFit]) # Remaining small shares on next drive
+                        driveShareList[drive['vid']].extend(sharesThatFit)  # Shares that fit on current drive
+                        driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys() if share not in sharesThatFit])  # Remaining small shares on next drive
                 else:
                     # If overflow for next drive is more than can fit on that drive, ignore it, put overflow
                     # back in pool of shares to sort, and put small drive shares only in current drive
-                    driveShareList[drive['vid']].extend(sharesThatFit) # Shares that fit on current drive
+                    driveShareList[drive['vid']].extend(sharesThatFit)  # Shares that fit on current drive
                     allDriveFilesBuffer[drive['name']].extend([f"{drive['name']}{share}" for share in sharesThatFit])
 
                     # Put remaining small shares back into pool to work with for next drive
@@ -264,6 +265,7 @@ class Backup:
             Args:
                 share (String): The share to split.
             """
+
             # Enumerate list for tracking what shares go where
             driveFileList = {drive['vid']: [] for drive in driveInfo}
 
@@ -405,6 +407,7 @@ class Backup:
             Returns:
                 String[]: The file list.
             """
+
             fileList = []
             try:
                 if len(os.scandir(directory)) > 0:
@@ -460,15 +463,15 @@ class Backup:
                     if entry.is_file():
                         stubPath = entry.path[3:]
                         sourcePath = self.config['sourceDrive'] + stubPath
-                        if (stubPath.find('\\') == -1 # Files should not be on root of drive
-                                or not os.path.isfile(sourcePath) # File doesn't exist in source, so delete it
-                                or stubPath in exclusions # File is excluded from drive
-                                or len(sharesBeingProcessed) == 0): # File should only count if dir is share or child, not parent
+                        if (stubPath.find('\\') == -1  # Files should not be on root of drive
+                                or not os.path.isfile(sourcePath)  # File doesn't exist in source, so delete it
+                                or stubPath in exclusions  # File is excluded from drive
+                                or len(sharesBeingProcessed) == 0):  # File should only count if dir is share or child, not parent
                             fileList['delete'].append((entry.path, entry.stat().st_size))
                             self.updateFileDetailListFn('delete', entry.path)
                         elif os.path.isfile(sourcePath):
-                            if (entry.stat().st_mtime != os.path.getmtime(sourcePath) # Existing file is older than source
-                                    or entry.stat().st_size != os.path.getsize(sourcePath)): # Existing file is different size than source
+                            if (entry.stat().st_mtime != os.path.getmtime(sourcePath)  # Existing file is older than source
+                                    or entry.stat().st_size != os.path.getsize(sourcePath)):  # Existing file is different size than source
                                 # If existing dest file is not same time as source, it needs to be replaced
                                 fileList['replace'].append((entry.path, os.path.getsize(sourcePath), entry.stat().st_size))
                                 self.updateFileDetailListFn('copy', entry.path)
@@ -477,9 +480,9 @@ class Backup:
                         stubPath = entry.path[3:]
                         sourcePath = self.config['sourceDrive'] + stubPath
                         for item in shares:
-                            if (stubPath == item # Dir is share, so it stays
-                                    or (stubPath.find(item + '\\') == 0 and os.path.isdir(sourcePath)) # Dir is subdir inside share, and it exists in source
-                                    or item.find(stubPath + '\\') == 0): # Dir is parent directory of a share we're copying, so it stays
+                            if (stubPath == item  # Dir is share, so it stays
+                                    or (stubPath.find(item + '\\') == 0 and os.path.isdir(sourcePath))  # Dir is subdir inside share, and it exists in source
+                                    or item.find(stubPath + '\\') == 0):  # Dir is parent directory of a share we're copying, so it stays
                                 # Recurse into the share
                                 newList = buildDeltaFileList(entry.path, shares, exclusions)
                                 fileList['delete'].extend(newList['delete'])
@@ -536,17 +539,17 @@ class Backup:
                     for entry in os.scandir(self.config['sourceDrive'] + drive[3:]):
                         # For each entry, either add filesize to the total, or recurse into the directory
                         if entry.is_file():
-                            if (entry.path[3:].find('\\') > -1 # File is not in root of source
-                                    and not os.path.isfile(targetDrive + entry.path[3:]) # File doesn't exist in destination drive
-                                    and entry.path[3:] not in exclusions # File isn't part of drive exclusion
-                                    and len(sharesBeingProcessed) > 0): # File should only count if dir is share or child, not parent
+                            if (entry.path[3:].find('\\') > -1  # File is not in root of source
+                                    and not os.path.isfile(targetDrive + entry.path[3:])  # File doesn't exist in destination drive
+                                    and entry.path[3:] not in exclusions  # File isn't part of drive exclusion
+                                    and len(sharesBeingProcessed) > 0):  # File should only count if dir is share or child, not parent
                                 fileList['new'].append((targetDrive + entry.path[3:], entry.stat().st_size))
                                 self.updateFileDetailListFn('copy', targetDrive + entry.path[3:])
                         elif entry.is_dir():
                             for item in shares:
-                                if (entry.path[3:] == item # Dir is share, so it stays
-                                        or entry.path[3:].find(item + '\\') == 0 # Dir is subdir inside share
-                                        or item.find(entry.path[3:] + '\\') == 0): # Dir is parent directory of share
+                                if (entry.path[3:] == item  # Dir is share, so it stays
+                                        or entry.path[3:].find(item + '\\') == 0  # Dir is subdir inside share
+                                        or item.find(entry.path[3:] + '\\') == 0):  # Dir is parent directory of share
                                     if os.path.isdir(targetDrive + entry.path[3:]):
                                         # If exists on dest, recurse into it
                                         newList = buildNewFileList(targetDrive + entry.path[3:], shares, exclusions)
@@ -753,6 +756,7 @@ class Backup:
     # TODO: When @drive @selection happens, drives in the @config should only be selected if the config on the other drive matches. If it doesn't don't select it by default, and warn about a conflict.
     def writeConfigFile(self):
         """Write the current running backup config to config files on the drives."""
+
         if len(self.config['shares']) > 0 and len(self.config['drives']) > 0:
             shareList = ','.join([item['name'] for item in self.config['shares']])
             rawVidList = [drive['vid'] for drive in self.config['drives']]
@@ -888,6 +892,7 @@ class Backup:
         Returns:
             totals (dict): The backup totals for the current instance.
         """
+
         return self.totals
 
     def getBackupStartTime(self):
@@ -895,6 +900,7 @@ class Backup:
         Returns:
             datetime: The time the backup started. (default 0)
         """
+
         if self.backupStartTime:
             return self.backupStartTime
         else:
@@ -905,6 +911,7 @@ class Backup:
         Returns:
             dict: The command info blocks for the current backup.
         """
+
         return self.cmdInfoBlocks
 
     def isAnalysisStarted(self):
@@ -912,6 +919,7 @@ class Backup:
         Returns:
             bool: Whether or not the analysis has been started.
         """
+
         return self.analysisStarted
 
     def isRunning(self):
@@ -919,4 +927,5 @@ class Backup:
         Returns:
             bool: Whether or not the backup is actively running something.
         """
+
         return self.analysisRunning or self.backupRunning

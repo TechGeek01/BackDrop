@@ -29,6 +29,7 @@ class CommandLine:
 
     def showHelp(self):
         """Show the help menu."""
+
         longLength = len(max([item[1] for item in self.optionList], key=len))
         shortLength = 3
 

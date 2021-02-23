@@ -387,6 +387,8 @@ def displayBackupSummaryChunk(title, payload, reset=False):
 # FIXME: Can progress bar and status updating be rolled into the same function?
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
 def updateBackupTimer():
+    """Update the backup timer to show ETA."""
+
     if not config['cliMode']:
         backupEtaLabel.configure(fg=uiColor.NORMAL)
 
@@ -427,6 +429,7 @@ def updateBackupTimer():
 # FIXME: There's definitely a better way to handle working with items in the Backup instance than passing self into this function
 def enumerateCommandInfo(self, displayCommandList):
     """Enumerate the display widget with command info after a backup analysis."""
+
     rightArrow = '\U0001f86a'
     downArrow = '\U0001f86e'
 
@@ -463,6 +466,7 @@ def enumerateCommandInfo(self, displayCommandList):
             index (int): The index of the command to copy.
             item (String): The name of the list to copy
         """
+
         clipboard.copy('\n'.join(self.cmdInfoBlocks[index][item]))
 
     if not config['cliMode']:
@@ -497,9 +501,9 @@ def enumerateCommandInfo(self, displayCommandList):
 
             if item['type'] == 'fileList':
                 if item['mode'] == 'replace':
-                    cmdHeaderText = 'Update %d files on %s' % (len(item['fileList']), item['drive'])
+                    cmdHeaderText = f"Update {len(item['fileList'])} files on {item['drive']}"
                 elif item['mode'] == 'copy':
-                    cmdHeaderText = 'Copy %d new files to %s' % (len(item['fileList']), item['drive'])
+                    cmdHeaderText = f"Copy {len(item['fileList'])} new files to {item['drive']}"
 
             infoConfig['header'] = tk.Label(infoConfig['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=uiColor.NORMAL if item['enabled'] else uiColor.FADED)
             infoConfig['header'].pack(side='left')
@@ -617,7 +621,9 @@ def startBackupAnalysis():
         # TODO: There has to be a better way to handle stopping and starting this split mode toggling
         if not config['cliMode']:
             splitEnabled = destModeSplitCheckVar.get()
-            splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if splitEnabled else 'Disabled'), fg=uiColor.ENABLED if splitEnabled else uiColor.DISABLED)
+            enabledText = 'Enabled' if splitEnabled else 'Disabled'
+            enabledColor = uiColor.ENABLED if splitEnabled else uiColor.DISABLED
+            splitModeStatus.configure(text=f"Split mode\n{enabledText}", fg=enabledColor)
 
         resetUi()
 
@@ -660,6 +666,7 @@ def startBackupAnalysis():
 
 def loadSource():
     """Load the source share list, and display it in the tree."""
+
     global backup
 
     progress.startIndeterminate()
@@ -678,6 +685,7 @@ def loadSource():
 
 def startRefreshSource():
     """Start a source refresh in a new thread."""
+
     if sourceDriveListValid:
         threadManager.start(threadManager.SINGLE, target=loadSource, name='Load Source', daemon=True)
 
@@ -687,7 +695,9 @@ def changeSourceDrive(selection):
     Args:
         selection (String): The selection to set as the default.
     """
+
     global config
+
     config['sourceDrive'] = selection
     prefs.set('selection', 'sourceDrive', selection)
 
@@ -702,6 +712,7 @@ def shareSelectCalc():
     all shares selected that haven't yet been calculated. The summary of total
     selection, and total share space is also shown below the tree.
     """
+
     global prevShareSelection
     global backup
 
@@ -713,6 +724,7 @@ def shareSelectCalc():
         Args:
             item (String): The identifier for a share in the source tree to be calculated.
         """
+
         shareName = sourceTree.item(item, 'text')
         newShareSize = get_directory_size(config['sourceDrive'] + shareName)
         sourceTree.set(item, 'size', human_filesize(newShareSize))
@@ -783,14 +795,16 @@ def shareSelectCalc():
             updateSelectionStatusBar(Status.BACKUPSELECT_CALCULATING_SOURCE)
             startAnalysisBtn.configure(state='disable')
             shareName = sourceTree.item(item, 'text')
-            threadManager.start(threadManager.SINGLE, target=lambda: updateShareSize(item), name='shareCalc_%s' % (shareName), daemon=True)
+            threadManager.start(threadManager.SINGLE, target=lambda: updateShareSize(item), name=f"shareCalc_{shareName}", daemon=True)
 
 def loadSourceInBackground(event):
     """Start a calculation of source filesize in a new thread."""
+
     threadManager.start(threadManager.MULTIPLE, target=shareSelectCalc, name='Load Source Selection', daemon=True)
 
 def loadDest():
     """Load the destination drive info, and display it in the tree."""
+
     global destDriveMasterList
 
     if not config['cliMode']:
@@ -823,7 +837,7 @@ def loadDest():
     for drive in driveList:
         if drive != config['sourceDrive'] and drive != systemDrive:
             driveType = win32file.GetDriveType(drive)
-            if driveType not in (4, 6): # Make sure drive isn't REMOTE or RAMDISK
+            if driveType not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
                 driveSize = shutil.disk_usage(drive).total
                 vsn = os.stat(drive).st_dev
                 vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
@@ -838,7 +852,7 @@ def loadDest():
                     'serial': serial
                 }
 
-                driveHasConfigFile = os.path.exists('%s%s/%s' % (drive, backupConfigDir, backupConfigFile)) and os.path.isfile('%s%s/%s' % (drive, backupConfigDir, backupConfigFile))
+                driveHasConfigFile = os.path.exists(f"{drive}{backupConfigDir}/{backupConfigFile}") and os.path.isfile(f"{drive}{backupConfigDir}/{backupConfigFile}")
 
                 totalUsage = totalUsage + driveSize
                 if not config['cliMode']:
@@ -859,11 +873,13 @@ def loadDest():
 
 def startRefreshDest():
     """Start the loading of the destination drive info in a new thread."""
+
     if not threadManager.is_alive('Refresh destination'):
         threadManager.start(threadManager.SINGLE, target=loadDest, name='Refresh destination', daemon=True)
 
 def selectFromConfig():
     """From the current config, select the appropriate shares and drives in the GUI."""
+
     global driveSelectBind
 
     # Get list of shares in config
@@ -886,9 +902,10 @@ def selectFromConfig():
         warningMessage = f"The drive{'s' if len(configMissingVids) > 1 else ''} with volume ID{'s' if len(configMissingVids) > 1 else ''} {missingVidString} {'are' if len(configMissingVids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
         warningTitle = f"Drive{'s' if len(configMissingVids) > 1 else ''} missing"
 
-        splitWarningPrefix.configure(text='There %s' % ('is' if missingDriveCount == 1 else 'are'))
-        splitWarningSuffix.configure(text='%s in the config that %s connected. Please connect %s, or enable split mode.' % ('drive' if missingDriveCount == 1 else 'drives', 'isn\'t' if missingDriveCount == 1 else 'aren\'t', 'it' if missingDriveCount == 1 else 'them'))
-        splitWarningMissingDriveCount.configure(text='%d' % (missingDriveCount))
+        splitWarningPrefix.configure(text=f"There {'is' if missingDriveCount == 1 else 'are'}")
+        splitwarningContract = 'isn\'t' if missingDriveCount == 1 else 'aren\'t'
+        splitWarningSuffix.configure(text=f"{'drive' if missingDriveCount == 1 else 'drives'} in the config that {splitwarningContract} connected. Please connect {'it' if missingDriveCount == 1 else 'them'}, or enable split mode.")
+        splitWarningMissingDriveCount.configure(text=str(missingDriveCount))
         destSplitWarningFrame.grid(row=3, column=0, columnspan=3, sticky='nsew', pady=(0, elemPadding), ipady=elemPadding / 4)
 
         messagebox.showwarning(warningTitle, warningMessage)
@@ -913,10 +930,10 @@ def readConfigFile(file):
     Args:
         file (String): The file to read from.
     """
+
     global config
 
     newConfig = {}
-
     configFile = Config(file)
 
     # Get shares
@@ -964,6 +981,7 @@ def handleDriveSelectionClick():
     this function reads the config file on it if one exists, and will select any
     other drives and shares in the config.
     """
+
     global prevSelection
     global prevDriveSelection
     global backup
@@ -984,7 +1002,7 @@ def handleDriveSelectionClick():
     # are no other drives selected except the one we clicked).
     if len(selected) > 0:
         selectedDriveLetter = destTree.item(selected[0], 'text')[0]
-        configFilePath = '%s:\\%s\\%s' % (selectedDriveLetter, backupConfigDir, backupConfigFile)
+        configFilePath = f"{selectedDriveLetter}:\\{backupConfigDir}\\{backupConfigFile}"
     readDrivesFromConfigFile = False
     if not keyboard.is_pressed('alt') and prevSelection <= len(selected) and len(selected) == 1 and os.path.exists(configFilePath) and os.path.isfile(configFilePath):
         # Found config file, so read it
@@ -1016,6 +1034,7 @@ def handleDriveSelectionClick():
 
 def selectDriveInBackground(event):
     """Start the drive selection handling in a new thread."""
+
     threadManager.start(threadManager.MULTIPLE, target=handleDriveSelectionClick, name='Drive Select', daemon=True)
 
 def startBackup():
@@ -1041,6 +1060,7 @@ def cleanupHandler(signal_received, frame):
         signal_received: The signal number received.
         frame: The current stack frame.
     """
+
     global forceNonGracefulCleanup
 
     if not forceNonGracefulCleanup:
@@ -1073,6 +1093,7 @@ def displayUpdateScreen(updateInfo):
     """
 
     global updateWin
+
     if updateInfo['updateAvailable'] and (updateWin is None or not updateWin.winfo_exists()):
         updateWin = tk.Toplevel(root)
         updateWin.title('Update Available')
@@ -1234,9 +1255,10 @@ if config['cliMode']:
         updateHandler.check()
     else:
         # Backup config mode
-        print(f"\n{bcolor.WARNING}{'CLI mode is a work in progress, and may not be stable or complete': ^{os.get_terminal_size().columns}}{bcolor.ENDC}\n") # TODO: Remove CLI mode stability warning
+        # TODO: Remove CLI mode stability warning
+        print(f"\n{bcolor.WARNING}{'CLI mode is a work in progress, and may not be stable or complete': ^{os.get_terminal_size().columns}}{bcolor.ENDC}\n")
 
-        ### Input validation ###
+        # ## Input validation ## #
 
         # Validate drive selection
         driveList = win32api.GetLogicalDriveStrings().split('\000')[:-1]
@@ -1416,7 +1438,7 @@ if config['cliMode']:
                 'size': get_directory_size(config['sourceDrive'] + share)
             } for share in shareList]
 
-        ### Show summary ###
+        # ## Show summary ## #
 
         headerList = ['Source', 'Destination', 'Shares']
         if len(config['missingDrives']) > 0:
@@ -1437,26 +1459,26 @@ if config['cliMode']:
             print(f"{bcolor.FAIL}Missing drives; split mode disabled{bcolor.ENDC}")
             exit()
 
-        ### Confirm ###
+        # ## Confirm ## #
 
         if not commandLine.hasParam('unattended') and not commandLine.validateYesNo('Do you want to continue?', True):
             print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
             exit()
 
-        ### Analysis ###
+        # ## Analysis ## #
 
         startBackupAnalysis()
 
         while threadManager.is_alive('Backup Analysis'):
             pass
 
-        ### Confirm ###
+        # ## Confirm ## #
 
         if not commandLine.hasParam('unattended') and not commandLine.validateYesNo('Do you want to continue?', True):
             print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
             exit()
 
-        ### Backup ###
+        # ## Backup ## #
 
         startBackup()
 
@@ -1562,7 +1584,8 @@ if not config['cliMode']:
     )
 
     def resource_path(relative_path):
-        """ Get absolute path to resource, works for dev and for PyInstaller """
+        """Get absolute path to resource, works for dev and for PyInstaller."""
+
         try:
             # PyInstaller creates a temp folder and stores path in _MEIPASS
             base_path = sys._MEIPASS
@@ -1795,10 +1818,11 @@ if not config['cliMode']:
 
     def handleSplitModeCheck():
         """Handle toggling of split mode based on checkbox value."""
+
         config['splitMode'] = destModeSplitCheckVar.get()
 
         if not backup or not backup.isAnalysisStarted():
-            splitModeStatus.configure(text='Split mode\n%s' % ('Enabled' if config['splitMode'] else 'Disabled'), fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
+            splitModeStatus.configure(text=f"Split mode\n{'Enabled' if config['splitMode'] else 'Disabled'}", fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
 
     destModeSplitCheckVar = tk.BooleanVar()
 
@@ -1873,7 +1897,7 @@ if not config['cliMode']:
     driveTotalSpaceLabel.pack(side='left')
     driveTotalSpace = tk.Label(driveTotalSpaceFrame, text=human_filesize(0), fg=uiColor.FADED)
     driveTotalSpace.pack(side='left')
-    splitModeStatus = tk.Label(driveSpaceFrame, text='Split mode\n%s' % ('Enabled' if config['splitMode'] else 'Disabled'), fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
+    splitModeStatus = tk.Label(driveSpaceFrame, text=f"Split mode\n{'Enabled' if config['splitMode'] else 'Disabled'}", fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
     splitModeStatus.grid(row=0, column=3, padx=(12, 0))
 
     startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze', width=7, command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled')
@@ -2022,13 +2046,11 @@ if not config['cliMode']:
     brandingFrame = tk.Frame(rightSideFrame)
     brandingFrame.pack()
 
-    logoImageLoad = Image.open(resource_path(f"media\\logo_ui{'_light' if uiColor.isDarkMode() else ''}.png"))
-    logoImageRender = ImageTk.PhotoImage(logoImageLoad)
+    logoImageRender = ImageTk.PhotoImage(Image.open(resource_path(f"media\\logo_ui{'_light' if uiColor.isDarkMode() else ''}.png")))
     tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
-    tk.Label(brandingFrame, text='v' + appVersion, font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
+    tk.Label(brandingFrame, text=f"v{appVersion}", font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
-    backupTitle = tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20))
-    backupTitle.pack()
+    tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20)).pack()
 
     # Add placeholder to backup analysis
     backupSummaryTextFrame = tk.Frame(backupSummaryFrame)

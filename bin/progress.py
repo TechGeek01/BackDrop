@@ -8,6 +8,7 @@ class Progress:
             threadsForProgressBar (int): The number of running threads at idle,
                 used to trigger when the progress bar is controlled.
         """
+
         self.progressBar = progressBar
         self.threadsForProgressBar = threadsForProgressBar
 
@@ -17,6 +18,7 @@ class Progress:
         Args:
             maxVal (int): The max value to set.
         """
+
         self.progressBar.stop()
         self.progressBar.configure(mode='determinate', value=0, maximum=maxVal)
 
@@ -26,16 +28,19 @@ class Progress:
         Args:
             curVal (int): The value to set.
         """
+
         self.progressBar.configure(value=curVal)
 
     def startIndeterminate(self):
         """Start indeterminate mode on the progress bar."""
+
         if len([thread for thread in threading.enumerate() if thread.name != 'Update Check']) <= self.threadsForProgressBar:
             self.progressBar.configure(mode='indeterminate')
             self.progressBar.start()
 
     def stopIndeterminate(self):
         """Stop indeterminate mode on the progress bar."""
+
         if len([thread for thread in threading.enumerate() if thread.name != 'Update Check']) <= self.threadsForProgressBar:
             self.progressBar.configure(mode='determinate')
             self.progressBar.stop()

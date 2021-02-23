@@ -61,6 +61,7 @@ class Color:
         Returns:
             bool: Whether the pallete is set to dark mode.
         """
+
         return self.darkMode
 
 class bcolor:

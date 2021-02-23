@@ -3,10 +3,10 @@ import time
 
 class ThreadManager:
     # Define thread types for starting threads
-    SINGLE = 0      # One thread at once, block if already running
-    MULTIPLE = 1    # Multiple threads, name with counter, and run
-    KILLABLE = 2    # Thread can be killed with a flag
-    REPLACEABLE = 3 # Like SINGLE, but instead of blocking, kill and restart
+    SINGLE = 0       # One thread at once, block if already running
+    MULTIPLE = 1     # Multiple threads, name with counter, and run
+    KILLABLE = 2     # Thread can be killed with a flag
+    REPLACEABLE = 3  # Like SINGLE, but instead of blocking, kill and restart
 
     threadList = {}
     counter = 0
@@ -21,6 +21,7 @@ class ThreadManager:
             threading.Thread: If thread found by name is active.
             bool: False if thread not found, or thread is not active.
         """
+
         for thread in threading.enumerate():
             if thread.name == threadName and thread.is_alive():
                 return thread
@@ -28,11 +29,13 @@ class ThreadManager:
 
     def garbage_collect(self):
         """Remove threads from threadList that aren't active anymore."""
+
         self.threadList = {name: thread for name, thread in self.threadList.items() if thread['thread'].is_alive()}
 
     def __init__(self):
         def threadGarbageCollect():
             """Periodically run garbage collection."""
+
             while 1:
                 time.sleep(20)
                 self.garbage_collect()
@@ -52,14 +55,16 @@ class ThreadManager:
             String: If a thread is successfully created, the thread name is returned.
             bool: False if an active thread exists with that name.
         """
+
         if 'name' in kwargs:
             threadName = kwargs['name']
         else:
-            threadName = 'thread%d' % (self.counter)
+            threadName = f"thread{self.counter}"
             self.counter += 1
 
         def dummy():
             """A dummy function to pass as a default callback to KILLABLE threads."""
+
             pass
 
         # SINGLE: block if already running
@@ -72,10 +77,10 @@ class ThreadManager:
                 threadName = kwargs['name']
             else:
                 self.counter += 1
-                threadName = 'thread%d' % (self.counter)
+                threadName = f"thread{self.counter}"
         elif threadType == self.MULTIPLE:
             self.counter += 1
-            threadName = '%s_%d' % (kwargs['name'] if 'name' in kwargs else 'thread', self.counter)
+            threadName = f"{kwargs['name'] if 'name' in kwargs else 'thread'}_{self.counter}"
 
         # If the thread either isn't in the list, or isn't active, create and run the thread
         if threadType == self.SINGLE and not self.is_alive(threadName):
@@ -136,6 +141,7 @@ class ThreadManager:
         Args:
             name (String): The name of the thread, as set in threadList.
         """
+
         if (name in self.threadList.keys()
                 and self.threadList[name]['thread'].is_alive()
                 and (self.threadList[name]['type'] == self.KILLABLE or self.threadList[name]['type'] == self.REPLACEABLE)
@@ -146,6 +152,7 @@ class ThreadManager:
 
     def list(self):
         """List all threads in threadList."""
+
         print('   Threads   \n=============')
         for thread in self.threadList.keys():
-            print('%s => %s' % (thread, '-- Alive --' if self.is_alive(thread) else 'Dead'))
+            print(f"{thread} => {'-- Alive --' if self.is_alive(thread) else 'Dead'}")
