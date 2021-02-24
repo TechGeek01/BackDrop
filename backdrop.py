@@ -1554,6 +1554,26 @@ def updateUiComponent(status, data=None):
     elif status == Status.UPDATEUI_STATUS_BAR:
         updateBackupStatusBar(data)
 
+def saveConfigFile():
+    """Save the config to selected drives."""
+
+    pass
+
+def saveConfigFileAs():
+    """Save the config file to a specified location."""
+
+    pass
+
+def deleteConfigFromSelectedDrives():
+    """Delete config files from drives in destination selection."""
+
+    pass
+
+def showConfigBuilder():
+    """Show the config builder."""
+
+    pass
+
 ############
 # GUI Mode #
 ############
@@ -1697,15 +1717,25 @@ if not config['cliMode']:
 
     fileMenu = tk.Menu(menubar, tearoff=0)
     fileMenu.add_command(label='Open Backup Config', accelerator='Ctrl+O', command=openConfigFile)
+    fileMenu.add_command(label='Save Backup Config', accelerator='WIP Ctrl+S', command=saveConfigFile)
+    fileMenu.add_command(label='Save Backup Config As', accelerator='WIP Ctrl+Shift+S', command=saveConfigFileAs)
     fileMenu.add_separator()
     fileMenu.add_command(label='Exit', command=onClose)
     menubar.add_cascade(label='File', menu=fileMenu)
 
+    # Selection menu
+    selectionMenu = tk.Menu(menubar, tearoff=0)
+    selectionMenu.add_command(label='Delete Config from Selected Drives', accelerator='WIP', command=deleteConfigFromSelectedDrives)
+    menubar.add_cascade(label='Selection', menu=selectionMenu)
     viewMenu = tk.Menu(menubar, tearoff=0)
     viewMenu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=startRefreshSource)
     viewMenu.add_command(label='Refresh Destination', accelerator='F5', command=startRefreshDest)
     menubar.add_cascade(label='View', menu=viewMenu)
 
+    # Tools menu
+    toolsMenu = tk.Menu(menubar, tearoff=0)
+    toolsMenu.add_command(label='Config Builder', accelerator='WIP Ctrl+B', command=showConfigBuilder)
+    menubar.add_cascade(label='Tools', menu=toolsMenu)
     preferencesMenu = tk.Menu(menubar, tearoff=0)
     settings_darkModeEnabled = tk.BooleanVar(value=uiColor.isDarkMode())
     preferencesMenu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'darkMode', settings_darkModeEnabled.get()))
@@ -1725,8 +1755,11 @@ if not config['cliMode']:
         toggleFileDetails()
 
     # Key bindings
-    root.bind('<Control-o>', lambda x: openConfigFile())
-    root.bind('<Control-d>', lambda x: toggleFileDetailsHotkey())
+    root.bind('<Control-o>', lambda e: openConfigFile())
+    root.bind('<Control-s>', lambda e: saveConfigFile())
+    root.bind('<Control-Shift-S>', lambda e: saveConfigFileAs())
+    root.bind('<Control-d>', lambda e: toggleFileDetailsHotkey())
+    root.bind('<Control-b>', lambda e: showConfigBuilder())
 
     root.config(menu=menubar)
 
