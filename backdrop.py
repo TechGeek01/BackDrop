@@ -1563,12 +1563,65 @@ def openConfigFile():
 def saveConfigFile():
     """Save the config to selected drives."""
 
-    pass
+    if len(config['shares']) > 0 and len(config['drives']) > 0:
+        shareList = ','.join([item['name'] for item in config['shares']])
+        rawVidList = [drive['vid'] for drive in config['drives']]
+        rawVidList.extend(config['missingDrives'].keys())
+        vidList = ','.join(rawVidList)
+
+        # For each drive letter that's connected, get drive info, and write file
+        for drive in config['drives']:
+            currentConfigFile = Config(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")
+
+            # Write shares and VIDs to config file
+            currentConfigFile.set('selection', 'shares', shareList)
+            currentConfigFile.set('selection', 'vids', vidList)
+
+            # Write info for each drive to its own section
+            for curDrive in config['drives']:
+                currentConfigFile.set(curDrive['vid'], 'vid', curDrive['vid'])
+                currentConfigFile.set(curDrive['vid'], 'serial', curDrive['serial'])
+                currentConfigFile.set(curDrive['vid'], 'capacity', curDrive['capacity'])
+
+            # Write info for missing drives
+            for driveVid, capacity in config['missingDrives'].items():
+                currentConfigFile.set(driveVid, 'vid', driveVid)
+                currentConfigFile.set(driveVid, 'serial', 'Unknown')
+                currentConfigFile.set(driveVid, 'capacity', capacity)
+
+        messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully')
 
 def saveConfigFileAs():
     """Save the config file to a specified location."""
 
-    pass
+    filename = filedialog.asksaveasfilename(initialdir='', initialfile='backup.ini', title='Save drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
+
+    if len(config['shares']) > 0 and len(config['drives']) > 0:
+        shareList = ','.join([item['name'] for item in config['shares']])
+        rawVidList = [drive['vid'] for drive in config['drives']]
+        rawVidList.extend(config['missingDrives'].keys())
+        vidList = ','.join(rawVidList)
+
+        # Get drive info, and write file
+        currentConfigFile = Config(filename)
+
+        # Write shares and VIDs to config file
+        currentConfigFile.set('selection', 'shares', shareList)
+        currentConfigFile.set('selection', 'vids', vidList)
+
+        # Write info for each drive to its own section
+        for curDrive in config['drives']:
+            currentConfigFile.set(curDrive['vid'], 'vid', curDrive['vid'])
+            currentConfigFile.set(curDrive['vid'], 'serial', curDrive['serial'])
+            currentConfigFile.set(curDrive['vid'], 'capacity', curDrive['capacity'])
+
+        # Write info for missing drives
+        for driveVid, capacity in config['missingDrives'].items():
+            currentConfigFile.set(driveVid, 'vid', driveVid)
+            currentConfigFile.set(driveVid, 'serial', 'Unknown')
+            currentConfigFile.set(driveVid, 'capacity', capacity)
+
+        messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully')
 
 def deleteConfigFromSelectedDrives():
     """Delete config files from drives in destination selection."""
@@ -1719,8 +1772,8 @@ if not config['cliMode']:
     # File menu
     fileMenu = tk.Menu(menubar, tearoff=0)
     fileMenu.add_command(label='Open Backup Config', accelerator='Ctrl+O', command=openConfigFile)
-    fileMenu.add_command(label='Save Backup Config', accelerator='WIP Ctrl+S', command=saveConfigFile)
-    fileMenu.add_command(label='Save Backup Config As', accelerator='WIP Ctrl+Shift+S', command=saveConfigFileAs)
+    fileMenu.add_command(label='Save Backup Config', accelerator='Ctrl+S', command=saveConfigFile)
+    fileMenu.add_command(label='Save Backup Config As', accelerator='Ctrl+Shift+S', command=saveConfigFileAs)
     fileMenu.add_separator()
     fileMenu.add_command(label='Exit', command=onClose)
     menubar.add_cascade(label='File', menu=fileMenu)
