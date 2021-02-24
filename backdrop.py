@@ -95,6 +95,8 @@ def updateFileDetailList(listName, filename):
 
             # Update copy list scrollable
             tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.FADED, anchor='w').pack(fill='x', expand=True)
+            # FIXME: Auto scroll skips last line in file detail list for some reason
+            fileDetailsCopiedInfoCanvas.yview_moveto(1)
         elif listName == 'deleteFail':
             # Remove file from delete list and update counter
             filenameList = [file['filename'] for file in fileDetailList['delete']]
@@ -104,6 +106,7 @@ def updateFileDetailList(listName, filename):
 
             # Update copy list scrollable
             tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.FADED, anchor='w').pack(fill='x', expand=True)
+            fileDetailsFailedInfoCanvas.yview_moveto(1)
         elif listName == 'success':
             # Remove file from copy list and update counter
             filenameList = [file['filename'] for file in fileDetailList['copy']]
@@ -113,6 +116,7 @@ def updateFileDetailList(listName, filename):
 
             # Update copy list scrollable
             tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], anchor='w').pack(fill='x', expand=True)
+            fileDetailsCopiedInfoCanvas.yview_moveto(1)
         elif listName == 'fail':
             # Remove file from copy list and update counter
             filenameList = [file['filename'] for file in fileDetailList['copy']]
@@ -122,6 +126,7 @@ def updateFileDetailList(listName, filename):
 
             # Update copy list scrollable
             tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], anchor='w').pack(fill='x', expand=True)
+            fileDetailsFailedInfoCanvas.yview_moveto(1)
 
 def delFile(sourceFilename, size, guiOptions={}):
     """Delete a file or directory.
