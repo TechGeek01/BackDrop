@@ -86,47 +86,27 @@ def updateFileDetailList(listName, filename):
         elif listName == 'copy':
             fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
             fileDetailsPendingCopyCounterTotal.configure(text=str(len(fileDetailList['copy'])))
-        elif listName == 'deleteSuccess':
-            # Remove file from delete list and update counter
-            filenameList = [file['filename'] for file in fileDetailList['delete']]
+        elif listName in ['deleteSuccess', 'deleteFail', 'success', 'fail']:
+            # Remove file from delete list
+            fileDetailListName = 'copy' if listName in ['success', 'fail'] else 'delete'
+            filenameList = [file['filename'] for file in fileDetailList[fileDetailListName]]
             if filename in filenameList:
-                del fileDetailList['delete'][filenameList.index(filename)]
-            fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
+                del fileDetailList[fileDetailListName][filenameList.index(filename)]
+
+            # Update file counter
+            if listName in ['success', 'fail']:
+                fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList[fileDetailListName])))
+            else:
+                fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList[fileDetailListName])))
 
             # Update copy list scrollable
-            tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.FADED, anchor='w').pack(fill='x', expand=True)
             # FIXME: Auto scroll skips last line in file detail list for some reason
-            fileDetailsCopiedInfoCanvas.yview_moveto(1)
-        elif listName == 'deleteFail':
-            # Remove file from delete list and update counter
-            filenameList = [file['filename'] for file in fileDetailList['delete']]
-            if filename in filenameList:
-                del fileDetailList['delete'][filenameList.index(filename)]
-            fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
-
-            # Update copy list scrollable
-            tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.FADED, anchor='w').pack(fill='x', expand=True)
-            fileDetailsFailedInfoCanvas.yview_moveto(1)
-        elif listName == 'success':
-            # Remove file from copy list and update counter
-            filenameList = [file['filename'] for file in fileDetailList['copy']]
-            if filename in filenameList:
-                del fileDetailList['copy'][filenameList.index(filename)]
-            fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
-
-            # Update copy list scrollable
-            tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], anchor='w').pack(fill='x', expand=True)
-            fileDetailsCopiedInfoCanvas.yview_moveto(1)
-        elif listName == 'fail':
-            # Remove file from copy list and update counter
-            filenameList = [file['filename'] for file in fileDetailList['copy']]
-            if filename in filenameList:
-                del fileDetailList['copy'][filenameList.index(filename)]
-            fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
-
-            # Update copy list scrollable
-            tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], anchor='w').pack(fill='x', expand=True)
-            fileDetailsFailedInfoCanvas.yview_moveto(1)
+            if listName in ['success', 'deleteSuccess']:
+                tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.NORMAL if listName in ['success', 'fail'] else uiColor.FADED, anchor='w').pack(fill='x', expand=True)
+                fileDetailsCopiedInfoCanvas.yview_moveto(1)
+            else:
+                tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.NORMAL if listName in ['success', 'fail'] else uiColor.FADED, anchor='w').pack(fill='x', expand=True)
+                fileDetailsFailedInfoCanvas.yview_moveto(1)
 
 def delFile(sourceFilename, size, guiOptions={}):
     """Delete a file or directory.
