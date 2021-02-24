@@ -511,8 +511,10 @@ def enumerateCommandInfo(self, displayCommandList):
             if item['type'] == 'fileList':
                 infoConfig['fileSizeLine'] = tk.Frame(infoConfig['infoFrame'])
                 infoConfig['fileSizeLine'].pack(anchor='w')
-                tk.Label(infoConfig['fileSizeLine'], text='Total size:', font=cmdHeaderFont).pack(side='left')
-                tk.Label(infoConfig['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont).pack(side='left')
+                infoConfig['fileSizeLineHeader'] = tk.Label(infoConfig['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
+                infoConfig['fileSizeLineHeader'].pack(side='left')
+                infoConfig['fileSizeLineTotal'] = tk.Label(infoConfig['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
+                infoConfig['fileSizeLineTotal'].pack(side='left')
 
                 infoConfig['fileListLine'] = tk.Frame(infoConfig['infoFrame'])
                 infoConfig['fileListLine'].pack(anchor='w')
