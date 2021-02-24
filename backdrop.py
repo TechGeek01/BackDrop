@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, font as tkfont
+from tkinter import ttk, messagebox, font as tkfont, filedialog
 import win32api
 import win32file
 import shutil
@@ -619,8 +619,8 @@ def startBackupAnalysis():
         if not config['cliMode']:
             backup = Backup(
                 config=config,
-                backupConfigDir=backupConfigDir,
-                backupConfigFile=backupConfigFile,
+                backupConfigDir=BACKUP_CONFIG_DIR,
+                backupConfigFile=BACKUP_CONFIG_FILE,
                 uiColor=uiColor,
                 doCopyFn=doCopy,
                 doDelFn=delFile,
@@ -635,8 +635,8 @@ def startBackupAnalysis():
         else:
             backup = Backup(
                 config=config,
-                backupConfigDir=backupConfigDir,
-                backupConfigFile=backupConfigFile,
+                backupConfigDir=BACKUP_CONFIG_DIR,
+                backupConfigFile=BACKUP_CONFIG_FILE,
                 doCopyFn=doCopy,
                 doDelFn=delFile,
                 startBackupTimerFn=updateBackupTimer,
@@ -835,7 +835,7 @@ def loadDest():
                     'serial': serial
                 }
 
-                driveHasConfigFile = os.path.exists(f"{drive}{backupConfigDir}/{backupConfigFile}") and os.path.isfile(f"{drive}{backupConfigDir}/{backupConfigFile}")
+                driveHasConfigFile = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
 
                 totalUsage = totalUsage + driveSize
                 if not config['cliMode']:
@@ -985,7 +985,7 @@ def handleDriveSelectionClick():
     # are no other drives selected except the one we clicked).
     if len(selected) > 0:
         selectedDriveLetter = destTree.item(selected[0], 'text')[0]
-        configFilePath = f"{selectedDriveLetter}:\\{backupConfigDir}\\{backupConfigFile}"
+        configFilePath = f"{selectedDriveLetter}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
     readDrivesFromConfigFile = False
     if not keyboard.is_pressed('alt') and prevSelection <= len(selected) and len(selected) == 1 and os.path.exists(configFilePath) and os.path.isfile(configFilePath):
         # Found config file, so read it
@@ -1165,13 +1165,13 @@ def checkForUpdates(info):
                 print('Unable to find suitable download. Please try again, or update manually.')
 
 # Set app defaults
-backupConfigDir = '.backdrop'
-backupConfigFile = 'backup.ini'
-appDataFolder = os.getenv('LocalAppData') + '\\BackDrop'
+BACKUP_CONFIG_DIR = '.backdrop'
+BACKUP_CONFIG_FILE = 'backup.ini'
+PREFERENCES_CONFIG_FILE = 'preferences.ini'
+APPDATA_FOLDER = os.getenv('LocalAppData') + '\\BackDrop'
 elemPadding = 16
 
-prefs = Config(appDataFolder + '\\' + 'preferences.ini')
-
+prefs = Config(APPDATA_FOLDER + '\\' + PREFERENCES_CONFIG_FILE)
 config = {
     'sourceDrive': None,
     'splitMode': False,
@@ -1316,7 +1316,7 @@ if config['cliMode']:
             splitMode = commandLine.hasParam('split')
             loadConfigDrive = commandLine.getParam('config')
             if type(loadConfigDrive) is list and f"{loadConfigDrive[0][0].upper()}:\\" in destDriveNameList:
-                readConfigFile(f"{loadConfigDrive[0][0].upper()}:\\{backupConfigDir}\\{backupConfigFile}")
+                readConfigFile(f"{loadConfigDrive[0][0].upper()}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")
 
                 sharesLoadedFromConfig = True
 
@@ -1554,6 +1554,12 @@ def updateUiComponent(status, data=None):
     elif status == Status.UPDATEUI_STATUS_BAR:
         updateBackupStatusBar(data)
 
+def openConfigFile():
+    """Open a config file and load it."""
+
+    filename = filedialog.askopenfilename(initialdir='', title='Select drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
+    readConfigFile(filename)
+
 def saveConfigFile():
     """Save the config to selected drives."""
 
@@ -1699,11 +1705,6 @@ if not config['cliMode']:
     # tkStyle.configure('custom.Scrollbar.uparrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
     # tkStyle.configure('custom.Scrollbar.downarrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
 
-    def openConfigFile():
-        from tkinter import filedialog
-        filename = filedialog.askopenfilename(initialdir='', title='Select drive config file', filetypes=(('Backup config files', 'backup.config'), ('All files', '*.*')))
-        readConfigFile(filename)
-
     def onClose():
         if threadManager.is_alive('Backup'):
             if messagebox.askyesno('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?'):
@@ -1712,9 +1713,10 @@ if not config['cliMode']:
         else:
             root.destroy()
 
-    # Add mmenu bar
+    # Add menu bar
     menubar = tk.Menu(root)
 
+    # File menu
     fileMenu = tk.Menu(menubar, tearoff=0)
     fileMenu.add_command(label='Open Backup Config', accelerator='Ctrl+O', command=openConfigFile)
     fileMenu.add_command(label='Save Backup Config', accelerator='WIP Ctrl+S', command=saveConfigFile)
@@ -1727,6 +1729,8 @@ if not config['cliMode']:
     selectionMenu = tk.Menu(menubar, tearoff=0)
     selectionMenu.add_command(label='Delete Config from Selected Drives', accelerator='WIP', command=deleteConfigFromSelectedDrives)
     menubar.add_cascade(label='Selection', menu=selectionMenu)
+
+    # View menu
     viewMenu = tk.Menu(menubar, tearoff=0)
     viewMenu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=startRefreshSource)
     viewMenu.add_command(label='Refresh Destination', accelerator='F5', command=startRefreshDest)
@@ -1736,11 +1740,14 @@ if not config['cliMode']:
     toolsMenu = tk.Menu(menubar, tearoff=0)
     toolsMenu.add_command(label='Config Builder', accelerator='WIP Ctrl+B', command=showConfigBuilder)
     menubar.add_cascade(label='Tools', menu=toolsMenu)
+
+    # Preferences menu
     preferencesMenu = tk.Menu(menubar, tearoff=0)
     settings_darkModeEnabled = tk.BooleanVar(value=uiColor.isDarkMode())
     preferencesMenu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'darkMode', settings_darkModeEnabled.get()))
     menubar.add_cascade(label='Preferences', menu=preferencesMenu)
 
+    # Help menu
     helpMenu = tk.Menu(menubar, tearoff=0)
     helpMenu.add_command(label='Check for Updates', command=lambda: threadManager.start(
         threadManager.SINGLE,

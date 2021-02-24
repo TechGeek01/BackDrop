@@ -757,30 +757,25 @@ class Backup:
             rawVidList.extend(self.config['missingDrives'].keys())
             vidList = ','.join(rawVidList)
 
-            # For each drive letter, get drive info, and write file
+            # For each drive letter connected, get drive info, and write file
             for drive in self.config['drives']:
-                # Only write config to drives that are connected
-                if drive['vid'] in self.driveVidInfo.keys():
-                    backupConfigFile = Config(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}")
+                backupConfigFile = Config(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}")
 
-                    # Write shares and VIDs to config file
-                    backupConfigFile.set('selection', 'shares', shareList)
-                    backupConfigFile.set('selection', 'vids', vidList)
+                # Write shares and VIDs to config file
+                backupConfigFile.set('selection', 'shares', shareList)
+                backupConfigFile.set('selection', 'vids', vidList)
 
-                    # Write info for each drive to its own section
-                    for curDrive in self.config['drives']:
-                        backupConfigFile.set(curDrive['vid'], 'vid', curDrive['vid'])
-                        backupConfigFile.set(curDrive['vid'], 'serial', curDrive['serial'])
-                        backupConfigFile.set(curDrive['vid'], 'capacity', curDrive['capacity'])
+                # Write info for each drive to its own section
+                for curDrive in self.config['drives']:
+                    backupConfigFile.set(curDrive['vid'], 'vid', curDrive['vid'])
+                    backupConfigFile.set(curDrive['vid'], 'serial', curDrive['serial'])
+                    backupConfigFile.set(curDrive['vid'], 'capacity', curDrive['capacity'])
 
-                    # Write info for missing drives
-                    for driveVid, capacity in self.config['missingDrives'].items():
-                        backupConfigFile.set(driveVid, 'vid', driveVid)
-                        backupConfigFile.set(driveVid, 'serial', 'Unknown')
-                        backupConfigFile.set(driveVid, 'capacity', capacity)
-        else:
-            pass
-            # print('You must select at least one share, and at least one drive')
+                # Write info for missing drives
+                for driveVid, capacity in self.config['missingDrives'].items():
+                    backupConfigFile.set(driveVid, 'vid', driveVid)
+                    backupConfigFile.set(driveVid, 'serial', 'Unknown')
+                    backupConfigFile.set(driveVid, 'capacity', capacity)
 
     def run(self):
         """Once the backup analysis is run, and drives and shares are selected, run the backup.
