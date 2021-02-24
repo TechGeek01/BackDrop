@@ -94,7 +94,7 @@ def updateFileDetailList(listName, filename):
             fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
 
             # Update copy list scrollable
-            tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.FADED).pack(fill='x', expand=True, anchor='w')
+            tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.FADED, anchor='w').pack(fill='x', expand=True)
         elif listName == 'deleteFail':
             # Remove file from delete list and update counter
             filenameList = [file['filename'] for file in fileDetailList['delete']]
@@ -103,7 +103,7 @@ def updateFileDetailList(listName, filename):
             fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
 
             # Update copy list scrollable
-            tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.FADED).pack(fill='x', expand=True, anchor='w')
+            tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.FADED, anchor='w').pack(fill='x', expand=True)
         elif listName == 'success':
             # Remove file from copy list and update counter
             filenameList = [file['filename'] for file in fileDetailList['copy']]
@@ -112,7 +112,7 @@ def updateFileDetailList(listName, filename):
             fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
 
             # Update copy list scrollable
-            tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
+            tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], anchor='w').pack(fill='x', expand=True)
         elif listName == 'fail':
             # Remove file from copy list and update counter
             filenameList = [file['filename'] for file in fileDetailList['copy']]
@@ -121,7 +121,7 @@ def updateFileDetailList(listName, filename):
             fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
 
             # Update copy list scrollable
-            tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1]).pack(fill='x', expand=True, anchor='w')
+            tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], anchor='w').pack(fill='x', expand=True)
 
 def delFile(sourceFilename, size, guiOptions={}):
     """Delete a file or directory.

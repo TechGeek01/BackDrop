@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - Drive selection now changes config selection back to "none" when selecting drive that doesn't have a config file
 - Fixed crash on drive select click when selection length is 0
 - Analysis no longer hangs when trying to truncate long file lists in the backup details pane
+- File details pane now left aligns files in lists
 
 ### Changed
 - Preferences and backup configs are now stored in INI format
