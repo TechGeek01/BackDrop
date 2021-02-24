@@ -183,15 +183,18 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
             os.makedirs(pathStub)
 
         fdst = open(destFilename, 'wb')
-        for n in iter(lambda: f.readinto(mv), 0):
-            if threadManager.threadList['Backup']['killFlag']:
-                break
+        try:
+            for n in iter(lambda: f.readinto(mv), 0):
+                if threadManager.threadList['Backup']['killFlag']:
+                    break
 
-            fdst.write(mv[:n])
-            h.update(mv[:n])
+                fdst.write(mv[:n])
+                h.update(mv[:n])
 
-            copied += n
-            callback(copied, file_size, guiOptions)
+                copied += n
+                callback(copied, file_size, guiOptions)
+        except OSError:
+            pass
         fdst.close()
 
     # If file copied in full, copy meta, and verify
@@ -234,6 +237,12 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
 
         return h.hexdigest() == dest_hash.hexdigest()
     else:
+        # If file wasn't copied successfully, delete it
+        if os.path.isfile(destFilename):
+            os.remove(destFilename)
+        elif os.path.isdir(destFilename):
+            shutil.rmtree(destFilename)
+
         return False
 
 def printProgress(copied, total, guiOptions):
