@@ -392,15 +392,15 @@ def updateBackupTimer():
     if not config['cliMode']:
         backupEtaLabel.configure(fg=uiColor.NORMAL)
 
-    # Total is copy source, verify dest, so total data is 2 * total
-    totalToBackup = backup.getTotals()['master'] * 2
+    # Total is copy source, verify dest, so total data is 2 * copy
+    totalToBackup = backup.getTotals()['master'] - backup.getTotals()['delete']
     backupStartTime = backup.getBackupStartTime()
 
     while not threadManager.threadList['backupTimer']['killFlag']:
         backupTotals = backup.getTotals()
 
         runningTime = datetime.now() - backupStartTime
-        percentCopied = (backupTotals['running'] + backupTotals['buffer']) / totalToBackup
+        percentCopied = (backupTotals['running'] + backupTotals['buffer'] - backupTotals['delete']) / totalToBackup
 
         if percentCopied > 0:
             remainingTime = runningTime / percentCopied - runningTime

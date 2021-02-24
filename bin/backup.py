@@ -31,6 +31,7 @@ class Backup:
 
         self.totals = {
             'master': 0,
+            'delete': 0,
             'delta': 0,
             'running': 0,
             'buffer': 0,
@@ -700,6 +701,7 @@ class Backup:
             # Increment master totals
             # Double copy total to account for both copy and verify operations
             self.totals['master'] += 2 * driveTotal['copy'] + driveTotal['delete']
+            self.totals['delete'] += driveTotal['delete']
             self.totals['delta'] += driveTotal['delta']
 
             if len(fileSummary) > 0:
