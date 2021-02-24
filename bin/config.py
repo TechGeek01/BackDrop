@@ -1,5 +1,6 @@
 from configparser import ConfigParser
 import os
+import re
 
 class Config:
     BOOLEAN = 'boolean'
@@ -17,11 +18,14 @@ class Config:
             filename: The filename and location of the preference file.
         """
 
-        self.filename = filename
+        self.filename = re.sub(r'\\', '/', filename)
         self.config = ConfigParser()
 
         # Make sure destination path exists before copying
-        pathStub = filename[0:filename.rindex('\\')]
+        if self.filename.find('/') > -1:
+            pathStub = self.filename[0:self.filename.rindex('/')]
+        else:
+            pathStub = self.filename
         if not os.path.exists(pathStub):
             os.makedirs(pathStub)
 
