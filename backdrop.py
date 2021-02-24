@@ -103,9 +103,15 @@ def updateFileDetailList(listName, filename):
             # FIXME: Auto scroll skips last line in file detail list for some reason
             if listName in ['success', 'deleteSuccess']:
                 tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.NORMAL if listName in ['success', 'fail'] else uiColor.FADED, anchor='w').pack(fill='x', expand=True)
+                
+                # HACK: The scroll yview won't see the label instantly after it's packed.
+                # Sleeping for a brief time fixes that. This is acceptable as long as it's
+                # not run in the main thread, else the UI will hang.
+                time.sleep(0.01)
                 fileDetailsCopiedInfoCanvas.yview_moveto(1)
             else:
                 tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.NORMAL if listName in ['success', 'fail'] else uiColor.FADED, anchor='w').pack(fill='x', expand=True)
+                time.sleep(0.01)
                 fileDetailsFailedInfoCanvas.yview_moveto(1)
 
 def delFile(sourceFilename, size, guiOptions={}):
