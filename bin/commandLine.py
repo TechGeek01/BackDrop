@@ -9,19 +9,19 @@ class CommandLine:
 
         self.CONSOLE_WIDTH = os.get_terminal_size().columns
 
-        longParamList = [param[1] for param in self.optionList]
-        shortParamList = [param[0] for param in self.optionList]
+        param_list_long = [param[1] for param in self.optionList]
+        param_list_short = [param[0] for param in self.optionList]
 
         self.consoleWidth = os.get_terminal_size().columns
 
         self.userParams = {}
-        paramName = False
+        param_name = False
         for arg in sys.argv[1:]:
-            if arg in longParamList or arg in shortParamList:
-                if arg in longParamList:
-                    argIndex = longParamList.index(arg)
+            if arg in param_list_long or arg in param_list_short:
+                if arg in param_list_long:
+                    argIndex = param_list_long.index(arg)
                 else:
-                    argIndex = shortParamList.index(arg)
+                    argIndex = param_list_short.index(arg)
 
                 param_name = param_list_long[argIndex][2:]
                 self.__user_params[param_name] = []
@@ -73,7 +73,7 @@ class CommandLine:
         for param in self.optionInfoList:
             if type(param) is tuple:
                 displayShortOption = param[0] + ',' if type(param[0]) is str else ''
-                print(f"{displayShortOption: <{shortLength}} {param[1]: <{longLength}}    {parseString(param[3], longLength + shortLength + 5)}")
+                print(f"{displayShortOption: <{length_short}} {param[1]: <{length_long}}    {parseString(param[3], length_long + length_short + 5)}")
             else:
                 print(param)
 

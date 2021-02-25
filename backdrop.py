@@ -1862,9 +1862,7 @@ def showConfigBuilder():
         configBuilderWin.bind('<Control-s>', lambda e: builder_save_config_file())
         configBuilderWin.bind('<F5>', lambda e: builder_start_refresh_connected())
 
-        RIGHT_ARROW = '\U0001f816'
         RIGHT_ARROW = '>>'
-        LEFT_ARROW = '\U0001f814'
         LEFT_ARROW = '<<'
 
         mainFrame = tk.Frame(configBuilderWin)
