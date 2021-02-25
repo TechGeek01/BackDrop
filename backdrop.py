@@ -1558,7 +1558,8 @@ def openConfigFile():
     """Open a config file and load it."""
 
     filename = filedialog.askopenfilename(initialdir='', title='Select drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
-    readConfigFile(filename)
+    if filename:
+        readConfigFile(filename)
 
 def saveConfigFile():
     """Save the config to selected drives."""
