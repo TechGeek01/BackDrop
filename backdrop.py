@@ -1570,6 +1570,10 @@ def saveConfigFile():
 
         # For each drive letter that's connected, get drive info, and write file
         for drive in config['drives']:
+            # If config exists on drives, back it up first
+            if os.path.isfile(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"):
+                shutil.move(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}", f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}.old")
+
             currentConfigFile = Config(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")
 
             # Write shares and VIDs to config file
