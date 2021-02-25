@@ -1817,7 +1817,7 @@ def showConfigBuilder():
         configBuilderWin = tk.Toplevel(root)
         configBuilderWin.title('Config Builder')
         configBuilderWin.resizable(False, False)
-        configBuilderWin.geometry('950x500')
+        configBuilderWin.geometry('950x380')
         configBuilderWin.iconbitmap(resource_path('media\\icon.ico'))
         center(configBuilderWin, root)
 
@@ -1866,6 +1866,7 @@ def showConfigBuilder():
         mainFrame = tk.Frame(configBuilderWin)
         mainFrame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
         mainFrame.grid_columnconfigure(1, weight=1)
+        mainFrame.grid_rowconfigure(2, weight=1)
 
         # Headings
         tk.Label(mainFrame, text='Currently Connected').grid(row=0, column=0, pady=WINDOW_ELEMENT_PADDING / 2)
@@ -2097,7 +2098,7 @@ if not config['cliMode']:
 
     # Tools menu
     toolsMenu = tk.Menu(menubar, tearoff=0)
-    toolsMenu.add_command(label='Config Builder', underline=7, accelerator='WIP Ctrl+B', command=showConfigBuilder)
+    toolsMenu.add_command(label='Config Builder', underline=7, accelerator='Ctrl+B', command=showConfigBuilder)
     menubar.add_cascade(label='Tools', underline=0, menu=toolsMenu)
 
     # Preferences menu
