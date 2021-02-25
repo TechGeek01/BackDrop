@@ -30,10 +30,7 @@ from bin.update import UpdateHandler
 from bin.status import Status
 
 # Set meta info
-APP_VERSION = '3.0.0-beta.1'
-
-# IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
-# TODO: Add a button in @interface for deleting the @config from @selected_drives
+APP_VERSION = '3.0.0-rc.1'
 
 def center(win, centerOnWin=None):
     """Center a tkinter window on screen.
@@ -1646,10 +1643,301 @@ def deleteConfigFromSelectedDrives():
             # Since config files on drives changed, refresh the destination list
             startRefreshDest()
 
+configBuilderWin = None
 def showConfigBuilder():
     """Show the config builder."""
 
-    pass
+    global configBuilderWin
+    global builder_has_pending_changes
+
+    def builder_updateSaveStatusBar(status):
+        """Update the builder status bar save status.
+
+        Args:
+            status (int): The status code to use.
+        """
+
+        if status == Status.SAVE_PENDING_CHANGES:
+            builder_statusbar_changes.configure(text='Unsaved changes', fg=uiColor.INFOTEXT)
+        elif status == Status.SAVE_ALL_SAVED:
+            builder_statusbar_changes.configure(text='All changes saved', fg=uiColor.NORMAL)
+
+    def builder_load_connected():
+        """Load the connected drive info, and display it in the tree."""
+
+        driveList = win32api.GetLogicalDriveStrings()
+        driveList = driveList.split('\000')[:-1]
+
+        # Associate logical drives with physical drives, and map them to physical serial numbers
+        logicalPhysicalMap = {}
+        pythoncom.CoInitialize()
+        try:
+            for physicalDisk in wmi.WMI().Win32_DiskDrive():
+                for partition in physicalDisk.associators("Win32_DiskDriveToDiskPartition"):
+                    logicalPhysicalMap.update({logicalDisk.DeviceID[0]: physicalDisk.SerialNumber.strip() for logicalDisk in partition.associators("Win32_LogicalDiskToPartition")})
+        finally:
+            pythoncom.CoUninitialize()
+
+        # Empty tree in case this is being refreshed
+        tree_current_connected.delete(*tree_current_connected.get_children())
+
+        # Enumerate drive list to find info about all non-source drives
+        totalUsage = 0
+        destDriveMasterList = []
+        destDriveLetterToInfo = {}
+        systemDrive = f"{os.getenv('SystemDrive')[0]}:\\"
+        for drive in driveList:
+            if drive != config['sourceDrive'] and drive != systemDrive:
+                driveType = win32file.GetDriveType(drive)
+                if driveType not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
+                    driveSize = shutil.disk_usage(drive).total
+                    vsn = os.stat(drive).st_dev
+                    vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
+                    try:
+                        serial = logicalPhysicalMap[drive[0]]
+                    except KeyError:
+                        serial = 'Not Found'
+
+                    # Add drive to drive list
+                    destDriveLetterToInfo[drive[0]] = {
+                        'vid': vsn,
+                        'serial': serial
+                    }
+
+                    driveHasConfigFile = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+
+                    totalUsage = totalUsage + driveSize
+                    if not config['cliMode']:
+                        tree_current_connected.insert(parent='', index='end', text=drive, values=(human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
+
+                    destDriveMasterList.append({
+                        'name': drive,
+                        'vid': vsn,
+                        'serial': serial,
+                        'capacity': driveSize,
+                        'hasConfig': driveHasConfigFile
+                    })
+
+    def builder_open_config_file():
+        """Open a config file and load it."""
+
+        global builder_has_pending_changes
+
+        # Empty tree
+        tree_builder_configured.delete(*tree_builder_configured.get_children())
+
+        filename = filedialog.askopenfilename(initialdir='', title='Select drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')), parent=configBuilderWin)
+        if filename:
+            builder_has_pending_changes = True
+            builder_updateSaveStatusBar(Status.SAVE_PENDING_CHANGES)
+
+            configFile = Config(filename)
+
+            # Get VID list
+            vids = configFile.get('selection', 'vids').split(',')
+
+            # Get drive info
+            configTotal = 0
+            for drive in vids:
+                # Add drive capacity info to missing drive list
+                drive_capacity = configFile.get(drive, 'capacity', 0, dataType=Config.INTEGER)
+                drive_serial = configFile.get(drive, 'serial', 'Not Found')
+
+                # Insert drive into tree, and update capacity
+                tree_builder_configured.insert(parent='', index='end', text=drive, values=(human_filesize(drive_capacity), drive_capacity, drive_serial))
+                configTotal += drive_capacity
+
+    def builder_save_config_file():
+        """Save the config file to a specified location."""
+
+        global builder_has_pending_changes
+
+        filename = filedialog.asksaveasfilename(initialdir='', initialfile='backup.ini', title='Save drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')), parent=configBuilderWin)
+
+        if filename and len(tree_builder_configured.get_children()) > 0:
+            # Get already added drives to prevent adding drives twice
+            existing_drive_vids = [tree_builder_configured.item(drive, 'text') for drive in tree_builder_configured.get_children()]
+
+            # Get drive info, and write file
+            currentConfigFile = Config(filename)
+
+            # Write shares and VIDs to config file
+            currentConfigFile.set('selection', 'shares', '')
+            currentConfigFile.set('selection', 'vids', ','.join(existing_drive_vids))
+
+            # Write info for each drive to its own section
+            for drive in tree_builder_configured.get_children():
+                drive_vid = tree_builder_configured.item(drive, 'text')
+                currentConfigFile.set(drive_vid, 'vid', drive_vid)
+                currentConfigFile.set(drive_vid, 'serial', tree_builder_configured.item(drive, 'values')[2])
+                currentConfigFile.set(drive_vid, 'capacity', tree_builder_configured.item(drive, 'values')[1])
+
+            builder_has_pending_changes = False
+            builder_updateSaveStatusBar(Status.SAVE_ALL_SAVED)
+            messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully', parent=configBuilderWin)
+
+    def builder_start_refresh_connected():
+        """Start the loading of the connected drive info in a new thread."""
+
+        if not threadManager.is_alive('Refresh connected'):
+            threadManager.start(threadManager.SINGLE, target=builder_load_connected, name='Refresh connected', daemon=True)
+
+    def builder_add_drives():
+        """Add selected connected drives to config builder."""
+
+        global builder_has_pending_changes
+
+        # Get already added drives to prevent adding drives twice
+        existing_drive_vids = [tree_builder_configured.item(drive, 'text') for drive in tree_builder_configured.get_children()]
+
+        for drive in tree_current_connected.selection():
+            drive_vid = tree_current_connected.item(drive, 'values')[3]
+            drive_serial = tree_current_connected.item(drive, 'values')[4]
+            drive_size = int(tree_current_connected.item(drive, 'values')[1])
+
+            if drive_vid not in existing_drive_vids:
+                builder_has_pending_changes = True
+                builder_updateSaveStatusBar(Status.SAVE_PENDING_CHANGES)
+                tree_builder_configured.insert(parent='', index='end', text=drive_vid, values=(human_filesize(drive_size), drive_size, drive_serial))
+
+    def builder_remove_drives():
+        """Remove selected connected drives from config builder."""
+
+        global builder_has_pending_changes
+
+        # Remove all selected items from tree
+        if len(tree_builder_configured.selection()) > 0:
+            builder_has_pending_changes = True
+            builder_updateSaveStatusBar(Status.SAVE_PENDING_CHANGES)
+
+        tree_builder_configured.delete(*tree_builder_configured.selection())
+
+    if configBuilderWin is None or not configBuilderWin.winfo_exists():
+        # Initialize window
+        configBuilderWin = tk.Toplevel(root)
+        configBuilderWin.title('Config Builder')
+        configBuilderWin.resizable(False, False)
+        configBuilderWin.geometry('950x500')
+        configBuilderWin.iconbitmap(resource_path('media\\icon.ico'))
+        center(configBuilderWin, root)
+
+        def onClose():
+            if not builder_has_pending_changes or messagebox.askokcancel('Discard changes?', 'You have unsaved changes. Are you sure you want to discard them?', parent=configBuilderWin):
+                configBuilderWin.destroy()
+
+        configBuilderWin.protocol('WM_DELETE_WINDOW', onClose)
+
+        builder_has_pending_changes = False
+
+        # Add menu bar
+        menubar = tk.Menu(root)
+
+        # File menu
+        fileMenu = tk.Menu(menubar, tearoff=0)
+        fileMenu.add_command(label='Open Config', underline=0, accelerator='Ctrl+O', command=builder_open_config_file)
+        fileMenu.add_command(label='Save Config', underline=0, accelerator='Ctrl+S', command=builder_save_config_file)
+        fileMenu.add_separator()
+        fileMenu.add_command(label='Exit', underline=1, command=onClose)
+        menubar.add_cascade(label='File', underline=0, menu=fileMenu)
+
+        # Selection menu
+        selectionMenu = tk.Menu(menubar, tearoff=0)
+        selectionMenu.add_command(label='Add Selected to Config', command=builder_add_drives)
+        selectionMenu.add_command(label='Remove Selected from Config', command=builder_remove_drives)
+        menubar.add_cascade(label='Selection', underline=0, menu=selectionMenu)
+
+        # View menu
+        viewMenu = tk.Menu(menubar, tearoff=0)
+        viewMenu.add_command(label='Refresh', underline=0, accelerator='F5', command=builder_start_refresh_connected)
+        menubar.add_cascade(label='View', underline=0, menu=viewMenu)
+
+        configBuilderWin.config(menu=menubar)
+
+        # Key bindings
+        configBuilderWin.bind('<Control-o>', lambda e: builder_open_config_file())
+        configBuilderWin.bind('<Control-s>', lambda e: builder_save_config_file())
+        configBuilderWin.bind('<F5>', lambda e: builder_start_refresh_connected())
+
+        RIGHT_ARROW = '\U0001f816'
+        RIGHT_ARROW = '>>'
+        LEFT_ARROW = '\U0001f814'
+        LEFT_ARROW = '<<'
+
+        mainFrame = tk.Frame(configBuilderWin)
+        mainFrame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
+        mainFrame.grid_columnconfigure(1, weight=1)
+
+        # Headings
+        tk.Label(mainFrame, text='Currently Connected').grid(row=0, column=0, pady=WINDOW_ELEMENT_PADDING / 2)
+        tk.Label(mainFrame, text='Configured for Backup').grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 2)
+
+        tree_current_connected_frame = tk.Frame(mainFrame)
+        tree_current_connected_frame.grid(row=1, column=0, sticky='ns')
+
+        tree_current_connected = ttk.Treeview(tree_current_connected_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
+        tree_current_connected.heading('#0', text='Drive')
+        tree_current_connected.column('#0', width=50)
+        tree_current_connected.heading('size', text='Size')
+        tree_current_connected.column('size', width=80)
+        tree_current_connected.heading('configfile', text='Config')
+        tree_current_connected.column('configfile', width=50)
+        tree_current_connected.heading('vid', text='Volume ID')
+        tree_current_connected.column('vid', width=80)
+        tree_current_connected.heading('serial', text='Serial')
+        tree_current_connected.column('serial', width=150)
+        tree_current_connected['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
+
+        tree_current_connected.pack(side='left')
+        current_select_scroll = ttk.Scrollbar(tree_current_connected_frame, orient='vertical', command=tree_current_connected.yview)
+        current_select_scroll.pack(side='left', fill='y')
+        tree_current_connected.configure(yscrollcommand=current_select_scroll.set)
+
+        tree_builder_configured_frame = tk.Frame(mainFrame)
+        tree_builder_configured_frame.grid(row=1, column=2, sticky='ns')
+
+        tree_builder_configured = ttk.Treeview(tree_builder_configured_frame, columns=('size', 'rawsize', 'serial'), style='custom.Treeview')
+        tree_builder_configured.heading('#0', text='Volume ID')
+        tree_builder_configured.column('#0', width=100)
+        tree_builder_configured.heading('size', text='Size')
+        tree_builder_configured.column('size', width=80)
+        tree_builder_configured.heading('serial', text='Serial')
+        tree_builder_configured.column('serial', width=150)
+        tree_builder_configured['displaycolumns'] = ('size', 'serial')
+
+        tree_builder_configured.pack(side='left')
+        buider_configured_select_scroll = ttk.Scrollbar(tree_builder_configured_frame, orient='vertical', command=tree_builder_configured.yview)
+        buider_configured_select_scroll.pack(side='left', fill='y')
+        tree_builder_configured.configure(yscrollcommand=buider_configured_select_scroll.set)
+
+        # Create tree control pane
+        tree_control_frame = tk.Frame(mainFrame)
+        tree_control_frame.grid(row=1, column=1)
+
+        builder_refresh_btn = ttk.Button(tree_control_frame, text='Refresh', command=builder_start_refresh_connected, style='win.TButton')
+        builder_refresh_btn.pack(pady=(0, 50))
+        builder_add_btn = ttk.Button(tree_control_frame, text=f"Add {RIGHT_ARROW}", command=builder_add_drives, style='win.TButton')
+        builder_add_btn.pack()
+        builder_remove_btn = ttk.Button(tree_control_frame, text=f"{LEFT_ARROW} Remove", command=builder_remove_drives, style='win.TButton')
+        builder_remove_btn.pack()
+
+        # Create main control pane
+        main_control_frame = tk.Frame(mainFrame, bg='orange')
+        main_control_frame.grid(row=2, column=0, columnspan=3, pady=(WINDOW_ELEMENT_PADDING, 0))
+
+        save_config_btn = ttk.Button(main_control_frame, text='Save config', command=builder_save_config_file, style='win.TButton')
+        save_config_btn.pack()
+
+        builder_statusbar_frame = tk.Frame(configBuilderWin, bg=uiColor.STATUS_BAR)
+        builder_statusbar_frame.pack(fill='x', pady=0)
+        builder_statusbar_frame.columnconfigure(50, weight=1)
+
+        # Save status, left side
+        builder_statusbar_changes = tk.Label(builder_statusbar_frame, bg=uiColor.STATUS_BAR)
+        builder_statusbar_changes.grid(row=0, column=0, padx=6)
+        builder_updateSaveStatusBar(Status.SAVE_ALL_SAVED)
+
+        # Load connected drives
+        builder_start_refresh_connected()
 
 ############
 # GUI Mode #

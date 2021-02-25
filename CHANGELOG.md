@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - Added menu bar and consolidated some options and controls
 - Added open and save config options to menubar
 - Added option to delete config file from selected drives
+- Added config builder if not all drives can be connected at once
 - Added status bar to bottom of window
 - File details pane now auto scrolls as files are copied
 

@@ -13,6 +13,10 @@ class Status:
     BACKUP_READY_FOR_BACKUP = 0x12
     BACKUP_BACKUP_RUNNING = 0x13
 
+    # 0x2 => Save states
+    SAVE_PENDING_CHANGES = 0x20
+    SAVE_ALL_SAVED = 0x21
+
     # 0xe => Update UI
     UPDATEUI_ANALYSIS_BTN = 0xe0
     UPDATEUI_BACKUP_BTN = 0xe1
