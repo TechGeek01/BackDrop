@@ -36,7 +36,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    = name: Set up Python
+    - name: Set up Python
       uses: actions/setuppython@v2
       with:
         python-version: '3.x'
