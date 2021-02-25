@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 - Files are now deleted from destination if they're not copied successfully
 - Deleting is now handled in code, rather than with subprocess
 - Added menu bar and consolidated some options and controls
+- Added open and save config options to menubar
+- Added option to delete config file from selected drives
 - Added status bar to bottom of window
 - File details pane now auto scrolls as files are copied
 

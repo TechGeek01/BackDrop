@@ -1629,7 +1629,20 @@ def saveConfigFileAs():
 def deleteConfigFromSelectedDrives():
     """Delete config files from drives in destination selection."""
 
-    pass
+    driveList = [destTree.item(drive, 'text')[0] for drive in destTree.selection()]
+    driveList = [drive for drive in driveList if os.path.isfile(f"{drive}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")]
+
+    if len(driveList) > 0:
+        # Ask for confirmation before deleting
+        if messagebox.askyesno('Delete config files?', 'Are you sure you want to delete the config files from the selected drives?'):
+            # Delete config file on each drive
+            for drive in driveList:
+                configFilePath = f"{drive}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
+                if os.path.isfile(configFilePath):
+                    os.remove(configFilePath)
+
+            # Since config files on drives changed, refresh the destination list
+            startRefreshDest()
 
 def showConfigBuilder():
     """Show the config builder."""
@@ -1783,7 +1796,7 @@ if not config['cliMode']:
 
     # Selection menu
     selectionMenu = tk.Menu(menubar, tearoff=0)
-    selectionMenu.add_command(label='Delete Config from Selected Drives', accelerator='WIP', command=deleteConfigFromSelectedDrives)
+    selectionMenu.add_command(label='Delete Config from Selected Drives', command=deleteConfigFromSelectedDrives)
     menubar.add_cascade(label='Selection', underline=0, menu=selectionMenu)
 
     # View menu
