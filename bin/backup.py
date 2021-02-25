@@ -2,6 +2,7 @@ from tkinter import messagebox
 import os
 import itertools
 from datetime import datetime
+
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import bcolor
 from bin.threadManager import ThreadManager

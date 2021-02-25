@@ -1,5 +1,6 @@
 import requests
 import re
+
 from bin.status import Status
 
 class UpdateHandler:

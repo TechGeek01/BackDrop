@@ -1,22 +1,24 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, font as tkfont, filedialog
-import win32api
-import win32file
 import shutil
 import os
-import wmi
 import webbrowser
 import pythoncom
-import clipboard
-import keyboard
-from PIL import Image, ImageTk
 import hashlib
 import sys
 import time
 import ctypes
-import urllib.request
 from signal import signal, SIGINT
 from datetime import datetime
+
+import clipboard
+import keyboard
+from PIL import Image, ImageTk
+import urllib.request
+import win32api
+import win32file
+import wmi
+
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import Color, bcolor
 from bin.threadManager import ThreadManager
@@ -28,7 +30,7 @@ from bin.update import UpdateHandler
 from bin.status import Status
 
 # Set meta info
-appVersion = '3.0.0-beta.1'
+APP_VERSION = '3.0.0-beta.1'
 
 # IDEA: Add config builder, so that if user can't connect all drives at once, they can be walked through connecting drives to build an initial config
 # TODO: Add a button in @interface for deleting the @config from @selected_drives
@@ -43,18 +45,18 @@ def center(win, centerOnWin=None):
 
     win.update_idletasks()
     width = win.winfo_width()
-    frm_width = win.winfo_rootx() - win.winfo_x()
-    win_width = width + 2 * frm_width
+    frame_width = win.winfo_rootx() - win.winfo_x()
+    win_width = width + 2 * frame_width
     height = win.winfo_height()
     titlebar_height = win.winfo_rooty() - win.winfo_y()
-    win_height = height + titlebar_height + frm_width
+    win_height = height + titlebar_height + frame_width
 
     if centerOnWin is not None:
         # Center element provided, so use its position for reference
-        root_frm_width = centerOnWin.winfo_rootx() - centerOnWin.winfo_x()
-        root_win_width = centerOnWin.winfo_width() + 2 * root_frm_width
+        root_frame_width = centerOnWin.winfo_rootx() - centerOnWin.winfo_x()
+        root_win_width = centerOnWin.winfo_width() + 2 * root_frame_width
         root_titlebar_height = centerOnWin.winfo_rooty() - centerOnWin.winfo_y()
-        root_win_height = centerOnWin.winfo_height() + root_titlebar_height + root_frm_width
+        root_win_height = centerOnWin.winfo_height() + root_titlebar_height + root_frame_width
 
         x = centerOnWin.winfo_x() + root_win_width // 2 - win_width // 2
         y = centerOnWin.winfo_y() + root_win_height // 2 - win_height // 2
@@ -100,7 +102,6 @@ def updateFileDetailList(listName, filename):
                 fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList[fileDetailListName])))
 
             # Update copy list scrollable
-            # FIXME: Auto scroll skips last line in file detail list for some reason
             if listName in ['success', 'deleteSuccess']:
                 tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.NORMAL if listName in ['success', 'fail'] else uiColor.FADED, anchor='w').pack(fill='x', expand=True)
                 
@@ -655,14 +656,14 @@ def loadSource():
     progress.startIndeterminate()
 
     # Empty tree in case this is being refreshed
-    sourceTree.delete(*sourceTree.get_children())
+    tree_source.delete(*tree_source.get_children())
 
     shareSelectedSpace.configure(text='Selected: ' + human_filesize(0))
     shareTotalSpace.configure(text='Total: ~' + human_filesize(0))
 
     # Enumerate list of shares in source
     for directory in next(os.walk(config['sourceDrive']))[1]:
-        sourceTree.insert(parent='', index='end', text=directory, values=('Unknown', 0))
+        tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
 
     progress.stopIndeterminate()
 
@@ -708,25 +709,25 @@ def shareSelectCalc():
             item (String): The identifier for a share in the source tree to be calculated.
         """
 
-        shareName = sourceTree.item(item, 'text')
+        shareName = tree_source.item(item, 'text')
         newShareSize = get_directory_size(config['sourceDrive'] + shareName)
-        sourceTree.set(item, 'size', human_filesize(newShareSize))
-        sourceTree.set(item, 'rawsize', newShareSize)
+        tree_source.set(item, 'size', human_filesize(newShareSize))
+        tree_source.set(item, 'rawsize', newShareSize)
 
         # After calculating share info, update the meta info
         selectedTotal = 0
         selectedShareList = []
-        for item in sourceTree.selection():
+        for item in tree_source.selection():
             # Write selected shares to config
             selectedShareList.append({
-                'name': sourceTree.item(item, 'text'),
-                'size': int(sourceTree.item(item, 'values')[1])
+                'name': tree_source.item(item, 'text'),
+                'size': int(tree_source.item(item, 'values')[1])
             })
 
             # Add total space of selection
-            if sourceTree.item(item, 'values')[0] != 'Unknown':
+            if tree_source.item(item, 'values')[0] != 'Unknown':
                 # Add total space of selection
-                shareSize = sourceTree.item(item, 'values')[1]
+                shareSize = tree_source.item(item, 'values')[1]
                 selectedTotal = selectedTotal + int(shareSize)
 
         shareSelectedSpace.configure(text='Selected: ' + human_filesize(selectedTotal))
@@ -735,11 +736,11 @@ def shareSelectCalc():
         shareTotal = 0
         totalIsApprox = False
         totalPrefix = 'Total: '
-        for item in sourceTree.get_children():
-            shareTotal += int(sourceTree.item(item, 'values')[1])
+        for item in tree_source.get_children():
+            shareTotal += int(tree_source.item(item, 'values')[1])
 
             # If total is not yet approximate, check if the item hasn't been calculated
-            if not totalIsApprox and sourceTree.item(item, 'values')[0] == 'Unknown':
+            if not totalIsApprox and tree_source.item(item, 'values')[0] == 'Unknown':
                 totalIsApprox = True
                 totalPrefix += '~'
 
@@ -747,8 +748,8 @@ def shareSelectCalc():
 
         # If everything's calculated, enable analysis button to be clicked
         sharesAllKnown = True
-        for item in sourceTree.selection():
-            if sourceTree.item(item, 'values')[0] == 'Unknown':
+        for item in tree_source.selection():
+            if tree_source.item(item, 'values')[0] == 'Unknown':
                 sharesAllKnown = False
         if sharesAllKnown:
             startAnalysisBtn.configure(state='normal')
@@ -756,12 +757,12 @@ def shareSelectCalc():
 
         progress.stopIndeterminate()
 
-    selected = sourceTree.selection()
+    selected = tree_source.selection()
 
     config['shares'] = [{
-        'name': sourceTree.item(item, 'text'),
-        'size': int(sourceTree.item(item, 'values')[1]) if sourceTree.item(item, 'values')[0] != 'Unknown' else None
-    } for item in sourceTree.selection()]
+        'name': tree_source.item(item, 'text'),
+        'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
+    } for item in tree_source.selection()]
     updateSelectionStatusBar()
 
     # If selection is different than last time, invalidate the analysis
@@ -774,10 +775,10 @@ def shareSelectCalc():
     # Check if items in selection need to be calculated
     for item in selected:
         # If new selected item hasn't been calculated, calculate it on the fly
-        if sourceTree.item(item, 'values')[0] == 'Unknown':
+        if tree_source.item(item, 'values')[0] == 'Unknown':
             updateSelectionStatusBar(Status.BACKUPSELECT_CALCULATING_SOURCE)
             startAnalysisBtn.configure(state='disable')
-            shareName = sourceTree.item(item, 'text')
+            shareName = tree_source.item(item, 'text')
             threadManager.start(threadManager.SINGLE, target=lambda: updateShareSize(item), name=f"shareCalc_{shareName}", daemon=True)
 
 def loadSourceInBackground(event):
@@ -810,7 +811,7 @@ def loadDest():
 
     # Empty tree in case this is being refreshed
     if not config['cliMode']:
-        destTree.delete(*destTree.get_children())
+        tree_dest.delete(*tree_dest.get_children())
 
     # Enumerate drive list to find info about all non-source drives
     totalUsage = 0
@@ -839,7 +840,7 @@ def loadDest():
 
                 totalUsage = totalUsage + driveSize
                 if not config['cliMode']:
-                    destTree.insert(parent='', index='end', text=drive, values=(human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
+                    tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
 
                 destDriveMasterList.append({
                     'name': drive,
@@ -867,14 +868,14 @@ def selectFromConfig():
 
     # Get list of shares in config
     shareNameList = [item['name'] for item in config['shares']]
-    sourceTreeIdList = [item for item in sourceTree.get_children() if sourceTree.item(item, 'text') in shareNameList]
+    sourceTreeIdList = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in shareNameList]
 
-    sourceTree.focus(sourceTreeIdList[-1])
-    sourceTree.selection_set(tuple(sourceTreeIdList))
+    tree_source.focus(sourceTreeIdList[-1])
+    tree_source.selection_set(tuple(sourceTreeIdList))
 
     # Get list of drives where volume ID is in config
     connectedVidList = [drive['vid'] for drive in config['drives']]
-    driveTreeIdList = [item for item in destTree.get_children() if destTree.item(item, 'values')[3] in connectedVidList]
+    driveTreeIdList = [item for item in tree_dest.get_children() if tree_dest.item(item, 'values')[3] in connectedVidList]
 
     # If drives aren't mounted that should be, display the warning
     missingDriveCount = len(config['missingDrives'])
@@ -889,7 +890,7 @@ def selectFromConfig():
         splitwarningContract = 'isn\'t' if missingDriveCount == 1 else 'aren\'t'
         splitWarningSuffix.configure(text=f"{'drive' if missingDriveCount == 1 else 'drives'} in the config that {splitwarningContract} connected. Please connect {'it' if missingDriveCount == 1 else 'them'}, or enable split mode.")
         splitWarningMissingDriveCount.configure(text=str(missingDriveCount))
-        destSplitWarningFrame.grid(row=3, column=0, columnspan=3, sticky='nsew', pady=(0, elemPadding), ipady=elemPadding / 4)
+        destSplitWarningFrame.grid(row=3, column=0, columnspan=3, sticky='nsew', pady=(0, WINDOW_ELEMENT_PADDING), ipady=WINDOW_ELEMENT_PADDING / 4)
 
         messagebox.showwarning(warningTitle, warningMessage)
 
@@ -899,13 +900,13 @@ def selectFromConfig():
     # Because of the <<TreeviewSelect>> handler, re-selecting the same single item
     # would get stuck into an endless loop of trying to load the config
     # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
-    if destTree.selection() != tuple(driveTreeIdList):
-        destTree.unbind('<<TreeviewSelect>>', driveSelectBind)
+    if tree_dest.selection() != tuple(driveTreeIdList):
+        tree_dest.unbind('<<TreeviewSelect>>', driveSelectBind)
 
-        destTree.focus(driveTreeIdList[-1])
-        destTree.selection_set(tuple(driveTreeIdList))
+        tree_dest.focus(driveTreeIdList[-1])
+        tree_dest.selection_set(tuple(driveTreeIdList))
 
-        driveSelectBind = destTree.bind("<<TreeviewSelect>>", selectDriveInBackground)
+        driveSelectBind = tree_dest.bind("<<TreeviewSelect>>", selectDriveInBackground)
 
 def readConfigFile(file):
     """Read a config file, and set the current config based off of it.
@@ -971,7 +972,7 @@ def handleDriveSelectionClick():
 
     progress.startIndeterminate()
 
-    selected = destTree.selection()
+    selected = tree_dest.selection()
 
     # If selection is different than last time, invalidate the analysis
     selectMatch = [drive for drive in selected if drive in prevDriveSelection]
@@ -984,13 +985,13 @@ def handleDriveSelectionClick():
     # We only want to do this if the click is the first selection (that is, there
     # are no other drives selected except the one we clicked).
     if len(selected) > 0:
-        selectedDriveLetter = destTree.item(selected[0], 'text')[0]
+        selectedDriveLetter = tree_dest.item(selected[0], 'text')[0]
         configFilePath = f"{selectedDriveLetter}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
     readDrivesFromConfigFile = False
     if not keyboard.is_pressed('alt') and prevSelection <= len(selected) and len(selected) == 1 and os.path.exists(configFilePath) and os.path.isfile(configFilePath):
         # Found config file, so read it
         readConfigFile(configFilePath)
-        selected = destTree.selection()
+        selected = tree_dest.selection()
         readDrivesFromConfigFile = True
     else:
         destSplitWarningFrame.grid_remove()
@@ -999,10 +1000,9 @@ def handleDriveSelectionClick():
     selectedTotal = 0
     selectedDriveList = []
     driveLookupList = {drive['vid']: drive for drive in destDriveMasterList}
-    # TODO: Can this reference the config capacity with sum(), instead of the tree?
     for item in selected:
         # Write drive IDs to config
-        selectedDrive = driveLookupList[destTree.item(item, 'values')[3]]
+        selectedDrive = driveLookupList[tree_dest.item(item, 'values')[3]]
         selectedDriveList.append(selectedDrive)
         selectedTotal = selectedTotal + selectedDrive['capacity']
 
@@ -1102,7 +1102,7 @@ def displayUpdateScreen(updateInfo):
         currentVersionFrame = tk.Frame(mainFrame)
         currentVersionFrame.pack()
         tk.Label(currentVersionFrame, text='Current Version:', font=(None, 14)).pack(side='left')
-        tk.Label(currentVersionFrame, text=appVersion, font=(None, 14), fg=uiColor.FADED).pack(side='left')
+        tk.Label(currentVersionFrame, text=APP_VERSION, font=(None, 14), fg=uiColor.FADED).pack(side='left')
 
         latestVersionFrame = tk.Frame(mainFrame)
         latestVersionFrame.pack(pady=(2, 12))
@@ -1169,7 +1169,7 @@ BACKUP_CONFIG_DIR = '.backdrop'
 BACKUP_CONFIG_FILE = 'backup.ini'
 PREFERENCES_CONFIG_FILE = 'preferences.ini'
 APPDATA_FOLDER = os.getenv('LocalAppData') + '\\BackDrop'
-elemPadding = 16
+WINDOW_ELEMENT_PADDING = 16
 
 prefs = Config(APPDATA_FOLDER + '\\' + PREFERENCES_CONFIG_FILE)
 config = {
@@ -1220,10 +1220,10 @@ if config['cliMode']:
     if commandLine.hasParam('help'):
         commandLine.showHelp()
     elif commandLine.hasParam('version'):
-        print(f'BackDrop {appVersion}')
+        print(f'BackDrop {APP_VERSION}')
     elif commandLine.hasParam('update'):
         updateHandler = UpdateHandler(
-            currentVersion=appVersion,
+            currentVersion=APP_VERSION,
             updateCallback=checkForUpdates
         )
         updateHandler.check()
@@ -1493,17 +1493,17 @@ def updateSelectionStatusBar(status=None):
 
     # Set status
     if status == Status.BACKUPSELECT_NO_SELECTION:
-        selectionStatus.configure(text='No selection')
+        statusbar_selection.configure(text='No selection')
     elif status == Status.BACKUPSELECT_MISSING_SOURCE:
-        selectionStatus.configure(text='No shares selected')
+        statusbar_selection.configure(text='No shares selected')
     elif status == Status.BACKUPSELECT_MISSING_DEST:
-        selectionStatus.configure(text='No drives selected')
+        statusbar_selection.configure(text='No drives selected')
     elif status == Status.BACKUPSELECT_CALCULATING_SOURCE:
-        selectionStatus.configure(text='Calculating share size')
+        statusbar_selection.configure(text='Calculating share size')
     elif status == Status.BACKUPSELECT_INSUFFICIENT_SPACE:
-        selectionStatus.configure(text='Destination too small for shares')
+        statusbar_selection.configure(text='Destination too small for shares')
     elif status == Status.BACKUPSELECT_ANALYSIS_WAITING:
-        selectionStatus.configure(text='Selection OK, ready for analysis')
+        statusbar_selection.configure(text='Selection OK, ready for analysis')
 
 def updateBackupStatusBar(status):
     """Update the status bar backup status.
@@ -1513,13 +1513,13 @@ def updateBackupStatusBar(status):
     """
 
     if status == Status.BACKUP_IDLE:
-        backupStatus.configure(text='Idle')
+        statusbar_backup.configure(text='Idle')
     elif status == Status.BACKUP_ANALYSIS_RUNNING:
-        backupStatus.configure(text='Analysis running')
+        statusbar_backup.configure(text='Analysis running')
     elif status == Status.BACKUP_READY_FOR_BACKUP:
-        backupStatus.configure(text='Analysis finished, ready for backup')
+        statusbar_backup.configure(text='Analysis finished, ready for backup')
     elif status == Status.BACKUP_BACKUP_RUNNING:
-        backupStatus.configure(text='Backup running')
+        statusbar_backup.configure(text='Backup running')
 
 def updateUpdateStatusBar(status):
     """Update the status bar update message.
@@ -1529,11 +1529,11 @@ def updateUpdateStatusBar(status):
     """
 
     if status == Status.UPDATE_CHECKING:
-        updateStatus.configure(text='Checking for updates', fg=uiColor.NORMAL)
+        statusbar_update.configure(text='Checking for updates', fg=uiColor.NORMAL)
     elif status == Status.UPDATE_AVAILABLE:
-        updateStatus.configure(text='Update available!', fg=uiColor.INFOTEXT)
+        statusbar_update.configure(text='Update available!', fg=uiColor.INFOTEXT)
     elif status == Status.UPDATE_UP_TO_DATE:
-        updateStatus.configure(text='Up to date', fg=uiColor.NORMAL)
+        statusbar_update.configure(text='Up to date', fg=uiColor.NORMAL)
 
 def updateUiComponent(status, data=None):
     """Update UI elements with given data..
@@ -1629,7 +1629,7 @@ def saveConfigFileAs():
 def deleteConfigFromSelectedDrives():
     """Delete config files from drives in destination selection."""
 
-    driveList = [destTree.item(drive, 'text')[0] for drive in destTree.selection()]
+    driveList = [tree_dest.item(drive, 'text')[0] for drive in tree_dest.selection()]
     driveList = [drive for drive in driveList if os.path.isfile(f"{drive}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")]
 
     if len(driveList) > 0:
@@ -1666,7 +1666,7 @@ if not config['cliMode']:
     os.system('')
 
     updateHandler = UpdateHandler(
-        currentVersion=appVersion,
+        currentVersion=APP_VERSION,
         statusChangeFn=updateUpdateStatusBar,
         updateCallback=checkForUpdates
     )
@@ -1685,9 +1685,9 @@ if not config['cliMode']:
     root = tk.Tk()
     root.title('BackDrop - Network Drive Backup Tool')
     root.resizable(False, False)
-    rootWidth = 1200
-    rootHeight = 720
-    root.geometry(f'{rootWidth}x{rootHeight}')
+    WINDOW_WIDTH = 1200
+    WINDOW_HEIGHT = 720
+    root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}')
     root.iconbitmap(resource_path('media\\icon.ico'))
     center(root)
 
@@ -1698,24 +1698,24 @@ if not config['cliMode']:
         root.tk_setPalette(background=uiColor.BG)
 
     mainFrame = tk.Frame(root)
-    mainFrame.pack(fill='both', expand=1, padx=elemPadding, pady=(elemPadding / 2, elemPadding))
+    mainFrame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING, pady=(WINDOW_ELEMENT_PADDING / 2, WINDOW_ELEMENT_PADDING))
 
-    statusBarFrame = tk.Frame(root, bg=uiColor.STATUS_BAR)
-    statusBarFrame.pack(fill='x', pady=0)
-    statusBarFrame.columnconfigure(50, weight=1)
+    statusbar_frame = tk.Frame(root, bg=uiColor.STATUS_BAR)
+    statusbar_frame.pack(fill='x', pady=0)
+    statusbar_frame.columnconfigure(50, weight=1)
 
     # Selection and backup status, left side
-    selectionStatus = tk.Label(statusBarFrame, bg=uiColor.STATUS_BAR)
-    selectionStatus.grid(row=0, column=0, padx=6)
+    statusbar_selection = tk.Label(statusbar_frame, bg=uiColor.STATUS_BAR)
+    statusbar_selection.grid(row=0, column=0, padx=6)
     updateSelectionStatusBar()
-    backupStatus = tk.Label(statusBarFrame, bg=uiColor.STATUS_BAR)
-    backupStatus.grid(row=0, column=1, padx=6)
+    statusbar_backup = tk.Label(statusbar_frame, bg=uiColor.STATUS_BAR)
+    statusbar_backup.grid(row=0, column=1, padx=6)
     updateBackupStatusBar(Status.BACKUP_IDLE)
 
     # Update status, right side
-    updateStatus = tk.Label(statusBarFrame, text='', bg=uiColor.STATUS_BAR)
-    updateStatus.grid(row=0, column=100, padx=6)
-    updateStatus.bind('<Button-1>', lambda e: displayUpdateScreen(updateInfo))
+    statusbar_update = tk.Label(statusbar_frame, text='', bg=uiColor.STATUS_BAR)
+    statusbar_update.grid(row=0, column=100, padx=6)
+    statusbar_update.bind('<Button-1>', lambda e: displayUpdateScreen(updateInfo))
 
     # Set some default styling
     tkStyle = ttk.Style()
@@ -1846,7 +1846,7 @@ if not config['cliMode']:
 
     # Progress/status values
     progressBar = ttk.Progressbar(mainFrame, maximum=100, style='custom.Progressbar')
-    progressBar.grid(row=10, column=1, columnspan=3, sticky='ew', pady=(elemPadding, 0))
+    progressBar.grid(row=10, column=1, columnspan=3, sticky='ew', pady=(WINDOW_ELEMENT_PADDING, 0))
 
     progress = Progress(
         progressBar=progressBar,
@@ -1868,24 +1868,24 @@ if not config['cliMode']:
         sourceTreeFrame = tk.Frame(mainFrame)
         sourceTreeFrame.grid(row=1, column=1, sticky='ns')
 
-        sourceTree = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'), style='custom.Treeview')
-        sourceTree.heading('#0', text='Share')
-        sourceTree.column('#0', width=175)
-        sourceTree.heading('size', text='Size')
-        sourceTree.column('size', width=75)
-        sourceTree['displaycolumns'] = ('size')
+        tree_source = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'), style='custom.Treeview')
+        tree_source.heading('#0', text='Share')
+        tree_source.column('#0', width=175)
+        tree_source.heading('size', text='Size')
+        tree_source.column('size', width=75)
+        tree_source['displaycolumns'] = ('size')
 
-        sourceTree.pack(side='left')
-        sourceShareScroll = ttk.Scrollbar(sourceTreeFrame, orient='vertical', command=sourceTree.yview)
+        tree_source.pack(side='left')
+        sourceShareScroll = ttk.Scrollbar(sourceTreeFrame, orient='vertical', command=tree_source.yview)
         sourceShareScroll.pack(side='left', fill='y')
-        sourceTree.configure(yscrollcommand=sourceShareScroll.set)
+        tree_source.configure(yscrollcommand=sourceShareScroll.set)
 
         root.bind('<Control-F5>', lambda x: startRefreshSource())
 
         # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
         # visible, so 1px needs to be added back
         sourceMetaFrame = tk.Frame(mainFrame)
-        sourceMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(elemPadding / 2, 0))
+        sourceMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
         tk.Grid.columnconfigure(sourceMetaFrame, 0, weight=1)
 
         shareSpaceFrame = tk.Frame(sourceMetaFrame)
@@ -1898,12 +1898,12 @@ if not config['cliMode']:
         startRefreshSource()
 
         sourceSelectFrame = tk.Frame(mainFrame)
-        sourceSelectFrame.grid(row=0, column=1, pady=(0, elemPadding / 2))
+        sourceSelectFrame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2))
         tk.Label(sourceSelectFrame, text='Source:').pack(side='left')
         sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, config['sourceDrive'], *tuple(remoteDrives), command=changeSourceDrive)
         sourceSelectMenu.pack(side='left', padx=(12, 0))
 
-        sourceTree.bind("<<TreeviewSelect>>", loadSourceInBackground)
+        tree_source.bind("<<TreeviewSelect>>", loadSourceInBackground)
     else:
         sourceDriveDefault.set('No remotes')
 
@@ -1913,10 +1913,10 @@ if not config['cliMode']:
         sourceWarning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
     destTreeFrame = tk.Frame(mainFrame)
-    destTreeFrame.grid(row=1, column=2, sticky='ns', padx=(elemPadding, 0))
+    destTreeFrame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
 
     destModeFrame = tk.Frame(mainFrame)
-    destModeFrame.grid(row=0, column=2, pady=(0, elemPadding / 2))
+    destModeFrame.grid(row=0, column=2, pady=(0, WINDOW_ELEMENT_PADDING / 2))
 
     def handleSplitModeCheck():
         """Handle toggling of split mode based on checkbox value."""
@@ -1929,29 +1929,29 @@ if not config['cliMode']:
     destModeSplitCheckVar = tk.BooleanVar()
 
     altTooltipFrame = tk.Frame(destModeFrame, bg=uiColor.INFO)
-    altTooltipFrame.pack(side='left', ipadx=elemPadding / 2, ipady=4)
+    altTooltipFrame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
     tk.Label(altTooltipFrame, text='Hold ALT while selecting a drive to ignore config files', bg=uiColor.INFO, fg=uiColor.BLACK).pack(fill='y', expand=1)
 
     splitModeCheck = ttk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
     splitModeCheck.pack(side='left', padx=(12, 0))
 
-    destTree = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
-    destTree.heading('#0', text='Drive')
-    destTree.column('#0', width=50)
-    destTree.heading('size', text='Size')
-    destTree.column('size', width=90)
-    destTree.heading('configfile', text='Config file')
-    destTree.column('configfile', width=80)
-    destTree.heading('vid', text='Volume ID')
-    destTree.column('vid', width=90)
-    destTree.heading('serial', text='Serial')
-    destTree.column('serial', width=170)
-    destTree['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
+    tree_dest = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
+    tree_dest.heading('#0', text='Drive')
+    tree_dest.column('#0', width=50)
+    tree_dest.heading('size', text='Size')
+    tree_dest.column('size', width=90)
+    tree_dest.heading('configfile', text='Config file')
+    tree_dest.column('configfile', width=80)
+    tree_dest.heading('vid', text='Volume ID')
+    tree_dest.column('vid', width=90)
+    tree_dest.heading('serial', text='Serial')
+    tree_dest.column('serial', width=170)
+    tree_dest['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
 
-    destTree.pack(side='left')
-    driveSelectScroll = ttk.Scrollbar(destTreeFrame, orient='vertical', command=destTree.yview)
+    tree_dest.pack(side='left')
+    driveSelectScroll = ttk.Scrollbar(destTreeFrame, orient='vertical', command=tree_dest.yview)
     driveSelectScroll.pack(side='left', fill='y')
-    destTree.configure(yscrollcommand=driveSelectScroll.set)
+    tree_dest.configure(yscrollcommand=driveSelectScroll.set)
 
     root.bind('<F5>', lambda x: startRefreshDest())
 
@@ -2005,10 +2005,10 @@ if not config['cliMode']:
     startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze', width=7, command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled')
     startAnalysisBtn.grid(row=0, column=2)
 
-    driveSelectBind = destTree.bind('<<TreeviewSelect>>', selectDriveInBackground)
+    driveSelectBind = tree_dest.bind('<<TreeviewSelect>>', selectDriveInBackground)
 
     backupMidControlFrame = tk.Frame(mainFrame)
-    backupMidControlFrame.grid(row=4, column=1, columnspan=2, pady=(0, elemPadding / 2), sticky='ew')
+    backupMidControlFrame.grid(row=4, column=1, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
     # Add backup ETA info frame
     backupActivityEtaFrame = tk.Frame(backupMidControlFrame)
@@ -2073,7 +2073,7 @@ if not config['cliMode']:
     fileDetailsCopiedTooltip = tk.Label(fileDetailsCopiedHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
     fileDetailsCopiedTooltip.pack(side='left')
     fileDetailsCopiedFrame = tk.Frame(backupFileDetailsFrame)
-    fileDetailsCopiedFrame.grid(row=3, column=0, columnspan=2, pady=(0, elemPadding / 2), sticky='nsew')
+    fileDetailsCopiedFrame.grid(row=3, column=0, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='nsew')
     fileDetailsCopiedFrame.pack_propagate(0)
     fileDetailsCopiedInfoCanvas = tk.Canvas(fileDetailsCopiedFrame)
     fileDetailsCopiedInfoCanvas.pack(side='left', fill='both', expand=1)
@@ -2127,10 +2127,10 @@ if not config['cliMode']:
         # FIXME: Is fixing the flicker effect here possible?
         if bool(backupFileDetailsFrame.grid_info()):
             backupFileDetailsFrame.grid_remove()
-            root.geometry(f'{rootWidth}x{rootHeight}+{root.winfo_x() + 400 + elemPadding}+{root.winfo_y()}')
+            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{root.winfo_x() + 400 + WINDOW_ELEMENT_PADDING}+{root.winfo_y()}')
         else:
-            root.geometry(f'{1600 + elemPadding}x{rootHeight}+{root.winfo_x() - 400 - elemPadding}+{root.winfo_y()}')
-            backupFileDetailsFrame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, elemPadding), pady=(elemPadding / 2, 0))
+            root.geometry(f'{1600 + WINDOW_ELEMENT_PADDING}x{WINDOW_HEIGHT}+{root.winfo_x() - 400 - WINDOW_ELEMENT_PADDING}+{root.winfo_y()}')
+            backupFileDetailsFrame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
     show_fileDetailsPane = tk.BooleanVar()
     viewMenu.add_separator()
@@ -2139,10 +2139,10 @@ if not config['cliMode']:
     tk.Grid.columnconfigure(mainFrame, 3, weight=1)
 
     rightSideFrame = tk.Frame(mainFrame)
-    rightSideFrame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(elemPadding / 2, 0))
+    rightSideFrame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
     backupSummaryFrame = tk.Frame(rightSideFrame)
-    backupSummaryFrame.pack(fill='both', expand=1, padx=(elemPadding, 0))
+    backupSummaryFrame.pack(fill='both', expand=1, padx=(WINDOW_ELEMENT_PADDING, 0))
     backupSummaryFrame.update()
 
     brandingFrame = tk.Frame(rightSideFrame)
@@ -2150,7 +2150,7 @@ if not config['cliMode']:
 
     logoImageRender = ImageTk.PhotoImage(Image.open(resource_path(f"media\\logo_ui{'_light' if uiColor.isDarkMode() else ''}.png")))
     tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
-    tk.Label(brandingFrame, text=f"v{appVersion}", font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
+    tk.Label(brandingFrame, text=f"v{APP_VERSION}", font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
     tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20)).pack()
 
@@ -2162,7 +2162,7 @@ if not config['cliMode']:
     tk.Label(backupSummaryTextFrame, text='Please start a backup analysis to generate a summary.',
              wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
     startBackupBtn = ttk.Button(backupSummaryFrame, text='Run Backup', command=startBackup, state='disable')
-    startBackupBtn.pack(pady=elemPadding / 2)
+    startBackupBtn.pack(pady=WINDOW_ELEMENT_PADDING / 2)
 
     # QUESTION: Does init loadDest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
     threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=True)

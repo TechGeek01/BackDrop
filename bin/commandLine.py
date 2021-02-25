@@ -1,12 +1,13 @@
 import os
 import sys
+
 from bin.color import bcolor
 
 class CommandLine:
     def __init__(self, optionInfoList):
         self.optionInfoList = optionInfoList
 
-        self.optionList = [item for item in self.optionInfoList if type(item) is tuple]
+        self.CONSOLE_WIDTH = os.get_terminal_size().columns
 
         longParamList = [param[1] for param in self.optionList]
         shortParamList = [param[0] for param in self.optionList]
@@ -22,16 +23,16 @@ class CommandLine:
                 else:
                     argIndex = shortParamList.index(arg)
 
-                paramName = longParamList[argIndex][2:]
-                self.userParams[paramName] = []
-            elif paramName:
-                self.userParams[paramName].append(arg)
+                param_name = param_list_long[argIndex][2:]
+                self.__user_params[param_name] = []
+            elif param_name:
+                self.__user_params[param_name].append(arg)
 
     def showHelp(self):
         """Show the help menu."""
 
-        longLength = len(max([item[1] for item in self.optionList], key=len))
-        shortLength = 3
+        length_long = len(max([item[1] for item in self.__option_list], key=len))
+        length_short = 3
 
         def parseString(helpString, indentSize):
             """Convert a help string into a line-broken message for console output.
@@ -44,7 +45,7 @@ class CommandLine:
                 (String): The broken string.
             """
 
-            stringLength = self.consoleWidth - 1 - indentSize
+            stringLength = self.CONSOLE_WIDTH - 1 - indentSize
 
             remainingString = helpString
             stringParts = []
@@ -188,6 +189,9 @@ class CommandLine:
     def hasParam(self, param):
         """Check if a param is specified in the command line.
 
+        Args:
+            param (String): The param to check.
+
         Returns:
             bool: Whether or not the param is specified.
         """
@@ -196,6 +200,9 @@ class CommandLine:
 
     def getParam(self, param):
         """Get the value of a specific parameter.
+
+        Args:
+            param (String): The param to get.
 
         Returns:
             list: The list of values for the parameter.
