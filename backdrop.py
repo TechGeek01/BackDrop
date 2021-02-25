@@ -1589,6 +1589,9 @@ def saveConfigFile():
                 currentConfigFile.set(driveVid, 'serial', 'Unknown')
                 currentConfigFile.set(driveVid, 'capacity', capacity)
 
+        # Since config files on drives changed, refresh the destination list
+        startRefreshDest()
+
         messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully')
 
 def saveConfigFileAs():
