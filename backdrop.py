@@ -870,8 +870,9 @@ def selectFromConfig():
     shareNameList = [item['name'] for item in config['shares']]
     sourceTreeIdList = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in shareNameList]
 
-    tree_source.focus(sourceTreeIdList[-1])
-    tree_source.selection_set(tuple(sourceTreeIdList))
+    if len(sourceTreeIdList) > 0:
+        tree_source.focus(sourceTreeIdList[-1])
+        tree_source.selection_set(tuple(sourceTreeIdList))
 
     # Get list of drives where volume ID is in config
     connectedVidList = [drive['vid'] for drive in config['drives']]
@@ -900,7 +901,7 @@ def selectFromConfig():
     # Because of the <<TreeviewSelect>> handler, re-selecting the same single item
     # would get stuck into an endless loop of trying to load the config
     # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
-    if tree_dest.selection() != tuple(driveTreeIdList):
+    if len(driveTreeIdList) > 0 and tree_dest.selection() != tuple(driveTreeIdList):
         tree_dest.unbind('<<TreeviewSelect>>', driveSelectBind)
 
         tree_dest.focus(driveTreeIdList[-1])
