@@ -23,6 +23,7 @@ on:
 jobs:
   CodeQL-Build:
     runs-on: ubuntu-latest
+    name: Analyze
 
     strategy:
       fail-fast: false
@@ -37,7 +38,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Set up Python
-      uses: actions/setuppython@v2
+      uses: actions/setup-python@v2
       with:
         python-version: '3.x'
 
