@@ -2,6 +2,7 @@ from tkinter import messagebox
 import os
 import itertools
 from datetime import datetime
+import shutil
 
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import bcolor
@@ -760,6 +761,10 @@ class Backup:
 
             # For each drive letter connected, get drive info, and write file
             for drive in self.config['drives']:
+                # If config exists on drives, back it up first
+                if os.path.isfile(f"{drive['name']}{self.backupConfigDir}\\{self.backupConfigFile}"):
+                    shutil.move(f"{drive['name']}{self.backupConfigDir}\\{self.backupConfigFile}", f"{drive['name']}{self.backupConfigDir}\\{self.backupConfigFile}.old")
+
                 backupConfigFile = Config(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}")
 
                 # Write shares and VIDs to config file
