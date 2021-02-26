@@ -6,28 +6,28 @@ import shutil
 
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import bcolor
-from bin.threadManager import ThreadManager
+from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.status import Status
 
 class Backup:
-    def __init__(self, config, backupConfigDir, backupConfigFile, doCopyFn, doDelFn, startBackupTimerFn, updateFileDetailListFn, analysisSummaryDisplayFn, enumerateCommandInfoFn, threadManager, updateUiComponentFn=None, uiColor=None, progress=None):
+    def __init__(self, config, backup_config_dir, backup_config_file, do_copy_fn, do_del_fn, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager, update_ui_component_fn=None, uicolor=None, progress=None):
         """
         Args:
             config (dict): The backup config to be processed.
-            backupConfigDir (String): The directory to store backup configs on each drive.
-            backupConfigFile (String): The file to store backup configs on each drive.
-            doCopyFn (def): The function to be used to handle file copying. TODO: Move doCopyFn outside of Backup class.
-            doDelFn (def): The function to be used to handle file copying. TODO: Move doDelFn outside of Backup class.
-            startBackupTimerFn (def): The function to be used to start the backup timer.
-            updateUiComponentFn (def): The function to be used to update UI components (default None).
-            updateFileDetailListFn (def): The function to be used to update file lists.
-            analysisSummaryDisplayFn (def): The function to be used to show an analysis
+            backup_config_dir (String): The directory to store backup configs on each drive.
+            backup_config_file (String): The file to store backup configs on each drive.
+            do_copy_fn (def): The function to be used to handle file copying. TODO: Move do_copy_fn outside of Backup class.
+            do_del_fn (def): The function to be used to handle file copying. TODO: Move do_del_fn outside of Backup class.
+            start_backup_timer_fn (def): The function to be used to start the backup timer.
+            update_ui_component_fn (def): The function to be used to update UI components (default None).
+            update_file_detail_list_fn (def): The function to be used to update file lists.
+            analysis_summary_display_fn (def): The function to be used to show an analysis
                     summary.
-            enumerateCommandInfoFn (def): The function to be used to enumerate command info
+            display_backup_command_info_fn (def): The function to be used to enumerate command info
                     in the UI.
-            threadManager (ThreadManager): The thread manager to check for kill flags.
-            uiColor (Color): The UI color instance to reference for styling (default None). TODO: Move uiColor outside of Backup class
+            thread_manager (ThreadManager): The thread manager to check for kill flags.
+            uicolor (Color): The UI color instance to reference for styling (default None). TODO: Move uicolor outside of Backup class
             progress (Progress): The progress tracker to bind to.
         """
 
@@ -40,31 +40,35 @@ class Backup:
             'progressBar': 0
         }
 
-        self.confirmWipeExistingDrives = False
-        self.analysisValid = False
-        self.analysisStarted = False
-        self.analysisRunning = False
-        self.backupRunning = False
-        self.backupStartTime = 0
-        self.commandList = []
+        self.confirm_wipe_existing_drives = False
+        self.analysis_valid = False
+        self.analysis_started = False
+        self.analysis_running = False
+        self.backup_running = False
+        self.backup_start_time = 0
+
+        self.command_list = []
+        self.delete_file_list = {}
+        self.replace_file_list = {}
+        self.new_file_list = {}
 
         self.config = config
-        self.driveVidInfo = {drive['vid']: drive for drive in config['drives']}
+        self.DRIVE_VID_INFO = {drive['vid']: drive for drive in config['drives']}
 
-        self.backupConfigDir = backupConfigDir
-        self.backupConfigFile = backupConfigFile
-        self.uiColor = uiColor
-        self.doCopyFn = doCopyFn
-        self.doDelFn = doDelFn
-        self.startBackupTimerFn = startBackupTimerFn
-        self.updateUiComponentFn = updateUiComponentFn
-        self.updateFileDetailListFn = updateFileDetailListFn
-        self.analysisSummaryDisplayFn = analysisSummaryDisplayFn
-        self.enumerateCommandInfoFn = enumerateCommandInfoFn
-        self.threadManager = threadManager
+        self.BACKUP_CONFIG_DIR = backup_config_dir
+        self.BACKUP_CONFIG_FILE = backup_config_file
+        self.uicolor = uicolor
+        self.do_copy_fn = do_copy_fn
+        self.do_del_fn = do_del_fn
+        self.start_backup_timer_fn = start_backup_timer_fn
+        self.update_ui_component_fn = update_ui_component_fn
+        self.update_file_detail_list_fn = update_file_detail_list_fn
+        self.analysis_summary_display_fn = analysis_summary_display_fn
+        self.display_backup_command_info_fn = display_backup_command_info_fn
+        self.thread_manager = thread_manager
         self.progress = progress
 
-    def sanityCheck(self):
+    def sanity_check(self):
         """Check to make sure everything is correct before a backup.
 
         Before running a backup, or an analysis, both shares and drives need to be
@@ -78,36 +82,34 @@ class Backup:
         if not self.config['sourceDrive']:
             return False
 
-        selectionOk = len(self.config['drives']) > 0 and len(self.config['shares']) > 0
+        if len(self.config['drives']) > 0 and len(self.config['shares']) > 0:
+            share_total = 0
+            drive_total = 0
 
-        if selectionOk:
-            shareTotal = 0
-            driveTotal = 0
-
-            sharesKnown = True
+            shares_known = True
             for share in self.config['shares']:
                 if share['size'] is None:
-                    sharesKnown = False
+                    shares_known = False
                     break
 
                 # Add total space of selection
-                shareTotal += share['size']
+                share_total += share['size']
 
-            driveTotal = sum([drive['capacity'] for drive in self.config['drives']])
-            configTotal = driveTotal + sum([size for drive, size in self.config['missingDrives'].items()])
+            drive_total = sum([drive['capacity'] for drive in self.config['drives']])
+            config_total = drive_total + sum([size for drive, size in self.config['missingDrives'].items()])
 
-            if sharesKnown and ((len(self.config['missingDrives']) == 0 and shareTotal < driveTotal) or (shareTotal < configTotal and self.config['splitMode'])):
+            if shares_known and ((len(self.config['missingDrives']) == 0 and share_total < drive_total) or (share_total < config_total and self.config['splitMode'])):
                 # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
 
-                selectedNewDrives = [drive['name'] for drive in self.config['drives'] if drive['hasConfig'] is False]
-                if not self.confirmWipeExistingDrives and len(selectedNewDrives) > 0:
-                    driveString = ', '.join(selectedNewDrives[:-2] + [' and '.join(selectedNewDrives[-2:])])
+                selected_new_drives = [drive['name'] for drive in self.config['drives'] if drive['hasConfig'] is False]
+                if not self.confirm_wipe_existing_drives and len(selected_new_drives) > 0:
+                    drive_string = ', '.join(selected_new_drives[:-2] + [' and '.join(selected_new_drives[-2:])])
 
-                    newDriveConfirmTitle = f"New drive{'s' if len(selectedNewDrives) > 1 else ''} selected"
-                    newDriveConfirmMessage = f"Drive{'s' if len(selectedNewDrives) > 1 else ''} {driveString} appear{'' if len(selectedNewDrives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
-                    self.confirmWipeExistingDrives = messagebox.askyesno(newDriveConfirmTitle, newDriveConfirmMessage)
+                    new_drive_confirm_title = f"New drive{'s' if len(selected_new_drives) > 1 else ''} selected"
+                    new_drive_confirm_message = f"Drive{'s' if len(selected_new_drives) > 1 else ''} {drive_string} appear{'' if len(selected_new_drives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
+                    self.confirm_wipe_existing_drives = messagebox.askyesno(new_drive_confirm_title, new_drive_confirm_message)
 
-                    return self.confirmWipeExistingDrives
+                    return self.confirm_wipe_existing_drives
 
                 return True
 
@@ -124,104 +126,98 @@ class Backup:
             drives (tuple(String)): The list of selected drives.
 
         This function is run in a new thread, but is only run if the backup config is valid.
-        If sanityCheck() returns False, the analysis isn't run.
+        If sanity_check() returns False, the analysis isn't run.
         """
 
-        global backupSummaryTextFrame
-        global commandList
+        global backup_summary_text_frame
 
-        global deleteFileList
-        global replaceFileList
-        global newFileList
-
-        self.analysisRunning = True
-        self.analysisStarted = True
+        self.analysis_running = True
+        self.analysis_started = True
 
         if not self.config['cliMode']:
-            self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
+            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
 
         # Sanity check for space requirements
-        if not self.sanityCheck():
+        if not self.sanity_check():
             return
 
         if not self.config['cliMode']:
-            self.progress.startIndeterminate()
-            self.updateUiComponentFn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
-            self.updateUiComponentFn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'disable'})
+            self.progress.start_indeterminate()
+            self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
+            self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'disable'})
 
-        shareInfo = {share['name']: share['size'] for share in self.config['shares']}
-        allShareInfo = {share['name']: share['size'] for share in self.config['shares']}
+        share_info = {share['name']: share['size'] for share in self.config['shares']}
+        all_share_info = {share['name']: share['size'] for share in self.config['shares']}
 
-        self.analysisSummaryDisplayFn(
+        self.analysis_summary_display_fn(
             title='Shares',
             payload=[(share['name'], human_filesize(share['size'])) for share in self.config['shares']],
             reset=True
         )
 
-        driveInfo = []
-        driveShareList = {}
-        masterDriveList = [drive for drive in self.config['drives']]
-        masterDriveList.extend([{'vid': vid, 'capacity': capacity} for vid, capacity in self.config['missingDrives'].items()])
-        connectedVidList = [drive['vid'] for drive in self.config['drives']]
-        showDriveInfo = []
-        for i, drive in enumerate(masterDriveList):
-            driveConnected = drive['vid'] in connectedVidList
+        drive_info = []
+        drive_share_list = {}
+        master_drive_list = [drive for drive in self.config['drives']]
+        master_drive_list.extend([{'vid': vid, 'capacity': capacity} for vid, capacity in self.config['missingDrives'].items()])
+        connected_vid_list = [drive['vid'] for drive in self.config['drives']]
+        show_drive_info = []
+        for i, drive in enumerate(master_drive_list):
+            drive_connected = drive['vid'] in connected_vid_list
 
-            curDriveInfo = drive
-            curDriveInfo['connected'] = driveConnected
+            current_drive_info = drive
+            current_drive_info['connected'] = drive_connected
 
             # If drive is connected, collect info about config size and free space
-            if driveConnected:
-                # TODO: Replace hardcoded .backdrop with variable dir name from main file
-                curDriveInfo['configSize'] = get_directory_size(drive['name'] + '.backdrop')
+            if drive_connected:
+                current_drive_info['configSize'] = get_directory_size(drive['name'] + self.BACKUP_CONFIG_DIR)
             else:
-                curDriveInfo['name'] = f"[{drive['vid']}]"
-                curDriveInfo['configSize'] = 20000  # Assume 20K config size
+                current_drive_info['name'] = f"[{drive['vid']}]"
+                current_drive_info['configSize'] = 20000  # Assume 20K config size
 
-            curDriveInfo['free'] = drive['capacity'] - drive['configSize']
+            current_drive_info['free'] = drive['capacity'] - drive['configSize']
 
-            driveInfo.append(curDriveInfo)
+            drive_info.append(current_drive_info)
 
             # Enumerate list for tracking what shares go where
-            driveShareList[drive['vid']] = []
+            drive_share_list[drive['vid']] = []
 
-            showDriveInfo.append((curDriveInfo['name'], human_filesize(drive['capacity']), driveConnected))
+            show_drive_info.append((current_drive_info['name'], human_filesize(drive['capacity']), drive_connected))
 
-        self.analysisSummaryDisplayFn(
+        self.analysis_summary_display_fn(
             title='Drives',
-            payload=showDriveInfo
+            payload=show_drive_info
         )
 
         # For each drive, smallest first, filter list of shares to those that fit
-        driveInfo.sort(key=lambda x: x['free'])
+        drive_info.sort(key=lambda x: x['free'])
 
-        allDriveFilesBuffer = {drive['name']: [] for drive in masterDriveList}
+        all_drive_files_buffer = {drive['name']: [] for drive in master_drive_list}
 
-        for i, drive in enumerate(driveInfo):
+        for i, drive in enumerate(drive_info):
             # Get list of shares small enough to fit on drive
-            smallShares = {share: size for share, size in shareInfo.items() if size <= drive['free']}
+            small_shares = {share: size for share, size in share_info.items() if size <= drive['free']}
 
             # Try every combination of shares that fit to find result that uses most of that drive
-            largestSum = 0
-            largestSet = []
-            for n in range(1, len(smallShares) + 1):
-                for subset in itertools.combinations(smallShares.keys(), n):
-                    combinationTotal = sum(smallShares[share] for share in subset)
+            largest_sum = 0
+            largest_set = []
+            for n in range(1, len(small_shares) + 1):
+                for subset in itertools.combinations(small_shares.keys(), n):
+                    combination_total = sum(small_shares[share] for share in subset)
 
-                    if (combinationTotal > largestSum and combinationTotal <= drive['free']):
-                        largestSum = combinationTotal
-                        largestSet = subset
+                    if (combination_total > largest_sum and combination_total <= drive['free']):
+                        largest_sum = combination_total
+                        largest_set = subset
 
-            sharesThatFit = [share for share in largestSet]
-            remainingSmallShares = {share: size for (share, size) in smallShares.items() if share not in sharesThatFit}
-            shareInfo = {share: size for (share, size) in shareInfo.items() if share not in sharesThatFit}
+            shares_that_fit = [share for share in largest_set]
+            remaining_small_shares = {share: size for (share, size) in small_shares.items() if share not in shares_that_fit}
+            share_info = {share: size for (share, size) in share_info.items() if share not in shares_that_fit}
 
             # If not all shares fit on smallest drive at once (at least one share has to be put
             # on the next largest drive), check free space on next largest drive
-            if len(remainingSmallShares) > 0 and i < (len(driveInfo) - 1):
-                notFitTotal = sum(size for size in remainingSmallShares.values())
-                nextDrive = driveInfo[i + 1]
-                nextDriveFreeSpace = nextDrive['free'] - notFitTotal
+            if len(remaining_small_shares) > 0 and i < (len(drive_info) - 1):
+                not_fit_total = sum(size for size in remaining_small_shares.values())
+                next_drive = drive_info[i + 1]
+                next_drive_free_space = next_drive['free'] - not_fit_total
 
                 # If free space on next drive is less than total capacity of current drive, it
                 # becomes more efficient to skip current drive, and put all shares on the next
@@ -230,32 +226,32 @@ class Backup:
                 # split across multiple drives after moving them to a larger drive, then it's
                 # easier to fit what we can on the small drive, to leave the larger drives
                 # available for larger shares
-                if notFitTotal <= nextDrive['free']:
-                    totalSmallShareSpace = sum(size for size in smallShares.values())
-                    if nextDriveFreeSpace < drive['free'] and totalSmallShareSpace <= nextDrive['free']:
+                if not_fit_total <= next_drive['free']:
+                    total_small_share_space = sum(size for size in small_shares.values())
+                    if next_drive_free_space < drive['free'] and total_small_share_space <= next_drive['free']:
                         # Next drive free space less than total on current, so it's optimal to store on next drive instead
-                        driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys()])  # All small shares on next drive
+                        drive_share_list[next_drive['vid']].extend([share for share in small_shares.keys()])  # All small shares on next drive
                     else:
                         # Better to leave on current, but overflow to next drive
-                        driveShareList[drive['vid']].extend(sharesThatFit)  # Shares that fit on current drive
-                        driveShareList[nextDrive['vid']].extend([share for share in smallShares.keys() if share not in sharesThatFit])  # Remaining small shares on next drive
+                        drive_share_list[drive['vid']].extend(shares_that_fit)  # Shares that fit on current drive
+                        drive_share_list[next_drive['vid']].extend([share for share in small_shares.keys() if share not in shares_that_fit])  # Remaining small shares on next drive
                 else:
                     # If overflow for next drive is more than can fit on that drive, ignore it, put overflow
                     # back in pool of shares to sort, and put small drive shares only in current drive
-                    driveShareList[drive['vid']].extend(sharesThatFit)  # Shares that fit on current drive
-                    allDriveFilesBuffer[drive['name']].extend([f"{drive['name']}{share}" for share in sharesThatFit])
+                    drive_share_list[drive['vid']].extend(shares_that_fit)  # Shares that fit on current drive
+                    all_drive_files_buffer[drive['name']].extend([f"{drive['name']}{share}" for share in shares_that_fit])
 
                     # Put remaining small shares back into pool to work with for next drive
-                    shareInfo.update({share: size for share, size in remainingSmallShares.items()})
+                    share_info.update({share: size for share, size in remaining_small_shares.items()})
             else:
                 # Fit all small shares onto drive
-                driveShareList[drive['vid']].extend(sharesThatFit)
+                drive_share_list[drive['vid']].extend(shares_that_fit)
 
             # Calculate space used by shares, and subtract it from capacity to get free space
-            usedSpace = sum(allShareInfo[share] for share in driveShareList[drive['vid']])
-            driveInfo[i]['free'] -= usedSpace
+            used_space = sum(all_share_info[share] for share in drive_share_list[drive['vid']])
+            drive_info[i]['free'] -= used_space
 
-        def splitShare(share):
+        def split_share(share):
             """Recurse into a share or directory, and split the contents.
 
             Args:
@@ -263,138 +259,137 @@ class Backup:
             """
 
             # Enumerate list for tracking what shares go where
-            driveFileList = {drive['vid']: [] for drive in driveInfo}
+            drive_file_list = {drive['vid']: [] for drive in drive_info}
 
-            fileInfo = {}
+            file_info = {}
             for entry in os.scandir(self.config['sourceDrive'] + share):
                 if entry.is_file():
-                    newDirSize = entry.stat().st_size
+                    new_dir_size = entry.stat().st_size
                 elif entry.is_dir():
-                    newDirSize = get_directory_size(entry.path)
+                    new_dir_size = get_directory_size(entry.path)
 
                 filename = entry.path.split('\\')[-1]
-                fileInfo[filename] = newDirSize
+                file_info[filename] = new_dir_size
 
             # For splitting shares, sort by largest free space first
-            driveInfo.sort(reverse=True, key=lambda x: x['free'])
+            drive_info.sort(reverse=True, key=lambda x: x['free'])
 
-            for i, drive in enumerate(driveInfo):
+            for i, drive in enumerate(drive_info):
                 # Get list of files small enough to fit on drive
-                totalSmallFiles = {file: size for file, size in fileInfo.items() if size <= drive['free']}
+                total_small_files = {file: size for file, size in file_info.items() if size <= drive['free']}
 
                 # Since the list of files is truncated to prevent an unreasonably large
                 # number of combinations to check, we need to keep processing the file list
                 # in chunks to make sure we check if all files can be fit on one drive
                 # TODO: This @analysis loop logic may need to be copied to the main @share portion, though this is only necessary if the user selects a large number of shares
-                filesThatFit = []
-                processedSmallFiles = []
-                processedFileSize = 0
-                while len(processedSmallFiles) < len(totalSmallFiles):
+                files_that_fit_on_drive = []
+                processed_small_files = []
+                processed_file_size = 0
+                while len(processed_small_files) < len(total_small_files):
                     # Trim the list of small files to those that aren't already processed
-                    smallFiles = {file: size for (file, size) in totalSmallFiles.items() if file not in processedSmallFiles}
+                    small_file_list = {file: size for (file, size) in total_small_files.items() if file not in processed_small_files}
 
                     # Make sure we don't end with an unreasonable number of combinations to go through
                     # by sorting by largest first, and truncating
                     # Sorting files first, since files can't be split, so it's preferred to have directories last
-                    listFiles = {}
-                    listDirs = {}
-                    for file, size in smallFiles.items():
+                    file_list = {}
+                    dir_list = {}
+                    for file, size in small_file_list.items():
                         if os.path.isfile(self.config['sourceDrive'] + '\\' + share + '\\' + file):
-                            listFiles[file] = size
+                            file_list[file] = size
                         elif os.path.isdir(self.config['sourceDrive'] + '\\' + share + '\\' + file):
-                            listDirs[file] = size
+                            dir_list[file] = size
 
                     # Sort file list by largest first, and truncate to prevent unreasonably large number of combinations
-                    smallFiles = sorted(listFiles.items(), key=lambda x: x[1], reverse=True)
-                    smallFiles.extend(sorted(listDirs.items(), key=lambda x: x[1], reverse=True))
-                    trimmedSmallFiles = {file[0]: file[1] for file in smallFiles[:15]}
-                    smallFiles = {file[0]: file[1] for file in smallFiles}
+                    small_file_list = sorted(file_list.items(), key=lambda x: x[1], reverse=True)
+                    small_file_list.extend(sorted(dir_list.items(), key=lambda x: x[1], reverse=True))
+                    trimmed_small_file_list = {file[0]: file[1] for file in small_file_list[:15]}
+                    small_file_list = {file[0]: file[1] for file in small_file_list}
 
                     # Try every combination of shares that fit to find result that uses most of that drive
-                    largestSum = 0
-                    largestSet = []
-                    for n in range(1, len(trimmedSmallFiles) + 1):
-                        for subset in itertools.combinations(trimmedSmallFiles.keys(), n):
-                            combinationTotal = sum(trimmedSmallFiles[file] for file in subset)
+                    largest_sum = 0
+                    largest_set = []
+                    for n in range(1, len(trimmed_small_file_list) + 1):
+                        for subset in itertools.combinations(trimmed_small_file_list.keys(), n):
+                            combination_total = sum(trimmed_small_file_list[file] for file in subset)
 
-                            if (combinationTotal > largestSum and combinationTotal <= drive['free'] - processedFileSize):
-                                largestSum = combinationTotal
-                                largestSet = subset
+                            if (combination_total > largest_sum and combination_total <= drive['free'] - processed_file_size):
+                                largest_sum = combination_total
+                                largest_set = subset
 
-                    filesThatFit.extend([file for file in largestSet])
-                    processedSmallFiles.extend([file for file in trimmedSmallFiles.keys()])
-                    fileInfo = {file: size for (file, size) in fileInfo.items() if file not in largestSet}
+                    files_that_fit_on_drive.extend([file for file in largest_set])
+                    processed_small_files.extend([file for file in trimmed_small_file_list.keys()])
+                    file_info = {file: size for (file, size) in file_info.items() if file not in largest_set}
 
                     # Subtract file size of each batch of files from the free space on the drive so the next batch sorts properly
-                    processedFileSize += sum([size for (file, size) in smallFiles.items() if file in largestSet])
+                    processed_file_size += sum([size for (file, size) in small_file_list.items() if file in largest_set])
 
                 # Assign files to drive, and subtract filesize from free space
                 # Since we're sorting by largest free space first, there's no cases to move
                 # to a larger drive. This means all files that can fit should be put on the
                 # drive they fit on.
-                driveFileList[drive['vid']].extend(filesThatFit)
-                driveInfo[i]['free'] -= processedFileSize
+                drive_file_list[drive['vid']].extend(files_that_fit_on_drive)
+                drive_info[i]['free'] -= processed_file_size
 
-            shareSplitSummary = [{
+            share_split_summary = [{
                 'share': share,
-                'files': driveFileList,
-                'exclusions': [file for file in fileInfo.keys()]
+                'files': drive_file_list,
+                'exclusions': [file for file in file_info.keys()]
             }]
 
-            for file in fileInfo.keys():
-                filePath = share + '\\' + file
-                shareSplitSummary.extend(splitShare(filePath))
+            for file in file_info.keys():
+                file_path = share + '\\' + file
+                share_split_summary.extend(split_share(file_path))
 
-            return shareSplitSummary
+            return share_split_summary
 
         # For shares larger than all drives, recurse into each share
-        driveExclusions = {drive['name']: [] for drive in masterDriveList}
-        for share in shareInfo.keys():
+        drive_exclusions = {drive['name']: [] for drive in master_drive_list}
+        for share in share_info.keys():
             if os.path.exists(self.config['sourceDrive'] + share) and os.path.isdir(self.config['sourceDrive'] + share):
-                summary = splitShare(share)
+                summary = split_share(share)
 
                 # Build exclusion list for other drives\
                 # This is done by "inverting" the file list for each drive into a list of exclusions for other drives
-                for summaryItem in summary:
-                    fileList = summaryItem['files']
+                for directory in summary:
+                    file_list = directory['files']
 
-                    for drive, files in fileList.items():
-                        driveLetter = self.driveVidInfo[drive]['name']
-
+                    for drive, files in file_list.items():
                         # Add files to file list
-                        allDriveFilesBuffer[driveLetter].extend(files)
+                        all_drive_files_buffer[self.DRIVE_VID_INFO[drive]['name']].extend(files)
 
                 # Each summary contains a split share, and any split subfolders, starting with
                 # the share and recursing into the directories
                 for directory in summary:
-                    shareName = directory['share']
-                    shareFiles = directory['files']
-                    shareExclusions = directory['exclusions']
+                    share_name = directory['share']
+                    share_files = directory['files']
+                    share_exclusions = directory['exclusions']
 
-                    allFiles = shareFiles.copy()
-                    allFiles['exclusions'] = shareExclusions
+                    all_files = share_files.copy()
+                    all_files['exclusions'] = share_exclusions
 
-                    # sourcePathStub = self.config['sourceDrive'] + shareName + '\\'
-                    sourcePathStub = shareName + '\\'
+                    # source_path_stub = self.config['sourceDrive'] + share_name + '\\'
+                    source_path_stub = share_name + '\\'
 
                     # For each drive, gather list of files to be written to other drives, and
                     # use that as exclusions
-                    for drive, files in shareFiles.items():
+                    for drive, files in share_files.items():
                         if len(files) > 0:
-                            rawExclusions = allFiles.copy()
-                            rawExclusions.pop(drive, None)
+                            raw_exclusions = all_files.copy()
+                            raw_exclusions.pop(drive, None)
 
-                            masterExclusions = [file for fileList in rawExclusions.values() for file in fileList]
+                            # Build master full exclusion list
+                            master_exclusions = [file for file_list in raw_exclusions.values() for file in file_list]
 
                             # Remove share if excluded in parent splitting
-                            if shareName in driveExclusions[self.driveVidInfo[drive]['name']]:
-                                driveExclusions[self.driveVidInfo[drive]['name']].remove(shareName)
+                            if share_name in drive_exclusions[self.DRIVE_VID_INFO[drive]['name']]:
+                                drive_exclusions[self.DRIVE_VID_INFO[drive]['name']].remove(share_name)
 
                             # Add new exclusions to list
-                            driveExclusions[self.driveVidInfo[drive]['name']].extend([sourcePathStub + file for file in masterExclusions])
-                            driveShareList[drive].append(shareName)
+                            drive_exclusions[self.DRIVE_VID_INFO[drive]['name']].extend([source_path_stub + file for file in master_exclusions])
+                            drive_share_list[drive].append(share_name)
 
-        def recurseFileList(directory):
+        def recurse_file_list(directory):
             """Get a complete list of files in a directory.
 
             Args:
@@ -404,34 +399,34 @@ class Backup:
                 String[]: The file list.
             """
 
-            fileList = []
+            file_list = []
             try:
                 if len(os.scandir(directory)) > 0:
                     for entry in os.scandir(directory):
                         # For each entry, either add filesize to the total, or recurse into the directory
                         if entry.is_file():
-                            fileList.append(entry.path)
+                            file_list.append(entry.path)
                         elif entry.is_dir():
-                            fileList.append(entry.path)
-                            fileList.extend(recurseFileList(entry.path))
+                            file_list.append(entry.path)
+                            file_list.extend(recurse_file_list(entry.path))
                 else:
                     # No files, so append dir to list
-                    fileList.append(entry.path)
+                    file_list.append(entry.path)
             except NotADirectoryError:
                 return []
             except PermissionError:
                 return []
             except OSError:
                 return []
-            return fileList
+            return file_list
 
         # For each drive in file list buffer, recurse into each directory and build a complete file list
-        allDriveFiles = {drive['name']: [] for drive in masterDriveList}
-        for drive, files in allDriveFilesBuffer.items():
+        all_drive_files = {drive['name']: [] for drive in master_drive_list}
+        for drive, files in all_drive_files_buffer.items():
             for file in files:
-                allDriveFiles[drive].extend(recurseFileList(file))
+                all_drive_files[drive].extend(recurse_file_list(file))
 
-        def buildDeltaFileList(drive, shares, exclusions):
+        def build_delta_file_list(drive, shares, exclusions):
             """Get lists of files to delete and replace from the destination drive, that no longer
             exist in the source, or have changed.
 
@@ -447,50 +442,50 @@ class Backup:
                 }
             """
 
-            specialIgnoreList = [self.backupConfigDir, '$RECYCLE.BIN', 'System Volume Information']
-            fileList = {
+            special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
+            file_list = {
                 'delete': [],
                 'replace': []
             }
             try:
-                sharesBeingProcessed = [share for share in shares if share == drive[3:] or share + '\\' in drive[3:]]
+                shares_to_process = [share for share in shares if share == drive[3:] or share + '\\' in drive[3:]]
                 for entry in os.scandir(drive):
+                    stub_path = entry.path[3:]
+                    source_path = self.config['sourceDrive'] + stub_path
+
                     # For each entry, either add filesize to the total, or recurse into the directory
                     if entry.is_file():
-                        stubPath = entry.path[3:]
-                        sourcePath = self.config['sourceDrive'] + stubPath
-                        if (stubPath.find('\\') == -1  # Files should not be on root of drive
-                                or not os.path.isfile(sourcePath)  # File doesn't exist in source, so delete it
-                                or stubPath in exclusions  # File is excluded from drive
-                                or len(sharesBeingProcessed) == 0):  # File should only count if dir is share or child, not parent
-                            fileList['delete'].append((entry.path, entry.stat().st_size))
-                            self.updateFileDetailListFn('delete', entry.path)
-                        elif os.path.isfile(sourcePath):
-                            if (entry.stat().st_mtime != os.path.getmtime(sourcePath)  # Existing file is older than source
-                                    or entry.stat().st_size != os.path.getsize(sourcePath)):  # Existing file is different size than source
+                        if (stub_path.find('\\') == -1  # Files should not be on root of drive
+                                or not os.path.isfile(source_path)  # File doesn't exist in source, so delete it
+                                or stub_path in exclusions  # File is excluded from drive
+                                or len(shares_to_process) == 0):  # File should only count if dir is share or child, not parent
+                            file_list['delete'].append((entry.path, entry.stat().st_size))
+                            self.update_file_detail_list_fn('delete', entry.path)
+                        elif os.path.isfile(source_path):
+                            if (entry.stat().st_mtime != os.path.getmtime(source_path)  # Existing file is older than source
+                                    or entry.stat().st_size != os.path.getsize(source_path)):  # Existing file is different size than source
                                 # If existing dest file is not same time as source, it needs to be replaced
-                                fileList['replace'].append((entry.path, os.path.getsize(sourcePath), entry.stat().st_size))
-                                self.updateFileDetailListFn('copy', entry.path)
+                                file_list['replace'].append((entry.path, os.path.getsize(source_path), entry.stat().st_size))
+                                self.update_file_detail_list_fn('copy', entry.path)
                     elif entry.is_dir():
-                        foundShare = False
-                        stubPath = entry.path[3:]
-                        sourcePath = self.config['sourceDrive'] + stubPath
+                        found_share = False
+
                         for item in shares:
-                            if (stubPath == item  # Dir is share, so it stays
-                                    or (stubPath.find(item + '\\') == 0 and os.path.isdir(sourcePath))  # Dir is subdir inside share, and it exists in source
-                                    or item.find(stubPath + '\\') == 0):  # Dir is parent directory of a share we're copying, so it stays
+                            if (stub_path == item  # Dir is share, so it stays
+                                    or (stub_path.find(item + '\\') == 0 and os.path.isdir(source_path))  # Dir is subdir inside share, and it exists in source
+                                    or item.find(stub_path + '\\') == 0):  # Dir is parent directory of a share we're copying, so it stays
                                 # Recurse into the share
-                                newList = buildDeltaFileList(entry.path, shares, exclusions)
-                                fileList['delete'].extend(newList['delete'])
-                                fileList['replace'].extend(newList['replace'])
-                                foundShare = True
+                                new_list = build_delta_file_list(entry.path, shares, exclusions)
+                                file_list['delete'].extend(new_list['delete'])
+                                file_list['replace'].extend(new_list['replace'])
+                                found_share = True
                                 break
 
-                        if not foundShare and stubPath not in specialIgnoreList and stubPath not in exclusions:
+                        if not found_share and stub_path not in special_ignore_list and stub_path not in exclusions:
                             # Directory isn't share, or part of one, and isn't a special folder or
                             # exclusion, so delete it
-                            fileList['delete'].append((entry.path, get_directory_size(entry.path)))
-                            self.updateFileDetailListFn('delete', entry.path)
+                            file_list['delete'].append((entry.path, get_directory_size(entry.path)))
+                            self.update_file_detail_list_fn('delete', entry.path)
             except NotADirectoryError:
                 return {
                     'delete': [],
@@ -506,9 +501,9 @@ class Backup:
                     'delete': [],
                     'replace': []
                 }
-            return fileList
+            return file_list
 
-        def buildNewFileList(drive, shares, exclusions):
+        def build_new_(drive, shares, exclusions):
             """Get lists of files to copy to the destination drive, that only exist on the
             source.
 
@@ -523,46 +518,46 @@ class Backup:
                 }
             """
 
-            fileList = {
+            file_list = {
                 'new': []
             }
 
-            targetDrive = drive[0:3]
+            target_drive = drive[0:3]
 
             try:
                 if len(os.listdir(self.config['sourceDrive'] + drive[3:])) > 0:
-                    sharesBeingProcessed = [share for share in shares if share == drive[3:] or share + '\\' in drive[3:]]
+                    shares_to_process = [share for share in shares if share == drive[3:] or share + '\\' in drive[3:]]
                     for entry in os.scandir(self.config['sourceDrive'] + drive[3:]):
+                        stub_path = entry.path[3:]
+                        target_path = target_drive + stub_path
+
                         # For each entry, either add filesize to the total, or recurse into the directory
                         if entry.is_file():
-                            if (entry.path[3:].find('\\') > -1  # File is not in root of source
-                                    and not os.path.isfile(targetDrive + entry.path[3:])  # File doesn't exist in destination drive
-                                    and entry.path[3:] not in exclusions  # File isn't part of drive exclusion
-                                    and len(sharesBeingProcessed) > 0):  # File should only count if dir is share or child, not parent
-                                fileList['new'].append((targetDrive + entry.path[3:], entry.stat().st_size))
-                                self.updateFileDetailListFn('copy', targetDrive + entry.path[3:])
+                            if (stub_path.find('\\') > -1  # File is not in root of source
+                                    and not os.path.isfile(target_path)  # File doesn't exist in destination drive
+                                    and stub_path not in exclusions  # File isn't part of drive exclusion
+                                    and len(shares_to_process) > 0):  # File should only count if dir is share or child, not parent
+                                file_list['new'].append((target_path, entry.stat().st_size))
+                                self.update_file_detail_list_fn('copy', target_path)
                         elif entry.is_dir():
                             for item in shares:
-                                if (entry.path[3:] == item  # Dir is share, so it stays
-                                        or entry.path[3:].find(item + '\\') == 0  # Dir is subdir inside share
-                                        or item.find(entry.path[3:] + '\\') == 0):  # Dir is parent directory of share
-                                    if os.path.isdir(targetDrive + entry.path[3:]):
+                                if (stub_path == item  # Dir is share, so it stays
+                                        or stub_path.find(item + '\\') == 0  # Dir is subdir inside share
+                                        or item.find(stub_path + '\\') == 0):  # Dir is parent directory of share
+                                    if os.path.isdir(target_path):
                                         # If exists on dest, recurse into it
-                                        newList = buildNewFileList(targetDrive + entry.path[3:], shares, exclusions)
-                                        fileList['new'].extend(newList['new'])
+                                        new_list = build_new_(target_path, shares, exclusions)
+                                        file_list['new'].extend(new_list['new'])
                                         break
-                                    elif entry.path[3:] not in exclusions:
+                                    elif stub_path not in exclusions:
                                         # Path doesn't exist on dest, so add to list if not excluded
-                                        # fileList['new'].append((targetDrive + entry.path[3:], get_directory_size(entry.path)))
-                                        # self.updateFileDetailListFn('copy', targetDrive + entry.path[3:])
-
-                                        newList = buildNewFileList(targetDrive + entry.path[3:], shares, exclusions)
-                                        fileList['new'].extend(newList['new'])
+                                        new_list = build_new_(target_path, shares, exclusions)
+                                        file_list['new'].extend(new_list['new'])
                                         break
                 elif not os.path.isdir(drive):
                     # If no files in folder on source, create empty folder in destination
                     return {
-                        'new': [(targetDrive + drive[3:], get_directory_size(self.config['sourceDrive'] + drive[3:]))]
+                        'new': [(target_drive + drive[3:], get_directory_size(self.config['sourceDrive'] + drive[3:]))]
                     }
 
             except NotADirectoryError:
@@ -577,96 +572,96 @@ class Backup:
                 return {
                     'new': []
                 }
-            return fileList
+            return file_list
 
         # Build list of files/dirs to delete and replace
-        deleteFileList = {}
-        replaceFileList = {}
-        newFileList = {}
-        purgeCommandList = []
-        copyCommandList = []
-        displayPurgeCommandList = []
-        displayCopyCommandList = []
-        for drive, shares in driveShareList.items():
-            modifyFileList = buildDeltaFileList(self.driveVidInfo[drive]['name'], shares, driveExclusions[self.driveVidInfo[drive]['name']])
+        self.delete_file_list = {}
+        self.replace_file_list = {}
+        self.new_file_list = {}
+        purge_command_list = []
+        copy_command_list = []
+        display_purge_command_list = []
+        display_copy_command_list = []
+        for drive, shares in drive_share_list.items():
+            modified_file_list = build_delta_file_list(self.DRIVE_VID_INFO[drive]['name'], shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])
 
-            deleteItems = modifyFileList['delete']
-            if len(deleteItems) > 0:
-                deleteFileList[self.driveVidInfo[drive]['name']] = deleteItems
-                fileDeleteList = [file for file, size in deleteItems]
+            delete_items = modified_file_list['delete']
+            if len(delete_items) > 0:
+                self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']] = delete_items
+                file_delete_list = [file for file, size in delete_items]
 
-                displayPurgeCommandList.append({
+                display_purge_command_list.append({
                     'enabled': True,
                     'type': 'fileList',
-                    'drive': self.driveVidInfo[drive]['name'],
-                    'size': sum([size for file, size in deleteItems]),
-                    'fileList': fileDeleteList,
+                    'drive': self.DRIVE_VID_INFO[drive]['name'],
+                    'size': sum([size for file, size in delete_items]),
+                    'fileList': file_delete_list,
                     'mode': 'delete'
                 })
 
-                purgeCommandList.append({
-                    'displayIndex': len(displayPurgeCommandList) + 1,
+                purge_command_list.append({
+                    'displayIndex': len(display_purge_command_list) + 1,
                     'type': 'fileList',
-                    'drive': self.driveVidInfo[drive]['name'],
-                    'fileList': fileDeleteList,
-                    'payload': deleteItems,
+                    'drive': self.DRIVE_VID_INFO[drive]['name'],
+                    'fileList': file_delete_list,
+                    'payload': delete_items,
                     'mode': 'delete'
                 })
 
             # Build list of files to replace
-            replaceItems = modifyFileList['replace']
-            replaceItems.sort(key=lambda x: x[1])
-            if len(replaceItems) > 0:
-                replaceFileList[self.driveVidInfo[drive]['name']] = replaceItems
-                fileReplaceList = [file for file, sourceSize, destSize in replaceItems]
+            replace_items = modified_file_list['replace']
+            replace_items.sort(key=lambda x: x[1])
+            if len(replace_items) > 0:
+                self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']] = replace_items
+                file_replace_list = [file for file, source_size, dest_size in replace_items]
 
-                displayCopyCommandList.append({
+                display_copy_command_list.append({
                     'enabled': True,
                     'type': 'fileList',
-                    'drive': self.driveVidInfo[drive]['name'],
-                    'size': sum([sourceSize for file, sourceSize, destSize in replaceItems]),
-                    'fileList': fileReplaceList,
+                    'drive': self.DRIVE_VID_INFO[drive]['name'],
+                    'size': sum([source_size for file, source_size, dest_size in replace_items]),
+                    'fileList': file_replace_list,
                     'mode': 'replace'
                 })
 
-                copyCommandList.append({
-                    'displayIndex': len(displayPurgeCommandList) + 1,
+                copy_command_list.append({
+                    'displayIndex': len(display_purge_command_list) + 1,
                     'type': 'fileList',
-                    'drive': self.driveVidInfo[drive]['name'],
-                    'fileList': fileReplaceList,
-                    'payload': replaceItems,
+                    'drive': self.DRIVE_VID_INFO[drive]['name'],
+                    'fileList': file_replace_list,
+                    'payload': replace_items,
                     'mode': 'replace'
                 })
 
             # Build list of new files to copy
-            newItems = buildNewFileList(self.driveVidInfo[drive]['name'], shares, driveExclusions[self.driveVidInfo[drive]['name']])['new']
-            if len(newItems) > 0:
-                newFileList[self.driveVidInfo[drive]['name']] = newItems
-                fileCopyList = [file for file, size in newItems]
+            new_items = build_new_(self.DRIVE_VID_INFO[drive]['name'], shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])['new']
+            if len(new_items) > 0:
+                self.new_file_list[self.DRIVE_VID_INFO[drive]['name']] = new_items
+                file_copy_list = [file for file, size in new_items]
 
-                displayCopyCommandList.append({
+                display_copy_command_list.append({
                     'enabled': True,
                     'type': 'fileList',
-                    'drive': self.driveVidInfo[drive]['name'],
-                    'size': sum([size for file, size in newItems]),
-                    'fileList': fileCopyList,
+                    'drive': self.DRIVE_VID_INFO[drive]['name'],
+                    'size': sum([size for file, size in new_items]),
+                    'fileList': file_copy_list,
                     'mode': 'copy'
                 })
 
-                copyCommandList.append({
-                    'displayIndex': len(displayPurgeCommandList) + 1,
+                copy_command_list.append({
+                    'displayIndex': len(display_purge_command_list) + 1,
                     'type': 'fileList',
-                    'drive': self.driveVidInfo[drive]['name'],
-                    'fileList': fileCopyList,
-                    'payload': newItems,
+                    'drive': self.DRIVE_VID_INFO[drive]['name'],
+                    'fileList': file_copy_list,
+                    'payload': new_items,
                     'mode': 'copy'
                 })
 
         # Gather and summarize totals for analysis summary
-        showFileInfo = []
-        for i, drive in enumerate(driveShareList.keys()):
-            fileSummary = []
-            driveTotal = {
+        show_file_info = []
+        for i, drive in enumerate(drive_share_list.keys()):
+            file_summary = []
+            drive_total = {
                 'running': 0,
                 'delta': 0,
                 'delete': 0,
@@ -675,74 +670,74 @@ class Backup:
                 'new': 0
             }
 
-            if self.driveVidInfo[drive]['name'] in deleteFileList.keys():
-                driveTotal['delete'] = sum([size for file, size in deleteFileList[self.driveVidInfo[drive]['name']]])
+            if self.DRIVE_VID_INFO[drive]['name'] in self.delete_file_list.keys():
+                drive_total['delete'] = sum([size for file, size in self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']]])
 
-                driveTotal['running'] -= driveTotal['delete']
-                self.totals['delta'] -= driveTotal['delete']
+                drive_total['running'] -= drive_total['delete']
+                self.totals['delta'] -= drive_total['delete']
 
-                fileSummary.append(f"Deleting {len(deleteFileList[self.driveVidInfo[drive]['name']])} files ({human_filesize(driveTotal['delete'])})")
+                file_summary.append(f"Deleting {len(self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']])} files ({human_filesize(drive_total['delete'])})")
 
-            if self.driveVidInfo[drive]['name'] in replaceFileList.keys():
-                driveTotal['replace'] = sum([sourceSize for file, sourceSize, destSize in replaceFileList[self.driveVidInfo[drive]['name']]])
+            if self.DRIVE_VID_INFO[drive]['name'] in self.replace_file_list.keys():
+                drive_total['replace'] = sum([source_size for file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]])
 
-                driveTotal['running'] += driveTotal['replace']
-                driveTotal['copy'] += driveTotal['replace']
-                driveTotal['delta'] += sum([sourceSize - destSize for file, sourceSize, destSize in replaceFileList[self.driveVidInfo[drive]['name']]])
+                drive_total['running'] += drive_total['replace']
+                drive_total['copy'] += drive_total['replace']
+                drive_total['delta'] += sum([source_size - dest_size for file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]])
 
-                fileSummary.append(f"Updating {len(replaceFileList[self.driveVidInfo[drive]['name']])} files ({human_filesize(driveTotal['replace'])})")
+                file_summary.append(f"Updating {len(self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']])} files ({human_filesize(drive_total['replace'])})")
 
-            if self.driveVidInfo[drive]['name'] in newFileList.keys():
-                driveTotal['new'] = sum([size for file, size in newFileList[self.driveVidInfo[drive]['name']]])
+            if self.DRIVE_VID_INFO[drive]['name'] in self.new_file_list.keys():
+                drive_total['new'] = sum([size for file, size in self.new_file_list[self.DRIVE_VID_INFO[drive]['name']]])
 
-                driveTotal['running'] += driveTotal['new']
-                driveTotal['copy'] += driveTotal['new']
-                driveTotal['delta'] += driveTotal['new']
+                drive_total['running'] += drive_total['new']
+                drive_total['copy'] += drive_total['new']
+                drive_total['delta'] += drive_total['new']
 
-                fileSummary.append(f"{len(newFileList[self.driveVidInfo[drive]['name']])} new files ({human_filesize(driveTotal['new'])})")
+                file_summary.append(f"{len(self.new_file_list[self.DRIVE_VID_INFO[drive]['name']])} new files ({human_filesize(drive_total['new'])})")
 
             # Increment master totals
             # Double copy total to account for both copy and verify operations
-            self.totals['master'] += 2 * driveTotal['copy'] + driveTotal['delete']
-            self.totals['delete'] += driveTotal['delete']
-            self.totals['delta'] += driveTotal['delta']
+            self.totals['master'] += 2 * drive_total['copy'] + drive_total['delete']
+            self.totals['delete'] += drive_total['delete']
+            self.totals['delta'] += drive_total['delta']
 
-            if len(fileSummary) > 0:
-                showFileInfo.append((self.driveVidInfo[drive]['name'], '\n'.join(fileSummary)))
+            if len(file_summary) > 0:
+                show_file_info.append((self.DRIVE_VID_INFO[drive]['name'], '\n'.join(file_summary)))
 
-        self.analysisSummaryDisplayFn(
+        self.analysis_summary_display_fn(
             title='Files',
-            payload=showFileInfo
+            payload=show_file_info
         )
 
         # Concat both lists into command list
-        commandList = [cmd for cmd in purgeCommandList]
-        commandList.extend([cmd for cmd in copyCommandList])
+        self.command_list = [cmd for cmd in purge_command_list]
+        self.command_list.extend([cmd for cmd in copy_command_list])
 
         # Concat lists into display command list
-        displayCommandList = [cmd for cmd in displayPurgeCommandList]
-        displayCommandList.extend([cmd for cmd in displayCopyCommandList])
+        display_command_list = [cmd for cmd in display_purge_command_list]
+        display_command_list.extend([cmd for cmd in display_copy_command_list])
 
         # Fix display index on command list
-        for i, cmd in enumerate(commandList):
-            commandList[i]['displayIndex'] = i
+        for i, cmd in enumerate(self.command_list):
+            self.command_list[i]['displayIndex'] = i
 
-        self.analysisSummaryDisplayFn(
+        self.analysis_summary_display_fn(
             title='Summary',
-            payload=[(self.driveVidInfo[drive]['name'], '\n'.join(shares), drive in connectedVidList) for drive, shares in driveShareList.items()]
+            payload=[(self.DRIVE_VID_INFO[drive]['name'], '\n'.join(shares), drive in connected_vid_list) for drive, shares in drive_share_list.items()]
         )
 
-        self.enumerateCommandInfoFn(self, displayCommandList)
+        self.display_backup_command_info_fn(self, display_command_list)
 
-        self.analysisValid = True
+        self.analysis_valid = True
 
         if not self.config['cliMode']:
-            self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
-            self.updateUiComponentFn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
-            self.updateUiComponentFn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'normal'})
-            self.progress.stopIndeterminate()
+            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
+            self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
+            self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'normal'})
+            self.progress.stop_indeterminate()
 
-        self.analysisRunning = False
+        self.analysis_running = False
 
     # TODO: Make changes to existing @config check the existing for missing @drives, and delete the config file from drives we unselected if there's multiple drives in a config
     # TODO: If a @drive @config is overwritten with a new config file, due to the drive
@@ -751,178 +746,154 @@ class Backup:
     # on unselected drives only if the config file on the drive we want to delete matches
     # the config on selected drives
     # TODO: When @drive @selection happens, drives in the @config should only be selected if the config on the other drive matches. If it doesn't don't select it by default, and warn about a conflict.
-    def writeConfigFile(self):
+    def write_config_to_disks(self):
         """Write the current running backup config to config files on the drives."""
 
         if len(self.config['shares']) > 0 and len(self.config['drives']) > 0:
-            shareList = ','.join([item['name'] for item in self.config['shares']])
-            rawVidList = [drive['vid'] for drive in self.config['drives']]
-            rawVidList.extend(self.config['missingDrives'].keys())
-            vidList = ','.join(rawVidList)
+            share_list = ','.join([item['name'] for item in self.config['shares']])
+            raw_vid_list = [drive['vid'] for drive in self.config['drives']]
+            raw_vid_list.extend(self.config['missingDrives'].keys())
+            vid_list = ','.join(raw_vid_list)
 
             # For each drive letter connected, get drive info, and write file
             for drive in self.config['drives']:
                 # If config exists on drives, back it up first
-                if os.path.isfile(f"{drive['name']}{self.backupConfigDir}\\{self.backupConfigFile}"):
-                    shutil.move(f"{drive['name']}{self.backupConfigDir}\\{self.backupConfigFile}", f"{drive['name']}{self.backupConfigDir}\\{self.backupConfigFile}.old")
+                if os.path.isfile(f"{drive['name']}{self.BACKUP_CONFIG_DIR}\\{self.BACKUP_CONFIG_FILE}"):
+                    shutil.move(f"{drive['name']}{self.BACKUP_CONFIG_DIR}\\{self.BACKUP_CONFIG_FILE}", f"{drive['name']}{self.BACKUP_CONFIG_DIR}\\{self.BACKUP_CONFIG_FILE}.old")
 
-                backupConfigFile = Config(f"{self.driveVidInfo[drive['vid']]['name']}{self.backupConfigDir}\\{self.backupConfigFile}")
+                drive_config_file = Config(f"{self.DRIVE_VID_INFO[drive['vid']]['name']}{self.BACKUP_CONFIG_DIR}\\{self.BACKUP_CONFIG_FILE}")
 
                 # Write shares and VIDs to config file
-                backupConfigFile.set('selection', 'shares', shareList)
-                backupConfigFile.set('selection', 'vids', vidList)
+                drive_config_file.set('selection', 'shares', share_list)
+                drive_config_file.set('selection', 'vids', vid_list)
 
                 # Write info for each drive to its own section
-                for curDrive in self.config['drives']:
-                    backupConfigFile.set(curDrive['vid'], 'vid', curDrive['vid'])
-                    backupConfigFile.set(curDrive['vid'], 'serial', curDrive['serial'])
-                    backupConfigFile.set(curDrive['vid'], 'capacity', curDrive['capacity'])
+                for cur_drive in self.config['drives']:
+                    drive_config_file.set(cur_drive['vid'], 'vid', cur_drive['vid'])
+                    drive_config_file.set(cur_drive['vid'], 'serial', cur_drive['serial'])
+                    drive_config_file.set(cur_drive['vid'], 'capacity', cur_drive['capacity'])
 
                 # Write info for missing drives
-                for driveVid, capacity in self.config['missingDrives'].items():
-                    backupConfigFile.set(driveVid, 'vid', driveVid)
-                    backupConfigFile.set(driveVid, 'serial', 'Unknown')
-                    backupConfigFile.set(driveVid, 'capacity', capacity)
+                for drive_vid, capacity in self.config['missingDrives'].items():
+                    drive_config_file.set(drive_vid, 'vid', drive_vid)
+                    drive_config_file.set(drive_vid, 'serial', 'Unknown')
+                    drive_config_file.set(drive_vid, 'capacity', capacity)
 
     def run(self):
         """Once the backup analysis is run, and drives and shares are selected, run the backup.
 
         This function is run in a new thread, but is only run if the backup config is valid.
-        If sanityCheck() returns False, the backup isn't run.
+        If sanity_check() returns False, the backup isn't run.
         """
 
-        self.backupRunning = True
+        self.backup_running = True
         if not self.config['cliMode']:
-            self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_BACKUP_RUNNING)
+            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_BACKUP_RUNNING)
 
-        if not self.analysisValid or not self.sanityCheck():
+        if not self.analysis_valid or not self.sanity_check():
             return
 
         # Write config file to drives
-        self.writeConfigFile()
+        self.write_config_to_disks()
 
         if not self.config['cliMode']:
-            self.progress.setMax(self.totals['master'])
+            self.progress.set_max(self.totals['master'])
 
-            for cmd in commandList:
-                self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Pending', fg=self.uiColor.PENDING)
+            for cmd in self.command_list:
+                self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Pending', fg=self.uicolor.PENDING)
                 if cmd['type'] == 'fileList':
-                    self.cmdInfoBlocks[cmd['displayIndex']]['currentFileResult'].configure(text='Pending', fg=self.uiColor.PENDING)
-                self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=self.uiColor.PENDING)
+                    self.cmd_info_blocks[cmd['displayIndex']]['currentFileResult'].configure(text='Pending', fg=self.uicolor.PENDING)
+                self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=self.uicolor.PENDING)
 
-            self.updateUiComponentFn(Status.UPDATEUI_STOP_BACKUP_BTN)
+            self.update_ui_component_fn(Status.UPDATEUI_STOP_BACKUP_BTN)
 
-        timerStarted = False
+        timer_started = False
 
-        for cmd in commandList:
+        for cmd in self.command_list:
             if cmd['type'] == 'fileList':
                 if not self.config['cliMode']:
-                    self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uiColor.RUNNING)
+                    self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uicolor.RUNNING)
 
-                if not timerStarted:
-                    timerStarted = True
-                    self.backupStartTime = datetime.now()
+                if not timer_started:
+                    timer_started = True
+                    self.backup_start_time = datetime.now()
 
-                    self.threadManager.start(ThreadManager.KILLABLE, name='backupTimer', target=self.startBackupTimerFn)
+                    self.thread_manager.start(ThreadManager.KILLABLE, name='backupTimer', target=self.start_backup_timer_fn)
 
                 if cmd['mode'] == 'delete':
                     for file, size in cmd['payload']:
-                        if self.threadManager.threadList['Backup']['killFlag']:
+                        if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
 
-                        guiOptions = {
+                        gui_options = {
                             'displayIndex': cmd['displayIndex']
                         }
 
-                        self.doDelFn(file, size, guiOptions)
+                        self.do_del_fn(file, size, gui_options)
                 if cmd['mode'] == 'replace':
-                    for file, sourceSize, destSize in cmd['payload']:
-                        if self.threadManager.threadList['Backup']['killFlag']:
+                    for file, source_size, dest_size in cmd['payload']:
+                        if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
 
-                        sourceFile = self.config['sourceDrive'] + file[3:]
-                        destFile = file
+                        src = self.config['sourceDrive'] + file[3:]
+                        dest = file
 
-                        guiOptions = {
+                        gui_options = {
                             'displayIndex': cmd['displayIndex']
                         }
 
-                        self.doCopyFn(sourceFile, destFile, guiOptions)
+                        self.do_copy_fn(src, dest, gui_options)
                 elif cmd['mode'] == 'copy':
                     for file, size in cmd['payload']:
-                        if self.threadManager.threadList['Backup']['killFlag']:
+                        if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
 
-                        sourceFile = self.config['sourceDrive'] + file[3:]
-                        destFile = file
+                        src = self.config['sourceDrive'] + file[3:]
+                        dest = file
 
-                        guiOptions = {
+                        gui_options = {
                             'displayIndex': cmd['displayIndex']
                         }
 
-                        self.doCopyFn(sourceFile, destFile, guiOptions)
+                        self.do_copy_fn(src, dest, gui_options)
 
-            if self.threadManager.threadList['Backup']['killFlag']:
+            if self.thread_manager.threadlist['Backup']['killFlag']:
                 if not self.config['cliMode']:
-                    self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=self.uiColor.STOPPED)
-                    self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=self.uiColor.STOPPED)
+                    self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=self.uicolor.STOPPED)
+                    self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=self.uicolor.STOPPED)
                 else:
                     print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 break
-            if not self.threadManager.threadList['Backup']['killFlag']:
+            if not self.thread_manager.threadlist['Backup']['killFlag']:
                 if not self.config['cliMode']:
-                    self.cmdInfoBlocks[cmd['displayIndex']]['state'].configure(text='Done', fg=self.uiColor.FINISHED)
-                    self.cmdInfoBlocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=self.uiColor.FINISHED)
+                    self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Done', fg=self.uicolor.FINISHED)
+                    self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=self.uicolor.FINISHED)
                 else:
                     print(f"{bcolor.OKGREEN}Backup finished{bcolor.ENDC}")
 
-        self.threadManager.kill('backupTimer')
+        self.thread_manager.kill('backupTimer')
 
         if not self.config['cliMode']:
-            self.updateUiComponentFn(Status.UPDATEUI_START_BACKUP_BTN)
-            self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_IDLE)
+            self.update_ui_component_fn(Status.UPDATEUI_START_BACKUP_BTN)
+            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_IDLE)
 
-        self.backupRunning = False
+        self.backup_running = False
 
-    def getTotals(self):
-        """
-        Returns:
-            totals (dict): The backup totals for the current instance.
-        """
-
-        return self.totals
-
-    def getBackupStartTime(self):
+    def get_backup_start_time(self):
         """
         Returns:
             datetime: The time the backup started. (default 0)
         """
 
-        if self.backupStartTime:
-            return self.backupStartTime
+        if self.backup_start_time:
+            return self.backup_start_time
         else:
             return 0
 
-    def getCmdInfoBlocks(self):
-        """
-        Returns:
-            dict: The command info blocks for the current backup.
-        """
-
-        return self.cmdInfoBlocks
-
-    def isAnalysisStarted(self):
-        """
-        Returns:
-            bool: Whether or not the analysis has been started.
-        """
-
-        return self.analysisStarted
-
-    def isRunning(self):
+    def is_running(self):
         """
         Returns:
             bool: Whether or not the backup is actively running something.
         """
 
-        return self.analysisRunning or self.backupRunning
+        return self.analysis_running or self.backup_running

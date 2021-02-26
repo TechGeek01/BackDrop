@@ -26,12 +26,12 @@ class Color:
     BGACCENT3 = '#888'
     COLORACCENT = GREEN
 
-    def __init__(self, root, darkMode=False):
-        self.darkMode = darkMode
+    def __init__(self, root, dark_mode=False):
+        self.dark_mode = dark_mode
 
         Color.BG = root.cget('background')
 
-        if darkMode:
+        if dark_mode:
             Color.BG = '#333'
             Color.FG = Color.WHITE
             Color.NORMAL = Color.WHITE
@@ -55,14 +55,14 @@ class Color:
         Color.STOPPED = Color.RED
         Color.PENDING = Color.FADED
 
-    def isDarkMode(self):
+    def is_dark_mode(self):
         """Check whether the color pallete is set to dark mode or not.
 
         Returns:
             bool: Whether the pallete is set to dark mode.
         """
 
-        return self.darkMode
+        return self.dark_mode
 
 class bcolor:
     HEADER = '\033[95m'

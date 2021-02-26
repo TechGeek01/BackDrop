@@ -4,24 +4,24 @@ import re
 from bin.status import Status
 
 class UpdateHandler:
-    def __init__(self, currentVersion, updateCallback, statusChangeFn=None):
+    def __init__(self, current_version, update_callback, status_change_fn=None):
         """
         Args:
-            currentVersion (String): The current version of the program.
-            updateCallback (def): The function to call with update results.
-            statusChangeFn (def): The function to call when changing status.
+            current_version (String): The current version of the program.
+            update_callback (def): The function to call with update results.
+            status_change_fn (def): The function to call when changing status.
         """
 
-        self.currentVersion = currentVersion
+        self.current_version = current_version
 
-        if statusChangeFn is not None:
-            self.statusChangeFn = statusChangeFn
+        if status_change_fn is not None:
+            self.status_change_fn = status_change_fn
         else:
-            self.statusChangeFn = None
+            self.status_change_fn = None
 
-        self.updateCallback = updateCallback
+        self.update_callback = update_callback
 
-    def __getLatestVersion(self):
+    def __get_latest_version(self):
         """Get the latest version of the program.
 
         Returns:
@@ -31,18 +31,18 @@ class UpdateHandler:
         """
 
         response = requests.get('https://api.github.com/repos/TechGeek01/BackDrop/releases/latest')
-        jsonResponse = response.json()
+        json_response = response.json()
 
         return {
-            'latest': jsonResponse['tag_name'],
-            'download': [asset['browser_download_url'] for asset in jsonResponse['assets']]
+            'latest': json_response['tag_name'],
+            'download': [asset['browser_download_url'] for asset in json_response['assets']]
         }
 
-    def __parseVersion(self, versionString):
+    def __parse_version(self, version_string):
         """Parse a version string into it's appropriate parts.
 
         Args:
-            versionString (String): The string of the version to check.
+            version_string (String): The string of the version to check.
 
         Returns:
             dict: The version components parsed.
@@ -54,62 +54,62 @@ class UpdateHandler:
                 dict.dev.count (int): Development version.
         """
 
-        m = re.search(r'(\d+)\.(\d+)\.(\d+)(?:-([A_Za-z]+)\.(\d+))?', versionString)
+        m = re.search(r'(\d+)\.(\d+)\.(\d+)(?:-([A_Za-z]+)\.(\d+))?', version_string)
 
         if m.group(4) is not None and m.group(5) is not None:
             # Dev version exists
-            devVersion = {
+            dev_version = {
                 'stage': m.group(4).lower(),
                 'version': int(m.group(5))
             }
         else:
-            devVersion = None
+            dev_version = None
 
         return {
             'major': int(m.group(1)),
             'minor': int(m.group(2)),
             'patch': int(m.group(3)),
-            'dev': devVersion
+            'dev': dev_version
         }
 
-    def __currentIsLatestVersion(self, currentVersion, latestVersion):
+    def __current_is_latest_version(self, current_version, latest_version):
         """Check if the current version is the latest version or newer.
 
         Args:
-            currentVersion (parseVersion): The current version to compare.
-            latestVersion (parseVersion): The latest version to compare to.
+            current_version (parse_version): The current version to compare.
+            latest_version (parse_version): The latest version to compare to.
 
         Returns:
             bool: True if current version is latest version, false otherwise.
         """
 
         # Compare major version
-        if currentVersion['major'] < latestVersion['major']:
+        if current_version['major'] < latest_version['major']:
             # Major version is older
             return False
-        elif currentVersion['major'] > latestVersion['major']:
+        elif current_version['major'] > latest_version['major']:
             # Major version is newer
             return True
 
         # Major versions match
         # Compare minor version
-        if currentVersion['minor'] < latestVersion['minor']:
+        if current_version['minor'] < latest_version['minor']:
             # Minor version is older
             return False
-        elif currentVersion['minor'] > latestVersion['minor']:
+        elif current_version['minor'] > latest_version['minor']:
             # Minor version is newer
             return True
 
         # Minor versions match
         # Compare patch version
-        if currentVersion['patch'] < latestVersion['patch']:
+        if current_version['patch'] < latest_version['patch']:
             # Patch version is older
             return False
-        elif currentVersion['patch'] > latestVersion['patch']:
+        elif current_version['patch'] > latest_version['patch']:
             # Patch version is newer
             return True
 
-        devStageRank = {
+        dev_stage_rank = {
             'pre': 0,
             'alpha': 1,
             'beta': 2,
@@ -118,26 +118,26 @@ class UpdateHandler:
 
         # Versions match
         # Compare development tags
-        if currentVersion['dev'] is None and latestVersion['dev'] is None:
+        if current_version['dev'] is None and latest_version['dev'] is None:
             # Neither version has dev tag, so versions are identical
             return True
-        elif currentVersion['dev'] is not None and latestVersion['dev'] is None:
+        elif current_version['dev'] is not None and latest_version['dev'] is None:
             # Latest is not dev
             return False
-        elif currentVersion['dev'] is None and latestVersion['dev'] is not None:
+        elif current_version['dev'] is None and latest_version['dev'] is not None:
             # Latest is dev
             return True
         else:
-            currentDevStageRank = devStageRank[currentVersion['dev']['stage']] if currentVersion['dev']['stage'] in devStageRank.keys() else -1
-            latestDevStageRank = devStageRank[latestVersion['dev']['stage']] if latestVersion['dev']['stage'] in devStageRank.keys() else -1
+            current_dev_stage_rank = dev_stage_rank[current_version['dev']['stage']] if current_version['dev']['stage'] in dev_stage_rank.keys() else -1
+            latest_dev_stage_rank = dev_stage_rank[latest_version['dev']['stage']] if latest_version['dev']['stage'] in dev_stage_rank.keys() else -1
 
-            if currentDevStageRank > latestDevStageRank:
+            if current_dev_stage_rank > latest_dev_stage_rank:
                 # Current dev stage is ranked higher
                 return True
-            elif currentDevStageRank < latestDevStageRank:
+            elif current_dev_stage_rank < latest_dev_stage_rank:
                 # Latest dev stage is ranked higher
                 return False
-            elif currentVersion['dev']['version'] >= latestVersion['dev']['version']:
+            elif current_version['dev']['version'] >= latest_version['dev']['version']:
                 # Current dev version is same or newer than latest
                 return True
             else:
@@ -149,23 +149,23 @@ class UpdateHandler:
 
         Returns:
             dict: The update info
-            dict.currentVersion (String): The curent version string.
+            dict.current_version (String): The curent version string.
             dict.updateAvailable (bool): Whether or not an update is available.
             dict.latestVersion (String): The latest version.
             dict.download (String[]): A list of downloads for each latest asset.
         """
 
-        self.statusChangeFn(Status.UPDATE_CHECKING)
+        self.status_change_fn(Status.UPDATE_CHECKING)
 
-        latestVersion = self.__getLatestVersion()
-        updateInfo = {
-            'currentVersion': self.currentVersion,
-            'updateAvailable': not self.__currentIsLatestVersion(self.__parseVersion(self.currentVersion), self.__parseVersion(latestVersion['latest'])),
-            'latestVersion': latestVersion['latest'],
-            'download': latestVersion['download']
+        latest_version = self.__get_latest_version()
+        update_info = {
+            'current_version': self.current_version,
+            'updateAvailable': not self.__current_is_latest_version(self.__parse_version(self.current_version), self.__parse_version(latest_version['latest'])),
+            'latestVersion': latest_version['latest'],
+            'download': latest_version['download']
         }
 
-        self.statusChangeFn(Status.UPDATE_AVAILABLE if updateInfo['updateAvailable'] else Status.UPDATE_UP_TO_DATE)
-        self.updateCallback(updateInfo)
+        self.status_change_fn(Status.UPDATE_AVAILABLE if update_info['updateAvailable'] else Status.UPDATE_UP_TO_DATE)
+        self.update_callback(update_info)
 
-        return updateInfo
+        return update_info

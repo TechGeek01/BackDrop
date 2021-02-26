@@ -21,10 +21,10 @@ import wmi
 
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import Color, bcolor
-from bin.threadManager import ThreadManager
+from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.progress import Progress
-from bin.commandLine import CommandLine
+from bin.commandline import CommandLine
 from bin.backup import Backup
 from bin.update import UpdateHandler
 from bin.status import Status
@@ -32,141 +32,141 @@ from bin.status import Status
 # Set meta info
 APP_VERSION = '3.0.0-rc.1'
 
-def center(win, centerOnWin=None):
+def center(win, center_to_window=None):
     """Center a tkinter window on screen.
 
     Args:
         win (tkinter.Tk): The tkinter Tk() object to center.
-        centerOnWin (tkinter.Tk): The window to center the child window on.
+        center_to_window (tkinter.Tk): The window to center the child window on.
     """
 
     win.update_idletasks()
-    width = win.winfo_width()
-    frame_width = win.winfo_rootx() - win.winfo_x()
-    win_width = width + 2 * frame_width
-    height = win.winfo_height()
-    titlebar_height = win.winfo_rooty() - win.winfo_y()
-    win_height = height + titlebar_height + frame_width
+    WIDTH = win.winfo_width()
+    FRAME_WIDTH = win.winfo_rootx() - win.winfo_x()
+    WIN_WIDTH = WIDTH + 2 * FRAME_WIDTH
+    HEIGHT = win.winfo_height()
+    TITLEBAR_HEIGHT = win.winfo_rooty() - win.winfo_y()
+    WIN_HEIGHT = HEIGHT + TITLEBAR_HEIGHT + FRAME_WIDTH
 
-    if centerOnWin is not None:
+    if center_to_window is not None:
         # Center element provided, so use its position for reference
-        root_frame_width = centerOnWin.winfo_rootx() - centerOnWin.winfo_x()
-        root_win_width = centerOnWin.winfo_width() + 2 * root_frame_width
-        root_titlebar_height = centerOnWin.winfo_rooty() - centerOnWin.winfo_y()
-        root_win_height = centerOnWin.winfo_height() + root_titlebar_height + root_frame_width
+        ROOT_FRAME_WIDTH = center_to_window.winfo_rootx() - center_to_window.winfo_x()
+        ROOT_WIN_WIDTH = center_to_window.winfo_width() + 2 * ROOT_FRAME_WIDTH
+        ROOT_TITLEBAR_HEIGHT = center_to_window.winfo_rooty() - center_to_window.winfo_y()
+        ROOT_WIN_HEIGHT = center_to_window.winfo_height() + ROOT_TITLEBAR_HEIGHT + ROOT_FRAME_WIDTH
 
-        x = centerOnWin.winfo_x() + root_win_width // 2 - win_width // 2
-        y = centerOnWin.winfo_y() + root_win_height // 2 - win_height // 2
+        x = center_to_window.winfo_x() + ROOT_WIN_WIDTH // 2 - WIN_WIDTH // 2
+        y = center_to_window.winfo_y() + ROOT_WIN_HEIGHT // 2 - WIN_HEIGHT // 2
     else:
         # No center element, so center on screen
-        x = win.winfo_screenwidth() // 2 - win_width // 2
-        y = win.winfo_screenheight() // 2 - win_height // 2
+        x = win.winfo_screenwidth() // 2 - WIN_WIDTH // 2
+        y = win.winfo_screenheight() // 2 - WIN_HEIGHT // 2
 
-    win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+    win.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, x, y))
     win.deiconify()
 
-def updateFileDetailList(listName, filename):
+def update_file_detail_lists(list_name, filename):
     """Update the file lists for the detail file view.
 
     Args:
-        listName (String): The list name to update.
+        list_name (String): The list name to update.
         filename (String): The file path to add to the list.
     """
 
     if not config['cliMode']:
-        fileDetailList[listName].append({
+        file_detail_list[list_name].append({
             'displayName': filename.split('\\')[-1],
             'filename': filename
         })
 
-        if listName == 'delete':
-            fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList['delete'])))
-            fileDetailsPendingDeleteCounterTotal.configure(text=str(len(fileDetailList['delete'])))
-        elif listName == 'copy':
-            fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList['copy'])))
-            fileDetailsPendingCopyCounterTotal.configure(text=str(len(fileDetailList['copy'])))
-        elif listName in ['deleteSuccess', 'deleteFail', 'success', 'fail']:
+        if list_name == 'delete':
+            file_details_pending_delete_counter.configure(text=str(len(file_detail_list['delete'])))
+            file_details_pending_delete_counter_total.configure(text=str(len(file_detail_list['delete'])))
+        elif list_name == 'copy':
+            file_details_pending_copy_counter.configure(text=str(len(file_detail_list['copy'])))
+            file_details_pending_copy_counter_total.configure(text=str(len(file_detail_list['copy'])))
+        elif list_name in ['deleteSuccess', 'deleteFail', 'success', 'fail']:
             # Remove file from delete list
-            fileDetailListName = 'copy' if listName in ['success', 'fail'] else 'delete'
-            filenameList = [file['filename'] for file in fileDetailList[fileDetailListName]]
-            if filename in filenameList:
-                del fileDetailList[fileDetailListName][filenameList.index(filename)]
+            file_detail_list_name = 'copy' if list_name in ['success', 'fail'] else 'delete'
+            filename_list = [file['filename'] for file in file_detail_list[file_detail_list_name]]
+            if filename in filename_list:
+                del file_detail_list[file_detail_list_name][filename_list.index(filename)]
 
             # Update file counter
-            if listName in ['success', 'fail']:
-                fileDetailsPendingCopyCounter.configure(text=str(len(fileDetailList[fileDetailListName])))
+            if list_name in ['success', 'fail']:
+                file_details_pending_copy_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
             else:
-                fileDetailsPendingDeleteCounter.configure(text=str(len(fileDetailList[fileDetailListName])))
+                file_details_pending_delete_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
 
             # Update copy list scrollable
-            if listName in ['success', 'deleteSuccess']:
-                tk.Label(fileDetailsCopiedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.NORMAL if listName in ['success', 'fail'] else uiColor.FADED, anchor='w').pack(fill='x', expand=True)
+            if list_name in ['success', 'deleteSuccess']:
+                tk.Label(file_details_copied_scrollable_frame, text=filename.split('\\')[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
 
                 # HACK: The scroll yview won't see the label instantly after it's packed.
                 # Sleeping for a brief time fixes that. This is acceptable as long as it's
                 # not run in the main thread, else the UI will hang.
                 time.sleep(0.01)
-                fileDetailsCopiedInfoCanvas.yview_moveto(1)
+                file_details_copied_info_canvas.yview_moveto(1)
             else:
-                tk.Label(fileDetailsFailedScrollableFrame, text=filename.split('\\')[-1], fg=uiColor.NORMAL if listName in ['success', 'fail'] else uiColor.FADED, anchor='w').pack(fill='x', expand=True)
+                tk.Label(file_details_failed_scrollable_frame, text=filename.split('\\')[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
                 time.sleep(0.01)
-                fileDetailsFailedInfoCanvas.yview_moveto(1)
+                file_details_failed_info_canvas.yview_moveto(1)
 
-def delFile(sourceFilename, size, guiOptions={}):
+def do_delete(filename, size, gui_options={}):
     """Delete a file or directory.
 
     Args:
-        sourceFilename (String): The file or folder to delete.
+        filename (String): The file or folder to delete.
         size (int): The size in bytes of the file or folder.
-        guiOptions (obj): Options to handle GUI interaction (optional).
+        gui_options (obj): Options to handle GUI interaction (optional).
     """
 
-    if not threadManager.threadList['Backup']['killFlag'] and os.path.exists(sourceFilename):
-        guiOptions['mode'] = 'delete'
-        guiOptions['filename'] = sourceFilename.split('\\')[-1]
+    if not thread_manager.threadlist['Backup']['killFlag'] and os.path.exists(filename):
+        gui_options['mode'] = 'delete'
+        gui_options['filename'] = filename.split('\\')[-1]
 
-        if os.path.isfile(sourceFilename):
-            os.remove(sourceFilename)
-        elif os.path.isdir(sourceFilename):
-            shutil.rmtree(sourceFilename)
+        if os.path.isfile(filename):
+            os.remove(filename)
+        elif os.path.isdir(filename):
+            shutil.rmtree(filename)
 
         # If file deleted successfully, remove it from the list
-        if not os.path.exists(sourceFilename):
-            printProgress(size, size, guiOptions)
-            updateFileDetailList('deleteSuccess', sourceFilename)
+        if not os.path.exists(filename):
+            display_backup_progress(size, size, gui_options)
+            update_file_detail_lists('deleteSuccess', filename)
         else:
-            printProgress(size, size, guiOptions)
-            updateFileDetailList('deleteFail', sourceFilename)
+            display_backup_progress(size, size, gui_options)
+            update_file_detail_lists('deleteFail', filename)
 
 # differs from shutil.COPY_BUFSIZE on platforms != Windows
 READINTO_BUFSIZE = 1024 * 1024
 
-def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
+def copy_file(source_filename, dest_filename, callback, gui_options={}):
     """Copy a source binary file to a destination.
 
     Args:
-        sourceFilename (String): The source to copy.
-        destFilename (String): The destination to copy to.
+        source_filename (String): The source to copy.
+        dest_filename (String): The destination to copy to.
         callback (def): The function to call on progress change.
-        guiOptions (obj): Options to handle GUI interaction (optional).
+        gui_options (obj): Options to handle GUI interaction (optional).
 
     Returns:
         bool: True if file was copied and verified successfully, False otherwise.
     """
 
-    global fileDetailList
+    global file_detail_list
 
     if not config['cliMode']:
-        cmdInfoBlocks = backup.getCmdInfoBlocks()
-        cmdInfoBlocks[guiOptions['displayIndex']]['currentFileResult'].configure(text=destFilename, fg=uiColor.NORMAL)
+        cmd_info_blocks = backup.cmd_info_blocks
+        cmd_info_blocks[gui_options['displayIndex']]['currentFileResult'].configure(text=dest_filename, fg=uicolor.NORMAL)
     else:
-        print(f"Copying {destFilename}")
-    guiOptions['mode'] = 'copy'
+        print(f"Copying {dest_filename}")
+    gui_options['mode'] = 'copy'
 
     buffer_size = 1024 * 1024
 
     # Optimize the buffer for small files
-    buffer_size = min(buffer_size, os.path.getsize(sourceFilename))
+    buffer_size = min(buffer_size, os.path.getsize(source_filename))
     if buffer_size == 0:
         buffer_size = 1024
 
@@ -175,64 +175,64 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
     mv = memoryview(b)
 
     copied = 0
-    with open(sourceFilename, 'rb', buffering=0) as f:
+    with open(source_filename, 'rb', buffering=0) as f:
         try:
             file_size = os.stat(f.fileno()).st_size
         except OSError:
             file_size = READINTO_BUFSIZE
 
         # Make sure destination path exists before copying
-        pathStub = destFilename[0:destFilename.rindex('\\')]
-        if not os.path.exists(pathStub):
-            os.makedirs(pathStub)
+        path_stub = dest_filename[0:dest_filename.rindex('\\')]
+        if not os.path.exists(path_stub):
+            os.makedirs(path_stub)
 
-        fdst = open(destFilename, 'wb')
+        fdst = open(dest_filename, 'wb')
         try:
             for n in iter(lambda: f.readinto(mv), 0):
-                if threadManager.threadList['Backup']['killFlag']:
+                if thread_manager.threadlist['Backup']['killFlag']:
                     break
 
                 fdst.write(mv[:n])
                 h.update(mv[:n])
 
                 copied += n
-                callback(copied, file_size, guiOptions)
+                callback(copied, file_size, gui_options)
         except OSError:
             pass
         fdst.close()
 
     # If file copied in full, copy meta, and verify
     if copied == file_size:
-        shutil.copymode(sourceFilename, destFilename)
-        shutil.copystat(sourceFilename, destFilename)
+        shutil.copymode(source_filename, dest_filename)
+        shutil.copystat(source_filename, dest_filename)
 
         dest_hash = hashlib.blake2b()
         dest_b = bytearray(buffer_size)
         dest_mv = memoryview(dest_b)
 
-        with open(destFilename, 'rb', buffering=0) as f:
-            guiOptions['mode'] = 'verify'
+        with open(dest_filename, 'rb', buffering=0) as f:
+            gui_options['mode'] = 'verify'
             copied = 0
 
             for n in iter(lambda: f.readinto(dest_mv), 0):
                 dest_hash.update(dest_mv[:n])
 
                 copied += n
-                callback(copied, file_size, guiOptions)
+                callback(copied, file_size, gui_options)
 
         if h.hexdigest() == dest_hash.hexdigest():
-            updateFileDetailList('success', destFilename)
+            update_file_detail_lists('success', dest_filename)
 
             if config['cliMode']:
                 print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
         else:
             # If file wasn't copied successfully, delete it
-            if os.path.isfile(destFilename):
-                os.remove(destFilename)
-            elif os.path.isdir(destFilename):
-                shutil.rmtree(destFilename)
+            if os.path.isfile(dest_filename):
+                os.remove(dest_filename)
+            elif os.path.isdir(dest_filename):
+                shutil.rmtree(dest_filename)
 
-            updateFileDetailList('fail', destFilename)
+            update_file_detail_lists('fail', dest_filename)
 
             if config['cliMode']:
                 print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
@@ -242,79 +242,79 @@ def copyFile(sourceFilename, destFilename, callback, guiOptions={}):
         return h.hexdigest() == dest_hash.hexdigest()
     else:
         # If file wasn't copied successfully, delete it
-        if os.path.isfile(destFilename):
-            os.remove(destFilename)
-        elif os.path.isdir(destFilename):
-            shutil.rmtree(destFilename)
+        if os.path.isfile(dest_filename):
+            os.remove(dest_filename)
+        elif os.path.isdir(dest_filename):
+            shutil.rmtree(dest_filename)
 
         return False
 
-def printProgress(copied, total, guiOptions):
+def display_backup_progress(copied, total, gui_options):
     """Display the copy progress of a transfer
 
     Args:
         copied (int): the number of bytes copied.
         total (int): The total file size.
-        guiOptions (obj): The options for updating the GUI.
+        gui_options (obj): The options for updating the GUI.
     """
 
-    backupTotals = backup.getTotals()
+    backup_totals = backup.totals
 
     if copied > total:
         copied = total
 
     if total > 0:
-        percentCopied = copied / total * 100
+        percent_copied = copied / total * 100
     else:
-        percentCopied = 100
+        percent_copied = 100
 
     # If display index has been specified, write progress to GUI
-    # URGENT: Refactor printProgress so calculations are done separate from progress displaying
-    if 'displayIndex' in guiOptions.keys():
-        displayIndex = guiOptions['displayIndex']
+    # URGENT: Refactor display_backup_progress so calculations are done separate from progress displaying
+    if 'displayIndex' in gui_options.keys():
+        display_index = gui_options['displayIndex']
 
-        cmdInfoBlocks = backup.getCmdInfoBlocks()
+        cmd_info_blocks = backup.cmd_info_blocks
 
-        backupTotals['buffer'] = copied
-        backupTotals['progressBar'] = backupTotals['running'] + copied
+        backup_totals['buffer'] = copied
+        backup_totals['progressBar'] = backup_totals['running'] + copied
 
-        if guiOptions['mode'] == 'delete':
+        if gui_options['mode'] == 'delete':
             if not config['cliMode']:
-                progress.set(backupTotals['progressBar'])
+                progress.set(backup_totals['progressBar'])
 
-                cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Deleted {guiOptions['filename']}", fg=uiColor.NORMAL)
+                cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"Deleted {gui_options['filename']}", fg=uicolor.NORMAL)
             else:
-                print(f"Deleted {guiOptions['filename']}")
-        elif guiOptions['mode'] == 'copy':
+                print(f"Deleted {gui_options['filename']}")
+        elif gui_options['mode'] == 'copy':
             if not config['cliMode']:
-                progress.set(backupTotals['progressBar'])
+                progress.set(backup_totals['progressBar'])
 
-                cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"{percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uiColor.NORMAL)
+                cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.NORMAL)
             else:
-                print(f"{percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
-        elif guiOptions['mode'] == 'verify':
+                print(f"{percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
+        elif gui_options['mode'] == 'verify':
             if not config['cliMode']:
-                progress.set(backupTotals['progressBar'])
+                progress.set(backup_totals['progressBar'])
 
-                cmdInfoBlocks[displayIndex]['lastOutResult'].configure(text=f"Verifying \u27f6 {percentCopied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uiColor.BLUE)
+                cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.BLUE)
             else:
-                print(f"{bcolor.OKCYAN}Verifying => {percentCopied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
+                print(f"{bcolor.OKCYAN}Verifying => {percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
 
     if copied >= total:
-        backupTotals['running'] += backupTotals['buffer']
+        backup_totals['running'] += backup_totals['buffer']
 
-def doCopy(src, dest, guiOptions={}):
+def do_copy(src, dest, gui_options={}):
     """Copy a source to a destination.
 
     Args:
         src (String): The source to copy.
         dest (String): The destination to copy to.
-        guiOptions (obj): Options to handle GUI interaction (optional).
+        gui_options (obj): Options to handle GUI interaction (optional).
     """
 
     if os.path.isfile(src):
-        if not threadManager.threadList['Backup']['killFlag']:
-            copyFile(src, dest, printProgress, guiOptions)
+        if not thread_manager.threadlist['Backup']['killFlag']:
+            copy_file(src, dest, display_backup_progress, gui_options)
     elif os.path.isdir(src):
         # Make dir if it doesn't exist
         if not os.path.exists(dest):
@@ -322,14 +322,14 @@ def doCopy(src, dest, guiOptions={}):
 
         try:
             for entry in os.scandir(src):
-                if threadManager.threadList['Backup']['killFlag']:
+                if thread_manager.threadlist['Backup']['killFlag']:
                     break
 
                 filename = entry.path.split('\\')[-1]
                 if entry.is_file():
-                    copyFile(src + '\\' + filename, dest + '\\' + filename, printProgress, guiOptions)
+                    copy_file(src + '\\' + filename, dest + '\\' + filename, display_backup_progress, gui_options)
                 elif entry.is_dir():
-                    doCopy(src + '\\' + filename, dest + '\\' + filename)
+                    do_copy(src + '\\' + filename, dest + '\\' + filename)
 
             # Handle changing attributes of folders if we copy a new folder
             shutil.copymode(src, dest)
@@ -338,7 +338,7 @@ def doCopy(src, dest, guiOptions={}):
             return False
         return True
 
-def displayBackupSummaryChunk(title, payload, reset=False):
+def display_backup_summary_chunk(title, payload, reset=False):
     """Display a chunk of a backup analysis summary to the user.
 
     Args:
@@ -351,28 +351,28 @@ def displayBackupSummaryChunk(title, payload, reset=False):
 
     if not config['cliMode']:
         if reset:
-            for widget in backupSummaryTextFrame.winfo_children():
+            for widget in backup_summary_text_frame.winfo_children():
                 widget.destroy()
 
-        tk.Label(backupSummaryTextFrame, text=title, font=(None, 14),
-                 wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-        summaryFrame = tk.Frame(backupSummaryTextFrame)
-        summaryFrame.pack(fill='x', expand=True)
-        summaryFrame.columnconfigure(2, weight=1)
+        tk.Label(backup_summary_text_frame, text=title, font=(None, 14),
+                 wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
+        summary_frame = tk.Frame(backup_summary_text_frame)
+        summary_frame.pack(fill='x', expand=True)
+        summary_frame.columnconfigure(2, weight=1)
 
         for i, item in enumerate(payload):
             if len(item) > 2:
-                textColor = uiColor.NORMAL if item[2] else uiColor.FADED
+                text_color = uicolor.NORMAL if item[2] else uicolor.FADED
             else:
-                textColor = uiColor.NORMAL
+                text_color = uicolor.NORMAL
 
-            tk.Label(summaryFrame, text=item[0], fg=textColor).grid(row=i, column=0, sticky='w')
-            tk.Label(summaryFrame, text='\u27f6', fg=textColor).grid(row=i, column=1, sticky='w')
-            wrapFrame = tk.Frame(summaryFrame)
-            wrapFrame.grid(row=i, column=2, sticky='ew')
-            wrapFrame.update_idletasks()
-            tk.Label(summaryFrame, text=item[1], fg=textColor,
-                     wraplength=wrapFrame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
+            tk.Label(summary_frame, text=item[0], fg=text_color).grid(row=i, column=0, sticky='w')
+            tk.Label(summary_frame, text='\u27f6', fg=text_color).grid(row=i, column=1, sticky='w')
+            wrap_frame = tk.Frame(summary_frame)
+            wrap_frame.grid(row=i, column=2, sticky='ew')
+            wrap_frame.update_idletasks()
+            tk.Label(summary_frame, text=item[1], fg=text_color,
+                     wraplength=wrap_frame.winfo_width() - 2, justify='left').grid(row=i, column=2, sticky='w')
     else:
         print(f"\n{title}")
 
@@ -384,57 +384,58 @@ def displayBackupSummaryChunk(title, payload, reset=False):
 
 # FIXME: Can progress bar and status updating be rolled into the same function?
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
-def updateBackupTimer():
+def update_backup_eta_timer():
     """Update the backup timer to show ETA."""
 
     if not config['cliMode']:
-        backupEtaLabel.configure(fg=uiColor.NORMAL)
+        backup_eta_label.configure(fg=uicolor.NORMAL)
 
     # Total is copy source, verify dest, so total data is 2 * copy
-    totalToBackup = backup.getTotals()['master'] - backup.getTotals()['delete']
-    backupStartTime = backup.getBackupStartTime()
+    total_to_copy = backup.totals['master'] - backup.totals['delete']
+    backup_start_time = backup.get_backup_start_time()
 
-    while not threadManager.threadList['backupTimer']['killFlag']:
-        backupTotals = backup.getTotals()
+    while not thread_manager.threadlist['backupTimer']['killFlag']:
+        backup_totals = backup.totals
 
-        runningTime = datetime.now() - backupStartTime
-        percentCopied = (backupTotals['running'] + backupTotals['buffer'] - backupTotals['delete']) / totalToBackup
+        running_time = datetime.now() - backup_start_time
+        percent_copied = (backup_totals['running'] + backup_totals['buffer'] - backup_totals['delete']) / total_to_copy
 
-        if percentCopied > 0:
-            remainingTime = runningTime / percentCopied - runningTime
+        if percent_copied > 0:
+            remaining_time = running_time / percent_copied - running_time
         else:
-            remainingTime = '\u221e' if not config['cliMode'] else 'infinite'
+            # Show infinity symbol if no calculated ETA
+            remaining_time = '\u221e' if not config['cliMode'] else 'infinite'
 
         if not config['cliMode']:
-            backupEtaLabel.configure(text=f"{str(runningTime).split('.')[0]} elapsed \u27f6 {str(remainingTime).split('.')[0]} remaining")
+            backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
         else:
-            print(f"{str(runningTime).split('.')[0]} elapsed => {str(remainingTime).split('.')[0]} remaining")
+            print(f"{str(running_time).split('.')[0]} elapsed => {str(remaining_time).split('.')[0]} remaining")
         time.sleep(0.25)
 
-    if not threadManager.threadList['Backup']['killFlag']:
+    if not thread_manager.threadlist['Backup']['killFlag']:
         # Backup not killed, so completed successfully
         if not config['cliMode']:
-            backupEtaLabel.configure(text=f"Backup completed successfully in {str(datetime.now() - backupStartTime).split('.')[0]}", fg=uiColor.FINISHED)
+            backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=uicolor.FINISHED)
         else:
-            print(f"{bcolor.OKGREEN}Backup completed successfully in {str(datetime.now() - backupStartTime).split('.')[0]}{bcolor.ENDC}")
+            print(f"{bcolor.OKGREEN}Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
     else:
         # Backup aborted
         if not config['cliMode']:
-            backupEtaLabel.configure(text=f"Backup aborted in {str(datetime.now() - backupStartTime).split('.')[0]}", fg=uiColor.STOPPED)
+            backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=uicolor.STOPPED)
         else:
-            print(f"{bcolor.FAIL}Backup aborted in {str(datetime.now() - backupStartTime).split('.')[0]}{bcolor.ENDC}")
+            print(f"{bcolor.FAIL}Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
 
 # FIXME: There's definitely a better way to handle working with items in the Backup instance than passing self into this function
-def enumerateCommandInfo(self, displayCommandList):
+def display_backup_command_info(self, display_command_list):
     """Enumerate the display widget with command info after a backup analysis."""
 
-    rightArrow = '\U0001f86a'
-    downArrow = '\U0001f86e'
+    RIGHT_ARROW = '\U0001f86a'
+    DOWN_ARROW = '\U0001f86e'
 
-    cmdHeaderFont = (None, 9, 'bold')
-    cmdStatusFont = (None, 9)
+    CMD_INFO_HEADER_FONT = (None, 9, 'bold')
+    CMD_INFO_STATUS_FONT = (None, 9)
 
-    def toggleCmdInfo(index):
+    def handle_expand_toggle_click(index):
         """Toggle the command info for a given indexed command.
 
         Args:
@@ -442,22 +443,22 @@ def enumerateCommandInfo(self, displayCommandList):
         """
 
         # Expand only if analysis is not running and the list isn't still being built
-        if not self.analysisRunning:
+        if not self.analysis_running:
             # Check if arrow needs to be expanded
-            expandArrow = self.cmdInfoBlocks[index]['arrow']['text']
-            if expandArrow == rightArrow:
+            expand_arrow = self.cmd_info_blocks[index]['arrow']['text']
+            if expand_arrow == RIGHT_ARROW:
                 # Collapsed turns into expanded
-                self.cmdInfoBlocks[index]['arrow'].configure(text=downArrow)
-                self.cmdInfoBlocks[index]['infoFrame'].grid(row=1, column=1, sticky='w')
+                self.cmd_info_blocks[index]['arrow'].configure(text=DOWN_ARROW)
+                self.cmd_info_blocks[index]['infoFrame'].grid(row=1, column=1, sticky='w')
             else:
                 # Expanded turns into collapsed
-                self.cmdInfoBlocks[index]['arrow'].configure(text=rightArrow)
-                self.cmdInfoBlocks[index]['infoFrame'].grid_forget()
+                self.cmd_info_blocks[index]['arrow'].configure(text=RIGHT_ARROW)
+                self.cmd_info_blocks[index]['infoFrame'].grid_forget()
 
         # For some reason, .configure() loses the function bind, so we need to re-set this
-        self.cmdInfoBlocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: toggleCmdInfo(index))
+        self.cmd_info_blocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: handle_expand_toggle_click(index))
 
-    def copyList(index, item):
+    def copy_chunk_list_to_clipboard(index, item):
         """Copy a given indexed command to the clipboard.
 
         Args:
@@ -465,212 +466,212 @@ def enumerateCommandInfo(self, displayCommandList):
             item (String): The name of the list to copy
         """
 
-        clipboard.copy('\n'.join(self.cmdInfoBlocks[index][item]))
+        clipboard.copy('\n'.join(self.cmd_info_blocks[index][item]))
 
     if not config['cliMode']:
-        for widget in backupActivityScrollableFrame.winfo_children():
+        for widget in backup_activity_scrollable_frame.winfo_children():
             widget.destroy()
     else:
         print('')
 
-    self.cmdInfoBlocks = []
-    for i, item in enumerate(displayCommandList):
+    self.cmd_info_blocks = []
+    for i, item in enumerate(display_command_list):
         if item['type'] == 'fileList':
             if item['mode'] == 'delete':
-                cmdHeaderText = f"Delete {len(item['fileList'])} files from {item['drive']}"
+                cmd_header_text = f"Delete {len(item['fileList'])} files from {item['drive']}"
             elif item['mode'] == 'replace':
-                cmdHeaderText = f"Update {len(item['fileList'])} files on {item['drive']}"
+                cmd_header_text = f"Update {len(item['fileList'])} files on {item['drive']}"
             elif item['mode'] == 'copy':
-                cmdHeaderText = f"Copy {len(item['fileList'])} new files to {item['drive']}"
+                cmd_header_text = f"Copy {len(item['fileList'])} new files to {item['drive']}"
             else:
-                cmdHeaderText = f"Work with {len(item['fileList'])} files on {item['drive']}"
+                cmd_header_text = f"Work with {len(item['fileList'])} files on {item['drive']}"
 
         if not config['cliMode']:
-            infoConfig = {}
+            backup_summary_block = {}
 
-            infoConfig['mainFrame'] = tk.Frame(backupActivityScrollableFrame)
-            infoConfig['mainFrame'].pack(anchor='w', expand=1)
-            infoConfig['mainFrame'].grid_columnconfigure(1, weight=1)
+            backup_summary_block['mainFrame'] = tk.Frame(backup_activity_scrollable_frame)
+            backup_summary_block['mainFrame'].pack(anchor='w', expand=1)
+            backup_summary_block['mainFrame'].grid_columnconfigure(1, weight=1)
 
             # Set up header arrow, trimmed command, and status
-            infoConfig['arrow'] = tk.Label(infoConfig['mainFrame'], text=rightArrow)
-            infoConfig['arrow'].grid(row=0, column=0)
-            infoConfig['headLine'] = tk.Frame(infoConfig['mainFrame'])
-            infoConfig['headLine'].grid(row=0, column=1, sticky='w')
+            backup_summary_block['arrow'] = tk.Label(backup_summary_block['mainFrame'], text=RIGHT_ARROW)
+            backup_summary_block['arrow'].grid(row=0, column=0)
+            backup_summary_block['headLine'] = tk.Frame(backup_summary_block['mainFrame'])
+            backup_summary_block['headLine'].grid(row=0, column=1, sticky='w')
 
-            infoConfig['header'] = tk.Label(infoConfig['headLine'], text=cmdHeaderText, font=cmdHeaderFont, fg=uiColor.NORMAL if item['enabled'] else uiColor.FADED)
-            infoConfig['header'].pack(side='left')
-            infoConfig['state'] = tk.Label(infoConfig['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
-            infoConfig['state'].pack(side='left')
+            backup_summary_block['header'] = tk.Label(backup_summary_block['headLine'], text=cmd_header_text, font=CMD_INFO_HEADER_FONT, fg=uicolor.NORMAL if item['enabled'] else uicolor.FADED)
+            backup_summary_block['header'].pack(side='left')
+            backup_summary_block['state'] = tk.Label(backup_summary_block['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=CMD_INFO_STATUS_FONT, fg=uicolor.PENDING if item['enabled'] else uicolor.FADED)
+            backup_summary_block['state'].pack(side='left')
 
             # Set up info frame
-            infoConfig['infoFrame'] = tk.Frame(infoConfig['mainFrame'])
+            backup_summary_block['infoFrame'] = tk.Frame(backup_summary_block['mainFrame'])
 
             if item['type'] == 'fileList':
-                infoConfig['fileSizeLine'] = tk.Frame(infoConfig['infoFrame'])
-                infoConfig['fileSizeLine'].pack(anchor='w')
-                infoConfig['fileSizeLineHeader'] = tk.Label(infoConfig['fileSizeLine'], text='Total size:', font=cmdHeaderFont)
-                infoConfig['fileSizeLineHeader'].pack(side='left')
-                infoConfig['fileSizeLineTotal'] = tk.Label(infoConfig['fileSizeLine'], text=human_filesize(item['size']), font=cmdStatusFont)
-                infoConfig['fileSizeLineTotal'].pack(side='left')
+                backup_summary_block['fileSizeLine'] = tk.Frame(backup_summary_block['infoFrame'])
+                backup_summary_block['fileSizeLine'].pack(anchor='w')
+                backup_summary_block['fileSizeLineHeader'] = tk.Label(backup_summary_block['fileSizeLine'], text='Total size:', font=CMD_INFO_HEADER_FONT)
+                backup_summary_block['fileSizeLineHeader'].pack(side='left')
+                backup_summary_block['fileSizeLineTotal'] = tk.Label(backup_summary_block['fileSizeLine'], text=human_filesize(item['size']), font=CMD_INFO_STATUS_FONT)
+                backup_summary_block['fileSizeLineTotal'].pack(side='left')
 
-                infoConfig['fileListLine'] = tk.Frame(infoConfig['infoFrame'])
-                infoConfig['fileListLine'].pack(anchor='w')
-                infoConfig['fileListLineHeader'] = tk.Label(infoConfig['fileListLine'], text='File list:', font=cmdHeaderFont)
-                infoConfig['fileListLineHeader'].pack(side='left')
-                infoConfig['fileListLineTooltip'] = tk.Label(infoConfig['fileListLine'], text='(Click to copy)', font=cmdStatusFont, fg=uiColor.FADED)
-                infoConfig['fileListLineTooltip'].pack(side='left')
-                infoConfig['fullFileList'] = item['fileList']
+                backup_summary_block['fileListLine'] = tk.Frame(backup_summary_block['infoFrame'])
+                backup_summary_block['fileListLine'].pack(anchor='w')
+                backup_summary_block['fileListLineHeader'] = tk.Label(backup_summary_block['fileListLine'], text='File list:', font=CMD_INFO_HEADER_FONT)
+                backup_summary_block['fileListLineHeader'].pack(side='left')
+                backup_summary_block['fileListLineTooltip'] = tk.Label(backup_summary_block['fileListLine'], text='(Click to copy)', font=CMD_INFO_STATUS_FONT, fg=uicolor.FADED)
+                backup_summary_block['fileListLineTooltip'].pack(side='left')
+                backup_summary_block['fullFileList'] = item['fileList']
 
-                infoConfig['currentFileLine'] = tk.Frame(infoConfig['infoFrame'])
-                infoConfig['currentFileLine'].pack(anchor='w')
-                infoConfig['currentFileHeader'] = tk.Label(infoConfig['currentFileLine'], text='Current file:', font=cmdHeaderFont)
-                infoConfig['currentFileHeader'].pack(side='left')
-                infoConfig['currentFileResult'] = tk.Label(infoConfig['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
-                infoConfig['currentFileResult'].pack(side='left')
+                backup_summary_block['currentFileLine'] = tk.Frame(backup_summary_block['infoFrame'])
+                backup_summary_block['currentFileLine'].pack(anchor='w')
+                backup_summary_block['currentFileHeader'] = tk.Label(backup_summary_block['currentFileLine'], text='Current file:', font=CMD_INFO_HEADER_FONT)
+                backup_summary_block['currentFileHeader'].pack(side='left')
+                backup_summary_block['currentFileResult'] = tk.Label(backup_summary_block['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=CMD_INFO_STATUS_FONT, fg=uicolor.PENDING if item['enabled'] else uicolor.FADED)
+                backup_summary_block['currentFileResult'].pack(side='left')
 
-                infoConfig['lastOutLine'] = tk.Frame(infoConfig['infoFrame'])
-                infoConfig['lastOutLine'].pack(anchor='w')
-                infoConfig['lastOutHeader'] = tk.Label(infoConfig['lastOutLine'], text='Progress:', font=cmdHeaderFont)
-                infoConfig['lastOutHeader'].pack(side='left')
-                infoConfig['lastOutResult'] = tk.Label(infoConfig['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=cmdStatusFont, fg=uiColor.PENDING if item['enabled'] else uiColor.FADED)
-                infoConfig['lastOutResult'].pack(side='left')
+                backup_summary_block['lastOutLine'] = tk.Frame(backup_summary_block['infoFrame'])
+                backup_summary_block['lastOutLine'].pack(anchor='w')
+                backup_summary_block['lastOutHeader'] = tk.Label(backup_summary_block['lastOutLine'], text='Progress:', font=CMD_INFO_HEADER_FONT)
+                backup_summary_block['lastOutHeader'].pack(side='left')
+                backup_summary_block['lastOutResult'] = tk.Label(backup_summary_block['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=CMD_INFO_STATUS_FONT, fg=uicolor.PENDING if item['enabled'] else uicolor.FADED)
+                backup_summary_block['lastOutResult'].pack(side='left')
 
                 # Handle list trimming
-                listFont = tkfont.Font(family=None, size=10, weight='normal')
-                trimmedFileList = ', '.join(item['fileList'])[:500]
-                maxWidth = backupActivityInfoCanvas.winfo_width() * 0.8
-                actualFileWidth = listFont.measure(trimmedFileList)
+                list_font = tkfont.Font(family=None, size=10, weight='normal')
+                trimmed_file_list = ', '.join(item['fileList'])[:500]
+                MAX_WIDTH = backup_activity_info_canvas.winfo_width() * 0.8
+                actual_file_witdth = list_font.measure(trimmed_file_list)
 
-                if actualFileWidth > maxWidth:
-                    while actualFileWidth > maxWidth and len(trimmedFileList) > 1:
-                        trimmedFileList = trimmedFileList[:-1]
-                        actualFileWidth = listFont.measure(trimmedFileList + '...')
-                    trimmedFileList = trimmedFileList + '...'
+                if actual_file_witdth > MAX_WIDTH:
+                    while actual_file_witdth > MAX_WIDTH and len(trimmed_file_list) > 1:
+                        trimmed_file_list = trimmed_file_list[:-1]
+                        actual_file_witdth = list_font.measure(trimmed_file_list + '...')
+                    trimmed_file_list = trimmed_file_list + '...'
 
-                infoConfig['fileListLineTrimmed'] = tk.Label(infoConfig['fileListLine'], text=trimmedFileList, font=cmdStatusFont)
-                infoConfig['fileListLineTrimmed'].pack(side='left')
+                backup_summary_block['fileListLineTrimmed'] = tk.Label(backup_summary_block['fileListLine'], text=trimmed_file_list, font=CMD_INFO_STATUS_FONT)
+                backup_summary_block['fileListLineTrimmed'].pack(side='left')
 
                 # Command copy action click
-                infoConfig['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-                infoConfig['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
-                infoConfig['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copyList(index, 'fullFileList'))
+                backup_summary_block['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copy_chunk_list_to_clipboard(index, 'fullFileList'))
+                backup_summary_block['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copy_chunk_list_to_clipboard(index, 'fullFileList'))
+                backup_summary_block['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copy_chunk_list_to_clipboard(index, 'fullFileList'))
 
-            self.cmdInfoBlocks.append(infoConfig)
+            self.cmd_info_blocks.append(backup_summary_block)
 
             # Header toggle action click
-            infoConfig['arrow'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
-            infoConfig['header'].bind('<Button-1>', lambda event, index=i: toggleCmdInfo(index))
+            backup_summary_block['arrow'].bind('<Button-1>', lambda event, index=i: handle_expand_toggle_click(index))
+            backup_summary_block['header'].bind('<Button-1>', lambda event, index=i: handle_expand_toggle_click(index))
         else:
-            print(cmdHeaderText)
+            print(cmd_header_text)
 
     if config['cliMode']:
         print('')
 
-def resetUi():
+def reset_ui():
     """Reset the UI when we run a backup analysis."""
 
     if not config['cliMode']:
         # Empty backup summary pane
-        for child in backupSummaryTextFrame.winfo_children():
+        for child in backup_summary_text_frame.winfo_children():
             child.destroy()
 
         # Reset ETA counter
-        backupEtaLabel.configure(text='Analysis in progress. Please wait...', fg=uiColor.NORMAL)
+        backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=uicolor.NORMAL)
 
         # Empty backup operation list pane
-        for child in backupActivityScrollableFrame.winfo_children():
+        for child in backup_activity_scrollable_frame.winfo_children():
             child.destroy()
 
         # Clear file lists for file details pane
-        [fileDetailList[listName].clear() for listName in fileDetailList.keys()]
+        [file_detail_list[list_name].clear() for list_name in file_detail_list.keys()]
 
         # Reset file details counters
-        fileDetailsPendingDeleteCounter.configure(text='0')
-        fileDetailsPendingDeleteCounterTotal.configure(text='0')
-        fileDetailsPendingCopyCounter.configure(text='0')
-        fileDetailsPendingCopyCounterTotal.configure(text='0')
+        file_details_pending_delete_counter.configure(text='0')
+        file_details_pending_delete_counter_total.configure(text='0')
+        file_details_pending_copy_counter.configure(text='0')
+        file_details_pending_copy_counter_total.configure(text='0')
 
         # Empty file details list panes
-        for child in fileDetailsCopiedScrollableFrame.winfo_children():
+        for child in file_details_copied_scrollable_frame.winfo_children():
             child.destroy()
-        for child in fileDetailsFailedScrollableFrame.winfo_children():
+        for child in file_details_failed_scrollable_frame.winfo_children():
             child.destroy()
 
-def startBackupAnalysis():
+def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
 
     global backup
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    if (not backup or not backup.isRunning()) and (config['cliMode'] or sourceDriveListValid):
+    if (not backup or not backup.is_running()) and (config['cliMode'] or source_drive_list_valid):
         # TODO: There has to be a better way to handle stopping and starting this split mode toggling
         if not config['cliMode']:
-            splitEnabled = destModeSplitCheckVar.get()
-            enabledText = 'Enabled' if splitEnabled else 'Disabled'
-            enabledColor = uiColor.ENABLED if splitEnabled else uiColor.DISABLED
-            splitModeStatus.configure(text=f"Split mode\n{enabledText}", fg=enabledColor)
+            split_mode_enabled = dest_mode_split_check_var.get()
+            split_mode_text = 'Enabled' if split_mode_enabled else 'Disabled'
+            split_mode_color = uicolor.ENABLED if split_mode_enabled else uicolor.DISABLED
+            split_mode_status.configure(text=f"Split mode\n{split_mode_text}", fg=split_mode_color)
 
-        resetUi()
+        reset_ui()
 
         if not config['cliMode']:
             backup = Backup(
                 config=config,
-                backupConfigDir=BACKUP_CONFIG_DIR,
-                backupConfigFile=BACKUP_CONFIG_FILE,
-                uiColor=uiColor,
-                doCopyFn=doCopy,
-                doDelFn=delFile,
-                startBackupTimerFn=updateBackupTimer,
-                updateUiComponentFn=updateUiComponent,
-                updateFileDetailListFn=updateFileDetailList,
-                analysisSummaryDisplayFn=displayBackupSummaryChunk,
-                enumerateCommandInfoFn=enumerateCommandInfo,
-                threadManager=threadManager,
+                backup_config_dir=BACKUP_CONFIG_DIR,
+                backup_config_file=BACKUP_CONFIG_FILE,
+                uicolor=uicolor,
+                do_copy_fn=do_copy,
+                do_del_fn=do_delete,
+                start_backup_timer_fn=update_backup_eta_timer,
+                update_ui_component_fn=update_ui_component,
+                update_file_detail_list_fn=update_file_detail_lists,
+                analysis_summary_display_fn=display_backup_summary_chunk,
+                display_backup_command_info_fn=display_backup_command_info,
+                thread_manager=thread_manager,
                 progress=progress
             )
         else:
             backup = Backup(
                 config=config,
-                backupConfigDir=BACKUP_CONFIG_DIR,
-                backupConfigFile=BACKUP_CONFIG_FILE,
-                doCopyFn=doCopy,
-                doDelFn=delFile,
-                startBackupTimerFn=updateBackupTimer,
-                updateFileDetailListFn=updateFileDetailList,
-                analysisSummaryDisplayFn=displayBackupSummaryChunk,
-                enumerateCommandInfoFn=enumerateCommandInfo,
-                threadManager=threadManager
+                backup_config_dir=BACKUP_CONFIG_DIR,
+                backup_config_file=BACKUP_CONFIG_FILE,
+                do_copy_fn=do_copy,
+                do_del_fn=do_delete,
+                start_backup_timer_fn=update_backup_eta_timer,
+                update_file_detail_list_fn=update_file_detail_lists,
+                analysis_summary_display_fn=display_backup_summary_chunk,
+                display_backup_command_info_fn=display_backup_command_info,
+                thread_manager=thread_manager
             )
-        threadManager.start(threadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
+        thread_manager.start(thread_manager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
-def loadSource():
+def load_source():
     """Load the source share list, and display it in the tree."""
 
     global backup
 
-    progress.startIndeterminate()
+    progress.start_indeterminate()
 
     # Empty tree in case this is being refreshed
     tree_source.delete(*tree_source.get_children())
 
-    shareSelectedSpace.configure(text='Selected: ' + human_filesize(0))
-    shareTotalSpace.configure(text='Total: ~' + human_filesize(0))
+    share_selected_space.configure(text='Selected: ' + human_filesize(0))
+    share_total_space.configure(text='Total: ~' + human_filesize(0))
 
     # Enumerate list of shares in source
     for directory in next(os.walk(config['sourceDrive']))[1]:
         tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
 
-    progress.stopIndeterminate()
+    progress.stop_indeterminate()
 
-def startRefreshSource():
+def load_source_in_background():
     """Start a source refresh in a new thread."""
 
-    if sourceDriveListValid:
-        threadManager.start(threadManager.SINGLE, target=loadSource, name='Load Source', daemon=True)
+    if source_drive_list_valid:
+        thread_manager.start(thread_manager.SINGLE, target=load_source, name='Load Source', daemon=True)
 
-def changeSourceDrive(selection):
+def change_source_drive(selection):
     """Change the source drive to pull shares from to a new selection.
 
     Args:
@@ -682,11 +683,11 @@ def changeSourceDrive(selection):
     config['sourceDrive'] = selection
     prefs.set('selection', 'sourceDrive', selection)
 
-    startRefreshSource()
+    load_source_in_background()
 
 # IDEA: @Calculate total space of all @shares in background
-prevShareSelection = []
-def shareSelectCalc():
+prev_share_selection = []
+def calculate_selected_shares():
     """Calculate and display the filesize of a selected share, if it hasn't been calculated.
 
     This gets the selection in the source tree, and then calculates the filesize for
@@ -694,29 +695,30 @@ def shareSelectCalc():
     selection, and total share space is also shown below the tree.
     """
 
-    global prevShareSelection
+    global prev_share_selection
     global backup
 
-    progress.startIndeterminate()
+    progress.start_indeterminate()
 
-    def updateShareSize(item):
+    def update_share_size(item):
         """Update share info for a given share.
 
         Args:
             item (String): The identifier for a share in the source tree to be calculated.
         """
 
-        shareName = tree_source.item(item, 'text')
-        newShareSize = get_directory_size(config['sourceDrive'] + shareName)
-        tree_source.set(item, 'size', human_filesize(newShareSize))
-        tree_source.set(item, 'rawsize', newShareSize)
+        # FIXME: This crashes if you change the source drive, and the number of items in the tree changes while it's calculating things
+        share_name = tree_source.item(item, 'text')
+        share_dir_size = get_directory_size(config['sourceDrive'] + share_name)
+        tree_source.set(item, 'size', human_filesize(share_dir_size))
+        tree_source.set(item, 'rawsize', share_dir_size)
 
         # After calculating share info, update the meta info
-        selectedTotal = 0
-        selectedShareList = []
+        selected_total = 0
+        selected_share_list = []
         for item in tree_source.selection():
             # Write selected shares to config
-            selectedShareList.append({
+            selected_share_list.append({
                 'name': tree_source.item(item, 'text'),
                 'size': int(tree_source.item(item, 'values')[1])
             })
@@ -724,35 +726,35 @@ def shareSelectCalc():
             # Add total space of selection
             if tree_source.item(item, 'values')[0] != 'Unknown':
                 # Add total space of selection
-                shareSize = tree_source.item(item, 'values')[1]
-                selectedTotal = selectedTotal + int(shareSize)
+                share_size = tree_source.item(item, 'values')[1]
+                selected_total = selected_total + int(share_size)
 
-        shareSelectedSpace.configure(text='Selected: ' + human_filesize(selectedTotal))
-        config['shares'] = selectedShareList
+        share_selected_space.configure(text='Selected: ' + human_filesize(selected_total))
+        config['shares'] = selected_share_list
 
-        shareTotal = 0
-        totalIsApprox = False
-        totalPrefix = 'Total: '
+        share_total = 0
+        is_total_approximate = False
+        total_prefix = 'Total: '
         for item in tree_source.get_children():
-            shareTotal += int(tree_source.item(item, 'values')[1])
+            share_total += int(tree_source.item(item, 'values')[1])
 
             # If total is not yet approximate, check if the item hasn't been calculated
-            if not totalIsApprox and tree_source.item(item, 'values')[0] == 'Unknown':
-                totalIsApprox = True
-                totalPrefix += '~'
+            if not is_total_approximate and tree_source.item(item, 'values')[0] == 'Unknown':
+                is_total_approximate = True
+                total_prefix += '~'
 
-        shareTotalSpace.configure(text=totalPrefix + human_filesize(shareTotal))
+        share_total_space.configure(text=total_prefix + human_filesize(share_total))
 
         # If everything's calculated, enable analysis button to be clicked
-        sharesAllKnown = True
+        all_shares_known = True
         for item in tree_source.selection():
             if tree_source.item(item, 'values')[0] == 'Unknown':
-                sharesAllKnown = False
-        if sharesAllKnown:
-            startAnalysisBtn.configure(state='normal')
-            updateSelectionStatusBar()
+                all_shares_known = False
+        if all_shares_known:
+            start_analysis_btn.configure(state='normal')
+            update_status_bar_selection()
 
-        progress.stopIndeterminate()
+        progress.stop_indeterminate()
 
     selected = tree_source.selection()
 
@@ -760,48 +762,48 @@ def shareSelectCalc():
         'name': tree_source.item(item, 'text'),
         'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
     } for item in tree_source.selection()]
-    updateSelectionStatusBar()
+    update_status_bar_selection()
 
     # If selection is different than last time, invalidate the analysis
-    selectMatch = [share for share in selected if share in prevShareSelection]
-    if len(selected) != len(prevShareSelection) or len(selectMatch) != len(prevShareSelection):
-        startBackupBtn.configure(state='disable')
+    selection_unchanged_items = [share for share in selected if share in prev_share_selection]
+    if len(selected) != len(prev_share_selection) or len(selection_unchanged_items) != len(prev_share_selection):
+        start_backup_btn.configure(state='disable')
 
-    prevShareSelection = [share for share in selected]
+    prev_share_selection = [share for share in selected]
 
     # Check if items in selection need to be calculated
     for item in selected:
         # If new selected item hasn't been calculated, calculate it on the fly
         if tree_source.item(item, 'values')[0] == 'Unknown':
-            updateSelectionStatusBar(Status.BACKUPSELECT_CALCULATING_SOURCE)
-            startAnalysisBtn.configure(state='disable')
-            shareName = tree_source.item(item, 'text')
-            threadManager.start(threadManager.SINGLE, target=lambda: updateShareSize(item), name=f"shareCalc_{shareName}", daemon=True)
+            update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
+            start_analysis_btn.configure(state='disable')
+            share_name = tree_source.item(item, 'text')
+            thread_manager.start(thread_manager.SINGLE, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
 
-def loadSourceInBackground(event):
+def calculate_source_size_in_background(event):
     """Start a calculation of source filesize in a new thread."""
 
-    threadManager.start(threadManager.MULTIPLE, target=shareSelectCalc, name='Load Source Selection', daemon=True)
+    thread_manager.start(thread_manager.MULTIPLE, target=calculate_selected_shares, name='Load Source Selection', daemon=True)
 
-def loadDest():
+def load_dest():
     """Load the destination drive info, and display it in the tree."""
 
-    global destDriveMasterList
+    global dest_drive_master_list
 
     if not config['cliMode']:
-        progress.startIndeterminate()
+        progress.start_indeterminate()
 
-    driveList = win32api.GetLogicalDriveStrings()
-    driveList = driveList.split('\000')[:-1]
+    logical_drive_list = win32api.GetLogicalDriveStrings()
+    logical_drive_list = logical_drive_list.split('\000')[:-1]
 
     # Associate logical drives with physical drives, and map them to physical serial numbers
-    logicalPhysicalMap = {}
+    logical_to_physical_map = {}
     if not config['cliMode']:
         pythoncom.CoInitialize()
     try:
-        for physicalDisk in wmi.WMI().Win32_DiskDrive():
-            for partition in physicalDisk.associators("Win32_DiskDriveToDiskPartition"):
-                logicalPhysicalMap.update({logicalDisk.DeviceID[0]: physicalDisk.SerialNumber.strip() for logicalDisk in partition.associators("Win32_LogicalDiskToPartition")})
+        for physical_disk in wmi.WMI().Win32_DiskDrive():
+            for partition in physical_disk.associators("Win32_DiskDriveToDiskPartition"):
+                logical_to_physical_map.update({logical_disk.DeviceID[0]: physical_disk.SerialNumber.strip() for logical_disk in partition.associators("Win32_LogicalDiskToPartition")})
     finally:
         if not config['cliMode']:
             pythoncom.CoUninitialize()
@@ -811,86 +813,78 @@ def loadDest():
         tree_dest.delete(*tree_dest.get_children())
 
     # Enumerate drive list to find info about all non-source drives
-    totalUsage = 0
-    destDriveMasterList = []
-    destDriveLetterToInfo = {}
-    systemDrive = f"{os.getenv('SystemDrive')[0]}:\\"
-    for drive in driveList:
-        if drive != config['sourceDrive'] and drive != systemDrive:
-            driveType = win32file.GetDriveType(drive)
-            if driveType not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
-                driveSize = shutil.disk_usage(drive).total
+    total_drive_space_available = 0
+    dest_drive_master_list = []
+    for drive in logical_drive_list:
+        if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
+            drive_type = win32file.GetDriveType(drive)
+            if drive_type not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
+                drive_size = shutil.disk_usage(drive).total
                 vsn = os.stat(drive).st_dev
                 vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
                 try:
-                    serial = logicalPhysicalMap[drive[0]]
+                    serial = logical_to_physical_map[drive[0]]
                 except KeyError:
                     serial = 'Not Found'
 
-                # Add drive to drive list
-                destDriveLetterToInfo[drive[0]] = {
-                    'vid': vsn,
-                    'serial': serial
-                }
+                drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
 
-                driveHasConfigFile = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
-
-                totalUsage = totalUsage + driveSize
+                total_drive_space_available = total_drive_space_available + drive_size
                 if not config['cliMode']:
-                    tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
+                    tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
 
-                destDriveMasterList.append({
+                dest_drive_master_list.append({
                     'name': drive,
                     'vid': vsn,
                     'serial': serial,
-                    'capacity': driveSize,
-                    'hasConfig': driveHasConfigFile
+                    'capacity': drive_size,
+                    'hasConfig': drive_has_config_file
                 })
 
     if not config['cliMode']:
-        driveTotalSpace.configure(text=human_filesize(totalUsage), fg=uiColor.NORMAL if totalUsage > 0 else uiColor.FADED)
+        drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=uicolor.NORMAL if total_drive_space_available > 0 else uicolor.FADED)
 
-        progress.stopIndeterminate()
+        progress.stop_indeterminate()
 
-def startRefreshDest():
+def load_dest_in_background():
     """Start the loading of the destination drive info in a new thread."""
 
-    if not threadManager.is_alive('Refresh destination'):
-        threadManager.start(threadManager.SINGLE, target=loadDest, name='Refresh destination', daemon=True)
+    if not thread_manager.is_alive('Refresh destination'):
+        thread_manager.start(thread_manager.SINGLE, target=load_dest, name='Refresh destination', daemon=True)
 
-def selectFromConfig():
+def gui_select_from_config():
     """From the current config, select the appropriate shares and drives in the GUI."""
 
-    global driveSelectBind
+    global drive_select_bind
 
     # Get list of shares in config
-    shareNameList = [item['name'] for item in config['shares']]
-    sourceTreeIdList = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in shareNameList]
+    config_share_name_list = [item['name'] for item in config['shares']]
+    config_shares_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in config_share_name_list]
 
-    if len(sourceTreeIdList) > 0:
-        tree_source.focus(sourceTreeIdList[-1])
-        tree_source.selection_set(tuple(sourceTreeIdList))
+    if config_shares_source_tree_id_list:
+        tree_source.focus(config_shares_source_tree_id_list[-1])
+        tree_source.selection_set(tuple(config_shares_source_tree_id_list))
 
     # Get list of drives where volume ID is in config
-    connectedVidList = [drive['vid'] for drive in config['drives']]
-    driveTreeIdList = [item for item in tree_dest.get_children() if tree_dest.item(item, 'values')[3] in connectedVidList]
+    connected_vid_list = [drive['vid'] for drive in config['drives']]
+    config_drive_tree_id_list = [item for item in tree_dest.get_children() if tree_dest.item(item, 'values')[3] in connected_vid_list]
 
     # If drives aren't mounted that should be, display the warning
-    missingDriveCount = len(config['missingDrives'])
-    if missingDriveCount > 0:
-        configMissingVids = [vid for vid in config['missingDrives'].keys()]
+    MISSING_DRIVE_COUNT = len(config['missingDrives'])
+    if MISSING_DRIVE_COUNT > 0:
+        config_missing_drive_vid_list = [vid for vid in config['missingDrives'].keys()]
 
-        missingVidString = ', '.join(configMissingVids[:-2] + [' and '.join(configMissingVids[-2:])])
-        warningMessage = f"The drive{'s' if len(configMissingVids) > 1 else ''} with volume ID{'s' if len(configMissingVids) > 1 else ''} {missingVidString} {'are' if len(configMissingVids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
-        warningTitle = f"Drive{'s' if len(configMissingVids) > 1 else ''} missing"
+        MISSING_VID_READABLE_LIST = ', '.join(config_missing_drive_vid_list[:-2] + [' and '.join(config_missing_drive_vid_list[-2:])])
+        MISSING_VID_ALERT_MESSAGE = f"The drive{'s' if len(config_missing_drive_vid_list) > 1 else ''} with volume ID{'s' if len(config_missing_drive_vid_list) > 1 else ''} {MISSING_VID_READABLE_LIST} {'are' if len(config_missing_drive_vid_list) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
+        MISSING_VID_ALERT_TITLE = f"Drive{'s' if len(config_missing_drive_vid_list) > 1 else ''} missing"
 
-        splitWarningPrefix.configure(text=f"There {'is' if missingDriveCount == 1 else 'are'}")
-        splitwarningContract = 'isn\'t' if missingDriveCount == 1 else 'aren\'t'
-        splitWarningSuffix.configure(text=f"{'drive' if missingDriveCount == 1 else 'drives'} in the config that {splitwarningContract} connected. Please connect {'it' if missingDriveCount == 1 else 'them'}, or enable split mode.")
-        splitWarningMissingDriveCount.configure(text=str(missingDriveCount))
-        destSplitWarningFrame.grid(row=3, column=0, columnspan=3, sticky='nsew', pady=(0, WINDOW_ELEMENT_PADDING), ipady=WINDOW_ELEMENT_PADDING / 4)
+        split_warning_prefix.configure(text=f"There {'is' if MISSING_DRIVE_COUNT == 1 else 'are'}")
+        MISSING_DRIVE_CONTRACTION = 'isn\'t' if MISSING_DRIVE_COUNT == 1 else 'aren\'t'
+        split_warning_suffix.configure(text=f"{'drive' if MISSING_DRIVE_COUNT == 1 else 'drives'} in the config that {MISSING_DRIVE_CONTRACTION} connected. Please connect {'it' if MISSING_DRIVE_COUNT == 1 else 'them'}, or enable split mode.")
+        split_warning_missing_drive_count.configure(text=str(MISSING_DRIVE_COUNT))
+        dest_split_warning_frame.grid(row=3, column=0, columnspan=3, sticky='nsew', pady=(0, WINDOW_ELEMENT_PADDING), ipady=WINDOW_ELEMENT_PADDING / 4)
 
-        messagebox.showwarning(warningTitle, warningMessage)
+        messagebox.showwarning(MISSING_VID_ALERT_TITLE, MISSING_VID_ALERT_MESSAGE)
 
     # Only redo the selection if the config data is different from the current
     # selection (that is, the drive we selected to load a config is not the only
@@ -898,65 +892,65 @@ def selectFromConfig():
     # Because of the <<TreeviewSelect>> handler, re-selecting the same single item
     # would get stuck into an endless loop of trying to load the config
     # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
-    if len(driveTreeIdList) > 0 and tree_dest.selection() != tuple(driveTreeIdList):
-        tree_dest.unbind('<<TreeviewSelect>>', driveSelectBind)
+    if len(config_drive_tree_id_list) > 0 and tree_dest.selection() != tuple(config_drive_tree_id_list):
+        tree_dest.unbind('<<TreeviewSelect>>', drive_select_bind)
 
-        tree_dest.focus(driveTreeIdList[-1])
-        tree_dest.selection_set(tuple(driveTreeIdList))
+        tree_dest.focus(config_drive_tree_id_list[-1])
+        tree_dest.selection_set(tuple(config_drive_tree_id_list))
 
-        driveSelectBind = tree_dest.bind("<<TreeviewSelect>>", selectDriveInBackground)
+        drive_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_drive_in_background)
 
-def readConfigFile(file):
+def load_config_from_file(filename):
     """Read a config file, and set the current config based off of it.
 
     Args:
-        file (String): The file to read from.
+        filename (String): The file to read from.
     """
 
     global config
 
-    newConfig = {}
-    configFile = Config(file)
+    new_config = {}
+    config_file = Config(filename)
 
     # Get shares
-    shares = configFile.get('selection', 'shares')
+    shares = config_file.get('selection', 'shares')
     if shares is not None and len(shares) > 0:
-        newConfig['shares'] = [{
+        new_config['shares'] = [{
             'name': share,
             'size': None
         } for share in shares.split(',')]
 
     # Get VID list
-    vids = configFile.get('selection', 'vids').split(',')
+    vids = config_file.get('selection', 'vids').split(',')
 
     # Get drive info
-    configTotal = 0
-    newConfig['drives'] = []
-    newConfig['missingDrives'] = {}
-    driveLookupList = {drive['vid']: drive for drive in destDriveMasterList}
+    config_drive_total = 0
+    new_config['drives'] = []
+    new_config['missingDrives'] = {}
+    drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
     for drive in vids:
-        if drive in driveLookupList.keys():
+        if drive in drive_lookup_list.keys():
             # If drive connected, add to drive list
-            newConfig['drives'].append(driveLookupList[drive])
-            configTotal += driveLookupList[drive]['capacity']
+            new_config['drives'].append(drive_lookup_list[drive])
+            config_drive_total += drive_lookup_list[drive]['capacity']
         else:
             # Add drive capacity info to missing drive list
-            reportedCapacity = configFile.get(drive, 'capacity', 0, dataType=Config.INTEGER)
-            newConfig['missingDrives'][drive] = reportedCapacity
-            configTotal += reportedCapacity
+            reported_drive_capacity = config_file.get(drive, 'capacity', 0, data_type=Config.INTEGER)
+            new_config['missingDrives'][drive] = reported_drive_capacity
+            config_drive_total += reported_drive_capacity
 
-    config.update(newConfig)
+    config.update(new_config)
 
     if not config['cliMode']:
-        configSelectedSpace.configure(text=human_filesize(configTotal), fg=uiColor.NORMAL)
-        selectFromConfig()
+        config_selected_space.configure(text=human_filesize(config_drive_total), fg=uicolor.NORMAL)
+        gui_select_from_config()
 
-prevSelection = 0
-prevDriveSelection = []
+prev_selection = 0
+prev_drive_selection = []
 
 # BUG: keyboard module seems to be returning false for keypress on first try. No idea how to fix this
 keyboard.is_pressed('alt')
-def handleDriveSelectionClick():
+def handle_drive_selection_click():
     """Parse the current drive selection, read config data, and select other drives and shares if needed.
 
     If the selection involves a single drive that the user specifically clicked on,
@@ -964,68 +958,67 @@ def handleDriveSelectionClick():
     other drives and shares in the config.
     """
 
-    global prevSelection
-    global prevDriveSelection
-    global backup
+    global prev_selection
+    global prev_drive_selection
 
-    progress.startIndeterminate()
+    progress.start_indeterminate()
 
-    selected = tree_dest.selection()
+    dest_selection = tree_dest.selection()
 
     # If selection is different than last time, invalidate the analysis
-    selectMatch = [drive for drive in selected if drive in prevDriveSelection]
-    if len(selected) != len(prevDriveSelection) or len(selectMatch) != len(prevDriveSelection):
-        startBackupBtn.configure(state='disable')
+    selection_selected_last_time = [drive for drive in dest_selection if drive in prev_drive_selection]
+    if len(dest_selection) != len(prev_drive_selection) or len(selection_selected_last_time) != len(prev_drive_selection):
+        start_backup_btn.configure(state='disable')
 
-    prevDriveSelection = [share for share in selected]
+    prev_drive_selection = [share for share in dest_selection]
 
     # Check if newly selected drive has a config file
     # We only want to do this if the click is the first selection (that is, there
     # are no other drives selected except the one we clicked).
-    if len(selected) > 0:
-        selectedDriveLetter = tree_dest.item(selected[0], 'text')[0]
-        configFilePath = f"{selectedDriveLetter}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
-    readDrivesFromConfigFile = False
-    if not keyboard.is_pressed('alt') and prevSelection <= len(selected) and len(selected) == 1 and os.path.exists(configFilePath) and os.path.isfile(configFilePath):
+    if len(dest_selection) > 0:
+        selected_drive_letter = tree_dest.item(dest_selection[0], 'text')[0]
+        SELECTED_DRIVE_CONFIG_FILE = f"{selected_drive_letter}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
+    drives_read_from_config_file = False
+    if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.exists(SELECTED_DRIVE_CONFIG_FILE) and os.path.isfile(SELECTED_DRIVE_CONFIG_FILE):
         # Found config file, so read it
-        readConfigFile(configFilePath)
-        selected = tree_dest.selection()
-        readDrivesFromConfigFile = True
+        load_config_from_file(SELECTED_DRIVE_CONFIG_FILE)
+        dest_selection = tree_dest.selection()
+        drives_read_from_config_file = True
     else:
-        destSplitWarningFrame.grid_remove()
-        prevSelection = len(selected)
+        dest_split_warning_frame.grid_remove()
+        prev_selection = len(dest_selection)
 
-    selectedTotal = 0
-    selectedDriveList = []
-    driveLookupList = {drive['vid']: drive for drive in destDriveMasterList}
-    for item in selected:
+    selected_total = 0
+    selected_drive_list = []
+    drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
+    for item in dest_selection:
         # Write drive IDs to config
-        selectedDrive = driveLookupList[tree_dest.item(item, 'values')[3]]
-        selectedDriveList.append(selectedDrive)
-        selectedTotal = selectedTotal + selectedDrive['capacity']
+        selected_drive = drive_lookup_list[tree_dest.item(item, 'values')[3]]
+        selected_drive_list.append(selected_drive)
+        selected_total = selected_total + selected_drive['capacity']
 
-    driveSelectedSpace.configure(text=human_filesize(selectedTotal), fg=uiColor.NORMAL if selectedTotal > 0 else uiColor.FADED)
-    if not readDrivesFromConfigFile:
-        config['drives'] = selectedDriveList
-        configSelectedSpace.configure(text='None', fg=uiColor.FADED)
+    drive_selected_space.configure(text=human_filesize(selected_total), fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
+    if not drives_read_from_config_file:
+        config['drives'] = selected_drive_list
+        config_selected_space.configure(text='None', fg=uicolor.FADED)
 
-    updateSelectionStatusBar()
+    update_status_bar_selection()
 
-    progress.stopIndeterminate()
+    progress.stop_indeterminate()
 
-def selectDriveInBackground(event):
+def select_drive_in_background(event):
     """Start the drive selection handling in a new thread."""
 
-    threadManager.start(threadManager.MULTIPLE, target=handleDriveSelectionClick, name='Drive Select', daemon=True)
+    thread_manager.start(thread_manager.MULTIPLE, target=handle_drive_selection_click, name='Drive Select', daemon=True)
 
-def startBackup():
+def start_backup():
     """Start the backup in a new thread."""
 
     if backup:
-        threadManager.start(threadManager.KILLABLE, lambda: None, target=backup.run, name='Backup', daemon=True)
+        thread_manager.start(thread_manager.KILLABLE, lambda: None, target=backup.run, name='Backup', daemon=True)
 
-forceNonGracefulCleanup = False
-def cleanupHandler(signal_received, frame):
+force_non_graceful_cleanup = False
+def cleanup_handler(signal_received, frame):
     """Handle cleanup when exiting with Ctrl-C.
 
     Args:
@@ -1033,134 +1026,137 @@ def cleanupHandler(signal_received, frame):
         frame: The current stack frame.
     """
 
-    global forceNonGracefulCleanup
+    global force_non_graceful_cleanup
 
-    if not forceNonGracefulCleanup:
+    if not force_non_graceful_cleanup:
         print(f"{bcolor.FAIL}SIGINT or Ctrl-C detected. Exiting gracefully...{bcolor.ENDC}")
 
-        if threadManager.is_alive('Backup'):
-            threadManager.kill('Backup')
+        if thread_manager.is_alive('Backup'):
+            thread_manager.kill('Backup')
 
-            if threadManager.is_alive('Backup'):
-                forceNonGracefulCleanup = True
+            if thread_manager.is_alive('Backup'):
+                force_non_graceful_cleanup = True
                 print(f"{bcolor.FAIL}Press Ctrl-C again to force stop{bcolor.ENDC}")
 
-            while threadManager.is_alive('Backup'):
+            while thread_manager.is_alive('Backup'):
                 pass
 
-        if threadManager.is_alive('backupTimer'):
-            threadManager.kill('backupTimer')
+        if thread_manager.is_alive('backupTimer'):
+            thread_manager.kill('backupTimer')
     else:
         print(f"{bcolor.FAIL}SIGINT or Ctrl-C detected. Force closing...{bcolor.ENDC}")
 
     exit(0)
 
-updateWin = None
+update_window = None
 
-def displayUpdateScreen(updateInfo):
+def display_update_screen(update_info):
     """Display information about updates.
 
     Args:
-        updateInfo (dict): The update info returned by the UpdateHandler.
+        update_info (dict): The update info returned by the UpdateHandler.
     """
 
-    global updateWin
+    global update_window
 
-    if updateInfo['updateAvailable'] and (updateWin is None or not updateWin.winfo_exists()):
-        updateWin = tk.Toplevel(root)
-        updateWin.title('Update Available')
-        updateWin.resizable(False, False)
-        updateWin.geometry('600x300')
-        updateWin.iconbitmap(resource_path('media\\icon.ico'))
-        center(updateWin, root)
-        updateWin.transient(root)
-        updateWin.grab_set()
+    if update_info['updateAvailable'] and (update_window is None or not update_window.winfo_exists()):
+        update_window = tk.Toplevel(root)
+        update_window.title('Update Available')
+        update_window.resizable(False, False)
+        update_window.geometry('600x300')
+        update_window.iconbitmap(resource_path('media\\icon.ico'))
+        center(update_window, root)
+        update_window.transient(root)
+        update_window.grab_set()
         root.wm_attributes('-disabled', True)
 
-        def onClose():
-            updateWin.destroy()
+        def on_close():
+            update_window.destroy()
             root.wm_attributes('-disabled', False)
 
             ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
             root.focus_set()
 
-        updateWin.protocol('WM_DELETE_WINDOW', onClose)
+        update_window.protocol('WM_DELETE_WINDOW', on_close)
 
-        mainFrame = tk.Frame(updateWin)
-        mainFrame.grid(row=0, column=0, sticky='')
-        updateWin.grid_rowconfigure(0, weight=1)
-        updateWin.grid_columnconfigure(0, weight=1)
+        main_frame = tk.Frame(update_window)
+        main_frame.grid(row=0, column=0, sticky='')
+        update_window.grid_rowconfigure(0, weight=1)
+        update_window.grid_columnconfigure(0, weight=1)
 
-        updateHeader = tk.Label(mainFrame, text='Update Available!', font=(None, 30, 'bold italic'), fg=uiColor.INFOTEXTDARK)
-        updateHeader.pack()
+        update_header = tk.Label(main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=uicolor.INFOTEXTDARK)
+        update_header.pack()
 
-        updateText = tk.Label(mainFrame, text='An update to BackDrop is avaiable. Please update to get the latest features and fixes.', font=(None, 10))
-        updateText.pack(pady=16)
+        update_text = tk.Label(main_frame, text='An update to BackDrop is avaiable. Please update to get the latest features and fixes.', font=(None, 10))
+        update_text.pack(pady=16)
 
-        currentVersionFrame = tk.Frame(mainFrame)
-        currentVersionFrame.pack()
-        tk.Label(currentVersionFrame, text='Current Version:', font=(None, 14)).pack(side='left')
-        tk.Label(currentVersionFrame, text=APP_VERSION, font=(None, 14), fg=uiColor.FADED).pack(side='left')
+        current_version_frame = tk.Frame(main_frame)
+        current_version_frame.pack()
+        tk.Label(current_version_frame, text='Current Version:', font=(None, 14)).pack(side='left')
+        tk.Label(current_version_frame, text=APP_VERSION, font=(None, 14), fg=uicolor.FADED).pack(side='left')
 
-        latestVersionFrame = tk.Frame(mainFrame)
-        latestVersionFrame.pack(pady=(2, 12))
-        tk.Label(latestVersionFrame, text='Latest Version:', font=(None, 14)).pack(side='left')
-        tk.Label(latestVersionFrame, text=updateInfo['latestVersion'], font=(None, 14), fg=uiColor.FADED).pack(side='left')
+        latest_version_frame = tk.Frame(main_frame)
+        latest_version_frame.pack(pady=(2, 12))
+        tk.Label(latest_version_frame, text='Latest Version:', font=(None, 14)).pack(side='left')
+        tk.Label(latest_version_frame, text=update_info['latestVersion'], font=(None, 14), fg=uicolor.FADED).pack(side='left')
 
-        downloadFrame = tk.Frame(mainFrame)
-        downloadFrame.pack()
+        download_frame = tk.Frame(main_frame)
+        download_frame.pack()
 
-        iconInfo = {
+        icon_info = {
             'exe': {
-                'flat': windowsIcon,
-                'color': colorWindowsIcon
+                'flat': icon_windows,
+                'color': icon_windows_color
             },
             'zip': {
-                'flat': zipIcon,
-                'color': colorZipIcon
+                'flat': icon_zip,
+                'color': icon_zip_color
             }
         }
-        downloadMap = {url[-3:].lower(): url for url in updateInfo['download']}
+        download_map = {url[-3:].lower(): url for url in update_info['download']}
 
-        for fileType, icons in iconInfo.items():
-            if fileType in downloadMap.keys():
-                downloadBtn = tk.Label(downloadFrame, image=icons['flat'])
-                downloadBtn.pack(side='left', padx=8)
-                downloadBtn.bind('<Enter>', lambda e, icon=icons['color']: e.widget.configure(image=icon))
-                downloadBtn.bind('<Leave>', lambda e, icon=icons['flat']: e.widget.configure(image=icon))
-                downloadBtn.bind('<Button-1>', lambda e, url=downloadMap[fileType]: webbrowser.open_new(url))
+        for file_type, icons in icon_info.items():
+            if file_type in download_map.keys():
+                download_btn = tk.Label(download_frame, image=icons['flat'])
+                download_btn.pack(side='left', padx=8)
+                download_btn.bind('<Enter>', lambda e, icon=icons['color']: e.widget.configure(image=icon))
+                download_btn.bind('<Leave>', lambda e, icon=icons['flat']: e.widget.configure(image=icon))
+                download_btn.bind('<Button-1>', lambda e, url=download_map[file_type]: webbrowser.open_new(url))
 
-def checkForUpdates(info):
+def check_for_updates(info):
     """Process the update information provided by the UpdateHandler class.
 
     Args:
-        updateInfo (dict): The Update info from the update handler.
+        info (dict): The Update info from the update handler.
     """
 
-    global updateInfo
+    global update_info
 
-    updateInfo = info
+    update_info = info
 
     if info['updateAvailable']:
         if not config['cliMode']:
-            displayUpdateScreen(info)
+            display_update_screen(info)
         else:
-            downloadUrl = None
+            download_url = None
             for item in info['download']:
                 # TODO: For cross platform, make sure the right filetype is selected
                 if item[-4:].lower() == '.exe':
-                    downloadUrl = item
+                    download_url = item
                     break
 
-            if downloadUrl is not None:
+            if download_url is not None:
                 print('Downloading update. Please wait...')
 
-                downloadFilename = f"{os.getcwd()}\\{downloadUrl.split('/')[-1]}"
-                urllib.request.urlretrieve(downloadUrl, downloadFilename)
+                download_filename = f"{os.getcwd()}\\{download_url.split('/')[-1]}"
+                urllib.request.urlretrieve(download_url, download_filename)
 
                 print('Update downloaded successfully')
             else:
                 print('Unable to find suitable download. Please try again, or update manually.')
+
+# Set constants
+SYSTEM_DRIVE = f"{os.getenv('SystemDrive')[0]}:\\"
 
 # Set app defaults
 BACKUP_CONFIG_DIR = '.backdrop'
@@ -1178,14 +1174,14 @@ config = {
     'missingDrives': {},
     'cliMode': len(sys.argv) > 1
 }
-destDriveMasterList = []
+dest_drive_master_list = []
 
 backup = None
-commandList = []
+command_list = []
 
-signal(SIGINT, cleanupHandler)
+signal(SIGINT, cleanup_handler)
 
-threadManager = ThreadManager()
+thread_manager = ThreadManager()
 
 ############
 # CLI Mode #
@@ -1195,8 +1191,8 @@ if config['cliMode']:
     # Colored text does not work without this empty call first
     os.system('')
 
-    commandLine = CommandLine(
-        optionInfoList=[
+    command_line = CommandLine(
+        [
             'Usage: backdrop [options]\n',
             ('-S', '--source', 1, 'The source drive to back up.'),
             ('-s', '--share', 1, 'The shares to back up from the source.'),
@@ -1215,16 +1211,16 @@ if config['cliMode']:
 
     # FIXME: Allow destination and config to be specified with drive letter or volume ID
 
-    if commandLine.hasParam('help'):
-        commandLine.showHelp()
-    elif commandLine.hasParam('version'):
+    if command_line.has_param('help'):
+        command_line.show_help()
+    elif command_line.has_param('version'):
         print(f'BackDrop {APP_VERSION}')
-    elif commandLine.hasParam('update'):
-        updateHandler = UpdateHandler(
-            currentVersion=APP_VERSION,
-            updateCallback=checkForUpdates
+    elif command_line.has_param('update'):
+        update_handler = UpdateHandler(
+            current_version=APP_VERSION,
+            update_callback=check_for_updates
         )
-        updateHandler.check()
+        update_handler.check()
     else:
         # Backup config mode
         # TODO: Remove CLI mode stability warning
@@ -1233,256 +1229,257 @@ if config['cliMode']:
         # ## Input validation ## #
 
         # Validate drive selection
-        driveList = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-        remoteDrives = [drive for drive in driveList if win32file.GetDriveType(drive) == 4]
+        drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+        remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
 
-        if len(remoteDrives) <= 0:
+        if len(remote_drives) <= 0:
             print(f"{bcolor.FAIL}No network drives are available{bcolor.ENDC}")
             exit()
 
-        loadDest()
-        if len(destDriveMasterList) <= 0:
+        load_dest()
+        if len(dest_drive_master_list) <= 0:
             print(f"{bcolor.FAIL}No destination drives are available{bcolor.ENDC}")
             exit()
-        destDriveNameList = [drive['name'] for drive in destDriveMasterList]
+        dest_drive_name_list = [drive['name'] for drive in dest_drive_master_list]
 
         # Source drive
-        if commandLine.hasParam('interactive'):
-            sourceDrive = prefs.get('selection', 'sourceDrive', remoteDrives[0], verifyData=remoteDrives)
+        if command_line.has_param('interactive'):
+            source_drive = prefs.get('selection', 'sourceDrive', remote_drives[0], verify_data=remote_drives)
         else:
-            sourceDrive = prefs.get('selection', 'sourceDrive', remoteDrives[0], verifyData=remoteDrives)
-            sourceDrive = commandLine.getParam('source')[0][0].upper() + ':\\' if commandLine.hasParam('source') and commandLine.getParam('source')[0] in remoteDrives else sourceDrive
+            source_drive = prefs.get('selection', 'sourceDrive', remote_drives[0], verify_data=remote_drives)
+            source_drive = command_line.get_param('source')[0][0].upper() + ':\\' if command_line.has_param('source') and command_line.get_param('source')[0] in remote_drives else source_drive
 
-        if commandLine.hasParam('interactive') and not commandLine.validateYesNo(f"Source drive {sourceDrive} loaded from preferences. Is this ok?", True):
+        if command_line.has_param('interactive') and not command_line.validate_yes_no(f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
             print('\nAvailable drives are as follows:\n')
-            print(f"Available drives: {', '.join(remoteDrives)}\n")
-            config['sourceDrive'] = commandLine.validateChoice(
+            print(f"Available drives: {', '.join(remote_drives)}\n")
+            config['sourceDrive'] = command_line.validate_choice(
                 message='Which source drive would you like to use?',
-                choices=remoteDrives,
-                default=sourceDrive,
-                charsRequired=1
+                choices=remote_drives,
+                default=source_drive,
+                chars_required=1
             )
         else:
-            if sourceDrive is None:
+            if source_drive is None:
                 print('Please specify a source drive')
                 exit()
-            elif sourceDrive not in remoteDrives:
+            elif source_drive not in remote_drives:
                 print(f"{bcolor.FAIL}Source drive is not valid for selection{bcolor.ENDC}")
                 exit()
 
-            config['sourceDrive'] = sourceDrive
+            config['sourceDrive'] = source_drive
 
-        sharesLoadedFromConfig = False
+        shares_loaded_from_config = False
 
         # Destination drives
-        if commandLine.hasParam('interactive'):
+        if command_line.has_param('interactive'):
             print('\nAvailable destination drives are as follows:\n')
 
             # TODO: Generalize this into function for table-izing data?
-            driveNameList = ['Drive']
-            driveSizeList = ['Size']
-            driveConfigList = ['Config file']
-            driveVidList = ['Volume ID']
-            driveSerialList = ['Serial']
-            driveNameList.extend([drive['name'] for drive in destDriveMasterList])
-            driveSizeList.extend([human_filesize(drive['capacity']) for drive in destDriveMasterList])
-            driveConfigList.extend(['Yes' if drive['hasConfig'] else '' for drive in destDriveMasterList])
-            driveVidList.extend([drive['vid'] for drive in destDriveMasterList])
-            driveSerialList.extend([drive['serial'] for drive in destDriveMasterList])
+            drive_name_list = ['Drive']
+            drive_size_list = ['Size']
+            drive_config_list = ['Config file']
+            drive_vid_list = ['Volume ID']
+            drive_serial_list = ['Serial']
+            drive_name_list.extend([drive['name'] for drive in dest_drive_master_list])
+            drive_size_list.extend([human_filesize(drive['capacity']) for drive in dest_drive_master_list])
+            drive_config_list.extend(['Yes' if drive['hasConfig'] else '' for drive in dest_drive_master_list])
+            drive_vid_list.extend([drive['vid'] for drive in dest_drive_master_list])
+            drive_serial_list.extend([drive['serial'] for drive in dest_drive_master_list])
 
-            driveDisplayLength = {
-                'name': len(max(driveNameList, key=len)),
-                'size': len(max(driveSizeList, key=len)),
-                'config': len(max(driveConfigList, key=len)),
-                'vid': len(max(driveVidList, key=len))
+            drive_display_length = {
+                'name': len(max(drive_name_list, key=len)),
+                'size': len(max(drive_size_list, key=len)),
+                'config': len(max(drive_config_list, key=len)),
+                'vid': len(max(drive_vid_list, key=len))
             }
 
-            for i, curDrive in enumerate(driveNameList):
-                print(f"{curDrive: <{driveDisplayLength['name']}}  {driveSizeList[i]: <{driveDisplayLength['size']}}  {driveConfigList[i]: <{driveDisplayLength['config']}}  {driveVidList[i]: <{driveDisplayLength['vid']}}  {driveSerialList[i]}")
+            for i, cur_drive in enumerate(drive_name_list):
+                print(f"{cur_drive: <{drive_display_length['name']}}  {drive_size_list[i]: <{drive_display_length['size']}}  {drive_config_list[i]: <{drive_display_length['config']}}  {drive_vid_list[i]: <{drive_display_length['vid']}}  {drive_serial_list[i]}")
             print('')
 
-            driveList = commandLine.validateChoiceList(
+            drive_list = command_line.validate_choice_list(
                 message='Which destination drives (space separated) would you like to use?',
-                choices=[drive['name'] for drive in destDriveMasterList],
+                choices=[drive['name'] for drive in dest_drive_master_list],
                 default=None,
-                charsRequired=1
+                chars_required=1
             )
 
-            config['drives'] = [drive for drive in destDriveMasterList if drive['name'] in driveList]
+            config['drives'] = [drive for drive in dest_drive_master_list if drive['name'] in drive_list]
         else:
             # Load from config
-            splitMode = commandLine.hasParam('split')
-            loadConfigDrive = commandLine.getParam('config')
-            if type(loadConfigDrive) is list and f"{loadConfigDrive[0][0].upper()}:\\" in destDriveNameList:
-                readConfigFile(f"{loadConfigDrive[0][0].upper()}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")
+            split_mode = command_line.has_param('split')
+            load_config_drive = command_line.get_param('config')
+            if type(load_config_drive) is list and f"{load_config_drive[0][0].upper()}:\\" in dest_drive_name_list:
+                load_config_from_file(f"{load_config_drive[0][0].upper()}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")
 
-                sharesLoadedFromConfig = True
+                shares_loaded_from_config = True
 
-                destList = [drive['name'] for drive in config['drives']]
+                dest_list = [drive['name'] for drive in config['drives']]
 
                 # If drives aren't mounted that should be, display the warning
-                missingDriveCount = len(config['missingDrives'])
-                if missingDriveCount > 0 and not splitMode:
-                    configMissingVids = [vid for vid in config['missingDrives'].keys()]
+                missing_drive_count = len(config['missingDrives'])
+                if missing_drive_count > 0 and not split_mode:
+                    config_missing_vids = [vid for vid in config['missingDrives'].keys()]
 
-                    missingVidString = ', '.join(configMissingVids[:-2] + [' and '.join(configMissingVids[-2:])])
-                    warningMessage = f"The drive{'s' if len(configMissingVids) > 1 else ''} with volume ID{'s' if len(configMissingVids) > 1 else ''} {missingVidString} {'are' if len(configMissingVids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
-                    warningTitle = f"Drive{'s' if len(configMissingVids) > 1 else ''} missing"
+                    missing_vid_string = ', '.join(config_missing_vids[:-2] + [' and '.join(config_missing_vids[-2:])])
+                    warning_message = f"The drive{'s' if len(config_missing_vids) > 1 else ''} with volume ID{'s' if len(config_missing_vids) > 1 else ''} {missing_vid_string} {'are' if len(config_missing_vids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
+                    warning_title = f"Drive{'s' if len(config_missing_vids) > 1 else ''} missing"
 
-                    driveParts = [
-                        'is' if missingDriveCount == 1 else 'are',
-                        'drive' if missingDriveCount == 1 else 'drives',
-                        'isn\'t' if missingDriveCount == 1 else 'aren\'t',
-                        'it' if missingDriveCount == 1 else 'them'
+                    drive_parts = [
+                        'is' if missing_drive_count == 1 else 'are',
+                        'drive' if missing_drive_count == 1 else 'drives',
+                        'isn\'t' if missing_drive_count == 1 else 'aren\'t',
+                        'it' if missing_drive_count == 1 else 'them'
                     ]
-                    print(f"{bcolor.WARNING}There {driveParts[0]} {missingDriveCount} {driveParts[1]} in the config that {driveParts[2]} connected. Please connect {driveParts[3]}, or enable split mode.{bcolor.ENDC}\n")
+                    print(f"{bcolor.WARNING}There {drive_parts[0]} {missing_drive_count} {drive_parts[1]} in the config that {drive_parts[2]} connected. Please connect {drive_parts[3]}, or enable split mode.{bcolor.ENDC}\n")
             else:
-                if len(config['drives']) <= 0 and (not commandLine.hasParam('destination') or len(commandLine.getParam('destination')) == 0):
+                if not config['drives'] and (not command_line.has_param('destination') or not command_line.get_param('destination')):
                     print('Please specify at least one destination drive')
                     exit()
 
-                destList = [drive[0].upper() + ':\\' for drive in commandLine.getParam('destination')]
+                dest_list = [drive[0].upper() + ':\\' for drive in command_line.get_param('destination')]
 
-                for drive in destList:
-                    if drive not in destDriveNameList:
+                for drive in dest_list:
+                    if drive not in dest_drive_name_list:
                         print(f"{bcolor.FAIL}One or more destinations are not valid for selection.\nAvailable drives are as follows:{bcolor.ENDC}")
 
-                        driveNameList = ['Drive']
-                        driveSizeList = ['Size']
-                        driveConfigList = ['Config file']
-                        driveVidList = ['Volume ID']
-                        driveSerialList = ['Serial']
-                        driveNameList.extend([drive['name'] for drive in destDriveMasterList])
-                        driveSizeList.extend([human_filesize(drive['capacity']) for drive in destDriveMasterList])
-                        driveConfigList.extend(['Yes' if drive['hasConfig'] else '' for drive in destDriveMasterList])
-                        driveVidList.extend([drive['vid'] for drive in destDriveMasterList])
-                        driveSerialList.extend([drive['serial'] for drive in destDriveMasterList])
+                        drive_name_list = ['Drive']
+                        drive_size_list = ['Size']
+                        drive_config_list = ['Config file']
+                        drive_vid_list = ['Volume ID']
+                        drive_serial_list = ['Serial']
+                        drive_name_list.extend([drive['name'] for drive in dest_drive_master_list])
+                        drive_size_list.extend([human_filesize(drive['capacity']) for drive in dest_drive_master_list])
+                        drive_config_list.extend(['Yes' if drive['hasConfig'] else '' for drive in dest_drive_master_list])
+                        drive_vid_list.extend([drive['vid'] for drive in dest_drive_master_list])
+                        drive_serial_list.extend([drive['serial'] for drive in dest_drive_master_list])
 
-                        driveDisplayLength = {
-                            'name': len(max(driveNameList, key=len)),
-                            'size': len(max(driveSizeList, key=len)),
-                            'config': len(max(driveConfigList, key=len)),
-                            'vid': len(max(driveVidList, key=len))
+                        drive_display_length = {
+                            'name': len(max(drive_name_list, key=len)),
+                            'size': len(max(drive_size_list, key=len)),
+                            'config': len(max(drive_config_list, key=len)),
+                            'vid': len(max(drive_vid_list, key=len))
                         }
 
-                        for i, curDrive in enumerate(driveNameList):
-                            print(f"{curDrive: <{driveDisplayLength['name']}}  {driveSizeList[i]: <{driveDisplayLength['size']}}  {driveConfigList[i]: <{driveDisplayLength['config']}}  {driveVidList[i]: <{driveDisplayLength['vid']}}  {driveSerialList[i]}")
+                        for i, cur_drive in enumerate(drive_name_list):
+                            print(f"{cur_drive: <{drive_display_length['name']}}  {drive_size_list[i]: <{drive_display_length['size']}}  {drive_config_list[i]: <{drive_display_length['config']}}  {drive_vid_list[i]: <{drive_display_length['vid']}}  {drive_serial_list[i]}")
 
                         exit()
 
-            config['drives'] = [drive for drive in destDriveMasterList if drive['name'] in destList]
-            config['splitMode'] = splitMode
+            config['drives'] = [drive for drive in dest_drive_master_list if drive['name'] in dest_list]
+            config['splitMode'] = split_mode
 
         # Shares
-        if commandLine.hasParam('interactive'):
+        if command_line.has_param('interactive'):
             print('\nAvailable shares drives are as follows:\n')
 
-            allShareList = [share for share in next(os.walk(config['sourceDrive']))[1]]
-            print('\n'.join(allShareList) + '\n')
+            all_share_list = [share for share in next(os.walk(config['sourceDrive']))[1]]
+            print('\n'.join(all_share_list) + '\n')
 
             config['shares'] = [{
                 'name': share,
                 'size': get_directory_size(config['sourceDrive'] + share)
-            } for share in commandLine.validateChoiceList(
+            } for share in command_line.validate_choice_list(
                 message='Which shares (space separated) would you like to use?',
-                choices=allShareList,
+                choices=all_share_list,
                 default=None,
-                caseSensitive=True
+                case_sensitive=True
             )]
         else:
-            if len(config['shares']) <= 0 and (not commandLine.hasParam('share') or len(commandLine.getParam('share')) == 0):
+            # TODO: Can has_param and get_param be merged?
+            if not config['shares'] and (not command_line.has_param('share') or not command_line.get_param('share')):
                 print('Please specify at least one share to back up')
                 exit()
 
-            if not sharesLoadedFromConfig:
-                shareList = sorted(commandLine.getParam('share'))
+            if not shares_loaded_from_config:
+                share_list = sorted(command_line.get_param('share'))
             else:
-                shareList = [share['name'] for share in config['shares']]
+                share_list = [share['name'] for share in config['shares']]
 
-            sourceShareList = [directory for directory in next(os.walk(config['sourceDrive']))[1]]
-            filteredShareInput = [share for share in shareList if share in sourceShareList]
-            if len(filteredShareInput) < len(shareList):
+            source_share_list = [directory for directory in next(os.walk(config['sourceDrive']))[1]]
+            filtered_share_input = [share for share in share_list if share in source_share_list]
+            if len(filtered_share_input) < len(share_list):
                 print(f"{bcolor.FAIL}One or more shares are not valid for selection{bcolor.ENDC}")
                 exit()
 
             config['shares'] = [{
                 'name': share,
                 'size': get_directory_size(config['sourceDrive'] + share)
-            } for share in shareList]
+            } for share in share_list]
 
         # ## Show summary ## #
 
-        headerList = ['Source', 'Destination', 'Shares']
+        header_list = ['Source', 'Destination', 'Shares']
         if len(config['missingDrives']) > 0:
-            headerList.extend(['Missing drives', 'Split mode'])
-        headerSpacing = len(max(headerList, key=len)) + 1
+            header_list.extend(['Missing drives', 'Split mode'])
+        header_spacing = len(max(header_list, key=len)) + 1
 
         print('')
-        print(f"{'Source:': <{headerSpacing}} {config['sourceDrive']}")
-        print(f"{'Destination:': <{headerSpacing}} {', '.join([drive['name'] for drive in config['drives']])}")
+        print(f"{'Source:': <{header_spacing}} {config['sourceDrive']}")
+        print(f"{'Destination:': <{header_spacing}} {', '.join([drive['name'] for drive in config['drives']])}")
 
         if len(config['missingDrives']) > 0:
-            print(f"{'Missing drives:': <{headerSpacing}} {', '.join([drive for drive in config['missingDrives'].keys()])}")
-            print(f"{'Split mode:': <{headerSpacing}} {bcolor.OKGREEN + 'Enabled' + bcolor.ENDC if splitMode else bcolor.FAIL + 'Disabled' + bcolor.ENDC}")
+            print(f"{'Missing drives:': <{header_spacing}} {', '.join([drive for drive in config['missingDrives'].keys()])}")
+            print(f"{'Split mode:': <{header_spacing}} {bcolor.OKGREEN + 'Enabled' + bcolor.ENDC if split_mode else bcolor.FAIL + 'Disabled' + bcolor.ENDC}")
 
-        print(f"{'Shares:': <{headerSpacing}} {', '.join([share['name'] for share in config['shares']])}\n")
+        print(f"{'Shares:': <{header_spacing}} {', '.join([share['name'] for share in config['shares']])}\n")
 
-        if len(config['missingDrives']) > 0 and not splitMode:
+        if len(config['missingDrives']) > 0 and not split_mode:
             print(f"{bcolor.FAIL}Missing drives; split mode disabled{bcolor.ENDC}")
             exit()
 
         # ## Confirm ## #
 
-        if not commandLine.hasParam('unattended') and not commandLine.validateYesNo('Do you want to continue?', True):
+        if not command_line.has_param('unattended') and not command_line.validate_yes_no('Do you want to continue?', True):
             print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
             exit()
 
         # ## Analysis ## #
 
-        startBackupAnalysis()
+        start_backup_analysis()
 
-        while threadManager.is_alive('Backup Analysis'):
+        while thread_manager.is_alive('Backup Analysis'):
             pass
 
         # ## Confirm ## #
 
-        if not commandLine.hasParam('unattended') and not commandLine.validateYesNo('Do you want to continue?', True):
+        if not command_line.has_param('unattended') and not command_line.validate_yes_no('Do you want to continue?', True):
             print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
             exit()
 
         # ## Backup ## #
 
-        startBackup()
+        start_backup()
 
-        while threadManager.is_alive('Backup'):
+        while thread_manager.is_alive('Backup'):
             pass
 
         exit()
 
-def updateSelectionStatusBar(status=None):
+def update_status_bar_selection(status=None):
     """Update the status bar selection status.
 
     Args:
         status (int): The status code to use.
     """
 
-    if len(config['shares']) == 0 and len(config['drives']) == 0 and len(config['missingDrives']) == 0:
+    if not config['shares'] and not config['drives'] and len(config['missingDrives']) == 0:
         # No selection in config
         status = Status.BACKUPSELECT_NO_SELECTION
-    elif len(config['shares']) == 0:
+    elif not config['shares']:
         # No shares selected
         status = Status.BACKUPSELECT_MISSING_SOURCE
-    elif len(config['drives']) == 0 and len(config['missingDrives']) == 0:
+    elif not config['drives'] and len(config['missingDrives']) == 0:
         # No drives selected
         status = Status.BACKUPSELECT_MISSING_DEST
-    elif len([share for share in config['shares'] if share['size'] is None]) > 0:
+    elif [share for share in config['shares'] if share['size'] is None]:
         # Not all shares calculated
         status = Status.BACKUPSELECT_CALCULATING_SOURCE
     else:
-        sharesSelected = sum([share['size'] for share in config['shares']])
-        driveSelected = sum([drive['capacity'] for drive in config['drives']]) + sum(config['missingDrives'].values())
+        SHARE_SELECTED_SPACE = sum([share['size'] for share in config['shares']])
+        DRIVE_SELECTED_SPACE = sum([drive['capacity'] for drive in config['drives']]) + sum(config['missingDrives'].values())
 
-        if sharesSelected < driveSelected:
+        if SHARE_SELECTED_SPACE < DRIVE_SELECTED_SPACE:
             # Selected enough drive space
             status = Status.BACKUPSELECT_ANALYSIS_WAITING
         else:
@@ -1503,7 +1500,7 @@ def updateSelectionStatusBar(status=None):
     elif status == Status.BACKUPSELECT_ANALYSIS_WAITING:
         statusbar_selection.configure(text='Selection OK, ready for analysis')
 
-def updateBackupStatusBar(status):
+def update_status_bar_backup(status):
     """Update the status bar backup status.
 
     Args:
@@ -1519,7 +1516,7 @@ def updateBackupStatusBar(status):
     elif status == Status.BACKUP_BACKUP_RUNNING:
         statusbar_backup.configure(text='Backup running')
 
-def updateUpdateStatusBar(status):
+def update_status_bar_update(status):
     """Update the status bar update message.
 
     Args:
@@ -1527,13 +1524,13 @@ def updateUpdateStatusBar(status):
     """
 
     if status == Status.UPDATE_CHECKING:
-        statusbar_update.configure(text='Checking for updates', fg=uiColor.NORMAL)
+        statusbar_update.configure(text='Checking for updates', fg=uicolor.NORMAL)
     elif status == Status.UPDATE_AVAILABLE:
-        statusbar_update.configure(text='Update available!', fg=uiColor.INFOTEXT)
+        statusbar_update.configure(text='Update available!', fg=uicolor.INFOTEXT)
     elif status == Status.UPDATE_UP_TO_DATE:
-        statusbar_update.configure(text='Up to date', fg=uiColor.NORMAL)
+        statusbar_update.configure(text='Up to date', fg=uicolor.NORMAL)
 
-def updateUiComponent(status, data=None):
+def update_ui_component(status, data=None):
     """Update UI elements with given data..
 
     Args:
@@ -1542,31 +1539,31 @@ def updateUiComponent(status, data=None):
     """
 
     if status == Status.UPDATEUI_ANALYSIS_BTN:
-        startAnalysisBtn.configure(**data)
+        start_analysis_btn.configure(**data)
     elif status == Status.UPDATEUI_BACKUP_BTN:
-        startBackupBtn.configure(**data)
+        start_backup_btn.configure(**data)
     elif status == Status.UPDATEUI_START_BACKUP_BTN:
-        startBackupBtn.configure(text='Run Backup', command=startBackup, style='win.TButton')
+        start_backup_btn.configure(text='Run Backup', command=start_backup, style='win.TButton')
     elif status == Status.UPDATEUI_STOP_BACKUP_BTN:
-        startBackupBtn.configure(text='Halt Backup', command=lambda: threadManager.kill('Backup'), style='danger.TButton')
+        start_backup_btn.configure(text='Halt Backup', command=lambda: thread_manager.kill('Backup'), style='danger.TButton')
     elif status == Status.UPDATEUI_STATUS_BAR:
-        updateBackupStatusBar(data)
+        update_status_bar_backup(data)
 
-def openConfigFile():
+def open_config_file():
     """Open a config file and load it."""
 
     filename = filedialog.askopenfilename(initialdir='', title='Select drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
     if filename:
-        readConfigFile(filename)
+        load_config_from_file(filename)
 
-def saveConfigFile():
+def save_config_file():
     """Save the config to selected drives."""
 
-    if len(config['shares']) > 0 and len(config['drives']) > 0:
-        shareList = ','.join([item['name'] for item in config['shares']])
-        rawVidList = [drive['vid'] for drive in config['drives']]
-        rawVidList.extend(config['missingDrives'].keys())
-        vidList = ','.join(rawVidList)
+    if config['shares'] and config['drives']:
+        share_list = ','.join([item['name'] for item in config['shares']])
+        raw_vid_list = [drive['vid'] for drive in config['drives']]
+        raw_vid_list.extend(config['missingDrives'].keys())
+        vid_list = ','.join(raw_vid_list)
 
         # For each drive letter that's connected, get drive info, and write file
         for drive in config['drives']:
@@ -1574,87 +1571,87 @@ def saveConfigFile():
             if os.path.isfile(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"):
                 shutil.move(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}", f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}.old")
 
-            currentConfigFile = Config(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")
+            new_config_file = Config(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")
 
             # Write shares and VIDs to config file
-            currentConfigFile.set('selection', 'shares', shareList)
-            currentConfigFile.set('selection', 'vids', vidList)
+            new_config_file.set('selection', 'shares', share_list)
+            new_config_file.set('selection', 'vids', vid_list)
 
             # Write info for each drive to its own section
-            for curDrive in config['drives']:
-                currentConfigFile.set(curDrive['vid'], 'vid', curDrive['vid'])
-                currentConfigFile.set(curDrive['vid'], 'serial', curDrive['serial'])
-                currentConfigFile.set(curDrive['vid'], 'capacity', curDrive['capacity'])
+            for current_drive in config['drives']:
+                new_config_file.set(current_drive['vid'], 'vid', current_drive['vid'])
+                new_config_file.set(current_drive['vid'], 'serial', current_drive['serial'])
+                new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
 
             # Write info for missing drives
-            for driveVid, capacity in config['missingDrives'].items():
-                currentConfigFile.set(driveVid, 'vid', driveVid)
-                currentConfigFile.set(driveVid, 'serial', 'Unknown')
-                currentConfigFile.set(driveVid, 'capacity', capacity)
+            for drive_vid, capacity in config['missingDrives'].items():
+                new_config_file.set(drive_vid, 'vid', drive_vid)
+                new_config_file.set(drive_vid, 'serial', 'Unknown')
+                new_config_file.set(drive_vid, 'capacity', capacity)
 
         # Since config files on drives changed, refresh the destination list
-        startRefreshDest()
+        load_dest_in_background()
 
         messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully')
 
-def saveConfigFileAs():
+def save_config_file_as():
     """Save the config file to a specified location."""
 
     filename = filedialog.asksaveasfilename(initialdir='', initialfile='backup.ini', title='Save drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
 
-    if len(config['shares']) > 0 and len(config['drives']) > 0:
-        shareList = ','.join([item['name'] for item in config['shares']])
-        rawVidList = [drive['vid'] for drive in config['drives']]
-        rawVidList.extend(config['missingDrives'].keys())
-        vidList = ','.join(rawVidList)
+    if config['shares'] and config['drives']:
+        share_list = ','.join([item['name'] for item in config['shares']])
+        raw_vid_list = [drive['vid'] for drive in config['drives']]
+        raw_vid_list.extend(config['missingDrives'].keys())
+        vid_list = ','.join(raw_vid_list)
 
         # Get drive info, and write file
-        currentConfigFile = Config(filename)
+        new_config_file = Config(filename)
 
         # Write shares and VIDs to config file
-        currentConfigFile.set('selection', 'shares', shareList)
-        currentConfigFile.set('selection', 'vids', vidList)
+        new_config_file.set('selection', 'shares', share_list)
+        new_config_file.set('selection', 'vids', vid_list)
 
         # Write info for each drive to its own section
-        for curDrive in config['drives']:
-            currentConfigFile.set(curDrive['vid'], 'vid', curDrive['vid'])
-            currentConfigFile.set(curDrive['vid'], 'serial', curDrive['serial'])
-            currentConfigFile.set(curDrive['vid'], 'capacity', curDrive['capacity'])
+        for current_drive in config['drives']:
+            new_config_file.set(current_drive['vid'], 'vid', current_drive['vid'])
+            new_config_file.set(current_drive['vid'], 'serial', current_drive['serial'])
+            new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
 
         # Write info for missing drives
-        for driveVid, capacity in config['missingDrives'].items():
-            currentConfigFile.set(driveVid, 'vid', driveVid)
-            currentConfigFile.set(driveVid, 'serial', 'Unknown')
-            currentConfigFile.set(driveVid, 'capacity', capacity)
+        for drive_vid, capacity in config['missingDrives'].items():
+            new_config_file.set(drive_vid, 'vid', drive_vid)
+            new_config_file.set(drive_vid, 'serial', 'Unknown')
+            new_config_file.set(drive_vid, 'capacity', capacity)
 
         messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully')
 
-def deleteConfigFromSelectedDrives():
+def delete_config_file_from_selected_drives():
     """Delete config files from drives in destination selection."""
 
-    driveList = [tree_dest.item(drive, 'text')[0] for drive in tree_dest.selection()]
-    driveList = [drive for drive in driveList if os.path.isfile(f"{drive}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")]
+    drive_list = [tree_dest.item(drive, 'text')[0] for drive in tree_dest.selection()]
+    drive_list = [drive for drive in drive_list if os.path.isfile(f"{drive}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")]
 
-    if len(driveList) > 0:
+    if drive_list:
         # Ask for confirmation before deleting
         if messagebox.askyesno('Delete config files?', 'Are you sure you want to delete the config files from the selected drives?'):
             # Delete config file on each drive
-            for drive in driveList:
-                configFilePath = f"{drive}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
-                if os.path.isfile(configFilePath):
-                    os.remove(configFilePath)
+            for drive in drive_list:
+                config_file_path = f"{drive}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
+                if os.path.isfile(config_file_path):
+                    os.remove(config_file_path)
 
             # Since config files on drives changed, refresh the destination list
-            startRefreshDest()
+            load_dest_in_background()
 
-configBuilderWin = None
-def showConfigBuilder():
+window_config_builder = None
+def show_config_builder():
     """Show the config builder."""
 
-    global configBuilderWin
+    global window_config_builder
     global builder_has_pending_changes
 
-    def builder_updateSaveStatusBar(status):
+    def builder_update_status_bar_save(status):
         """Update the builder status bar save status.
 
         Args:
@@ -1662,23 +1659,23 @@ def showConfigBuilder():
         """
 
         if status == Status.SAVE_PENDING_CHANGES:
-            builder_statusbar_changes.configure(text='Unsaved changes', fg=uiColor.INFOTEXT)
+            builder_statusbar_changes.configure(text='Unsaved changes', fg=uicolor.INFOTEXT)
         elif status == Status.SAVE_ALL_SAVED:
-            builder_statusbar_changes.configure(text='All changes saved', fg=uiColor.NORMAL)
+            builder_statusbar_changes.configure(text='All changes saved', fg=uicolor.NORMAL)
 
     def builder_load_connected():
         """Load the connected drive info, and display it in the tree."""
 
-        driveList = win32api.GetLogicalDriveStrings()
-        driveList = driveList.split('\000')[:-1]
+        drive_list = win32api.GetLogicalDriveStrings()
+        drive_list = drive_list.split('\000')[:-1]
 
         # Associate logical drives with physical drives, and map them to physical serial numbers
-        logicalPhysicalMap = {}
+        logical_to_physical_map = {}
         pythoncom.CoInitialize()
         try:
-            for physicalDisk in wmi.WMI().Win32_DiskDrive():
-                for partition in physicalDisk.associators("Win32_DiskDriveToDiskPartition"):
-                    logicalPhysicalMap.update({logicalDisk.DeviceID[0]: physicalDisk.SerialNumber.strip() for logicalDisk in partition.associators("Win32_LogicalDiskToPartition")})
+            for physical_disk in wmi.WMI().Win32_DiskDrive():
+                for partition in physical_disk.associators("Win32_DiskDriveToDiskPartition"):
+                    logical_to_physical_map.update({logical_disk.DeviceID[0]: physical_disk.SerialNumber.strip() for logical_disk in partition.associators("Win32_LogicalDiskToPartition")})
         finally:
             pythoncom.CoUninitialize()
 
@@ -1686,40 +1683,39 @@ def showConfigBuilder():
         tree_current_connected.delete(*tree_current_connected.get_children())
 
         # Enumerate drive list to find info about all non-source drives
-        totalUsage = 0
-        destDriveMasterList = []
-        destDriveLetterToInfo = {}
-        systemDrive = f"{os.getenv('SystemDrive')[0]}:\\"
-        for drive in driveList:
-            if drive != config['sourceDrive'] and drive != systemDrive:
-                driveType = win32file.GetDriveType(drive)
-                if driveType not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
-                    driveSize = shutil.disk_usage(drive).total
+        total_usage = 0
+        dest_drive_master_list = []
+        dest_drive_letter_to_info = {}
+        for drive in drive_list:
+            if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
+                drive_type = win32file.GetDriveType(drive)
+                if drive_type not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
+                    drive_size = shutil.disk_usage(drive).total
                     vsn = os.stat(drive).st_dev
                     vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
                     try:
-                        serial = logicalPhysicalMap[drive[0]]
+                        serial = logical_to_physical_map[drive[0]]
                     except KeyError:
                         serial = 'Not Found'
 
                     # Add drive to drive list
-                    destDriveLetterToInfo[drive[0]] = {
+                    dest_drive_letter_to_info[drive[0]] = {
                         'vid': vsn,
                         'serial': serial
                     }
 
-                    driveHasConfigFile = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+                    drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
 
-                    totalUsage = totalUsage + driveSize
+                    total_usage = total_usage + drive_size
                     if not config['cliMode']:
-                        tree_current_connected.insert(parent='', index='end', text=drive, values=(human_filesize(driveSize), driveSize, 'Yes' if driveHasConfigFile else '', vsn, serial))
+                        tree_current_connected.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
 
-                    destDriveMasterList.append({
+                    dest_drive_master_list.append({
                         'name': drive,
                         'vid': vsn,
                         'serial': serial,
-                        'capacity': driveSize,
-                        'hasConfig': driveHasConfigFile
+                        'capacity': drive_size,
+                        'hasConfig': drive_has_config_file
                     })
 
     def builder_open_config_file():
@@ -1730,61 +1726,61 @@ def showConfigBuilder():
         # Empty tree
         tree_builder_configured.delete(*tree_builder_configured.get_children())
 
-        filename = filedialog.askopenfilename(initialdir='', title='Select drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')), parent=configBuilderWin)
+        filename = filedialog.askopenfilename(initialdir='', title='Select drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')), parent=window_config_builder)
         if filename:
             builder_has_pending_changes = True
-            builder_updateSaveStatusBar(Status.SAVE_PENDING_CHANGES)
+            builder_update_status_bar_save(Status.SAVE_PENDING_CHANGES)
 
-            configFile = Config(filename)
+            config_file = Config(filename)
 
             # Get VID list
-            vids = configFile.get('selection', 'vids').split(',')
+            vids = config_file.get('selection', 'vids').split(',')
 
             # Get drive info
-            configTotal = 0
+            config_total = 0
             for drive in vids:
                 # Add drive capacity info to missing drive list
-                drive_capacity = configFile.get(drive, 'capacity', 0, dataType=Config.INTEGER)
-                drive_serial = configFile.get(drive, 'serial', 'Not Found')
+                drive_capacity = config_file.get(drive, 'capacity', 0, data_type=Config.INTEGER)
+                drive_serial = config_file.get(drive, 'serial', 'Not Found')
 
                 # Insert drive into tree, and update capacity
                 tree_builder_configured.insert(parent='', index='end', text=drive, values=(human_filesize(drive_capacity), drive_capacity, drive_serial))
-                configTotal += drive_capacity
+                config_total += drive_capacity
 
     def builder_save_config_file():
         """Save the config file to a specified location."""
 
         global builder_has_pending_changes
 
-        filename = filedialog.asksaveasfilename(initialdir='', initialfile='backup.ini', title='Save drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')), parent=configBuilderWin)
+        filename = filedialog.asksaveasfilename(initialdir='', initialfile='backup.ini', title='Save drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')), parent=window_config_builder)
 
         if filename and len(tree_builder_configured.get_children()) > 0:
             # Get already added drives to prevent adding drives twice
             existing_drive_vids = [tree_builder_configured.item(drive, 'text') for drive in tree_builder_configured.get_children()]
 
             # Get drive info, and write file
-            currentConfigFile = Config(filename)
+            new_config_file = Config(filename)
 
             # Write shares and VIDs to config file
-            currentConfigFile.set('selection', 'shares', '')
-            currentConfigFile.set('selection', 'vids', ','.join(existing_drive_vids))
+            new_config_file.set('selection', 'shares', '')
+            new_config_file.set('selection', 'vids', ','.join(existing_drive_vids))
 
             # Write info for each drive to its own section
             for drive in tree_builder_configured.get_children():
                 drive_vid = tree_builder_configured.item(drive, 'text')
-                currentConfigFile.set(drive_vid, 'vid', drive_vid)
-                currentConfigFile.set(drive_vid, 'serial', tree_builder_configured.item(drive, 'values')[2])
-                currentConfigFile.set(drive_vid, 'capacity', tree_builder_configured.item(drive, 'values')[1])
+                new_config_file.set(drive_vid, 'vid', drive_vid)
+                new_config_file.set(drive_vid, 'serial', tree_builder_configured.item(drive, 'values')[2])
+                new_config_file.set(drive_vid, 'capacity', tree_builder_configured.item(drive, 'values')[1])
 
             builder_has_pending_changes = False
-            builder_updateSaveStatusBar(Status.SAVE_ALL_SAVED)
-            messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully', parent=configBuilderWin)
+            builder_update_status_bar_save(Status.SAVE_ALL_SAVED)
+            messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully', parent=window_config_builder)
 
     def builder_start_refresh_connected():
         """Start the loading of the connected drive info in a new thread."""
 
-        if not threadManager.is_alive('Refresh connected'):
-            threadManager.start(threadManager.SINGLE, target=builder_load_connected, name='Refresh connected', daemon=True)
+        if not thread_manager.is_alive('Refresh connected'):
+            thread_manager.start(thread_manager.SINGLE, target=builder_load_connected, name='Refresh connected', daemon=True)
 
     def builder_add_drives():
         """Add selected connected drives to config builder."""
@@ -1801,7 +1797,7 @@ def showConfigBuilder():
 
             if drive_vid not in existing_drive_vids:
                 builder_has_pending_changes = True
-                builder_updateSaveStatusBar(Status.SAVE_PENDING_CHANGES)
+                builder_update_status_bar_save(Status.SAVE_PENDING_CHANGES)
                 tree_builder_configured.insert(parent='', index='end', text=drive_vid, values=(human_filesize(drive_size), drive_size, drive_serial))
 
     def builder_remove_drives():
@@ -1812,24 +1808,24 @@ def showConfigBuilder():
         # Remove all selected items from tree
         if len(tree_builder_configured.selection()) > 0:
             builder_has_pending_changes = True
-            builder_updateSaveStatusBar(Status.SAVE_PENDING_CHANGES)
+            builder_update_status_bar_save(Status.SAVE_PENDING_CHANGES)
 
         tree_builder_configured.delete(*tree_builder_configured.selection())
 
-    if configBuilderWin is None or not configBuilderWin.winfo_exists():
+    if window_config_builder is None or not window_config_builder.winfo_exists():
         # Initialize window
-        configBuilderWin = tk.Toplevel(root)
-        configBuilderWin.title('Config Builder')
-        configBuilderWin.resizable(False, False)
-        configBuilderWin.geometry('950x380')
-        configBuilderWin.iconbitmap(resource_path('media\\icon.ico'))
-        center(configBuilderWin, root)
+        window_config_builder = tk.Toplevel(root)
+        window_config_builder.title('Config Builder')
+        window_config_builder.resizable(False, False)
+        window_config_builder.geometry('950x380')
+        window_config_builder.iconbitmap(resource_path('media\\icon.ico'))
+        center(window_config_builder, root)
 
-        def onClose():
-            if not builder_has_pending_changes or messagebox.askokcancel('Discard changes?', 'You have unsaved changes. Are you sure you want to discard them?', parent=configBuilderWin):
-                configBuilderWin.destroy()
+        def on_close():
+            if not builder_has_pending_changes or messagebox.askokcancel('Discard changes?', 'You have unsaved changes. Are you sure you want to discard them?', parent=window_config_builder):
+                window_config_builder.destroy()
 
-        configBuilderWin.protocol('WM_DELETE_WINDOW', onClose)
+        window_config_builder.protocol('WM_DELETE_WINDOW', on_close)
 
         builder_has_pending_changes = False
 
@@ -1837,44 +1833,44 @@ def showConfigBuilder():
         menubar = tk.Menu(root)
 
         # File menu
-        fileMenu = tk.Menu(menubar, tearoff=0)
-        fileMenu.add_command(label='Open Config', underline=0, accelerator='Ctrl+O', command=builder_open_config_file)
-        fileMenu.add_command(label='Save Config', underline=0, accelerator='Ctrl+S', command=builder_save_config_file)
-        fileMenu.add_separator()
-        fileMenu.add_command(label='Exit', underline=1, command=onClose)
-        menubar.add_cascade(label='File', underline=0, menu=fileMenu)
+        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label='Open Config', underline=0, accelerator='Ctrl+O', command=builder_open_config_file)
+        file_menu.add_command(label='Save Config', underline=0, accelerator='Ctrl+S', command=builder_save_config_file)
+        file_menu.add_separator()
+        file_menu.add_command(label='Exit', underline=1, command=on_close)
+        menubar.add_cascade(label='File', underline=0, menu=file_menu)
 
         # Selection menu
-        selectionMenu = tk.Menu(menubar, tearoff=0)
-        selectionMenu.add_command(label='Add Selected to Config', command=builder_add_drives)
-        selectionMenu.add_command(label='Remove Selected from Config', command=builder_remove_drives)
-        menubar.add_cascade(label='Selection', underline=0, menu=selectionMenu)
+        selection_menu = tk.Menu(menubar, tearoff=0)
+        selection_menu.add_command(label='Add Selected to Config', command=builder_add_drives)
+        selection_menu.add_command(label='Remove Selected from Config', command=builder_remove_drives)
+        menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
 
         # View menu
-        viewMenu = tk.Menu(menubar, tearoff=0)
-        viewMenu.add_command(label='Refresh', underline=0, accelerator='F5', command=builder_start_refresh_connected)
-        menubar.add_cascade(label='View', underline=0, menu=viewMenu)
+        view_menu = tk.Menu(menubar, tearoff=0)
+        view_menu.add_command(label='Refresh', underline=0, accelerator='F5', command=builder_start_refresh_connected)
+        menubar.add_cascade(label='View', underline=0, menu=view_menu)
 
-        configBuilderWin.config(menu=menubar)
+        window_config_builder.config(menu=menubar)
 
         # Key bindings
-        configBuilderWin.bind('<Control-o>', lambda e: builder_open_config_file())
-        configBuilderWin.bind('<Control-s>', lambda e: builder_save_config_file())
-        configBuilderWin.bind('<F5>', lambda e: builder_start_refresh_connected())
+        window_config_builder.bind('<Control-o>', lambda e: builder_open_config_file())
+        window_config_builder.bind('<Control-s>', lambda e: builder_save_config_file())
+        window_config_builder.bind('<F5>', lambda e: builder_start_refresh_connected())
 
         RIGHT_ARROW = '>>'
         LEFT_ARROW = '<<'
 
-        mainFrame = tk.Frame(configBuilderWin)
-        mainFrame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
-        mainFrame.grid_columnconfigure(1, weight=1)
-        mainFrame.grid_rowconfigure(2, weight=1)
+        main_frame = tk.Frame(window_config_builder)
+        main_frame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
+        main_frame.grid_columnconfigure(1, weight=1)
+        main_frame.grid_rowconfigure(2, weight=1)
 
         # Headings
-        tk.Label(mainFrame, text='Currently Connected').grid(row=0, column=0, pady=WINDOW_ELEMENT_PADDING / 2)
-        tk.Label(mainFrame, text='Configured for Backup').grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 2)
+        tk.Label(main_frame, text='Currently Connected').grid(row=0, column=0, pady=WINDOW_ELEMENT_PADDING / 2)
+        tk.Label(main_frame, text='Configured for Backup').grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 2)
 
-        tree_current_connected_frame = tk.Frame(mainFrame)
+        tree_current_connected_frame = tk.Frame(main_frame)
         tree_current_connected_frame.grid(row=1, column=0, sticky='ns')
 
         tree_current_connected = ttk.Treeview(tree_current_connected_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
@@ -1895,7 +1891,7 @@ def showConfigBuilder():
         current_select_scroll.pack(side='left', fill='y')
         tree_current_connected.configure(yscrollcommand=current_select_scroll.set)
 
-        tree_builder_configured_frame = tk.Frame(mainFrame)
+        tree_builder_configured_frame = tk.Frame(main_frame)
         tree_builder_configured_frame.grid(row=1, column=2, sticky='ns')
 
         tree_builder_configured = ttk.Treeview(tree_builder_configured_frame, columns=('size', 'rawsize', 'serial'), style='custom.Treeview')
@@ -1913,7 +1909,7 @@ def showConfigBuilder():
         tree_builder_configured.configure(yscrollcommand=buider_configured_select_scroll.set)
 
         # Create tree control pane
-        tree_control_frame = tk.Frame(mainFrame)
+        tree_control_frame = tk.Frame(main_frame)
         tree_control_frame.grid(row=1, column=1)
 
         builder_refresh_btn = ttk.Button(tree_control_frame, text='Refresh', command=builder_start_refresh_connected, style='win.TButton')
@@ -1924,20 +1920,20 @@ def showConfigBuilder():
         builder_remove_btn.pack()
 
         # Create main control pane
-        main_control_frame = tk.Frame(mainFrame, bg='orange')
+        main_control_frame = tk.Frame(main_frame, bg='orange')
         main_control_frame.grid(row=2, column=0, columnspan=3, pady=(WINDOW_ELEMENT_PADDING, 0))
 
         save_config_btn = ttk.Button(main_control_frame, text='Save config', command=builder_save_config_file, style='win.TButton')
         save_config_btn.pack()
 
-        builder_statusbar_frame = tk.Frame(configBuilderWin, bg=uiColor.STATUS_BAR)
+        builder_statusbar_frame = tk.Frame(window_config_builder, bg=uicolor.STATUS_BAR)
         builder_statusbar_frame.pack(fill='x', pady=0)
         builder_statusbar_frame.columnconfigure(50, weight=1)
 
         # Save status, left side
-        builder_statusbar_changes = tk.Label(builder_statusbar_frame, bg=uiColor.STATUS_BAR)
+        builder_statusbar_changes = tk.Label(builder_statusbar_frame, bg=uicolor.STATUS_BAR)
         builder_statusbar_changes.grid(row=0, column=0, padx=6)
-        builder_updateSaveStatusBar(Status.SAVE_ALL_SAVED)
+        builder_update_status_bar_save(Status.SAVE_ALL_SAVED)
 
         # Load connected drives
         builder_start_refresh_connected()
@@ -1946,7 +1942,7 @@ def showConfigBuilder():
 # GUI Mode #
 ############
 
-fileDetailList = {
+file_detail_list = {
     'delete': [],
     'copy': [],
     'deleteSuccess': [],
@@ -1958,10 +1954,10 @@ fileDetailList = {
 if not config['cliMode']:
     os.system('')
 
-    updateHandler = UpdateHandler(
-        currentVersion=APP_VERSION,
-        statusChangeFn=updateUpdateStatusBar,
-        updateCallback=checkForUpdates
+    update_handler = UpdateHandler(
+        current_version=APP_VERSION,
+        status_change_fn=update_status_bar_update,
+        update_callback=check_for_updates
     )
 
     def resource_path(relative_path):
@@ -1985,45 +1981,45 @@ if not config['cliMode']:
     center(root)
 
     # Create Color class instance for UI
-    uiColor = Color(root, prefs.get('ui', 'darkMode', False, dataType=Config.BOOLEAN))
+    uicolor = Color(root, prefs.get('ui', 'darkMode', False, data_type=Config.BOOLEAN))
 
-    if uiColor.isDarkMode():
-        root.tk_setPalette(background=uiColor.BG)
+    if uicolor.is_dark_mode():
+        root.tk_setPalette(background=uicolor.BG)
 
-    mainFrame = tk.Frame(root)
-    mainFrame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING, pady=(WINDOW_ELEMENT_PADDING / 2, WINDOW_ELEMENT_PADDING))
+    main_frame = tk.Frame(root)
+    main_frame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING, pady=(WINDOW_ELEMENT_PADDING / 2, WINDOW_ELEMENT_PADDING))
 
-    statusbar_frame = tk.Frame(root, bg=uiColor.STATUS_BAR)
+    statusbar_frame = tk.Frame(root, bg=uicolor.STATUS_BAR)
     statusbar_frame.pack(fill='x', pady=0)
     statusbar_frame.columnconfigure(50, weight=1)
 
     # Selection and backup status, left side
-    statusbar_selection = tk.Label(statusbar_frame, bg=uiColor.STATUS_BAR)
+    statusbar_selection = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
     statusbar_selection.grid(row=0, column=0, padx=6)
-    updateSelectionStatusBar()
-    statusbar_backup = tk.Label(statusbar_frame, bg=uiColor.STATUS_BAR)
+    update_status_bar_selection()
+    statusbar_backup = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
     statusbar_backup.grid(row=0, column=1, padx=6)
-    updateBackupStatusBar(Status.BACKUP_IDLE)
+    update_status_bar_backup(Status.BACKUP_IDLE)
 
     # Update status, right side
-    statusbar_update = tk.Label(statusbar_frame, text='', bg=uiColor.STATUS_BAR)
+    statusbar_update = tk.Label(statusbar_frame, text='', bg=uicolor.STATUS_BAR)
     statusbar_update.grid(row=0, column=100, padx=6)
-    statusbar_update.bind('<Button-1>', lambda e: displayUpdateScreen(updateInfo))
+    statusbar_update.bind('<Button-1>', lambda e: display_update_screen(update_info))
 
     # Set some default styling
-    tkStyle = ttk.Style()
-    tkStyle.theme_use('vista')
-    tkStyle.configure('TButton', padding=(6, 4))
-    tkStyle.configure('danger.TButton', padding=(6, 4), background='#b00')
-    tkStyle.configure('icon.TButton', width=2, height=1, padding=0, font=(None, 15), background='#00bfe6')
+    tk_style = ttk.Style()
+    tk_style.theme_use('vista')
+    tk_style.configure('TButton', padding=(6, 4))
+    tk_style.configure('danger.TButton', padding=(6, 4), background='#b00')
+    tk_style.configure('icon.TButton', width=2, height=1, padding=0, font=(None, 15), background='#00bfe6')
 
-    tkStyle.configure('TButton', background=uiColor.BG)
-    tkStyle.configure('TCheckbutton', background=uiColor.BG, foreground=uiColor.NORMAL)
-    tkStyle.configure('TFrame', background=uiColor.BG, foreground=uiColor.NORMAL)
+    tk_style.configure('TButton', background=uicolor.BG)
+    tk_style.configure('TCheckbutton', background=uicolor.BG, foreground=uicolor.NORMAL)
+    tk_style.configure('TFrame', background=uicolor.BG, foreground=uicolor.NORMAL)
 
-    tkStyle.element_create('custom.Treeheading.border', 'from', 'default')
-    tkStyle.element_create('custom.Treeview.field', 'from', 'clam')
-    tkStyle.layout('custom.Treeview.Heading', [
+    tk_style.element_create('custom.Treeheading.border', 'from', 'default')
+    tk_style.element_create('custom.Treeview.field', 'from', 'clam')
+    tk_style.layout('custom.Treeview.Heading', [
         ('custom.Treeheading.cell', {'sticky': 'nswe'}),
         ('custom.Treeheading.border', {'sticky': 'nswe', 'children': [
             ('custom.Treeheading.padding', {'sticky': 'nswe', 'children': [
@@ -2032,45 +2028,31 @@ if not config['cliMode']:
             ]})
         ]}),
     ])
-    tkStyle.layout('custom.Treeview', [
+    tk_style.layout('custom.Treeview', [
         ('custom.Treeview.field', {'sticky': 'nswe', 'border': '1', 'children': [
             ('custom.Treeview.padding', {'sticky': 'nswe', 'children': [
                 ('custom.Treeview.treearea', {'sticky': 'nswe'})
             ]})
         ]})
     ])
-    tkStyle.configure('custom.Treeview.Heading', background=uiColor.BGACCENT, foreground=uiColor.FG, padding=2.5)
-    tkStyle.configure('custom.Treeview', background=uiColor.BGACCENT2, fieldbackground=uiColor.BGACCENT2, foreground=uiColor.FG, bordercolor=uiColor.BGACCENT3)
-    tkStyle.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', uiColor.NORMAL), ('selected', uiColor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', uiColor.BGACCENT2), ('selected', uiColor.COLORACCENT)])
+    tk_style.configure('custom.Treeview.Heading', background=uicolor.BGACCENT, foreground=uicolor.FG, padding=2.5)
+    tk_style.configure('custom.Treeview', background=uicolor.BGACCENT2, fieldbackground=uicolor.BGACCENT2, foreground=uicolor.FG, bordercolor=uicolor.BGACCENT3)
+    tk_style.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', uicolor.NORMAL), ('selected', uicolor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', uicolor.BGACCENT2), ('selected', uicolor.COLORACCENT)])
 
-    tkStyle.element_create('custom.Progressbar.trough', 'from', 'clam')
-    tkStyle.layout('custom.Progressbar', [
+    tk_style.element_create('custom.Progressbar.trough', 'from', 'clam')
+    tk_style.layout('custom.Progressbar', [
         ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
             ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
                 ('custom.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
             ]})
         ]})
     ])
-    tkStyle.configure('custom.Progressbar', padding=4, background=uiColor.COLORACCENT, bordercolor=uiColor.BGACCENT3, borderwidth=0, troughcolor=uiColor.BG, lightcolor=uiColor.COLORACCENT, darkcolor=uiColor.COLORACCENT)
+    tk_style.configure('custom.Progressbar', padding=4, background=uicolor.COLORACCENT, bordercolor=uicolor.BGACCENT3, borderwidth=0, troughcolor=uicolor.BG, lightcolor=uicolor.COLORACCENT, darkcolor=uicolor.COLORACCENT)
 
-    # tkStyle.element_create('custom.Scrollbar.trough', 'from', 'clam')
-    # tkStyle.layout('custom.Scrollbar', [
-    #     ('custom.Scrollbar.trough', {'sticky': 'ns', 'children': [
-    #         ('custom.Scrollbar.uparrow', {'side': 'top', 'sticky': ''}),
-    #         ('custom.Scrollbar.downarrow', {'side': 'bottom', 'sticky': ''}),
-    #         ('custom.Scrollbar.thumb', {'sticky': 'nswe', 'unit': '1', 'children': [
-    #             ('custom.Scrollbar.grip', {'sticky': ''})
-    #         ]})
-    #     ]})
-    # ])
-    # tkStyle.configure('custom.Scrollbar', troughcolor=uiColor.BG, background=uiColor.GREEN, arrowcolor=uiColor.GOLD)
-    # tkStyle.configure('custom.Scrollbar.uparrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
-    # tkStyle.configure('custom.Scrollbar.downarrow', background=uiColor.BGACCENT, arrowcolor=uiColor.BGACCENT3)
-
-    def onClose():
-        if threadManager.is_alive('Backup'):
+    def on_close():
+        if thread_manager.is_alive('Backup'):
             if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root):
-                threadManager.kill('Backup')
+                thread_manager.kill('Backup')
                 root.quit()
         else:
             root.quit()
@@ -2079,89 +2061,89 @@ if not config['cliMode']:
     menubar = tk.Menu(root)
 
     # File menu
-    fileMenu = tk.Menu(menubar, tearoff=0)
-    fileMenu.add_command(label='Open Backup Config', underline=0, accelerator='Ctrl+O', command=openConfigFile)
-    fileMenu.add_command(label='Save Backup Config', underline=0, accelerator='Ctrl+S', command=saveConfigFile)
-    fileMenu.add_command(label='Save Backup Config As', underline=19, accelerator='Ctrl+Shift+S', command=saveConfigFileAs)
-    fileMenu.add_separator()
-    fileMenu.add_command(label='Exit', underline=1, command=onClose)
-    menubar.add_cascade(label='File', underline=0, menu=fileMenu)
+    file_menu = tk.Menu(menubar, tearoff=0)
+    file_menu.add_command(label='Open Backup Config', underline=0, accelerator='Ctrl+O', command=open_config_file)
+    file_menu.add_command(label='Save Backup Config', underline=0, accelerator='Ctrl+S', command=save_config_file)
+    file_menu.add_command(label='Save Backup Config As', underline=19, accelerator='Ctrl+Shift+S', command=save_config_file_as)
+    file_menu.add_separator()
+    file_menu.add_command(label='Exit', underline=1, command=on_close)
+    menubar.add_cascade(label='File', underline=0, menu=file_menu)
 
     # Selection menu
-    selectionMenu = tk.Menu(menubar, tearoff=0)
-    selectionMenu.add_command(label='Delete Config from Selected Drives', command=deleteConfigFromSelectedDrives)
-    menubar.add_cascade(label='Selection', underline=0, menu=selectionMenu)
+    selection_menu = tk.Menu(menubar, tearoff=0)
+    selection_menu.add_command(label='Delete Config from Selected Drives', command=delete_config_file_from_selected_drives)
+    menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
 
     # View menu
-    viewMenu = tk.Menu(menubar, tearoff=0)
-    viewMenu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=startRefreshSource)
-    viewMenu.add_command(label='Refresh Destination', underline=0, accelerator='F5', command=startRefreshDest)
-    menubar.add_cascade(label='View', underline=0, menu=viewMenu)
+    view_menu = tk.Menu(menubar, tearoff=0)
+    view_menu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=load_source_in_background)
+    view_menu.add_command(label='Refresh Destination', underline=0, accelerator='F5', command=load_dest_in_background)
+    menubar.add_cascade(label='View', underline=0, menu=view_menu)
 
     # Tools menu
-    toolsMenu = tk.Menu(menubar, tearoff=0)
-    toolsMenu.add_command(label='Config Builder', underline=7, accelerator='Ctrl+B', command=showConfigBuilder)
-    menubar.add_cascade(label='Tools', underline=0, menu=toolsMenu)
+    tools_menu = tk.Menu(menubar, tearoff=0)
+    tools_menu.add_command(label='Config Builder', underline=7, accelerator='Ctrl+B', command=show_config_builder)
+    menubar.add_cascade(label='Tools', underline=0, menu=tools_menu)
 
     # Preferences menu
-    preferencesMenu = tk.Menu(menubar, tearoff=0)
-    settings_darkModeEnabled = tk.BooleanVar(value=uiColor.isDarkMode())
-    preferencesMenu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'darkMode', settings_darkModeEnabled.get()))
-    menubar.add_cascade(label='Preferences', underline=0, menu=preferencesMenu)
+    preferences_menu = tk.Menu(menubar, tearoff=0)
+    settings_darkModeEnabled = tk.BooleanVar(value=uicolor.is_dark_mode())
+    preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'darkMode', settings_darkModeEnabled.get()))
+    menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
 
     # Help menu
-    helpMenu = tk.Menu(menubar, tearoff=0)
-    helpMenu.add_command(label='Check for Updates', command=lambda: threadManager.start(
-        threadManager.SINGLE,
-        target=updateHandler.check,
+    help_menu = tk.Menu(menubar, tearoff=0)
+    help_menu.add_command(label='Check for Updates', command=lambda: thread_manager.start(
+        thread_manager.SINGLE,
+        target=update_handler.check,
         name='Update Check',
         daemon=True
     ))
-    menubar.add_cascade(label='Help', underline=0, menu=helpMenu)
+    menubar.add_cascade(label='Help', underline=0, menu=help_menu)
 
-    def toggleFileDetailsHotkey():
-        show_fileDetailsPane.set(not show_fileDetailsPane.get())
-        toggleFileDetails()
+    def toggle_file_details_with_hotkey():
+        show_file_details_pane.set(not show_file_details_pane.get())
+        toggle_file_details_pane()
 
     # Key bindings
-    root.bind('<Control-o>', lambda e: openConfigFile())
-    root.bind('<Control-s>', lambda e: saveConfigFile())
-    root.bind('<Control-Shift-S>', lambda e: saveConfigFileAs())
-    root.bind('<Control-d>', lambda e: toggleFileDetailsHotkey())
-    root.bind('<Control-b>', lambda e: showConfigBuilder())
+    root.bind('<Control-o>', lambda e: open_config_file())
+    root.bind('<Control-s>', lambda e: save_config_file())
+    root.bind('<Control-Shift-S>', lambda e: save_config_file_as())
+    root.bind('<Control-d>', lambda e: toggle_file_details_with_hotkey())
+    root.bind('<Control-b>', lambda e: show_config_builder())
 
     root.config(menu=menubar)
 
-    windowsIcon = ImageTk.PhotoImage(Image.open(resource_path(f"media\\windows{'_light' if uiColor.isDarkMode() else ''}.png")))
-    colorWindowsIcon = ImageTk.PhotoImage(Image.open(resource_path('media\\windows_color.png')))
-    zipIcon = ImageTk.PhotoImage(Image.open(resource_path(f"media\\zip{'_light' if uiColor.isDarkMode() else ''}.png")))
-    colorZipIcon = ImageTk.PhotoImage(Image.open(resource_path('media\\zip_color.png')))
+    icon_windows = ImageTk.PhotoImage(Image.open(resource_path(f"media\\windows{'_light' if uicolor.is_dark_mode() else ''}.png")))
+    icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media\\windows_color.png')))
+    icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media\\zip{'_light' if uicolor.is_dark_mode() else ''}.png")))
+    icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media\\zip_color.png')))
 
     # Progress/status values
-    progressBar = ttk.Progressbar(mainFrame, maximum=100, style='custom.Progressbar')
-    progressBar.grid(row=10, column=1, columnspan=3, sticky='ew', pady=(WINDOW_ELEMENT_PADDING, 0))
+    progress_bar = ttk.Progressbar(main_frame, maximum=100, style='custom.Progressbar')
+    progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', pady=(WINDOW_ELEMENT_PADDING, 0))
 
     progress = Progress(
-        progressBar=progressBar,
-        threadsForProgressBar=5
+        progress_bar=progress_bar,
+        threads_for_progress_bar=5
     )
 
     # Set source drives and start to set up source dropdown
-    sourceDriveDefault = tk.StringVar()
-    driveList = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-    remoteDrives = [drive for drive in driveList if win32file.GetDriveType(drive) == 4]
+    source_drive_default = tk.StringVar()
+    drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+    remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
 
-    sourceDriveListValid = len(remoteDrives) > 0
+    source_drive_list_valid = len(remote_drives) > 0
 
-    if sourceDriveListValid:
-        config['sourceDrive'] = prefs.get('selection', 'sourceDrive', remoteDrives[0], verifyData=remoteDrives)
-        sourceDriveDefault.set(config['sourceDrive'])
+    if source_drive_list_valid:
+        config['sourceDrive'] = prefs.get('selection', 'sourceDrive', remote_drives[0], verify_data=remote_drives)
+        source_drive_default.set(config['sourceDrive'])
 
         # Tree frames for tree and scrollbar
-        sourceTreeFrame = tk.Frame(mainFrame)
-        sourceTreeFrame.grid(row=1, column=1, sticky='ns')
+        tree_source_frame = tk.Frame(main_frame)
+        tree_source_frame.grid(row=1, column=1, sticky='ns')
 
-        tree_source = ttk.Treeview(sourceTreeFrame, columns=('size', 'rawsize'), style='custom.Treeview')
+        tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize'), style='custom.Treeview')
         tree_source.heading('#0', text='Share')
         tree_source.column('#0', width=175)
         tree_source.heading('size', text='Size')
@@ -2169,66 +2151,62 @@ if not config['cliMode']:
         tree_source['displaycolumns'] = ('size')
 
         tree_source.pack(side='left')
-        sourceShareScroll = ttk.Scrollbar(sourceTreeFrame, orient='vertical', command=tree_source.yview)
-        sourceShareScroll.pack(side='left', fill='y')
-        tree_source.configure(yscrollcommand=sourceShareScroll.set)
+        tree_source_scrollbar = ttk.Scrollbar(tree_source_frame, orient='vertical', command=tree_source.yview)
+        tree_source_scrollbar.pack(side='left', fill='y')
+        tree_source.configure(yscrollcommand=tree_source_scrollbar.set)
 
-        root.bind('<Control-F5>', lambda x: startRefreshSource())
+        root.bind('<Control-F5>', lambda x: load_source_in_background())
 
-        # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
-        # visible, so 1px needs to be added back
-        sourceMetaFrame = tk.Frame(mainFrame)
-        sourceMetaFrame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
-        tk.Grid.columnconfigure(sourceMetaFrame, 0, weight=1)
+        source_meta_frame = tk.Frame(main_frame)
+        source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+        tk.Grid.columnconfigure(source_meta_frame, 0, weight=1)
 
-        shareSpaceFrame = tk.Frame(sourceMetaFrame)
-        shareSpaceFrame.grid(row=0, column=0)
-        shareSelectedSpace = tk.Label(shareSpaceFrame, text='Selected: ' + human_filesize(0))
-        shareSelectedSpace.grid(row=0, column=0)
-        shareTotalSpace = tk.Label(shareSpaceFrame, text='Total: ~' + human_filesize(0))
-        shareTotalSpace.grid(row=0, column=1, padx=(12, 0))
+        share_space_frame = tk.Frame(source_meta_frame)
+        share_space_frame.grid(row=0, column=0)
+        share_selected_space = tk.Label(share_space_frame, text='Selected: ' + human_filesize(0))
+        share_selected_space.grid(row=0, column=0)
+        share_total_space = tk.Label(share_space_frame, text='Total: ~' + human_filesize(0))
+        share_total_space.grid(row=0, column=1, padx=(12, 0))
 
-        startRefreshSource()
+        load_source_in_background()
 
-        sourceSelectFrame = tk.Frame(mainFrame)
-        sourceSelectFrame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2))
-        tk.Label(sourceSelectFrame, text='Source:').pack(side='left')
-        sourceSelectMenu = ttk.OptionMenu(sourceSelectFrame, sourceDriveDefault, config['sourceDrive'], *tuple(remoteDrives), command=changeSourceDrive)
-        sourceSelectMenu.pack(side='left', padx=(12, 0))
+        source_select_frame = tk.Frame(main_frame)
+        source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2))
+        tk.Label(source_select_frame, text='Source:').pack(side='left')
+        source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, config['sourceDrive'], *tuple(remote_drives), command=change_source_drive)
+        source_select_menu.pack(side='left', padx=(12, 0))
 
-        tree_source.bind("<<TreeviewSelect>>", loadSourceInBackground)
+        tree_source.bind("<<TreeviewSelect>>", calculate_source_size_in_background)
     else:
-        sourceDriveDefault.set('No remotes')
+        source_drive_default.set('No remotes')
 
-        # sourceMissingFrame = tk.Frame(mainFrame, width=200)
-        # sourceMissingFrame.grid(row=0, column=1,  rowspan=2, sticky='nsew')
-        sourceWarning = tk.Label(mainFrame, text='No network drives are available to use as source', font=(None, 14), wraplength=250, bg=uiColor.ERROR)
-        sourceWarning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
+        source_warning = tk.Label(main_frame, text='No network drives are available to use as source', font=(None, 14), wraplength=250, bg=uicolor.ERROR)
+        source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
-    destTreeFrame = tk.Frame(mainFrame)
-    destTreeFrame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
+    tree_dest_frame = tk.Frame(main_frame)
+    tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
 
-    destModeFrame = tk.Frame(mainFrame)
-    destModeFrame.grid(row=0, column=2, pady=(0, WINDOW_ELEMENT_PADDING / 2))
+    dest_mode_frame = tk.Frame(main_frame)
+    dest_mode_frame.grid(row=0, column=2, pady=(0, WINDOW_ELEMENT_PADDING / 2))
 
-    def handleSplitModeCheck():
+    def toggle_split_mode_with_checkbox():
         """Handle toggling of split mode based on checkbox value."""
 
-        config['splitMode'] = destModeSplitCheckVar.get()
+        config['splitMode'] = dest_mode_split_check_var.get()
 
-        if not backup or not backup.isAnalysisStarted():
-            splitModeStatus.configure(text=f"Split mode\n{'Enabled' if config['splitMode'] else 'Disabled'}", fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
+        if not backup or not backup.analysis_started:
+            split_mode_status.configure(text=f"Split mode\n{'Enabled' if config['splitMode'] else 'Disabled'}", fg=uicolor.ENABLED if config['splitMode'] else uicolor.DISABLED)
 
-    destModeSplitCheckVar = tk.BooleanVar()
+    dest_mode_split_check_var = tk.BooleanVar()
 
-    altTooltipFrame = tk.Frame(destModeFrame, bg=uiColor.INFO)
-    altTooltipFrame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
-    tk.Label(altTooltipFrame, text='Hold ALT while selecting a drive to ignore config files', bg=uiColor.INFO, fg=uiColor.BLACK).pack(fill='y', expand=1)
+    alt_tooltip_frame = tk.Frame(dest_mode_frame, bg=uicolor.INFO)
+    alt_tooltip_frame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
+    tk.Label(alt_tooltip_frame, text='Hold ALT while selecting a drive to ignore config files', bg=uicolor.INFO, fg=uicolor.BLACK).pack(fill='y', expand=1)
 
-    splitModeCheck = ttk.Checkbutton(destModeFrame, text='Backup using split mode', variable=destModeSplitCheckVar, command=handleSplitModeCheck)
-    splitModeCheck.pack(side='left', padx=(12, 0))
+    # Split mode checkbox
+    ttk.Checkbutton(dest_mode_frame, text='Backup using split mode', variable=dest_mode_split_check_var, command=toggle_split_mode_with_checkbox).pack(side='left', padx=(12, 0))
 
-    tree_dest = ttk.Treeview(destTreeFrame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
+    tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
     tree_dest.heading('#0', text='Drive')
     tree_dest.column('#0', width=50)
     tree_dest.heading('size', text='Size')
@@ -2242,231 +2220,228 @@ if not config['cliMode']:
     tree_dest['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
 
     tree_dest.pack(side='left')
-    driveSelectScroll = ttk.Scrollbar(destTreeFrame, orient='vertical', command=tree_dest.yview)
-    driveSelectScroll.pack(side='left', fill='y')
-    tree_dest.configure(yscrollcommand=driveSelectScroll.set)
+    tree_dest_scrollbar = ttk.Scrollbar(tree_dest_frame, orient='vertical', command=tree_dest.yview)
+    tree_dest_scrollbar.pack(side='left', fill='y')
+    tree_dest.configure(yscrollcommand=tree_dest_scrollbar.set)
 
-    root.bind('<F5>', lambda x: startRefreshDest())
+    root.bind('<F5>', lambda x: load_dest_in_background())
 
     # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
     # visible, so 1px needs to be added back
-    destMetaFrame = tk.Frame(mainFrame)
-    destMetaFrame.grid(row=2, column=2, sticky='nsew', pady=(1, 0))
-    tk.Grid.columnconfigure(destMetaFrame, 0, weight=1)
+    dest_meta_frame = tk.Frame(main_frame)
+    dest_meta_frame.grid(row=2, column=2, sticky='nsew', pady=(1, 0))
+    tk.Grid.columnconfigure(dest_meta_frame, 0, weight=1)
 
-    destSplitWarningFrame = tk.Frame(mainFrame, bg=uiColor.WARNING)
-    destSplitWarningFrame.rowconfigure(0, weight=1)
-    destSplitWarningFrame.columnconfigure(0, weight=1)
-    destSplitWarningFrame.columnconfigure(10, weight=1)
+    dest_split_warning_frame = tk.Frame(main_frame, bg=uicolor.WARNING)
+    dest_split_warning_frame.rowconfigure(0, weight=1)
+    dest_split_warning_frame.columnconfigure(0, weight=1)
+    dest_split_warning_frame.columnconfigure(10, weight=1)
 
     # TODO: Can this be cleaned up?
-    tk.Frame(destSplitWarningFrame).grid(row=0, column=1)
-    splitWarningPrefix = tk.Label(destSplitWarningFrame, text='There are', bg=uiColor.WARNING, fg=uiColor.BLACK)
-    splitWarningPrefix.grid(row=0, column=1, sticky='ns')
-    splitWarningMissingDriveCount = tk.Label(destSplitWarningFrame, text='0', bg=uiColor.WARNING, fg=uiColor.BLACK, font=(None, 18, 'bold'))
-    splitWarningMissingDriveCount.grid(row=0, column=2, sticky='ns')
-    splitWarningSuffix = tk.Label(destSplitWarningFrame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=uiColor.WARNING, fg=uiColor.BLACK)
-    splitWarningSuffix.grid(row=0, column=3, sticky='ns')
-    tk.Frame(destSplitWarningFrame).grid(row=0, column=10)
+    tk.Frame(dest_split_warning_frame).grid(row=0, column=1)
+    split_warning_prefix = tk.Label(dest_split_warning_frame, text='There are', bg=uicolor.WARNING, fg=uicolor.BLACK)
+    split_warning_prefix.grid(row=0, column=1, sticky='ns')
+    split_warning_missing_drive_count = tk.Label(dest_split_warning_frame, text='0', bg=uicolor.WARNING, fg=uicolor.BLACK, font=(None, 18, 'bold'))
+    split_warning_missing_drive_count.grid(row=0, column=2, sticky='ns')
+    split_warning_suffix = tk.Label(dest_split_warning_frame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=uicolor.WARNING, fg=uicolor.BLACK)
+    split_warning_suffix.grid(row=0, column=3, sticky='ns')
+    tk.Frame(dest_split_warning_frame).grid(row=0, column=10)
 
-    driveSpaceFrame = tk.Frame(destMetaFrame)
-    driveSpaceFrame.grid(row=0, column=0)
+    drive_space_frame = tk.Frame(dest_meta_frame)
+    drive_space_frame.grid(row=0, column=0)
 
-    configSelectedSpaceFrame = tk.Frame(driveSpaceFrame)
-    configSelectedSpaceFrame.grid(row=0, column=0)
-    configSelectedSpaceLabel = tk.Label(configSelectedSpaceFrame, text='Config:')
-    configSelectedSpaceLabel.pack(side='left')
-    configSelectedSpace = tk.Label(configSelectedSpaceFrame, text='None', fg=uiColor.FADED)
-    configSelectedSpace.pack(side='left')
+    config_selected_space_frame = tk.Frame(drive_space_frame)
+    config_selected_space_frame.grid(row=0, column=0)
+    tk.Label(config_selected_space_frame, text='Config:').pack(side='left')
+    config_selected_space = tk.Label(config_selected_space_frame, text='None', fg=uicolor.FADED)
+    config_selected_space.pack(side='left')
 
-    driveSelectedSpaceFrame = tk.Frame(driveSpaceFrame)
-    driveSelectedSpaceFrame.grid(row=0, column=1, padx=(12, 0))
-    driveSelectedSpaceLabel = tk.Label(driveSelectedSpaceFrame, text='Selected:')
-    driveSelectedSpaceLabel.pack(side='left')
-    driveSelectedSpace = tk.Label(driveSelectedSpaceFrame, text=human_filesize(0), fg=uiColor.FADED)
-    driveSelectedSpace.pack(side='left')
+    drive_selected_space_frame = tk.Frame(drive_space_frame)
+    drive_selected_space_frame.grid(row=0, column=1, padx=(12, 0))
+    tk.Label(drive_selected_space_frame, text='Selected:').pack(side='left')
+    drive_selected_space = tk.Label(drive_selected_space_frame, text=human_filesize(0), fg=uicolor.FADED)
+    drive_selected_space.pack(side='left')
 
-    driveTotalSpaceFrame = tk.Frame(driveSpaceFrame)
-    driveTotalSpaceFrame.grid(row=0, column=2, padx=(12, 0))
-    driveTotalSpaceLabel = tk.Label(driveTotalSpaceFrame, text='Available:')
-    driveTotalSpaceLabel.pack(side='left')
-    driveTotalSpace = tk.Label(driveTotalSpaceFrame, text=human_filesize(0), fg=uiColor.FADED)
-    driveTotalSpace.pack(side='left')
-    splitModeStatus = tk.Label(driveSpaceFrame, text=f"Split mode\n{'Enabled' if config['splitMode'] else 'Disabled'}", fg=uiColor.ENABLED if config['splitMode'] else uiColor.DISABLED)
-    splitModeStatus.grid(row=0, column=3, padx=(12, 0))
+    drive_total_space_frame = tk.Frame(drive_space_frame)
+    drive_total_space_frame.grid(row=0, column=2, padx=(12, 0))
+    tk.Label(drive_total_space_frame, text='Available:').pack(side='left')
+    drive_total_space = tk.Label(drive_total_space_frame, text=human_filesize(0), fg=uicolor.FADED)
+    drive_total_space.pack(side='left')
+    split_mode_status = tk.Label(drive_space_frame, text=f"Split mode\n{'Enabled' if config['splitMode'] else 'Disabled'}", fg=uicolor.ENABLED if config['splitMode'] else uicolor.DISABLED)
+    split_mode_status.grid(row=0, column=3, padx=(12, 0))
 
-    startAnalysisBtn = ttk.Button(destMetaFrame, text='Analyze', width=7, command=startBackupAnalysis, state='normal' if sourceDriveListValid else 'disabled')
-    startAnalysisBtn.grid(row=0, column=2)
+    start_analysis_btn = ttk.Button(dest_meta_frame, text='Analyze', width=7, command=start_backup_analysis, state='normal' if source_drive_list_valid else 'disabled')
+    start_analysis_btn.grid(row=0, column=2)
 
-    driveSelectBind = tree_dest.bind('<<TreeviewSelect>>', selectDriveInBackground)
+    drive_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_drive_in_background)
 
-    backupMidControlFrame = tk.Frame(mainFrame)
-    backupMidControlFrame.grid(row=4, column=1, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
+    backup_middle_control_frame = tk.Frame(main_frame)
+    backup_middle_control_frame.grid(row=4, column=1, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
     # Add backup ETA info frame
-    backupActivityEtaFrame = tk.Frame(backupMidControlFrame)
-    backupActivityEtaFrame.grid(row=0, column=1)
-    tk.Grid.columnconfigure(backupMidControlFrame, 1, weight=1)
+    backup_eta_frame = tk.Frame(backup_middle_control_frame)
+    backup_eta_frame.grid(row=0, column=1)
+    tk.Grid.columnconfigure(backup_middle_control_frame, 1, weight=1)
 
-    backupEtaLabel = tk.Label(backupActivityEtaFrame, text='Please start a backup to show ETA')
-    backupEtaLabel.pack()
+    backup_eta_label = tk.Label(backup_eta_frame, text='Please start a backup to show ETA')
+    backup_eta_label.pack()
 
     # Add activity frame for backup status output
-    tk.Grid.rowconfigure(mainFrame, 5, weight=1)
-    backupActivityFrame = tk.Frame(mainFrame)
-    backupActivityFrame.grid(row=5, column=1, columnspan=2, sticky='nsew')
+    tk.Grid.rowconfigure(main_frame, 5, weight=1)
+    backup_activity_frame = tk.Frame(main_frame)
+    backup_activity_frame.grid(row=5, column=1, columnspan=2, sticky='nsew')
 
-    backupActivityInfoCanvas = tk.Canvas(backupActivityFrame)
-    backupActivityInfoCanvas.pack(side='left', fill='both', expand=1)
-    backupActivityScroll = ttk.Scrollbar(backupActivityFrame, orient='vertical', command=backupActivityInfoCanvas.yview)
-    backupActivityScroll.pack(side='left', fill='y')
-    backupActivityScrollableFrame = ttk.Frame(backupActivityInfoCanvas)
-    backupActivityScrollableFrame.bind('<Configure>', lambda e: backupActivityInfoCanvas.configure(
-        scrollregion=backupActivityInfoCanvas.bbox('all')
+    backup_activity_info_canvas = tk.Canvas(backup_activity_frame)
+    backup_activity_info_canvas.pack(side='left', fill='both', expand=1)
+    backup_activity_scrollbar = ttk.Scrollbar(backup_activity_frame, orient='vertical', command=backup_activity_info_canvas.yview)
+    backup_activity_scrollbar.pack(side='left', fill='y')
+    backup_activity_scrollable_frame = ttk.Frame(backup_activity_info_canvas)
+    backup_activity_scrollable_frame.bind('<Configure>', lambda e: backup_activity_info_canvas.configure(
+        scrollregion=backup_activity_info_canvas.bbox('all')
     ))
 
-    backupActivityInfoCanvas.create_window((0, 0), window=backupActivityScrollableFrame, anchor='nw')
-    backupActivityInfoCanvas.configure(yscrollcommand=backupActivityScroll.set)
+    backup_activity_info_canvas.create_window((0, 0), window=backup_activity_scrollable_frame, anchor='nw')
+    backup_activity_info_canvas.configure(yscrollcommand=backup_activity_scrollbar.set)
 
-    backupFileDetailsFrame = tk.Frame(mainFrame, width=400)
-    backupFileDetailsFrame.grid_propagate(0)
+    backup_file_details_frame = tk.Frame(main_frame, width=400)
+    backup_file_details_frame.grid_propagate(0)
 
-    fileDetailsPendingDeleteHeaderLine = tk.Frame(backupFileDetailsFrame)
-    fileDetailsPendingDeleteHeaderLine.grid(row=0, column=0, sticky='w')
-    fileDetailsPendingDeleteHeader = tk.Label(fileDetailsPendingDeleteHeaderLine, text='Files to delete', font=(None, 11, 'bold'))
-    fileDetailsPendingDeleteHeader.pack(side='left')
-    fileDetailsPendingDeleteTooltip = tk.Label(fileDetailsPendingDeleteHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
-    fileDetailsPendingDeleteTooltip.pack(side='left')
-    fileDetailsPendingDeleteCounterFrame = tk.Frame(backupFileDetailsFrame)
-    fileDetailsPendingDeleteCounterFrame.grid(row=1, column=0)
-    fileDetailsPendingDeleteCounter = tk.Label(fileDetailsPendingDeleteCounterFrame, text='0', font=(None, 28))
-    fileDetailsPendingDeleteCounter.pack(side='left', anchor='s')
-    tk.Label(fileDetailsPendingDeleteCounterFrame, text='of', font=(None, 11), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 5))
-    fileDetailsPendingDeleteCounterTotal = tk.Label(fileDetailsPendingDeleteCounterFrame, text='0', font=(None, 12), fg=uiColor.FADED)
-    fileDetailsPendingDeleteCounterTotal.pack(side='left', anchor='s', pady=(0, 5))
+    file_details_pending_delete_header_line = tk.Frame(backup_file_details_frame)
+    file_details_pending_delete_header_line.grid(row=0, column=0, sticky='w')
+    file_details_pending_delete_header = tk.Label(file_details_pending_delete_header_line, text='Files to delete', font=(None, 11, 'bold'))
+    file_details_pending_delete_header.pack(side='left')
+    file_details_pending_delete_tooltip = tk.Label(file_details_pending_delete_header_line, text='(Click to copy)', fg=uicolor.FADED)
+    file_details_pending_delete_tooltip.pack(side='left')
+    file_details_pending_delete_counter_frame = tk.Frame(backup_file_details_frame)
+    file_details_pending_delete_counter_frame.grid(row=1, column=0)
+    file_details_pending_delete_counter = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 28))
+    file_details_pending_delete_counter.pack(side='left', anchor='s')
+    tk.Label(file_details_pending_delete_counter_frame, text='of', font=(None, 11), fg=uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
+    file_details_pending_delete_counter_total = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 12), fg=uicolor.FADED)
+    file_details_pending_delete_counter_total.pack(side='left', anchor='s', pady=(0, 5))
 
-    fileDetailsPendingCopyHeaderLine = tk.Frame(backupFileDetailsFrame)
-    fileDetailsPendingCopyHeaderLine.grid(row=0, column=1, sticky='e')
-    fileDetailsPendingCopyHeader = tk.Label(fileDetailsPendingCopyHeaderLine, text='Files to copy', font=(None, 11, 'bold'))
-    fileDetailsPendingCopyHeader.pack(side='right')
-    fileDetailsPendingCopyTooltip = tk.Label(fileDetailsPendingCopyHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
-    fileDetailsPendingCopyTooltip.pack(side='right')
-    fileDetailsPendingCopyCounterFrame = tk.Frame(backupFileDetailsFrame)
-    fileDetailsPendingCopyCounterFrame.grid(row=1, column=1)
-    fileDetailsPendingCopyCounter = tk.Label(fileDetailsPendingCopyCounterFrame, text='0', font=(None, 28))
-    fileDetailsPendingCopyCounter.pack(side='left', anchor='s')
-    tk.Label(fileDetailsPendingCopyCounterFrame, text='of', font=(None, 11), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 5))
-    fileDetailsPendingCopyCounterTotal = tk.Label(fileDetailsPendingCopyCounterFrame, text='0', font=(None, 12), fg=uiColor.FADED)
-    fileDetailsPendingCopyCounterTotal.pack(side='left', anchor='s', pady=(0, 5))
+    file_details_pending_copy_header_line = tk.Frame(backup_file_details_frame)
+    file_details_pending_copy_header_line.grid(row=0, column=1, sticky='e')
+    file_details_pending_copy_header = tk.Label(file_details_pending_copy_header_line, text='Files to copy', font=(None, 11, 'bold'))
+    file_details_pending_copy_header.pack(side='right')
+    file_details_pending_copy_tooltip = tk.Label(file_details_pending_copy_header_line, text='(Click to copy)', fg=uicolor.FADED)
+    file_details_pending_copy_tooltip.pack(side='right')
+    file_details_pending_copy_counter_frame = tk.Frame(backup_file_details_frame)
+    file_details_pending_copy_counter_frame.grid(row=1, column=1)
+    file_details_pending_copy_counter = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 28))
+    file_details_pending_copy_counter.pack(side='left', anchor='s')
+    tk.Label(file_details_pending_copy_counter_frame, text='of', font=(None, 11), fg=uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
+    file_details_pending_copy_counter_total = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 12), fg=uicolor.FADED)
+    file_details_pending_copy_counter_total.pack(side='left', anchor='s', pady=(0, 5))
 
-    fileDetailsCopiedHeaderLine = tk.Frame(backupFileDetailsFrame)
-    fileDetailsCopiedHeaderLine.grid(row=2, column=0, columnspan=2, sticky='w')
-    fileDetailsCopiedHeader = tk.Label(fileDetailsCopiedHeaderLine, text='Successful', font=(None, 11, 'bold'))
-    fileDetailsCopiedHeader.pack(side='left')
-    fileDetailsCopiedTooltip = tk.Label(fileDetailsCopiedHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
-    fileDetailsCopiedTooltip.pack(side='left')
-    fileDetailsCopiedFrame = tk.Frame(backupFileDetailsFrame)
-    fileDetailsCopiedFrame.grid(row=3, column=0, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='nsew')
-    fileDetailsCopiedFrame.pack_propagate(0)
-    fileDetailsCopiedInfoCanvas = tk.Canvas(fileDetailsCopiedFrame)
-    fileDetailsCopiedInfoCanvas.pack(side='left', fill='both', expand=1)
-    fileDetailsCopiedScroll = ttk.Scrollbar(fileDetailsCopiedFrame, orient='vertical', command=fileDetailsCopiedInfoCanvas.yview)
-    fileDetailsCopiedScroll.pack(side='left', fill='y')
-    fileDetailsCopiedScrollableFrame = ttk.Frame(fileDetailsCopiedInfoCanvas)
-    fileDetailsCopiedScrollableFrame.bind('<Configure>', lambda e: fileDetailsCopiedInfoCanvas.configure(
-        scrollregion=fileDetailsCopiedInfoCanvas.bbox('all')
+    file_details_copied_header_line = tk.Frame(backup_file_details_frame)
+    file_details_copied_header_line.grid(row=2, column=0, columnspan=2, sticky='w')
+    file_details_copied_header = tk.Label(file_details_copied_header_line, text='Successful', font=(None, 11, 'bold'))
+    file_details_copied_header.pack(side='left')
+    file_details_copied_tooltip = tk.Label(file_details_copied_header_line, text='(Click to copy)', fg=uicolor.FADED)
+    file_details_copied_tooltip.pack(side='left')
+    file_details_copied_frame = tk.Frame(backup_file_details_frame)
+    file_details_copied_frame.grid(row=3, column=0, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='nsew')
+    file_details_copied_frame.pack_propagate(0)
+    file_details_copied_info_canvas = tk.Canvas(file_details_copied_frame)
+    file_details_copied_info_canvas.pack(side='left', fill='both', expand=1)
+    file_details_copied_scrollbar = ttk.Scrollbar(file_details_copied_frame, orient='vertical', command=file_details_copied_info_canvas.yview)
+    file_details_copied_scrollbar.pack(side='left', fill='y')
+    file_details_copied_scrollable_frame = ttk.Frame(file_details_copied_info_canvas)
+    file_details_copied_scrollable_frame.bind('<Configure>', lambda e: file_details_copied_info_canvas.configure(
+        scrollregion=file_details_copied_info_canvas.bbox('all')
     ))
 
-    fileDetailsCopiedInfoCanvas.create_window((0, 0), window=fileDetailsCopiedScrollableFrame, anchor='nw')
-    fileDetailsCopiedInfoCanvas.configure(yscrollcommand=fileDetailsCopiedScroll.set)
+    file_details_copied_info_canvas.create_window((0, 0), window=file_details_copied_scrollable_frame, anchor='nw')
+    file_details_copied_info_canvas.configure(yscrollcommand=file_details_copied_scrollbar.set)
 
-    fileDetailsFailedHeaderLine = tk.Frame(backupFileDetailsFrame)
-    fileDetailsFailedHeaderLine.grid(row=4, column=0, columnspan=2, sticky='w')
-    fileDetailsFailedHeader = tk.Label(fileDetailsFailedHeaderLine, text='Failed', font=(None, 11, 'bold'))
-    fileDetailsFailedHeader.pack(side='left')
-    fileDetailsFailedTooltip = tk.Label(fileDetailsFailedHeaderLine, text='(Click to copy)', fg=uiColor.FADED)
-    fileDetailsFailedTooltip.pack(side='left')
-    fileDetailsFailedFrame = tk.Frame(backupFileDetailsFrame)
-    fileDetailsFailedFrame.grid(row=5, column=0, columnspan=2, sticky='nsew')
-    fileDetailsFailedFrame.pack_propagate(0)
-    fileDetailsFailedInfoCanvas = tk.Canvas(fileDetailsFailedFrame)
-    fileDetailsFailedInfoCanvas.pack(side='left', fill='both', expand=1)
-    fileDetailsFailedScroll = ttk.Scrollbar(fileDetailsFailedFrame, orient='vertical', command=fileDetailsFailedInfoCanvas.yview)
-    fileDetailsFailedScroll.pack(side='left', fill='y')
-    fileDetailsFailedScrollableFrame = ttk.Frame(fileDetailsFailedInfoCanvas)
-    fileDetailsFailedScrollableFrame.bind('<Configure>', lambda e: fileDetailsFailedInfoCanvas.configure(
-        scrollregion=fileDetailsFailedInfoCanvas.bbox('all')
+    file_details_failed_header_line = tk.Frame(backup_file_details_frame)
+    file_details_failed_header_line.grid(row=4, column=0, columnspan=2, sticky='w')
+    file_details_failed_header = tk.Label(file_details_failed_header_line, text='Failed', font=(None, 11, 'bold'))
+    file_details_failed_header.pack(side='left')
+    file_details_failed_tooltip = tk.Label(file_details_failed_header_line, text='(Click to copy)', fg=uicolor.FADED)
+    file_details_failed_tooltip.pack(side='left')
+    file_details_failed_frame = tk.Frame(backup_file_details_frame)
+    file_details_failed_frame.grid(row=5, column=0, columnspan=2, sticky='nsew')
+    file_details_failed_frame.pack_propagate(0)
+    file_details_failed_info_canvas = tk.Canvas(file_details_failed_frame)
+    file_details_failed_info_canvas.pack(side='left', fill='both', expand=1)
+    file_details_failed_scrollbar = ttk.Scrollbar(file_details_failed_frame, orient='vertical', command=file_details_failed_info_canvas.yview)
+    file_details_failed_scrollbar.pack(side='left', fill='y')
+    file_details_failed_scrollable_frame = ttk.Frame(file_details_failed_info_canvas)
+    file_details_failed_scrollable_frame.bind('<Configure>', lambda e: file_details_failed_info_canvas.configure(
+        scrollregion=file_details_failed_info_canvas.bbox('all')
     ))
 
-    fileDetailsFailedInfoCanvas.create_window((0, 0), window=fileDetailsFailedScrollableFrame, anchor='nw')
-    fileDetailsFailedInfoCanvas.configure(yscrollcommand=fileDetailsFailedScroll.set)
+    file_details_failed_info_canvas.create_window((0, 0), window=file_details_failed_scrollable_frame, anchor='nw')
+    file_details_failed_info_canvas.configure(yscrollcommand=file_details_failed_scrollbar.set)
 
     # Set grid weights
-    tk.Grid.rowconfigure(backupFileDetailsFrame, 3, weight=2)
-    tk.Grid.rowconfigure(backupFileDetailsFrame, 5, weight=1)
-    tk.Grid.columnconfigure(backupFileDetailsFrame, (0, 1), weight=1)
+    tk.Grid.rowconfigure(backup_file_details_frame, 3, weight=2)
+    tk.Grid.rowconfigure(backup_file_details_frame, 5, weight=1)
+    tk.Grid.columnconfigure(backup_file_details_frame, (0, 1), weight=1)
 
     # Set click to copy key bindings
-    fileDetailsPendingDeleteHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['delete']])))
-    fileDetailsPendingDeleteTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['delete']])))
-    fileDetailsPendingCopyHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['copy']])))
-    fileDetailsPendingCopyTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['copy']])))
-    fileDetailsCopiedHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['success']])))
-    fileDetailsCopiedTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['success']])))
-    fileDetailsFailedHeader.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['fail']])))
-    fileDetailsFailedTooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in fileDetailList['fail']])))
+    file_details_pending_delete_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['delete']])))
+    file_details_pending_delete_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['delete']])))
+    file_details_pending_copy_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['copy']])))
+    file_details_pending_copy_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['copy']])))
+    file_details_copied_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['success']])))
+    file_details_copied_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['success']])))
+    file_details_failed_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
+    file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
 
-    def toggleFileDetails():
+    def toggle_file_details_pane():
         # FIXME: Is fixing the flicker effect here possible?
-        if bool(backupFileDetailsFrame.grid_info()):
-            backupFileDetailsFrame.grid_remove()
+        if bool(backup_file_details_frame.grid_info()):
+            backup_file_details_frame.grid_remove()
             root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{root.winfo_x() + 400 + WINDOW_ELEMENT_PADDING}+{root.winfo_y()}')
         else:
             root.geometry(f'{1600 + WINDOW_ELEMENT_PADDING}x{WINDOW_HEIGHT}+{root.winfo_x() - 400 - WINDOW_ELEMENT_PADDING}+{root.winfo_y()}')
-            backupFileDetailsFrame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+            backup_file_details_frame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
-    show_fileDetailsPane = tk.BooleanVar()
-    viewMenu.add_separator()
-    viewMenu.add_checkbutton(label='File details pane', onvalue=1, offvalue=0, variable=show_fileDetailsPane, accelerator='Ctrl+D', command=toggleFileDetails)
+    show_file_details_pane = tk.BooleanVar()
+    view_menu.add_separator()
+    view_menu.add_checkbutton(label='File details pane', onvalue=1, offvalue=0, variable=show_file_details_pane, accelerator='Ctrl+D', command=toggle_file_details_pane)
 
-    tk.Grid.columnconfigure(mainFrame, 3, weight=1)
+    tk.Grid.columnconfigure(main_frame, 3, weight=1)
 
-    rightSideFrame = tk.Frame(mainFrame)
-    rightSideFrame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+    right_side_frame = tk.Frame(main_frame)
+    right_side_frame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
-    backupSummaryFrame = tk.Frame(rightSideFrame)
-    backupSummaryFrame.pack(fill='both', expand=1, padx=(WINDOW_ELEMENT_PADDING, 0))
-    backupSummaryFrame.update()
+    backup_summary_frame = tk.Frame(right_side_frame)
+    backup_summary_frame.pack(fill='both', expand=1, padx=(WINDOW_ELEMENT_PADDING, 0))
+    backup_summary_frame.update()
 
-    brandingFrame = tk.Frame(rightSideFrame)
-    brandingFrame.pack()
+    branding_frame = tk.Frame(right_side_frame)
+    branding_frame.pack()
 
-    logoImageRender = ImageTk.PhotoImage(Image.open(resource_path(f"media\\logo_ui{'_light' if uiColor.isDarkMode() else ''}.png")))
-    tk.Label(brandingFrame, image=logoImageRender).pack(side='left')
-    tk.Label(brandingFrame, text=f"v{APP_VERSION}", font=(None, 10), fg=uiColor.FADED).pack(side='left', anchor='s', pady=(0, 12))
+    image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media\\logo_ui{'_light' if uicolor.is_dark_mode() else ''}.png")))
+    tk.Label(branding_frame, image=image_logo).pack(side='left')
+    tk.Label(branding_frame, text=f"v{APP_VERSION}", font=(None, 10), fg=uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
-    tk.Label(backupSummaryFrame, text='Analysis Summary', font=(None, 20)).pack()
+    tk.Label(backup_summary_frame, text='Analysis Summary', font=(None, 20)).pack()
 
     # Add placeholder to backup analysis
-    backupSummaryTextFrame = tk.Frame(backupSummaryFrame)
-    backupSummaryTextFrame.pack(fill='x')
-    tk.Label(backupSummaryTextFrame, text='This area will summarize the backup that\'s been configured.',
-             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-    tk.Label(backupSummaryTextFrame, text='Please start a backup analysis to generate a summary.',
-             wraplength=backupSummaryFrame.winfo_width() - 2, justify='left').pack(anchor='w')
-    startBackupBtn = ttk.Button(backupSummaryFrame, text='Run Backup', command=startBackup, state='disable')
-    startBackupBtn.pack(pady=WINDOW_ELEMENT_PADDING / 2)
+    backup_summary_text_frame = tk.Frame(backup_summary_frame)
+    backup_summary_text_frame.pack(fill='x')
+    tk.Label(backup_summary_text_frame, text='This area will summarize the backup that\'s been configured.',
+             wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
+    tk.Label(backup_summary_text_frame, text='Please start a backup analysis to generate a summary.',
+             wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
+    start_backup_btn = ttk.Button(backup_summary_frame, text='Run Backup', command=start_backup, state='disable')
+    start_backup_btn.pack(pady=WINDOW_ELEMENT_PADDING / 2)
 
-    # QUESTION: Does init loadDest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
-    threadManager.start(threadManager.SINGLE, target=loadDest, name='Init', daemon=True)
+    # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
+    thread_manager.start(thread_manager.SINGLE, target=load_dest, name='Init', daemon=True)
 
     # Check for updates on startup
-    threadManager.start(
-        threadManager.SINGLE,
-        target=updateHandler.check,
+    thread_manager.start(
+        thread_manager.SINGLE,
+        target=update_handler.check,
         name='Update Check',
         daemon=True
     )
 
-    root.protocol('WM_DELETE_WINDOW', onClose)
+    root.protocol('WM_DELETE_WINDOW', on_close)
     root.mainloop()

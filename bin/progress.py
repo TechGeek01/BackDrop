@@ -1,46 +1,46 @@
 import threading
 
 class Progress:
-    def __init__(self, progressBar, threadsForProgressBar):
+    def __init__(self, progress_bar, threads_for_progress_bar):
         """
         Args:
-            progressBar (ttk.progressBar): The progrss bar to control.
-            threadsForProgressBar (int): The number of running threads at idle,
+            progress_bar (ttk.progressBar): The progrss bar to control.
+            threads_for_progress_bar (int): The number of running threads at idle,
                 used to trigger when the progress bar is controlled.
         """
 
-        self.progressBar = progressBar
-        self.threadsForProgressBar = threadsForProgressBar
+        self.progress_bar = progress_bar
+        self.threads_for_progress_bar = threads_for_progress_bar
 
-    def setMax(self, maxVal):
+    def set_max(self, max_val):
         """Set the max value of the progress bar.
 
         Args:
-            maxVal (int): The max value to set.
+            max_val (int): The max value to set.
         """
 
-        self.progressBar.stop()
-        self.progressBar.configure(mode='determinate', value=0, maximum=maxVal)
+        self.progress_bar.stop()
+        self.progress_bar.configure(mode='determinate', value=0, maximum=max_val)
 
-    def set(self, curVal):
+    def set(self, cur_val):
         """Set the current value of the progress bar.
 
         Args:
-            curVal (int): The value to set.
+            cur_val (int): The value to set.
         """
 
-        self.progressBar.configure(value=curVal)
+        self.progress_bar.configure(value=cur_val)
 
-    def startIndeterminate(self):
+    def start_indeterminate(self):
         """Start indeterminate mode on the progress bar."""
 
-        if len([thread for thread in threading.enumerate() if thread.name != 'Update Check']) <= self.threadsForProgressBar:
-            self.progressBar.configure(mode='indeterminate')
-            self.progressBar.start()
+        if len([thread for thread in threading.enumerate() if thread.name != 'Update Check']) <= self.threads_for_progress_bar:
+            self.progress_bar.configure(mode='indeterminate')
+            self.progress_bar.start()
 
-    def stopIndeterminate(self):
+    def stop_indeterminate(self):
         """Stop indeterminate mode on the progress bar."""
 
-        if len([thread for thread in threading.enumerate() if thread.name != 'Update Check']) <= self.threadsForProgressBar:
-            self.progressBar.configure(mode='determinate')
-            self.progressBar.stop()
+        if len([thread for thread in threading.enumerate() if thread.name != 'Update Check']) <= self.threads_for_progress_bar:
+            self.progress_bar.configure(mode='determinate')
+            self.progress_bar.stop()

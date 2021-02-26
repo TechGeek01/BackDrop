@@ -23,76 +23,76 @@ class Config:
 
         # Make sure destination path exists before copying
         if self.filename.find('/') > -1:
-            pathStub = self.filename[0:self.filename.rindex('/')]
+            path_stub = self.filename[0:self.filename.rindex('/')]
         else:
-            pathStub = self.filename
-        if not os.path.exists(pathStub):
-            os.makedirs(pathStub)
+            path_stub = self.filename
+        if not os.path.exists(path_stub):
+            os.makedirs(path_stub)
 
         self.config.read(filename)
 
-    def get(self, sectionName, prefName, default=None, verifyData=None, dataType=None):
+    def get(self, section_name, pref_name, default=None, verify_data=None, data_type=None):
         """Get a preference value from the dict.
 
         Args:
-            sectionName (String): The name of the section to read.
-            prefName (String): The name of the preference to select.
+            section_name (String): The name of the section to read.
+            pref_name (String): The name of the preference to select.
             default (*): The default value to set if preference can't be read.
-            verifyData (*[], optional): A list of data to verify the read setting against. Defaults to None.
+            verify_data (*[], optional): A list of data to verify the read setting against. Defaults to None.
                 If the setting is able to be read from the given file, and this list is
                 defined, the default value will be used if the read setting isn't contained
-                in the verifyData list.\
-            dataType (String): The type of data to convert to if not using a string.
+                in the verify_data list.\
+            data_type (String): The type of data to convert to if not using a string.
 
         Returns:
             *: The value of the selected preference, if it exists.
             *: The specified default if the preference doesn't exist. (default: None)
         """
 
-        if sectionName in self.config:
-            if prefName in self.config[sectionName]:
+        if section_name in self.config:
+            if pref_name in self.config[section_name]:
 
                 # Convert data type if requested
-                if dataType == Config.BOOLEAN:
-                    setting = self.config[sectionName].getboolean(prefName)
-                elif dataType == Config.INTEGER:
-                    setting = int(self.config[sectionName][prefName])
-                elif dataType == Config.FLOAT:
-                    setting = float(self.config[sectionName][prefName])
-                elif dataType == Config.HEXADECIMAL:
-                    setting = hex(int(self.config[sectionName][prefName]))
+                if data_type == Config.BOOLEAN:
+                    setting = self.config[section_name].getboolean(pref_name)
+                elif data_type == Config.INTEGER:
+                    setting = int(self.config[section_name][pref_name])
+                elif data_type == Config.FLOAT:
+                    setting = float(self.config[section_name][pref_name])
+                elif data_type == Config.HEXADECIMAL:
+                    setting = hex(int(self.config[section_name][pref_name]))
                 else:
-                    setting = self.config[sectionName][prefName]
+                    setting = self.config[section_name][pref_name]
 
-                if type(verifyData) is list and setting not in verifyData:
-                    setting = default if default in verifyData else None
+                if type(verify_data) is list and setting not in verify_data:
+                    setting = default if default in verify_data else None
 
                     # Setting has been changed from read value, so write changes
-                    self.config.set(sectionName, prefName, str(setting))
+                    self.config.set(section_name, pref_name, str(setting))
 
                 return setting
 
         # If preference not found, return default
         return default
 
-    def set(self, sectionName, prefName, prefVal):
+    def set(self, section_name, pref_name, pref_val):
         """Set a preference to a specific value.
 
         Args:
-            sectionName (String): The name of the section to set.
-            prefName (String): The name of the preference to set.
-            prefVal (*): The value to set the preference to.
+            section_name (String): The name of the section to set.
+            pref_name (String): The name of the preference to set.
+            pref_val (*): The value to set the preference to.
         """
 
         # Create section if it doesn't exist
-        if sectionName not in self.config:
-            self.config.add_section(sectionName)
+        if section_name not in self.config:
+            self.config.add_section(section_name)
 
-        self.config.set(sectionName, prefName, str(prefVal))
+        self.config.set(section_name, pref_name, str(pref_val))
 
         # Write changes to file
-        with open(self.filename, 'w') as configFile:
-            self.config.write(configFile)
+        with open(self.filename, 'w') as config_file:
+            self.config.write(config_file)
 
     def show(self):
         """Show config."""
