@@ -6,6 +6,7 @@ from bin.color import bcolor
 class CommandLine:
     def __init__(self, optionInfoList):
         self.optionInfoList = optionInfoList
+        self.optionList = [item for item in self.optionInfoList if type(item) is tuple]
 
         self.CONSOLE_WIDTH = os.get_terminal_size().columns
 
@@ -24,9 +25,9 @@ class CommandLine:
                     argIndex = param_list_short.index(arg)
 
                 param_name = param_list_long[argIndex][2:]
-                self.__user_params[param_name] = []
+                self.userParams[param_name] = []
             elif param_name:
-                self.__user_params[param_name].append(arg)
+                self.userParams[param_name].append(arg)
 
     def showHelp(self):
         """Show the help menu."""

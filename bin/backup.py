@@ -137,7 +137,8 @@ class Backup:
         self.analysisRunning = True
         self.analysisStarted = True
 
-        self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
+        if not self.config['cliMode']:
+            self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
 
         # Sanity check for space requirements
         if not self.sanityCheck():
@@ -734,9 +735,9 @@ class Backup:
         self.enumerateCommandInfoFn(self, displayCommandList)
 
         self.analysisValid = True
-        self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
 
         if not self.config['cliMode']:
+            self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
             self.updateUiComponentFn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
             self.updateUiComponentFn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'normal'})
             self.progress.stopIndeterminate()
@@ -791,7 +792,8 @@ class Backup:
         """
 
         self.backupRunning = True
-        self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_BACKUP_RUNNING)
+        if not self.config['cliMode']:
+            self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_BACKUP_RUNNING)
 
         if not self.analysisValid or not self.sanityCheck():
             return
@@ -878,8 +880,8 @@ class Backup:
 
         if not self.config['cliMode']:
             self.updateUiComponentFn(Status.UPDATEUI_START_BACKUP_BTN)
+            self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_IDLE)
 
-        self.updateUiComponentFn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_IDLE)
         self.backupRunning = False
 
     def getTotals(self):
