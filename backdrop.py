@@ -1,9 +1,11 @@
+import platform
 import tkinter as tk
 from tkinter import ttk, messagebox, font as tkfont, filedialog
 import shutil
 import os
 import webbrowser
-import pythoncom
+if platform.system() == 'Windows':
+    import pythoncom
 import hashlib
 import sys
 import time
@@ -15,9 +17,10 @@ import clipboard
 import keyboard
 from PIL import Image, ImageTk
 import urllib.request
-import win32api
-import win32file
-import wmi
+if platform.system() == 'Windows':
+    import win32api
+    import win32file
+    import wmi
 
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import Color, bcolor
@@ -793,53 +796,55 @@ def load_dest():
     if not config['cliMode']:
         progress.start_indeterminate()
 
-    logical_drive_list = win32api.GetLogicalDriveStrings()
-    logical_drive_list = logical_drive_list.split('\000')[:-1]
-
-    # Associate logical drives with physical drives, and map them to physical serial numbers
-    logical_to_physical_map = {}
-    if not config['cliMode']:
-        pythoncom.CoInitialize()
-    try:
-        for physical_disk in wmi.WMI().Win32_DiskDrive():
-            for partition in physical_disk.associators("Win32_DiskDriveToDiskPartition"):
-                logical_to_physical_map.update({logical_disk.DeviceID[0]: physical_disk.SerialNumber.strip() for logical_disk in partition.associators("Win32_LogicalDiskToPartition")})
-    finally:
-        if not config['cliMode']:
-            pythoncom.CoUninitialize()
-
     # Empty tree in case this is being refreshed
     if not config['cliMode']:
         tree_dest.delete(*tree_dest.get_children())
 
-    # Enumerate drive list to find info about all non-source drives
-    total_drive_space_available = 0
-    dest_drive_master_list = []
-    for drive in logical_drive_list:
-        if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
-            drive_type = win32file.GetDriveType(drive)
-            if drive_type not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
-                drive_size = shutil.disk_usage(drive).total
-                vsn = os.stat(drive).st_dev
-                vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
-                try:
-                    serial = logical_to_physical_map[drive[0]]
-                except KeyError:
-                    serial = 'Not Found'
+    if platform.system() == 'Windows':
+        logical_drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
 
-                drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+        # Associate logical drives with physical drives, and map them to physical serial numbers
+        logical_to_physical_map = {}
+        if not config['cliMode']:
+            pythoncom.CoInitialize()
+        try:
+            for physical_disk in wmi.WMI().Win32_DiskDrive():
+                for partition in physical_disk.associators("Win32_DiskDriveToDiskPartition"):
+                    logical_to_physical_map.update({logical_disk.DeviceID[0]: physical_disk.SerialNumber.strip() for logical_disk in partition.associators("Win32_LogicalDiskToPartition")})
+        finally:
+            if not config['cliMode']:
+                pythoncom.CoUninitialize()
 
-                total_drive_space_available = total_drive_space_available + drive_size
-                if not config['cliMode']:
-                    tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+        # Enumerate drive list to find info about all non-source drives
+        total_drive_space_available = 0
+        dest_drive_master_list = []
+        for drive in logical_drive_list:
+            if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
+                drive_type = win32file.GetDriveType(drive)
+                if drive_type not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
+                    drive_size = shutil.disk_usage(drive).total
+                    vsn = os.stat(drive).st_dev
+                    vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
+                    try:
+                        serial = logical_to_physical_map[drive[0]]
+                    except KeyError:
+                        serial = 'Not Found'
 
-                dest_drive_master_list.append({
-                    'name': drive,
-                    'vid': vsn,
-                    'serial': serial,
-                    'capacity': drive_size,
-                    'hasConfig': drive_has_config_file
-                })
+                    drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+
+                    total_drive_space_available = total_drive_space_available + drive_size
+                    if not config['cliMode']:
+                        tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+
+                    dest_drive_master_list.append({
+                        'name': drive,
+                        'vid': vsn,
+                        'serial': serial,
+                        'capacity': drive_size,
+                        'hasConfig': drive_has_config_file
+                    })
+    elif platform.system() == 'Linux':
+        pass
 
     if not config['cliMode']:
         drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=uicolor.NORMAL if total_drive_space_available > 0 else uicolor.FADED)
@@ -1064,7 +1069,8 @@ def display_update_screen(update_info):
         update_window.title('Update Available')
         update_window.resizable(False, False)
         update_window.geometry('600x300')
-        update_window.iconbitmap(resource_path('media\\icon.ico'))
+        if platform.system() == 'Windows':
+            update_window.iconbitmap(resource_path('media/icon.ico'))
         center(update_window, root)
         update_window.transient(root)
         update_window.grab_set()
@@ -1156,16 +1162,20 @@ def check_for_updates(info):
                 print('Unable to find suitable download. Please try again, or update manually.')
 
 # Set constants
-SYSTEM_DRIVE = f"{os.getenv('SystemDrive')[0]}:\\"
+if platform.system() == 'Windows':
+    SYSTEM_DRIVE = f"{os.getenv('SystemDrive')[0]}:\\"
+    APPDATA_FOLDER = os.getenv('LocalAppData') + '\\BackDrop'
+elif platform.system() == 'Linux':
+    SYSTEM_DRIVE = '/dev/sda1'
+    APPDATA_FOLDER = '~/.config/BackDrop'
 
 # Set app defaults
 BACKUP_CONFIG_DIR = '.backdrop'
 BACKUP_CONFIG_FILE = 'backup.ini'
 PREFERENCES_CONFIG_FILE = 'preferences.ini'
-APPDATA_FOLDER = os.getenv('LocalAppData') + '\\BackDrop'
 WINDOW_ELEMENT_PADDING = 16
 
-prefs = Config(APPDATA_FOLDER + '\\' + PREFERENCES_CONFIG_FILE)
+prefs = Config(APPDATA_FOLDER + '/' + PREFERENCES_CONFIG_FILE)
 config = {
     'sourceDrive': None,
     'splitMode': False,
@@ -1818,7 +1828,8 @@ def show_config_builder():
         window_config_builder.title('Config Builder')
         window_config_builder.resizable(False, False)
         window_config_builder.geometry('950x380')
-        window_config_builder.iconbitmap(resource_path('media\\icon.ico'))
+        if platform.system() == 'Windows':
+            window_config_builder.iconbitmap(resource_path('media/icon.ico'))
         center(window_config_builder, root)
 
         def on_close():
@@ -1977,7 +1988,9 @@ if not config['cliMode']:
     WINDOW_WIDTH = 1200
     WINDOW_HEIGHT = 720
     root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}')
-    root.iconbitmap(resource_path('media\\icon.ico'))
+    # FIXME: Find a way to get an icon on Linux
+    if platform.system() == 'Windows':
+        root.iconbitmap(resource_path('media/icon.ico'))
     center(root)
 
     # Create Color class instance for UI
@@ -2008,7 +2021,8 @@ if not config['cliMode']:
 
     # Set some default styling
     tk_style = ttk.Style()
-    tk_style.theme_use('vista')
+    if platform.system() == 'Windows':
+        tk_style.theme_use('vista')
     tk_style.configure('TButton', padding=(6, 4))
     tk_style.configure('danger.TButton', padding=(6, 4), background='#b00')
     tk_style.configure('icon.TButton', width=2, height=1, padding=0, font=(None, 15), background='#00bfe6')
@@ -2114,10 +2128,10 @@ if not config['cliMode']:
 
     root.config(menu=menubar)
 
-    icon_windows = ImageTk.PhotoImage(Image.open(resource_path(f"media\\windows{'_light' if uicolor.is_dark_mode() else ''}.png")))
-    icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media\\windows_color.png')))
-    icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media\\zip{'_light' if uicolor.is_dark_mode() else ''}.png")))
-    icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media\\zip_color.png')))
+    icon_windows = ImageTk.PhotoImage(Image.open(resource_path(f"media/windows{'_light' if uicolor.is_dark_mode() else ''}.png")))
+    icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media/windows_color.png')))
+    icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media/zip{'_light' if uicolor.is_dark_mode() else ''}.png")))
+    icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media/zip_color.png')))
 
     # Progress/status values
     progress_bar = ttk.Progressbar(main_frame, maximum=100, style='custom.Progressbar')
@@ -2130,8 +2144,13 @@ if not config['cliMode']:
 
     # Set source drives and start to set up source dropdown
     source_drive_default = tk.StringVar()
-    drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-    remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
+    if platform.system() == 'Windows':
+        drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+        remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
+    elif platform.system() == 'Linux':
+        # URGENT: Find a way to get drive list, and remote drives in Linux
+        drive_list = ['/mnt/backups']
+        remote_drives = ['/mnt/backups']
 
     source_drive_list_valid = len(remote_drives) > 0
 
@@ -2416,7 +2435,7 @@ if not config['cliMode']:
     branding_frame = tk.Frame(right_side_frame)
     branding_frame.pack()
 
-    image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media\\logo_ui{'_light' if uicolor.is_dark_mode() else ''}.png")))
+    image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if uicolor.is_dark_mode() else ''}.png")))
     tk.Label(branding_frame, image=image_logo).pack(side='left')
     tk.Label(branding_frame, text=f"v{APP_VERSION}", font=(None, 10), fg=uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
