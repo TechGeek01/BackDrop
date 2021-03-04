@@ -1173,7 +1173,14 @@ if platform.system() == 'Windows':
     APPDATA_FOLDER = os.getenv('LocalAppData') + '\\BackDrop'
 elif platform.system() == 'Linux':
     SYSTEM_DRIVE = '/dev/sda1'
-    APPDATA_FOLDER = '~/.config/BackDrop'
+
+    # If user runs as sudo, username has to be grabbed through sudo to get the
+    # appropriate home dir, since ~ with sudo resolves to /root
+    if os.getenv('SUDO_USER') is not None:
+        USER_HOME_VAR = '~' + os.getenv('SUDO_USER')
+    else:
+        USER_HOME_VAR = '~'
+    APPDATA_FOLDER = f"{os.path.expanduser(USER_HOME_VAR)}/.config/BackDrop"
 
 # Set app defaults
 BACKUP_CONFIG_DIR = '.backdrop'
