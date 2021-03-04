@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, font as tkfont, filedialog
 import shutil
 import os
+import subprocess
 import webbrowser
 if platform.system() == 'Windows':
     import pythoncom
@@ -2153,9 +2154,9 @@ if not config['cliMode']:
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
         remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
     elif platform.system() == 'Linux':
-        # URGENT: Find a way to get drive list, and remote drives in Linux
-        drive_list = ['/mnt/backups']
-        remote_drives = ['/mnt/backups']
+        out = subprocess.run("df -tcifs -tnfs --output=target", stdout=subprocess.PIPE, shell=True)
+        remote_drives = out.stdout.decode('utf-8').split('\n')[1:]
+        remote_drives = [mount for mount in remote_drives if mount]
 
     source_drive_list_valid = len(remote_drives) > 0
 
