@@ -30,6 +30,8 @@ class ThreadManager:
         self.threadlist = {name: thread for name, thread in self.threadlist.items() if thread['thread'].is_alive()}
 
     def __init__(self):
+        """Create and manage threads for backup and operation."""
+
         self.threadlist = {}
         self.counter = 0
 

@@ -27,6 +27,13 @@ class Color:
     COLORACCENT = GREEN
 
     def __init__(self, root, dark_mode=False):
+        """Set the UI colors for the GUI.
+
+        Args:
+            root (Tk): The root tkinter window.
+            dark_mode (bool): Whether or not the UI should be set to dark mode.
+        """
+
         self.dark_mode = dark_mode
 
         Color.BG = root.cget('background')

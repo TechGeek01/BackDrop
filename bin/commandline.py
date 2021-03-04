@@ -5,6 +5,16 @@ from bin.color import bcolor
 
 class CommandLine:
     def __init__(self, option_info_list):
+        """Configure and parse the command line options.
+
+        Args:
+            option_info_list (list): A list of parameters to configure.
+            option_info_list.item (String): An information string to show in the
+                help menu.
+            option_info_list.item (tuple): A tuple containing the short and long
+                parameters names, and the description for the help menu.
+        """
+
         self.option_info_list = option_info_list
         self.option_list = [item for item in self.option_info_list if type(item) is tuple]
 

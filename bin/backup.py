@@ -12,7 +12,8 @@ from bin.status import Status
 
 class Backup:
     def __init__(self, config, backup_config_dir, backup_config_file, do_copy_fn, do_del_fn, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager, update_ui_component_fn=None, uicolor=None, progress=None):
-        """
+        """Configure a backup to be run on a set of drives.
+
         Args:
             config (dict): The backup config to be processed.
             backup_config_dir (String): The directory to store backup configs on each drive.
