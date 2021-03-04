@@ -35,6 +35,11 @@ from bin.status import Status
 # Set meta info
 APP_VERSION = '3.0.0-rc.1'
 
+# Platform sanity check
+if not platform.system() in ['Windows', 'Linux']:
+    print('This operating system is not supported')
+    exit()
+
 def center(win, center_to_window=None):
     """Center a tkinter window on screen.
 
