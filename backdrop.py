@@ -850,7 +850,45 @@ def load_dest():
                         'hasConfig': drive_has_config_file
                     })
     elif platform.system() == 'Linux':
-        pass
+        # URGENT: Find a way to filter out system drive in @Linux
+        out = subprocess.run('df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target', stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+        logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
+        logical_drive_list = [mount for mount in logical_drive_list if mount]
+
+        total_drive_space_available = 0
+        dest_drive_master_list = []
+        for drive in logical_drive_list:
+            # URGENT: Find a way to exclude all mount points on system drive in @Linux for destination drive
+            drive_size = shutil.disk_usage(drive).total
+
+            drive_name = f'"{drive}"'
+
+            # Get volume ID, remove dashes, and format the last 8 characters
+            out = subprocess.run(f"df {drive_name} --output=source | awk 'NR==2' | xargs lsblk -o uuid | awk 'NR==2'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            vsn = out.stdout.decode('utf-8').split('\n')[0].strip().replace('-', '').upper()
+            vsn = vsn[-8:-4] + '-' + vsn[-4:]
+
+            out = subprocess.run('mount | grep ' + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            physical_disk = '"' + out.stdout.decode('utf-8').split('\n')[0].strip() + '"'
+            out = subprocess.run(f"lsblk -o serial {physical_disk} | awk 'NR==2'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            serial = out.stdout.decode('utf-8').split('\n')[0].strip()
+
+            # Set default if serial not found
+            serial = serial if serial else 'Not Found'
+
+            drive_has_config_file = os.path.exists(f"{drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+
+            total_drive_space_available += drive_size
+            if not config['cliMode']:
+                tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+
+            dest_drive_master_list.append({
+                'name': drive,
+                'vid': vsn,
+                'serial': serial,
+                'capacity': drive_size,
+                'hasConfig': drive_has_config_file
+            })
 
     if not config['cliMode']:
         drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=uicolor.NORMAL if total_drive_space_available > 0 else uicolor.FADED)
