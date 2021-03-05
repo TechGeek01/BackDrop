@@ -504,7 +504,7 @@ class Backup:
                 }
             return file_list
 
-        def build_new_(drive, shares, exclusions):
+        def build_new_file_list(drive, shares, exclusions):
             """Get lists of files to copy to the destination drive, that only exist on the
             source.
 
@@ -547,12 +547,12 @@ class Backup:
                                         or item.find(stub_path + '\\') == 0):  # Dir is parent directory of share
                                     if os.path.isdir(target_path):
                                         # If exists on dest, recurse into it
-                                        new_list = build_new_(target_path, shares, exclusions)
+                                        new_list = build_new_file_list(target_path, shares, exclusions)
                                         file_list['new'].extend(new_list['new'])
                                         break
                                     elif stub_path not in exclusions:
                                         # Path doesn't exist on dest, so add to list if not excluded
-                                        new_list = build_new_(target_path, shares, exclusions)
+                                        new_list = build_new_file_list(target_path, shares, exclusions)
                                         file_list['new'].extend(new_list['new'])
                                         break
                 elif not os.path.isdir(drive):
@@ -635,7 +635,7 @@ class Backup:
                 })
 
             # Build list of new files to copy
-            new_items = build_new_(self.DRIVE_VID_INFO[drive]['name'], shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])['new']
+            new_items = build_new_file_list(self.DRIVE_VID_INFO[drive]['name'], shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])['new']
             if len(new_items) > 0:
                 self.new_file_list[self.DRIVE_VID_INFO[drive]['name']] = new_items
                 file_copy_list = [file for file, size in new_items]
