@@ -2199,7 +2199,7 @@ if not config['cliMode']:
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
         remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
     elif platform.system() == 'Linux':
-        out = subprocess.run("df -tcifs -tnfs --output=target", stdout=subprocess.PIPE, shell=True)
+        out = subprocess.run("df -tcifs -tnfs --output=target", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
         remote_drives = out.stdout.decode('utf-8').split('\n')[1:]
         remote_drives = [mount for mount in remote_drives if mount]
 
