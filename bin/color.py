@@ -25,7 +25,7 @@ class Color:
         STATUS_BAR = '#d4d4d4'
     elif platform.system() == 'Linux':
         FADED = '#888'
-        STATUS_BAR = '#c4c4c4'
+        STATUS_BAR = '#bbb'
 
     BGACCENT = '#e9e9e9'
     BGACCENT2 = '#fff'
