@@ -718,7 +718,13 @@ def calculate_selected_shares():
 
         # FIXME: This crashes if you change the source drive, and the number of items in the tree changes while it's calculating things
         share_name = tree_source.item(item, 'text')
-        share_dir_size = get_directory_size(config['sourceDrive'] + share_name)
+
+        if platform.system() == 'Windows':
+            share_path = config['sourceDrive'] + share_name
+        elif platform.system() == 'Linux':
+            share_path = config['sourceDrive'] + '/' + share_name
+
+        share_dir_size = get_directory_size(share_path)
         tree_source.set(item, 'size', human_filesize(share_dir_size))
         tree_source.set(item, 'rawsize', share_dir_size)
 
@@ -1025,8 +1031,12 @@ def handle_drive_selection_click():
     # We only want to do this if the click is the first selection (that is, there
     # are no other drives selected except the one we clicked).
     if len(dest_selection) > 0:
-        selected_drive_letter = tree_dest.item(dest_selection[0], 'text')[0]
-        SELECTED_DRIVE_CONFIG_FILE = f"{selected_drive_letter}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
+        if platform.system() == 'Windows':
+            selected_drive_letter = tree_dest.item(dest_selection[0], 'text')[0]
+            SELECTED_DRIVE_CONFIG_FILE = f"{selected_drive_letter}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
+        elif platform.system() == 'Linux':
+            selected_drive_mountpoint = tree_dest.item(dest_selection[0], 'text')
+            SELECTED_DRIVE_CONFIG_FILE = f"{selected_drive_mountpoint}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}"
     drives_read_from_config_file = False
     if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.exists(SELECTED_DRIVE_CONFIG_FILE) and os.path.isfile(SELECTED_DRIVE_CONFIG_FILE):
         # Found config file, so read it
