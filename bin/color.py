@@ -1,7 +1,8 @@
+import platform
+
 class Color:
     BLACK = '#000'
     WHITE = '#ececec'
-    FADED = '#999'
     BLUE = '#0093c4'
     GREEN = '#6db500'
     GOLD = '#ebb300'
@@ -19,7 +20,12 @@ class Color:
     BG = None
     FG = BLACK
 
-    STATUS_BAR = '#d4d4d4'
+    if platform.system() == 'Windows':
+        FADED = '#999'
+        STATUS_BAR = '#d4d4d4'
+    elif platform.system() == 'Linux':
+        FADED = '#888'
+        STATUS_BAR = '#c4c4c4'
 
     BGACCENT = '#e9e9e9'
     BGACCENT2 = '#fff'
