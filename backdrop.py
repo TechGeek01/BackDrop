@@ -1469,7 +1469,10 @@ def update_status_bar_selection(status=None):
         status (int): The status code to use.
     """
 
-    if not config['shares'] and not config['drives'] and len(config['missingDrives']) == 0:
+    if [share for share in config['shares'] if share['size'] is None]:
+        # Not all shares calculated
+        status = Status.BACKUPSELECT_CALCULATING_SOURCE
+    elif not config['shares'] and not config['drives'] and len(config['missingDrives']) == 0:
         # No selection in config
         status = Status.BACKUPSELECT_NO_SELECTION
     elif not config['shares']:
@@ -1478,9 +1481,6 @@ def update_status_bar_selection(status=None):
     elif not config['drives'] and len(config['missingDrives']) == 0:
         # No drives selected
         status = Status.BACKUPSELECT_MISSING_DEST
-    elif [share for share in config['shares'] if share['size'] is None]:
-        # Not all shares calculated
-        status = Status.BACKUPSELECT_CALCULATING_SOURCE
     else:
         SHARE_SELECTED_SPACE = sum([share['size'] for share in config['shares']])
         DRIVE_SELECTED_SPACE = sum([drive['capacity'] for drive in config['drives']]) + sum(config['missingDrives'].values())
