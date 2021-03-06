@@ -1521,6 +1521,8 @@ def update_status_bar_backup(status):
         statusbar_backup.configure(text='Analysis finished, ready for backup')
     elif status == Status.BACKUP_BACKUP_RUNNING:
         statusbar_backup.configure(text='Backup running')
+    elif status == Status.BACKUP_HALT_REQUESTED:
+        statusbar_backup.configure(text='Stopping backup')
 
 def update_status_bar_update(status):
     """Update the status bar update message.
@@ -1551,6 +1553,7 @@ def update_ui_component(status, data=None):
     elif status == Status.UPDATEUI_START_BACKUP_BTN:
         start_backup_btn.configure(text='Run Backup', command=start_backup, style='win.TButton')
     elif status == Status.UPDATEUI_STOP_BACKUP_BTN:
+        update_status_bar_backup(Status.BACKUP_HALT_REQUESTED)
         start_backup_btn.configure(text='Halt Backup', command=lambda: thread_manager.kill('Backup'), style='danger.TButton')
     elif status == Status.UPDATEUI_STATUS_BAR:
         update_status_bar_backup(data)
