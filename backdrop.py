@@ -1303,9 +1303,14 @@ if config['cliMode']:
         # ## Input validation ## #
 
         # Validate drive selection
-        drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-        remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
-        drive_list = [drive[:2] for drive in drive_list]
+        if platform.system() == 'Windows':
+            drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+            remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
+            drive_list = [drive[:2] for drive in drive_list]
+        elif platform.system() == 'Linux':
+            out = subprocess.run("df -tcifs -tnfs --output=target", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            remote_drives = out.stdout.decode('utf-8').split('\n')[1:]
+            remote_drives = [mount for mount in remote_drives if mount]
 
         if len(remote_drives) <= 0:
             print(f"{bcolor.FAIL}No network drives are available{bcolor.ENDC}")
