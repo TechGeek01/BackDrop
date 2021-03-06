@@ -1931,7 +1931,7 @@ def show_config_builder():
         window_config_builder = tk.Toplevel(root)
         window_config_builder.title('Config Builder')
         window_config_builder.resizable(False, False)
-        window_config_builder.geometry('950x380')
+        window_config_builder.geometry('960x380')
         # FIXME: Find a way to get an icon on @Linux
         if platform.system() == 'Windows':
             window_config_builder.iconbitmap(resource_path('media/icon.ico'))
@@ -1991,15 +1991,15 @@ def show_config_builder():
 
         tree_current_connected = ttk.Treeview(tree_current_connected_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
         tree_current_connected.heading('#0', text='Drive')
-        tree_current_connected.column('#0', width=50)
+        tree_current_connected.column('#0', width=50 if platform.system() == 'Windows' else 150)
         tree_current_connected.heading('size', text='Size')
         tree_current_connected.column('size', width=80)
         tree_current_connected.heading('configfile', text='Config')
         tree_current_connected.column('configfile', width=50)
         tree_current_connected.heading('vid', text='Volume ID')
-        tree_current_connected.column('vid', width=80)
+        tree_current_connected.column('vid', width=90)
         tree_current_connected.heading('serial', text='Serial')
-        tree_current_connected.column('serial', width=150)
+        tree_current_connected.column('serial', width=150 if platform.system() == 'Windows' else 100)
         tree_current_connected['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
 
         tree_current_connected.pack(side='left')
@@ -2016,7 +2016,7 @@ def show_config_builder():
         tree_builder_configured.heading('size', text='Size')
         tree_builder_configured.column('size', width=80)
         tree_builder_configured.heading('serial', text='Serial')
-        tree_builder_configured.column('serial', width=150)
+        tree_builder_configured.column('serial', width=150 if platform.system() == 'Windows' else 100)
         tree_builder_configured['displaycolumns'] = ('size', 'serial')
 
         tree_builder_configured.pack(side='left')
@@ -2097,6 +2097,13 @@ if not config['cliMode']:
     if platform.system() == 'Windows':
         root.iconbitmap(resource_path('media/icon.ico'))
     center(root)
+
+    default_font = tkfont.nametofont("TkDefaultFont")
+    default_font.configure(size=9)
+    heading_font = tkfont.nametofont("TkHeadingFont")
+    heading_font.configure(size=9, weight='normal')
+    menu_font = tkfont.nametofont("TkMenuFont")
+    menu_font.configure(size=9)
 
     # Create Color class instance for UI
     uicolor = Color(root, prefs.get('ui', 'darkMode', False, data_type=Config.BOOLEAN))
@@ -2271,9 +2278,9 @@ if not config['cliMode']:
 
         tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize'), style='custom.Treeview')
         tree_source.heading('#0', text='Share')
-        tree_source.column('#0', width=175)
+        tree_source.column('#0', width=170)
         tree_source.heading('size', text='Size')
-        tree_source.column('size', width=75)
+        tree_source.column('size', width=80)
         tree_source['displaycolumns'] = ('size')
 
         tree_source.pack(side='left')
@@ -2327,22 +2334,22 @@ if not config['cliMode']:
 
     alt_tooltip_frame = tk.Frame(dest_mode_frame, bg=uicolor.INFO)
     alt_tooltip_frame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
-    tk.Label(alt_tooltip_frame, text='Hold ALT while selecting a drive to ignore config files', bg=uicolor.INFO, fg=uicolor.BLACK).pack(fill='y', expand=1)
+    tk.Label(alt_tooltip_frame, text='Hold ALT when selecting a drive to ignore config files', bg=uicolor.INFO, fg=uicolor.BLACK).pack(fill='y', expand=1)
 
     # Split mode checkbox
-    ttk.Checkbutton(dest_mode_frame, text='Backup using split mode', variable=dest_mode_split_check_var, command=toggle_split_mode_with_checkbox).pack(side='left', padx=(12, 0))
+    ttk.Checkbutton(dest_mode_frame, text='Use split mode', variable=dest_mode_split_check_var, command=toggle_split_mode_with_checkbox).pack(side='left', padx=(12, 0))
 
     tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
     tree_dest.heading('#0', text='Drive')
-    tree_dest.column('#0', width=50)
+    tree_dest.column('#0', width=50 if platform.system() == 'Windows' else 150)
     tree_dest.heading('size', text='Size')
-    tree_dest.column('size', width=90)
-    tree_dest.heading('configfile', text='Config file')
-    tree_dest.column('configfile', width=80)
+    tree_dest.column('size', width=80)
+    tree_dest.heading('configfile', text='Config')
+    tree_dest.column('configfile', width=50)
     tree_dest.heading('vid', text='Volume ID')
     tree_dest.column('vid', width=90)
     tree_dest.heading('serial', text='Serial')
-    tree_dest.column('serial', width=170)
+    tree_dest.column('serial', width=200 if platform.system() == 'Windows' else 100)
     tree_dest['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
 
     tree_dest.pack(side='left')
@@ -2395,9 +2402,6 @@ if not config['cliMode']:
     drive_total_space.pack(side='left')
     split_mode_status = tk.Label(drive_space_frame, text=f"Split mode\n{'Enabled' if config['splitMode'] else 'Disabled'}", fg=uicolor.ENABLED if config['splitMode'] else uicolor.DISABLED)
     split_mode_status.grid(row=0, column=3, padx=(12, 0))
-
-    start_analysis_btn = ttk.Button(dest_meta_frame, text='Analyze', width=7, command=start_backup_analysis, state='normal' if source_drive_list_valid else 'disabled')
-    start_analysis_btn.grid(row=0, column=2)
 
     drive_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_drive_in_background)
 
@@ -2555,8 +2559,12 @@ if not config['cliMode']:
              wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
     tk.Label(backup_summary_text_frame, text='Please start a backup analysis to generate a summary.',
              wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
-    start_backup_btn = ttk.Button(backup_summary_frame, text='Run Backup', command=start_backup, state='disable')
-    start_backup_btn.pack(pady=WINDOW_ELEMENT_PADDING / 2)
+    backup_summary_button_frame = tk.Frame(backup_summary_frame)
+    backup_summary_button_frame.pack(pady=WINDOW_ELEMENT_PADDING / 2)
+    start_analysis_btn = ttk.Button(backup_summary_button_frame, text='Analyze', width=7, command=start_backup_analysis, state='normal' if source_drive_list_valid else 'disabled')
+    start_analysis_btn.pack(side='left', padx=4)
+    start_backup_btn = ttk.Button(backup_summary_button_frame, text='Run Backup', command=start_backup, state='disable')
+    start_backup_btn.pack(side='left', padx=4)
 
     # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
     thread_manager.start(thread_manager.SINGLE, target=load_dest, name='Init', daemon=True)
