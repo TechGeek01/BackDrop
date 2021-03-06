@@ -867,7 +867,6 @@ def load_dest():
         for drive in logical_drive_list:
             # URGENT: Find a way to exclude all mount points on system drive in @Linux for destination drive
             drive_size = shutil.disk_usage(drive).total
-
             drive_name = f'"{drive}"'
 
             # Get volume ID, remove dashes, and format the last 8 characters
@@ -1743,57 +1742,95 @@ def show_config_builder():
     def builder_load_connected():
         """Load the connected drive info, and display it in the tree."""
 
-        drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-        drive_list = [drive[:2] for drive in drive_list]
-
-        # Associate logical drives with physical drives, and map them to physical serial numbers
-        logical_to_physical_map = {}
-        pythoncom.CoInitialize()
-        try:
-            for physical_disk in wmi.WMI().Win32_DiskDrive():
-                for partition in physical_disk.associators("Win32_DiskDriveToDiskPartition"):
-                    logical_to_physical_map.update({logical_disk.DeviceID[0]: physical_disk.SerialNumber.strip() for logical_disk in partition.associators("Win32_LogicalDiskToPartition")})
-        finally:
-            pythoncom.CoUninitialize()
-
         # Empty tree in case this is being refreshed
         tree_current_connected.delete(*tree_current_connected.get_children())
 
-        # Enumerate drive list to find info about all non-source drives
-        total_usage = 0
-        dest_drive_master_list = []
-        dest_drive_letter_to_info = {}
-        for drive in drive_list:
-            if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
-                drive_type = win32file.GetDriveType(drive)
-                if drive_type not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
-                    drive_size = shutil.disk_usage(drive).total
-                    vsn = os.stat(drive).st_dev
-                    vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
-                    try:
-                        serial = logical_to_physical_map[drive[0]]
-                    except KeyError:
-                        serial = 'Not Found'
+        if platform.system() == 'Windows':
+            drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+            drive_list = [drive[:2] for drive in drive_list]
 
-                    # Add drive to drive list
-                    dest_drive_letter_to_info[drive[0]] = {
-                        'vid': vsn,
-                        'serial': serial
-                    }
+            # Associate logical drives with physical drives, and map them to physical serial numbers
+            logical_to_physical_map = {}
+            pythoncom.CoInitialize()
+            try:
+                for physical_disk in wmi.WMI().Win32_DiskDrive():
+                    for partition in physical_disk.associators("Win32_DiskDriveToDiskPartition"):
+                        logical_to_physical_map.update({logical_disk.DeviceID[0]: physical_disk.SerialNumber.strip() for logical_disk in partition.associators("Win32_LogicalDiskToPartition")})
+            finally:
+                pythoncom.CoUninitialize()
 
-                    drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+            # Enumerate drive list to find info about all non-source drives
+            total_usage = 0
+            dest_drive_master_list = []
+            dest_drive_letter_to_info = {}
+            for drive in drive_list:
+                if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
+                    drive_type = win32file.GetDriveType(drive)
+                    if drive_type not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
+                        drive_size = shutil.disk_usage(drive).total
+                        vsn = os.stat(drive).st_dev
+                        vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
+                        try:
+                            serial = logical_to_physical_map[drive[0]]
+                        except KeyError:
+                            serial = 'Not Found'
 
-                    total_usage = total_usage + drive_size
-                    if not config['cliMode']:
+                        # Add drive to drive list
+                        dest_drive_letter_to_info[drive[0]] = {
+                            'vid': vsn,
+                            'serial': serial
+                        }
+
+                        drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+
+                        total_usage = total_usage + drive_size
                         tree_current_connected.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
 
-                    dest_drive_master_list.append({
-                        'name': drive,
-                        'vid': vsn,
-                        'serial': serial,
-                        'capacity': drive_size,
-                        'hasConfig': drive_has_config_file
-                    })
+                        dest_drive_master_list.append({
+                            'name': drive,
+                            'vid': vsn,
+                            'serial': serial,
+                            'capacity': drive_size,
+                            'hasConfig': drive_has_config_file
+                        })
+        elif platform.system() == 'Linux':
+            # URGENT: Find a way to filter out system drive in @Linux
+            out = subprocess.run('df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target', stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            drive_list = out.stdout.decode('utf-8').split('\n')[1:]
+            drive_list = [mount for mount in drive_list if mount]
+
+            total_drive_space_available = 0
+            dest_drive_master_list = []
+            for drive in drive_list:
+                # URGENT: Find a way to exclude all mount points on system drive in @Linux for destination drive
+                drive_size = shutil.disk_usage(drive).total
+                drive_name = f'"{drive}"'
+
+                # Get volume ID, remove dashes, and format the last 8 characters
+                out = subprocess.run(f"df {drive_name} --output=source | awk 'NR==2' | xargs lsblk -o uuid | awk 'NR==2'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+                vsn = out.stdout.decode('utf-8').split('\n')[0].strip().replace('-', '').upper()
+                vsn = vsn[-8:-4] + '-' + vsn[-4:]
+
+                out = subprocess.run('mount | grep ' + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+                physical_disk = '"' + out.stdout.decode('utf-8').split('\n')[0].strip() + '"'
+                out = subprocess.run(f"lsblk -o serial {physical_disk} | awk 'NR==2'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+                serial = out.stdout.decode('utf-8').split('\n')[0].strip()
+
+                # Set default if serial not found
+                serial = serial if serial else 'Not Found'
+
+                drive_has_config_file = os.path.exists(f"{drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+
+                total_drive_space_available += drive_size
+                tree_current_connected.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+
+                dest_drive_master_list.append({
+                    'name': drive,
+                    'vid': vsn,
+                    'serial': serial,
+                    'capacity': drive_size,
+                    'hasConfig': drive_has_config_file
+                })
 
     def builder_open_config_file():
         """Open a config file and load it."""
