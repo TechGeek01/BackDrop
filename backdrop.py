@@ -678,7 +678,7 @@ def load_source_in_background():
     """Start a source refresh in a new thread."""
 
     if source_drive_list_valid:
-        thread_manager.start(thread_manager.SINGLE, target=load_source, name='Load Source', daemon=True)
+        thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_source, name='Load Source', daemon=True)
 
 def change_source_drive(selection):
     """Change the source drive to pull shares from to a new selection.
@@ -793,12 +793,12 @@ def calculate_selected_shares():
             update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
             start_analysis_btn.configure(state='disable')
             share_name = tree_source.item(item, 'text')
-            thread_manager.start(thread_manager.SINGLE, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
+            thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
 
 def calculate_source_size_in_background(event):
     """Start a calculation of source filesize in a new thread."""
 
-    thread_manager.start(thread_manager.MULTIPLE, target=calculate_selected_shares, name='Load Source Selection', daemon=True)
+    thread_manager.start(thread_manager.MULTIPLE, is_progress_thread=True, target=calculate_selected_shares, name='Load Source Selection', daemon=True)
 
 def load_dest():
     """Load the destination drive info, and display it in the tree."""
@@ -905,7 +905,7 @@ def load_dest_in_background():
     """Start the loading of the destination drive info in a new thread."""
 
     if not thread_manager.is_alive('Refresh destination'):
-        thread_manager.start(thread_manager.SINGLE, target=load_dest, name='Refresh destination', daemon=True)
+        thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh destination', daemon=True)
 
 def gui_select_from_config():
     """From the current config, select the appropriate shares and drives in the GUI."""
@@ -1064,13 +1064,13 @@ def handle_drive_selection_click():
 def select_drive_in_background(event):
     """Start the drive selection handling in a new thread."""
 
-    thread_manager.start(thread_manager.MULTIPLE, target=handle_drive_selection_click, name='Drive Select', daemon=True)
+    thread_manager.start(thread_manager.MULTIPLE, is_progress_thread=True, target=handle_drive_selection_click, name='Drive Select', daemon=True)
 
 def start_backup():
     """Start the backup in a new thread."""
 
     if backup:
-        thread_manager.start(thread_manager.KILLABLE, lambda: None, target=backup.run, name='Backup', daemon=True)
+        thread_manager.start(thread_manager.KILLABLE, lambda: None, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
 force_non_graceful_cleanup = False
 def cleanup_handler(signal_received, frame):
@@ -2252,14 +2252,9 @@ if not config['cliMode']:
     progress_bar = ttk.Progressbar(main_frame, maximum=100, style='custom.Progressbar')
     progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', pady=(WINDOW_ELEMENT_PADDING, 0))
 
-    if platform.system() == 'Windows':
-        progress_bar_thread_count = 5
-    elif platform.system() == 'Linux':
-        progress_bar_thread_count = 8
-
     progress = Progress(
         progress_bar=progress_bar,
-        threads_for_progress_bar=progress_bar_thread_count
+        thread_manager=thread_manager
     )
 
     # Set source drives and start to set up source dropdown
@@ -2574,7 +2569,7 @@ if not config['cliMode']:
     start_backup_btn.pack(side='left', padx=4)
 
     # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
-    thread_manager.start(thread_manager.SINGLE, target=load_dest, name='Init', daemon=True)
+    thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
 
     # Check for updates on startup
     thread_manager.start(
