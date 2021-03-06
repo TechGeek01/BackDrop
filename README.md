@@ -17,6 +17,11 @@ Online storage of data can get expensive. Obviously, the cheap way to back up im
 
 ![BackDrop UI](https://raw.githubusercontent.com/TechGeek01/BackDrop/master/docs/img/showcase.png)
 
+## Installation
+If you're not running a precompiled version of the source code, you can run the Python directly. All packages can be installed by passing the associated requirements.txt file to `pip`.
+
+*BackDrop uses tkinter for the GUI frontend. If you're on Linux, this isn't included with Python and will need to be installed separately.*
+
 ## Usage
 BackDrop was intended for use with Unraid, or another NAS solution. My setup involves network shares, since I don't have room to just pop extra drives into the server, they're docked with a USB adapter in Windows, and encrypted so that data is inaccessible without my encryption key. My setup involves a "root share" where all of the shares I have in Unraid are accessible as subfolders on one network drive.
 

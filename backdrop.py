@@ -84,7 +84,7 @@ def update_file_detail_lists(list_name, filename):
 
     if not config['cliMode']:
         file_detail_list[list_name].append({
-            'displayName': filename.split('\\')[-1],
+            'displayName': filename.split('/')[-1],
             'filename': filename
         })
 
@@ -109,7 +109,7 @@ def update_file_detail_lists(list_name, filename):
 
             # Update copy list scrollable
             if list_name in ['success', 'deleteSuccess']:
-                tk.Label(file_details_copied_scrollable_frame, text=filename.split('\\')[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+                tk.Label(file_details_copied_scrollable_frame, text=filename.split('/')[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
 
                 # HACK: The scroll yview won't see the label instantly after it's packed.
                 # Sleeping for a brief time fixes that. This is acceptable as long as it's
@@ -117,7 +117,7 @@ def update_file_detail_lists(list_name, filename):
                 time.sleep(0.01)
                 file_details_copied_info_canvas.yview_moveto(1)
             else:
-                tk.Label(file_details_failed_scrollable_frame, text=filename.split('\\')[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+                tk.Label(file_details_failed_scrollable_frame, text=filename.split('/')[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
                 time.sleep(0.01)
                 file_details_failed_info_canvas.yview_moveto(1)
 
@@ -132,7 +132,7 @@ def do_delete(filename, size, gui_options={}):
 
     if not thread_manager.threadlist['Backup']['killFlag'] and os.path.exists(filename):
         gui_options['mode'] = 'delete'
-        gui_options['filename'] = filename.split('\\')[-1]
+        gui_options['filename'] = filename.split('/')[-1]
 
         if os.path.isfile(filename):
             os.remove(filename)
@@ -191,7 +191,7 @@ def copy_file(source_filename, dest_filename, callback, gui_options={}):
             file_size = READINTO_BUFSIZE
 
         # Make sure destination path exists before copying
-        path_stub = dest_filename[0:dest_filename.rindex('\\')]
+        path_stub = dest_filename[0:dest_filename.rindex('/')]
         if not os.path.exists(path_stub):
             os.makedirs(path_stub)
 
@@ -334,11 +334,11 @@ def do_copy(src, dest, gui_options={}):
                 if thread_manager.threadlist['Backup']['killFlag']:
                     break
 
-                filename = entry.path.split('\\')[-1]
+                filename = entry.path.split('/')[-1]
                 if entry.is_file():
-                    copy_file(src + '\\' + filename, dest + '\\' + filename, display_backup_progress, gui_options)
+                    copy_file(src + '/' + filename, dest + '/' + filename, display_backup_progress, gui_options)
                 elif entry.is_dir():
-                    do_copy(src + '\\' + filename, dest + '\\' + filename)
+                    do_copy(src + '/' + filename, dest + '/' + filename)
 
             # Handle changing attributes of folders if we copy a new folder
             shutil.copymode(src, dest)
@@ -722,7 +722,7 @@ def calculate_selected_shares():
         if platform.system() == 'Windows':
             share_path = config['sourceDrive'] + share_name
         elif platform.system() == 'Linux':
-            share_path = config['sourceDrive'] + '/' + share_name
+            share_path = config['sourceDrive'] + DIR_SLASH + share_name
 
         share_dir_size = get_directory_size(share_path)
         tree_source.set(item, 'size', human_filesize(share_dir_size))
@@ -814,6 +814,7 @@ def load_dest():
 
     if platform.system() == 'Windows':
         logical_drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+        logical_drive_list = [drive[:2] for drive in logical_drive_list]
 
         # Associate logical drives with physical drives, and map them to physical serial numbers
         logical_to_physical_map = {}
@@ -1031,21 +1032,17 @@ def handle_drive_selection_click():
     # We only want to do this if the click is the first selection (that is, there
     # are no other drives selected except the one we clicked).
     if len(dest_selection) > 0:
-        if platform.system() == 'Windows':
-            selected_drive_letter = tree_dest.item(dest_selection[0], 'text')[0]
-            SELECTED_DRIVE_CONFIG_FILE = f"{selected_drive_letter}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
-        elif platform.system() == 'Linux':
-            selected_drive_mountpoint = tree_dest.item(dest_selection[0], 'text')
-            SELECTED_DRIVE_CONFIG_FILE = f"{selected_drive_mountpoint}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}"
-    drives_read_from_config_file = False
-    if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.exists(SELECTED_DRIVE_CONFIG_FILE) and os.path.isfile(SELECTED_DRIVE_CONFIG_FILE):
-        # Found config file, so read it
-        load_config_from_file(SELECTED_DRIVE_CONFIG_FILE)
-        dest_selection = tree_dest.selection()
-        drives_read_from_config_file = True
-    else:
-        dest_split_warning_frame.grid_remove()
-        prev_selection = len(dest_selection)
+        selected_drive = tree_dest.item(dest_selection[0], 'text')
+        SELECTED_DRIVE_CONFIG_FILE = f"{selected_drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}"
+        drives_read_from_config_file = False
+        if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.exists(SELECTED_DRIVE_CONFIG_FILE) and os.path.isfile(SELECTED_DRIVE_CONFIG_FILE):
+            # Found config file, so read it
+            load_config_from_file(SELECTED_DRIVE_CONFIG_FILE)
+            dest_selection = tree_dest.selection()
+            drives_read_from_config_file = True
+        else:
+            dest_split_warning_frame.grid_remove()
+            prev_selection = len(dest_selection)
 
     selected_total = 0
     selected_drive_list = []
@@ -1209,7 +1206,7 @@ def check_for_updates(info):
             if download_url is not None:
                 print('Downloading update. Please wait...')
 
-                download_filename = f"{os.getcwd()}\\{download_url.split('/')[-1]}"
+                download_filename = f"{os.getcwd()}/{download_url.split('/')[-1]}"
                 urllib.request.urlretrieve(download_url, download_filename)
 
                 print('Update downloaded successfully')
@@ -1218,10 +1215,11 @@ def check_for_updates(info):
 
 # Set constants
 if platform.system() == 'Windows':
-    SYSTEM_DRIVE = f"{os.getenv('SystemDrive')[0]}:\\"
-    APPDATA_FOLDER = os.getenv('LocalAppData') + '\\BackDrop'
+    SYSTEM_DRIVE = f"{os.getenv('SystemDrive')[0]}:"
+    APPDATA_FOLDER = os.getenv('LocalAppData') + '/BackDrop'
 elif platform.system() == 'Linux':
-    SYSTEM_DRIVE = '/dev/sda1'
+    # URGENT: Find the actual system drive on @Linux instead of assuming /dev/sda
+    SYSTEM_DRIVE = '/dev/sda'
 
     # If user runs as sudo, username has to be grabbed through sudo to get the
     # appropriate home dir, since ~ with sudo resolves to /root
@@ -1236,6 +1234,11 @@ BACKUP_CONFIG_DIR = '.backdrop'
 BACKUP_CONFIG_FILE = 'backup.ini'
 PREFERENCES_CONFIG_FILE = 'preferences.ini'
 WINDOW_ELEMENT_PADDING = 16
+
+if platform.system() == 'Windows':
+    DIR_SLASH = '\\'
+elif platform.system() == 'Linux':
+    DIR_SLASH = '/'
 
 prefs = Config(APPDATA_FOLDER + '/' + PREFERENCES_CONFIG_FILE)
 config = {
@@ -1303,6 +1306,7 @@ if config['cliMode']:
         # Validate drive selection
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
         remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
+        drive_list = [drive[:2] for drive in drive_list]
 
         if len(remote_drives) <= 0:
             print(f"{bcolor.FAIL}No network drives are available{bcolor.ENDC}")
@@ -1319,7 +1323,7 @@ if config['cliMode']:
             source_drive = prefs.get('selection', 'sourceDrive', remote_drives[0], verify_data=remote_drives)
         else:
             source_drive = prefs.get('selection', 'sourceDrive', remote_drives[0], verify_data=remote_drives)
-            source_drive = command_line.get_param('source')[0][0].upper() + ':\\' if command_line.has_param('source') and command_line.get_param('source')[0] in remote_drives else source_drive
+            source_drive = command_line.get_param('source')[0][0].upper() + ':' if command_line.has_param('source') and command_line.get_param('source')[0] in remote_drives else source_drive
 
         if command_line.has_param('interactive') and not command_line.validate_yes_no(f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
             print('\nAvailable drives are as follows:\n')
@@ -1380,9 +1384,11 @@ if config['cliMode']:
         else:
             # Load from config
             split_mode = command_line.has_param('split')
-            load_config_drive = command_line.get_param('config')
-            if type(load_config_drive) is list and f"{load_config_drive[0][0].upper()}:\\" in dest_drive_name_list:
-                load_config_from_file(f"{load_config_drive[0][0].upper()}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")
+            load_config_drive = command_line.get_param('config')[0]
+            if platform.system() == 'Windows':
+                load_config_drive = load_config_drive[0].upper() + ':'
+            if type(load_config_drive) is list and load_config_drive in dest_drive_name_list:
+                load_config_from_file(f"{load_config_drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
 
                 shares_loaded_from_config = True
 
@@ -1409,7 +1415,7 @@ if config['cliMode']:
                     print('Please specify at least one destination drive')
                     exit()
 
-                dest_list = [drive[0].upper() + ':\\' for drive in command_line.get_param('destination')]
+                dest_list = [drive[0].upper() + ':' for drive in command_line.get_param('destination')]
 
                 for drive in dest_list:
                     if drive not in dest_drive_name_list:
@@ -1450,7 +1456,7 @@ if config['cliMode']:
 
             config['shares'] = [{
                 'name': share,
-                'size': get_directory_size(config['sourceDrive'] + share)
+                'size': get_directory_size(config['sourceDrive'] + DIR_SLASH + share)
             } for share in command_line.validate_choice_list(
                 message='Which shares (space separated) would you like to use?',
                 choices=all_share_list,
@@ -1476,7 +1482,7 @@ if config['cliMode']:
 
             config['shares'] = [{
                 'name': share,
-                'size': get_directory_size(config['sourceDrive'] + share)
+                'size': get_directory_size(config['sourceDrive'] + DIR_SLASH + share)
             } for share in share_list]
 
         # ## Show summary ## #
@@ -1640,10 +1646,10 @@ def save_config_file():
         # For each drive letter that's connected, get drive info, and write file
         for drive in config['drives']:
             # If config exists on drives, back it up first
-            if os.path.isfile(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"):
-                shutil.move(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}", f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}.old")
+            if os.path.isfile(f"{drive['name']}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}"):
+                shutil.move(f"{drive['name']}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}", f"{drive['name']}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}.old")
 
-            new_config_file = Config(f"{drive['name']}{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")
+            new_config_file = Config(f"{drive['name']}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
 
             # Write shares and VIDs to config file
             new_config_file.set('selection', 'shares', share_list)
@@ -1702,16 +1708,15 @@ def delete_config_file_from_selected_drives():
     """Delete config files from drives in destination selection."""
 
     drive_list = [tree_dest.item(drive, 'text')[0] for drive in tree_dest.selection()]
-    drive_list = [drive for drive in drive_list if os.path.isfile(f"{drive}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}")]
+    drive_list = [drive for drive in drive_list if os.path.isfile(f"{drive}:/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")]
 
     if drive_list:
         # Ask for confirmation before deleting
         if messagebox.askyesno('Delete config files?', 'Are you sure you want to delete the config files from the selected drives?'):
             # Delete config file on each drive
             for drive in drive_list:
-                config_file_path = f"{drive}:\\{BACKUP_CONFIG_DIR}\\{BACKUP_CONFIG_FILE}"
-                if os.path.isfile(config_file_path):
-                    os.remove(config_file_path)
+                config_file_path = f"{drive}:/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}"
+                os.remove(config_file_path)
 
             # Since config files on drives changed, refresh the destination list
             load_dest_in_background()
@@ -1738,8 +1743,8 @@ def show_config_builder():
     def builder_load_connected():
         """Load the connected drive info, and display it in the tree."""
 
-        drive_list = win32api.GetLogicalDriveStrings()
-        drive_list = drive_list.split('\000')[:-1]
+        drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+        drive_list = [drive[:2] for drive in drive_list]
 
         # Associate logical drives with physical drives, and map them to physical serial numbers
         logical_to_physical_map = {}
@@ -2197,6 +2202,7 @@ if not config['cliMode']:
     icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media/zip_color.png')))
 
     # Progress/status values
+    # URGENT: Fix progress bar not working in @Linux
     progress_bar = ttk.Progressbar(main_frame, maximum=100, style='custom.Progressbar')
     progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', pady=(WINDOW_ELEMENT_PADDING, 0))
 
@@ -2209,7 +2215,8 @@ if not config['cliMode']:
     source_drive_default = tk.StringVar()
     if platform.system() == 'Windows':
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-        remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
+        remote_drives = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) == 4]
+        drive_list = [drive[:2] for drive in drive_list]
     elif platform.system() == 'Linux':
         out = subprocess.run("df -tcifs -tnfs --output=target", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
         remote_drives = out.stdout.decode('utf-8').split('\n')[1:]
