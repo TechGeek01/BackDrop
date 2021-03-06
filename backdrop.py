@@ -2138,6 +2138,8 @@ if not config['cliMode']:
     tk_style = ttk.Style()
     if platform.system() == 'Windows':
         tk_style.theme_use('vista')
+    elif platform.system() == 'Linux':
+        tk_style.theme_use('clam')
     tk_style.configure('TButton', padding=(6, 4))
     tk_style.configure('danger.TButton', padding=(6, 4), background='#b00')
     tk_style.configure('icon.TButton', width=2, height=1, padding=0, font=(None, 15), background='#00bfe6')
@@ -2169,6 +2171,7 @@ if not config['cliMode']:
     tk_style.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', uicolor.NORMAL), ('selected', uicolor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', uicolor.BGACCENT2), ('selected', uicolor.COLORACCENT)])
 
     tk_style.element_create('custom.Progressbar.trough', 'from', 'clam')
+    tk_style.element_create('custom.Progressbar.pbar', 'from', 'default')
     tk_style.layout('custom.Progressbar', [
         ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
             ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
