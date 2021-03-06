@@ -1,4 +1,11 @@
 class Status:
+    """Status codes for use with configuration.
+
+    These codes don't reference anything, and only need to differ from
+    eachother. Values can be arbitrarily changed without breaking anything
+    so long as they remain unique.
+    """
+
     # 0x0 => Selection
     BACKUPSELECT_NO_SELECTION = 0x00
     BACKUPSELECT_MISSING_SOURCE = 0x01
@@ -12,6 +19,7 @@ class Status:
     BACKUP_ANALYSIS_RUNNING = 0x11
     BACKUP_READY_FOR_BACKUP = 0x12
     BACKUP_BACKUP_RUNNING = 0x13
+    BACKUP_HALT_REQUESTED = 0x14
 
     # 0x2 => Save states
     SAVE_PENDING_CHANGES = 0x20
