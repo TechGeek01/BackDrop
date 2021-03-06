@@ -2249,13 +2249,17 @@ if not config['cliMode']:
     icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media/zip_color.png')))
 
     # Progress/status values
-    # URGENT: Fix progress bar not working in @Linux
     progress_bar = ttk.Progressbar(main_frame, maximum=100, style='custom.Progressbar')
     progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', pady=(WINDOW_ELEMENT_PADDING, 0))
 
+    if platform.system() == 'Windows':
+        progress_bar_thread_count = 5
+    elif platform.system() == 'Linux':
+        progress_bar_thread_count = 8
+
     progress = Progress(
         progress_bar=progress_bar,
-        threads_for_progress_bar=5
+        threads_for_progress_bar=progress_bar_thread_count
     )
 
     # Set source drives and start to set up source dropdown
