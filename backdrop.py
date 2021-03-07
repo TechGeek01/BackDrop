@@ -2538,12 +2538,16 @@ if not config['cliMode']:
     file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
 
     def toggle_file_details_pane():
+        root_geom = root.geometry().split('+')
+        pos_x = int(root_geom[1])
+        pos_y = int(root_geom[2])
+
         # FIXME: Is fixing the flicker effect here possible?
         if bool(backup_file_details_frame.grid_info()):
             backup_file_details_frame.grid_remove()
-            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{root.winfo_x() + 400 + WINDOW_ELEMENT_PADDING}+{root.winfo_y()}')
+            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{pos_x + 400 + WINDOW_ELEMENT_PADDING}+{pos_y}')
         else:
-            root.geometry(f'{1600 + WINDOW_ELEMENT_PADDING}x{WINDOW_HEIGHT}+{root.winfo_x() - 400 - WINDOW_ELEMENT_PADDING}+{root.winfo_y()}')
+            root.geometry(f'{1600 + WINDOW_ELEMENT_PADDING}x{WINDOW_HEIGHT}+{pos_x - 400 - WINDOW_ELEMENT_PADDING}+{pos_y}')
             backup_file_details_frame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
     show_file_details_pane = tk.BooleanVar()
