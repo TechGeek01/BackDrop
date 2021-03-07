@@ -1073,7 +1073,7 @@ def start_backup():
     """Start the backup in a new thread."""
 
     if backup:
-        thread_manager.start(thread_manager.KILLABLE, lambda: None, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
+        thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
 force_non_graceful_cleanup = False
 def cleanup_handler(signal_received, frame):
@@ -2321,9 +2321,8 @@ if not config['cliMode']:
 
         source_select_frame = tk.Frame(main_frame)
         source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2))
-        tk.Label(source_select_frame, text='Source:').pack(side='left')
         source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, config['sourceDrive'], *tuple(remote_drives), command=change_source_drive)
-        source_select_menu.pack(side='left', padx=(12, 0))
+        source_select_menu.pack(side='left')
 
         tree_source.bind("<<TreeviewSelect>>", calculate_source_size_in_background)
     else:
@@ -2455,9 +2454,9 @@ if not config['cliMode']:
     file_details_pending_delete_header_line = tk.Frame(backup_file_details_frame)
     file_details_pending_delete_header_line.grid(row=0, column=0, sticky='w')
     file_details_pending_delete_header = tk.Label(file_details_pending_delete_header_line, text='Files to delete', font=(None, 11, 'bold'))
-    file_details_pending_delete_header.pack(side='left')
+    file_details_pending_delete_header.pack()
     file_details_pending_delete_tooltip = tk.Label(file_details_pending_delete_header_line, text='(Click to copy)', fg=uicolor.FADED)
-    file_details_pending_delete_tooltip.pack(side='left')
+    file_details_pending_delete_tooltip.pack()
     file_details_pending_delete_counter_frame = tk.Frame(backup_file_details_frame)
     file_details_pending_delete_counter_frame.grid(row=1, column=0)
     file_details_pending_delete_counter = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 28))
@@ -2469,9 +2468,9 @@ if not config['cliMode']:
     file_details_pending_copy_header_line = tk.Frame(backup_file_details_frame)
     file_details_pending_copy_header_line.grid(row=0, column=1, sticky='e')
     file_details_pending_copy_header = tk.Label(file_details_pending_copy_header_line, text='Files to copy', font=(None, 11, 'bold'))
-    file_details_pending_copy_header.pack(side='right')
+    file_details_pending_copy_header.pack()
     file_details_pending_copy_tooltip = tk.Label(file_details_pending_copy_header_line, text='(Click to copy)', fg=uicolor.FADED)
-    file_details_pending_copy_tooltip.pack(side='right')
+    file_details_pending_copy_tooltip.pack()
     file_details_pending_copy_counter_frame = tk.Frame(backup_file_details_frame)
     file_details_pending_copy_counter_frame.grid(row=1, column=1)
     file_details_pending_copy_counter = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 28))

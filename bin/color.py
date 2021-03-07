@@ -1,7 +1,7 @@
-import platform
+import re
 
 class Color:
-    BLACK = '#000'
+    BLACK = '#000000'
     WHITE = '#ececec'
     BLUE = '#0093c4'
     GREEN = '#6db500'
@@ -17,20 +17,34 @@ class Color:
     WARNING = '#ffe69d'
     ERROR = '#ffd0d0'
 
-    BG = None
-    FG = BLACK
-
-    if platform.system() == 'Windows':
-        FADED = '#999'
-        STATUS_BAR = '#d4d4d4'
-    elif platform.system() == 'Linux':
-        FADED = '#888'
-        STATUS_BAR = '#bbb'
-
-    BGACCENT = '#e9e9e9'
-    BGACCENT2 = '#fff'
-    BGACCENT3 = '#888'
     COLORACCENT = GREEN
+
+    def combine_hex_color(self, rgb1, rgb2, ratio2):
+        """Combine two hex colors with a ratio of the second.
+
+        Args:
+            rgb1 (String): The first hex color.
+            rgb2 (String): The second hex color.
+            ratio2 (float): The ratio of the second color.
+
+        Returns:
+            String: The new hex color.
+        """
+
+        color1 = re.search(r'([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})', rgb1).group(1, 2, 3)
+        color2 = re.search(r'([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})', rgb2).group(1, 2, 3)
+
+        # Convert hex string to int
+        color1 = [int(x, 16) for x in color1]
+        color2 = [int(x, 16) for x in color2]
+
+        # Fancy math
+        red = (color1[0] * (255 - ratio2 * 255) + color2[0] * ratio2 * 255) / 255
+        green = (color1[1] * (255 - ratio2 * 255) + color2[1] * ratio2 * 255) / 255
+        blue = (color1[2] * (255 - ratio2 * 255) + color2[2] * ratio2 * 255) / 255
+
+        # Convert back to hex
+        return '#' + hex(int(red))[-2:] + hex(int(green))[-2:] + hex(int(blue))[-2:]
 
     def __init__(self, root, dark_mode=False):
         """Set the UI colors for the GUI.
@@ -42,19 +56,31 @@ class Color:
 
         self.dark_mode = dark_mode
 
-        Color.BG = root.cget('background')
+        if not dark_mode:
+            Color.BG = root.winfo_rgb(root.cget('background'))
+            r, g, b = [x >> 8 for x in Color.BG]
+            Color.BG = '#{:02x}{:02x}{:02x}'.format(r, g, b)
 
-        if dark_mode:
-            Color.BG = '#333'
+            Color.FG = Color.BLACK
+            Color.NORMAL = Color.BLACK
+
+            Color.BGACCENT = self.combine_hex_color(Color.BG, Color.FG, 0.1)
+            Color.BGACCENT2 = Color.WHITE
+            Color.BGACCENT3 = self.combine_hex_color(Color.BG, Color.FG, 0.65)
+        else:
+            Color.BG = '#333333'
             Color.FG = Color.WHITE
             Color.NORMAL = Color.WHITE
 
-            Color.STATUS_BAR = '#4a4a4a'
+            Color.BGACCENT = self.combine_hex_color(Color.BG, Color.FG, 0.1)
+            Color.BGACCENT2 = self.combine_hex_color(Color.BG, Color.BLACK, 0.4)
+            Color.BGACCENT3 = self.combine_hex_color(Color.BG, Color.FG, 0.65)
 
-            Color.BGACCENT = '#444'
-            Color.BGACCENT2 = '#222'
-            Color.BGACCENT3 = '#aaa'
+        Color.FADED = self.combine_hex_color(Color.BG, Color.FG, 0.45)
 
+        Color.STATUS_BAR = self.combine_hex_color(Color.BG, Color.FG, 0.125)
+
+        if dark_mode:
             Color.RED = '#f53'
 
             Color.INFO = '#3bceff'

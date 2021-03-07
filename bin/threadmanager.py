@@ -47,7 +47,7 @@ class ThreadManager:
         self._gc_thread = threading.Thread(target=thread_garbage_collect, name='ThreadManager_GC', daemon=True)
         self._gc_thread.start()
 
-    def start(self, thread_type, is_progress_thread=False, *args, **kwargs):
+    def start(self, thread_type, is_progress_thread=False, callback=None, *args, **kwargs):
         """Create and start a thread if one doesn't already exist.
 
         Args:
@@ -119,7 +119,7 @@ class ThreadManager:
                 'type': thread_type,
                 'thread': threading.Thread(**kwargs),
                 'killFlag': False,
-                'callback': args[0] if args else dummy
+                'callback': callback if callback is not None else dummy
             }
 
             # If thread controls progress bar, add it to list
