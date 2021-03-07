@@ -438,9 +438,6 @@ def update_backup_eta_timer():
 def display_backup_command_info(self, display_command_list):
     """Enumerate the display widget with command info after a backup analysis."""
 
-    RIGHT_ARROW = '\U0001f86a'
-    DOWN_ARROW = '\U0001f86e'
-
     CMD_INFO_HEADER_FONT = (None, 9, 'bold')
     CMD_INFO_STATUS_FONT = (None, 9)
 
@@ -454,14 +451,15 @@ def display_backup_command_info(self, display_command_list):
         # Expand only if analysis is not running and the list isn't still being built
         if not self.analysis_running:
             # Check if arrow needs to be expanded
-            expand_arrow = self.cmd_info_blocks[index]['arrow']['text']
-            if expand_arrow == RIGHT_ARROW:
+            if not self.cmd_info_blocks[index]['is_expanded']:
                 # Collapsed turns into expanded
-                self.cmd_info_blocks[index]['arrow'].configure(text=DOWN_ARROW)
+                self.cmd_info_blocks[index]['is_expanded'] = True
+                self.cmd_info_blocks[index]['arrow'].configure(image=down_nav_arrow)
                 self.cmd_info_blocks[index]['infoFrame'].grid(row=1, column=1, sticky='w')
             else:
                 # Expanded turns into collapsed
-                self.cmd_info_blocks[index]['arrow'].configure(text=RIGHT_ARROW)
+                self.cmd_info_blocks[index]['is_expanded'] = False
+                self.cmd_info_blocks[index]['arrow'].configure(image=right_nav_arrow)
                 self.cmd_info_blocks[index]['infoFrame'].grid_forget()
 
         # For some reason, .configure() loses the function bind, so we need to re-set this
@@ -503,7 +501,8 @@ def display_backup_command_info(self, display_command_list):
             backup_summary_block['mainFrame'].grid_columnconfigure(1, weight=1)
 
             # Set up header arrow, trimmed command, and status
-            backup_summary_block['arrow'] = tk.Label(backup_summary_block['mainFrame'], text=RIGHT_ARROW)
+            backup_summary_block['is_expanded'] = False
+            backup_summary_block['arrow'] = tk.Label(backup_summary_block['mainFrame'], image=right_nav_arrow)
             backup_summary_block['arrow'].grid(row=0, column=0)
             backup_summary_block['headLine'] = tk.Frame(backup_summary_block['mainFrame'])
             backup_summary_block['headLine'].grid(row=0, column=1, sticky='w')
@@ -2124,6 +2123,10 @@ if not config['cliMode']:
 
     if uicolor.is_dark_mode():
         root.tk_setPalette(background=uicolor.BG)
+
+    # Navigation arrow glyphs
+    right_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if uicolor.is_dark_mode() else ''}.png")))
+    down_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if uicolor.is_dark_mode() else ''}.png")))
 
     main_frame = tk.Frame(root)
     main_frame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING, pady=(WINDOW_ELEMENT_PADDING / 2, WINDOW_ELEMENT_PADDING))
