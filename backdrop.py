@@ -1630,9 +1630,9 @@ def update_ui_component(status, data=None):
     elif status == Status.UPDATEUI_BACKUP_BTN:
         start_backup_btn.configure(**data)
     elif status == Status.UPDATEUI_START_BACKUP_BTN:
+        update_status_bar_backup(Status.BACKUP_HALT_REQUESTED)
         start_backup_btn.configure(text='Run Backup', command=start_backup, style='win.TButton')
     elif status == Status.UPDATEUI_STOP_BACKUP_BTN:
-        update_status_bar_backup(Status.BACKUP_HALT_REQUESTED)
         start_backup_btn.configure(text='Halt Backup', command=lambda: thread_manager.kill('Backup'), style='danger.TButton')
     elif status == Status.UPDATEUI_STATUS_BAR:
         update_status_bar_backup(data)
