@@ -1,3 +1,4 @@
+import platform
 from tkinter import messagebox
 import os
 import itertools
@@ -31,6 +32,11 @@ class Backup:
             uicolor (Color): The UI color instance to reference for styling (default None). TODO: Move uicolor outside of Backup class
             progress (Progress): The progress tracker to bind to.
         """
+
+        if platform.system() == 'Windows':
+            self.DIR_SLASH = '\\'
+        elif platform.system() == 'Linux':
+            self.DIR_SLASH = '/'
 
         self.totals = {
             'master': 0,
@@ -170,7 +176,7 @@ class Backup:
 
             # If drive is connected, collect info about config size and free space
             if drive_connected:
-                current_drive_info['configSize'] = get_directory_size(drive['name'] + self.BACKUP_CONFIG_DIR)
+                current_drive_info['configSize'] = get_directory_size(drive['name'] + self.DIR_SLASH + self.BACKUP_CONFIG_DIR)
             else:
                 current_drive_info['name'] = f"[{drive['vid']}]"
                 current_drive_info['configSize'] = 20000  # Assume 20K config size
@@ -263,13 +269,17 @@ class Backup:
             drive_file_list = {drive['vid']: [] for drive in drive_info}
 
             file_info = {}
-            for entry in os.scandir(self.config['sourceDrive'] + share):
+            if platform.system() == 'Windows':
+                share_path = self.config['sourceDrive'] + share
+            elif platform.system() == 'Linux':
+                share_path = self.config['sourceDrive'] + '/' + share
+            for entry in os.scandir(share_path):
                 if entry.is_file():
                     new_dir_size = entry.stat().st_size
                 elif entry.is_dir():
                     new_dir_size = get_directory_size(entry.path)
 
-                filename = entry.path.split('\\')[-1]
+                filename = entry.path.split(self.DIR_SLASH)[-1]
                 file_info[filename] = new_dir_size
 
             # For splitting shares, sort by largest free space first
@@ -296,9 +306,9 @@ class Backup:
                     file_list = {}
                     dir_list = {}
                     for file, size in small_file_list.items():
-                        if os.path.isfile(self.config['sourceDrive'] + '\\' + share + '\\' + file):
+                        if os.path.isfile(self.config['sourceDrive'] + self.DIR_SLASH + share + self.DIR_SLASH + file):
                             file_list[file] = size
-                        elif os.path.isdir(self.config['sourceDrive'] + '\\' + share + '\\' + file):
+                        elif os.path.isdir(self.config['sourceDrive'] + self.DIR_SLASH + share + self.DIR_SLASH + file):
                             dir_list[file] = size
 
                     # Sort file list by largest first, and truncate to prevent unreasonably large number of combinations
@@ -339,7 +349,7 @@ class Backup:
             }]
 
             for file in file_info.keys():
-                file_path = share + '\\' + file
+                file_path = share + self.DIR_SLASH + file
                 share_split_summary.extend(split_share(file_path))
 
             return share_split_summary
@@ -347,7 +357,11 @@ class Backup:
         # For shares larger than all drives, recurse into each share
         drive_exclusions = {drive['name']: [] for drive in master_drive_list}
         for share in share_info.keys():
-            if os.path.exists(self.config['sourceDrive'] + share) and os.path.isdir(self.config['sourceDrive'] + share):
+            if platform.system() == 'Windows':
+                share_path = self.config['sourceDrive'] + share
+            elif platform.system() == 'Linux':
+                share_path = self.config['sourceDrive'] + self.DIR_SLASH + share
+            if os.path.exists(share_path) and os.path.isdir(share_path):
                 summary = split_share(share)
 
                 # Build exclusion list for other drives\
@@ -369,8 +383,7 @@ class Backup:
                     all_files = share_files.copy()
                     all_files['exclusions'] = share_exclusions
 
-                    # source_path_stub = self.config['sourceDrive'] + share_name + '\\'
-                    source_path_stub = share_name + '\\'
+                    source_path_stub = share_name + self.DIR_SLASH
 
                     # For each drive, gather list of files to be written to other drives, and
                     # use that as exclusions
@@ -427,12 +440,13 @@ class Backup:
             for file in files:
                 all_drive_files[drive].extend(recurse_file_list(file))
 
-        def build_delta_file_list(drive, shares, exclusions):
+        def build_delta_file_list(drive, path, shares, exclusions):
             """Get lists of files to delete and replace from the destination drive, that no longer
             exist in the source, or have changed.
 
             Args:
                 drive (String): The drive to check.
+                path (String): The path to check.
                 shares (String[]): The list of shares to check.
                 exclusions (String[]): The list of files and folders to exclude.
 
@@ -449,34 +463,34 @@ class Backup:
                 'replace': []
             }
             try:
-                shares_to_process = [share for share in shares if share == drive[3:] or share + '\\' in drive[3:]]
-                for entry in os.scandir(drive):
-                    stub_path = entry.path[3:]
-                    source_path = self.config['sourceDrive'] + stub_path
+                shares_to_process = [share for share in shares if share == path or share + self.DIR_SLASH in path]
+                for entry in os.scandir(drive + self.DIR_SLASH + path):
+                    stub_path = entry.path[len(drive) + 1:]
+                    source_path = self.config['sourceDrive'] + self.DIR_SLASH + stub_path
 
                     # For each entry, either add filesize to the total, or recurse into the directory
                     if entry.is_file():
-                        if (stub_path.find('\\') == -1  # Files should not be on root of drive
+                        if (stub_path.find(self.DIR_SLASH) == -1  # Files should not be on root of drive
                                 or not os.path.isfile(source_path)  # File doesn't exist in source, so delete it
                                 or stub_path in exclusions  # File is excluded from drive
                                 or len(shares_to_process) == 0):  # File should only count if dir is share or child, not parent
-                            file_list['delete'].append((entry.path, entry.stat().st_size))
+                            file_list['delete'].append((drive, stub_path, entry.stat().st_size))
                             self.update_file_detail_list_fn('delete', entry.path)
                         elif os.path.isfile(source_path):
                             if (entry.stat().st_mtime != os.path.getmtime(source_path)  # Existing file is older than source
                                     or entry.stat().st_size != os.path.getsize(source_path)):  # Existing file is different size than source
                                 # If existing dest file is not same time as source, it needs to be replaced
-                                file_list['replace'].append((entry.path, os.path.getsize(source_path), entry.stat().st_size))
+                                file_list['replace'].append((drive, stub_path, os.path.getsize(source_path), entry.stat().st_size))
                                 self.update_file_detail_list_fn('copy', entry.path)
                     elif entry.is_dir():
                         found_share = False
 
                         for item in shares:
                             if (stub_path == item  # Dir is share, so it stays
-                                    or (stub_path.find(item + '\\') == 0 and os.path.isdir(source_path))  # Dir is subdir inside share, and it exists in source
-                                    or item.find(stub_path + '\\') == 0):  # Dir is parent directory of a share we're copying, so it stays
+                                    or (stub_path.find(item + self.DIR_SLASH) == 0 and os.path.isdir(source_path))  # Dir is subdir inside share, and it exists in source
+                                    or item.find(stub_path + self.DIR_SLASH) == 0):  # Dir is parent directory of a share we're copying, so it stays
                                 # Recurse into the share
-                                new_list = build_delta_file_list(entry.path, shares, exclusions)
+                                new_list = build_delta_file_list(drive, stub_path, shares, exclusions)
                                 file_list['delete'].extend(new_list['delete'])
                                 file_list['replace'].extend(new_list['replace'])
                                 found_share = True
@@ -504,12 +518,13 @@ class Backup:
                 }
             return file_list
 
-        def build_new_file_list(drive, shares, exclusions):
+        def build_new_file_list(drive, path, shares, exclusions):
             """Get lists of files to copy to the destination drive, that only exist on the
             source.
 
             Args:
                 drive (String): The drive to check.
+                path (String): The path to check.
                 shares (String[]): The list of shares the drive should contain.
                 exclusions (String[]): The list of files and folders to exclude.
 
@@ -523,42 +538,41 @@ class Backup:
                 'new': []
             }
 
-            target_drive = drive[0:3]
-
             try:
-                if len(os.listdir(self.config['sourceDrive'] + drive[3:])) > 0:
-                    shares_to_process = [share for share in shares if share == drive[3:] or share + '\\' in drive[3:]]
-                    for entry in os.scandir(self.config['sourceDrive'] + drive[3:]):
-                        stub_path = entry.path[3:]
-                        target_path = target_drive + stub_path
+                # Check if directory has files
+                if len(os.listdir(self.config['sourceDrive'] + self.DIR_SLASH + path)) > 0:
+                    shares_to_process = [share for share in shares if share == path or share + self.DIR_SLASH in path]
+                    for entry in os.scandir(self.config['sourceDrive'] + self.DIR_SLASH + path):
+                        stub_path = entry.path[len(self.config['sourceDrive']) + 1:]
+                        target_path = drive + self.DIR_SLASH + stub_path
 
                         # For each entry, either add filesize to the total, or recurse into the directory
                         if entry.is_file():
-                            if (stub_path.find('\\') > -1  # File is not in root of source
+                            if (stub_path.find(self.DIR_SLASH) > -1  # File is not in root of source
                                     and not os.path.isfile(target_path)  # File doesn't exist in destination drive
                                     and stub_path not in exclusions  # File isn't part of drive exclusion
                                     and len(shares_to_process) > 0):  # File should only count if dir is share or child, not parent
-                                file_list['new'].append((target_path, entry.stat().st_size))
+                                file_list['new'].append((drive, stub_path, entry.stat().st_size))
                                 self.update_file_detail_list_fn('copy', target_path)
                         elif entry.is_dir():
                             for item in shares:
                                 if (stub_path == item  # Dir is share, so it stays
-                                        or stub_path.find(item + '\\') == 0  # Dir is subdir inside share
-                                        or item.find(stub_path + '\\') == 0):  # Dir is parent directory of share
+                                        or stub_path.find(item + self.DIR_SLASH) == 0  # Dir is subdir inside share
+                                        or item.find(stub_path + self.DIR_SLASH) == 0):  # Dir is parent directory of share
                                     if os.path.isdir(target_path):
                                         # If exists on dest, recurse into it
-                                        new_list = build_new_file_list(target_path, shares, exclusions)
+                                        new_list = build_new_file_list(drive, stub_path, shares, exclusions)
                                         file_list['new'].extend(new_list['new'])
                                         break
                                     elif stub_path not in exclusions:
                                         # Path doesn't exist on dest, so add to list if not excluded
-                                        new_list = build_new_file_list(target_path, shares, exclusions)
+                                        new_list = build_new_file_list(drive, stub_path, shares, exclusions)
                                         file_list['new'].extend(new_list['new'])
                                         break
-                elif not os.path.isdir(drive):
+                elif not os.path.isdir(drive + self.DIR_SLASH + path):
                     # If no files in folder on source, create empty folder in destination
                     return {
-                        'new': [(target_drive + drive[3:], get_directory_size(self.config['sourceDrive'] + drive[3:]))]
+                        'new': [(drive, path, get_directory_size(self.config['sourceDrive'] + self.DIR_SLASH + path))]
                     }
 
             except NotADirectoryError:
@@ -584,18 +598,18 @@ class Backup:
         display_purge_command_list = []
         display_copy_command_list = []
         for drive, shares in drive_share_list.items():
-            modified_file_list = build_delta_file_list(self.DRIVE_VID_INFO[drive]['name'], shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])
+            modified_file_list = build_delta_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])
 
             delete_items = modified_file_list['delete']
             if len(delete_items) > 0:
                 self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']] = delete_items
-                file_delete_list = [file for file, size in delete_items]
+                file_delete_list = [drive + self.DIR_SLASH + file for drive, file, size in delete_items]
 
                 display_purge_command_list.append({
                     'enabled': True,
                     'type': 'fileList',
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'size': sum([size for file, size in delete_items]),
+                    'size': sum([size for drive, file, size in delete_items]),
                     'fileList': file_delete_list,
                     'mode': 'delete'
                 })
@@ -614,13 +628,13 @@ class Backup:
             replace_items.sort(key=lambda x: x[1])
             if len(replace_items) > 0:
                 self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']] = replace_items
-                file_replace_list = [file for file, source_size, dest_size in replace_items]
+                file_replace_list = [drive + self.DIR_SLASH + file for drive, file, source_size, dest_size in replace_items]
 
                 display_copy_command_list.append({
                     'enabled': True,
                     'type': 'fileList',
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'size': sum([source_size for file, source_size, dest_size in replace_items]),
+                    'size': sum([source_size for drive, file, source_size, dest_size in replace_items]),
                     'fileList': file_replace_list,
                     'mode': 'replace'
                 })
@@ -635,16 +649,16 @@ class Backup:
                 })
 
             # Build list of new files to copy
-            new_items = build_new_file_list(self.DRIVE_VID_INFO[drive]['name'], shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])['new']
+            new_items = build_new_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])['new']
             if len(new_items) > 0:
                 self.new_file_list[self.DRIVE_VID_INFO[drive]['name']] = new_items
-                file_copy_list = [file for file, size in new_items]
+                file_copy_list = [drive + self.DIR_SLASH + file for drive, file, size in new_items]
 
                 display_copy_command_list.append({
                     'enabled': True,
                     'type': 'fileList',
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'size': sum([size for file, size in new_items]),
+                    'size': sum([size for drive, file, size in new_items]),
                     'fileList': file_copy_list,
                     'mode': 'copy'
                 })
@@ -672,7 +686,7 @@ class Backup:
             }
 
             if self.DRIVE_VID_INFO[drive]['name'] in self.delete_file_list.keys():
-                drive_total['delete'] = sum([size for file, size in self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']]])
+                drive_total['delete'] = sum([size for drive, file, size in self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']]])
 
                 drive_total['running'] -= drive_total['delete']
                 self.totals['delta'] -= drive_total['delete']
@@ -680,16 +694,16 @@ class Backup:
                 file_summary.append(f"Deleting {len(self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']])} files ({human_filesize(drive_total['delete'])})")
 
             if self.DRIVE_VID_INFO[drive]['name'] in self.replace_file_list.keys():
-                drive_total['replace'] = sum([source_size for file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]])
+                drive_total['replace'] = sum([source_size for drive, file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]])
 
                 drive_total['running'] += drive_total['replace']
                 drive_total['copy'] += drive_total['replace']
-                drive_total['delta'] += sum([source_size - dest_size for file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]])
+                drive_total['delta'] += sum([source_size - dest_size for drive, file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]])
 
                 file_summary.append(f"Updating {len(self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']])} files ({human_filesize(drive_total['replace'])})")
 
             if self.DRIVE_VID_INFO[drive]['name'] in self.new_file_list.keys():
-                drive_total['new'] = sum([size for file, size in self.new_file_list[self.DRIVE_VID_INFO[drive]['name']]])
+                drive_total['new'] = sum([size for drive, file, size in self.new_file_list[self.DRIVE_VID_INFO[drive]['name']]])
 
                 drive_total['running'] += drive_total['new']
                 drive_total['copy'] += drive_total['new']
@@ -759,10 +773,10 @@ class Backup:
             # For each drive letter connected, get drive info, and write file
             for drive in self.config['drives']:
                 # If config exists on drives, back it up first
-                if os.path.isfile(f"{drive['name']}{self.BACKUP_CONFIG_DIR}\\{self.BACKUP_CONFIG_FILE}"):
-                    shutil.move(f"{drive['name']}{self.BACKUP_CONFIG_DIR}\\{self.BACKUP_CONFIG_FILE}", f"{drive['name']}{self.BACKUP_CONFIG_DIR}\\{self.BACKUP_CONFIG_FILE}.old")
+                if os.path.isfile(f"{drive['name']}{self.BACKUP_CONFIG_DIR}{self.DIR_SLASH}{self.BACKUP_CONFIG_FILE}"):
+                    shutil.move(f"{drive['name']}{self.BACKUP_CONFIG_DIR}{self.DIR_SLASH}{self.BACKUP_CONFIG_FILE}", f"{drive['name']}{self.BACKUP_CONFIG_DIR}{self.DIR_SLASH}{self.BACKUP_CONFIG_FILE}.old")
 
-                drive_config_file = Config(f"{self.DRIVE_VID_INFO[drive['vid']]['name']}{self.BACKUP_CONFIG_DIR}\\{self.BACKUP_CONFIG_FILE}")
+                drive_config_file = Config(f"{self.DRIVE_VID_INFO[drive['vid']]['name']}{self.BACKUP_CONFIG_DIR}{self.DIR_SLASH}{self.BACKUP_CONFIG_FILE}")
 
                 # Write shares and VIDs to config file
                 drive_config_file.set('selection', 'shares', share_list)
@@ -822,22 +836,24 @@ class Backup:
                     self.thread_manager.start(ThreadManager.KILLABLE, name='backupTimer', target=self.start_backup_timer_fn)
 
                 if cmd['mode'] == 'delete':
-                    for file, size in cmd['payload']:
+                    for drive, file, size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
+
+                        src = drive + self.DIR_SLASH + file
 
                         gui_options = {
                             'displayIndex': cmd['displayIndex']
                         }
 
-                        self.do_del_fn(file, size, gui_options)
+                        self.do_del_fn(src, size, gui_options)
                 if cmd['mode'] == 'replace':
-                    for file, source_size, dest_size in cmd['payload']:
+                    for drive, file, source_size, dest_size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
 
-                        src = self.config['sourceDrive'] + file[3:]
-                        dest = file
+                        src = self.config['sourceDrive'] + self.DIR_SLASH + file
+                        dest = drive + self.DIR_SLASH + file
 
                         gui_options = {
                             'displayIndex': cmd['displayIndex']
@@ -845,12 +861,12 @@ class Backup:
 
                         self.do_copy_fn(src, dest, gui_options)
                 elif cmd['mode'] == 'copy':
-                    for file, size in cmd['payload']:
+                    for drive, file, size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
 
-                        src = self.config['sourceDrive'] + file[3:]
-                        dest = file
+                        src = self.config['sourceDrive'] + self.DIR_SLASH + file
+                        dest = drive + self.DIR_SLASH + file
 
                         gui_options = {
                             'displayIndex': cmd['displayIndex']

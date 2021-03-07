@@ -1,16 +1,14 @@
-import threading
-
 class Progress:
-    def __init__(self, progress_bar, threads_for_progress_bar):
+    def __init__(self, progress_bar, thread_manager):
         """
         Args:
             progress_bar (ttk.progressBar): The progrss bar to control.
-            threads_for_progress_bar (int): The number of running threads at idle,
-                used to trigger when the progress bar is controlled.
+            thread_manager (ThreadManager): The ThreadManager instance to check
+                for threads.
         """
 
         self.progress_bar = progress_bar
-        self.threads_for_progress_bar = threads_for_progress_bar
+        self._thread_manager = thread_manager
 
     def set_max(self, max_val):
         """Set the max value of the progress bar.
@@ -32,15 +30,17 @@ class Progress:
         self.progress_bar.configure(value=cur_val)
 
     def start_indeterminate(self):
-        """Start indeterminate mode on the progress bar."""
+        """Start indeterminate mode on the progress bar if it isn't being controlled
+        by another thread.
+        """
 
-        if len([thread for thread in threading.enumerate() if thread.name != 'Update Check']) <= self.threads_for_progress_bar:
+        if len(self._thread_manager.get_progress_threads()) <= 1:
             self.progress_bar.configure(mode='indeterminate')
             self.progress_bar.start()
 
     def stop_indeterminate(self):
         """Stop indeterminate mode on the progress bar."""
 
-        if len([thread for thread in threading.enumerate() if thread.name != 'Update Check']) <= self.threads_for_progress_bar:
+        if len(self._thread_manager.get_progress_threads()) <= 1:
             self.progress_bar.configure(mode='determinate')
             self.progress_bar.stop()

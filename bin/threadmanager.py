@@ -28,12 +28,14 @@ class ThreadManager:
         """Remove threads from threadlist that aren't active anymore."""
 
         self.threadlist = {name: thread for name, thread in self.threadlist.items() if thread['thread'].is_alive()}
+        self.progress_threads = [thread for thread in self.progress_threads if thread.is_alive()]
 
     def __init__(self):
         """Create and manage threads for backup and operation."""
 
         self.threadlist = {}
         self.counter = 0
+        self.progress_threads = []
 
         def thread_garbage_collect():
             """Periodically run garbage collection."""
@@ -45,11 +47,13 @@ class ThreadManager:
         self._gc_thread = threading.Thread(target=thread_garbage_collect, name='ThreadManager_GC', daemon=True)
         self._gc_thread.start()
 
-    def start(self, thread_type, *args, **kwargs):
+    def start(self, thread_type, is_progress_thread=False, callback=None, *args, **kwargs):
         """Create and start a thread if one doesn't already exist.
 
         Args:
             thread_type (int): The constant corresponding to the thread type to create.
+            is_progress_thread (bool): Whether or not the thread controls the progress
+                bar (default: False).
             callback (def, optional): For KILLABLE and REPLACEABLE threads, the function to
                 run to kill the thread.
 
@@ -92,6 +96,10 @@ class ThreadManager:
                 'thread': threading.Thread(**kwargs)
             }
 
+            # If thread controls progress bar, add it to list
+            if is_progress_thread:
+                self.progress_threads.append(self.threadlist[thread_name]['thread'])
+
             self.threadlist[thread_name]['thread'].start()
             return thread_name
         elif thread_type == self.MULTIPLE and not self.is_alive(thread_name):
@@ -100,6 +108,10 @@ class ThreadManager:
                 'thread': threading.Thread(**kwargs)
             }
 
+            # If thread controls progress bar, add it to list
+            if is_progress_thread:
+                self.progress_threads.append(self.threadlist[thread_name]['thread'])
+
             self.threadlist[thread_name]['thread'].start()
             return thread_name
         elif thread_type == self.KILLABLE and not self.is_alive(thread_name):
@@ -107,8 +119,12 @@ class ThreadManager:
                 'type': thread_type,
                 'thread': threading.Thread(**kwargs),
                 'killFlag': False,
-                'callback': args[0] if args else dummy
+                'callback': callback if callback is not None else dummy
             }
+
+            # If thread controls progress bar, add it to list
+            if is_progress_thread:
+                self.progress_threads.append(self.threadlist[thread_name]['thread'])
 
             self.threadlist[thread_name]['thread'].start()
             return thread_name
@@ -128,6 +144,10 @@ class ThreadManager:
                 'killFlag': False,
                 'callback': args[0] if args else dummy
             }
+
+            # If thread controls progress bar, add it to list
+            if is_progress_thread:
+                self.progress_threads.append(self.threadlist[thread_name]['thread'])
 
             self.threadlist[thread_name]['thread'].start()
             return thread_name
@@ -152,9 +172,12 @@ class ThreadManager:
             self.threadlist[name]['killFlag'] = True
             self.threadlist[name]['callback']()
 
-    def list(self):
-        """List all threads in threadlist."""
+    def get_progress_threads(self):
+        """List the progress-influencing threads that are running.
 
-        print('   Threads   \n=============')
-        for thread in self.threadlist.keys():
-            print(f"{thread} => {'-- Alive --' if self.is_alive(thread) else 'Dead'}")
+        Returns:
+            list: The list of thread instances that control the progress bar.
+        """
+
+        self.progress_threads = [thread for thread in self.progress_threads if thread.is_alive()]
+        return self.progress_threads
