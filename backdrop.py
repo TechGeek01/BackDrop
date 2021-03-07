@@ -2158,7 +2158,14 @@ if not config['cliMode']:
     tk_style.configure('danger.TButton', padding=(6, 4), background='#b00')
     tk_style.configure('icon.TButton', width=2, height=1, padding=0, font=(None, 15), background='#00bfe6')
 
-    tk_style.configure('TButton', background=uicolor.BG)
+    if platform.system() == 'Linux':
+        tk_style.configure('danger.TButton', foreground='#fff', bordercolor='#600', borderwidth=0, padding=(8, 6))
+        tk_style.map(
+            'danger.TButton',
+            # foreground=[('pressed', '#fff'), ('active', '#fff')],
+            background=[('pressed', '!disabled', '#900'), ('active', '!disabled', '#c00')]
+        )
+
     tk_style.configure('TCheckbutton', background=uicolor.BG, foreground=uicolor.NORMAL)
     tk_style.configure('TFrame', background=uicolor.BG, foreground=uicolor.NORMAL)
 
