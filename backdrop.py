@@ -1121,9 +1121,10 @@ def display_update_screen(update_info):
         update_window.title('Update Available')
         update_window.resizable(False, False)
         update_window.geometry('600x300')
-        # FIXME: Find a way to get an icon on @Linux
+
         if platform.system() == 'Windows':
             update_window.iconbitmap(resource_path('media/icon.ico'))
+
         center(update_window, root)
         update_window.transient(root)
         update_window.grab_set()
@@ -1945,9 +1946,10 @@ def show_config_builder():
         window_config_builder.title('Config Builder')
         window_config_builder.resizable(False, False)
         window_config_builder.geometry('960x380')
-        # FIXME: Find a way to get an icon on @Linux
+
         if platform.system() == 'Windows':
             window_config_builder.iconbitmap(resource_path('media/icon.ico'))
+
         center(window_config_builder, root)
 
         def on_close():
@@ -2106,9 +2108,14 @@ if not config['cliMode']:
     WINDOW_WIDTH = 1200
     WINDOW_HEIGHT = 720
     root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}')
-    # FIXME: Find a way to get an icon on @Linux
+
+    appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
+
     if platform.system() == 'Windows':
         root.iconbitmap(resource_path('media/icon.ico'))
+    elif platform.system() == 'Linux':
+        root.iconphoto(True, appicon_image)
+
     center(root)
 
     default_font = tkfont.nametofont("TkDefaultFont")
