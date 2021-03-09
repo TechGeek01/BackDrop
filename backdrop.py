@@ -666,21 +666,24 @@ def start_backup_analysis():
 def load_source():
     """Load the source drive and share lists, and display shares in the tree."""
 
-    progress.start_indeterminate()
+    global source_avail_drive_list
 
-    # Empty tree in case this is being refreshed
-    tree_source.delete(*tree_source.get_children())
+    if not config['cliMode']:
+        progress.start_indeterminate()
 
-    # Empty dropdown
-    source_drive_default.set('')
-    source_select_menu['menu'].delete(0, 'end')
+        # Empty tree in case this is being refreshed
+        tree_source.delete(*tree_source.get_children())
+
+        # Empty dropdown
+        source_drive_default.set('')
+        source_select_menu['menu'].delete(0, 'end')
 
     if platform.system() == 'Windows':
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
         drive_type_list = []
-        if settings_showDrives_source_network.get():
+        if prefs.get('selection', 'source_network_drives', data_type=Config.BOOLEAN):
             drive_type_list.append(DRIVE_TYPE_REMOTE)
-        if settings_showDrives_source_local.get():
+        if prefs.get('selection', 'source_local_drives', data_type=Config.BOOLEAN):
             drive_type_list.append(DRIVE_TYPE_LOCAL)
         source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
         drive_list = [drive[:2] for drive in drive_list]
@@ -715,16 +718,18 @@ def load_source():
 
     if source_drive_list_valid:
         config['sourceDrive'] = prefs.get('selection', 'sourceDrive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
-        source_drive_default.set(config['sourceDrive'])
 
-        for item in source_avail_drive_list:
-            source_select_menu['menu'].add_command(label=item)
+        if not config['cliMode']:
+            source_drive_default.set(config['sourceDrive'])
 
-        source_warning.grid_forget()
-        tree_source_frame.grid(row=1, column=1, sticky='ns')
-        source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
-        source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2))
-    else:
+            for item in source_avail_drive_list:
+                source_select_menu['menu'].add_command(label=item)
+
+            source_warning.grid_forget()
+            tree_source_frame.grid(row=1, column=1, sticky='ns')
+            source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+            source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2))
+    elif not config['cliMode']:
         source_drive_default.set('No remotes')
 
         tree_source_frame.grid_forget()
@@ -732,14 +737,15 @@ def load_source():
         source_select_frame.grid_forget()
         source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
-    share_selected_space.configure(text='Selected: ' + human_filesize(0))
-    share_total_space.configure(text='Total: ~' + human_filesize(0))
+    if not config['cliMode']:
+        share_selected_space.configure(text='Selected: ' + human_filesize(0))
+        share_total_space.configure(text='Total: ~' + human_filesize(0))
 
-    # Enumerate list of shares in source
-    for directory in next(os.walk(config['sourceDrive']))[1]:
-        tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
+        # Enumerate list of shares in source
+        for directory in next(os.walk(config['sourceDrive']))[1]:
+            tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
 
-    progress.stop_indeterminate()
+        progress.stop_indeterminate()
 
 def load_source_in_background():
     """Start a source refresh in a new thread."""
@@ -900,8 +906,8 @@ def load_dest():
         for drive in logical_drive_list:
             if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
                 drive_type = win32file.GetDriveType(drive)
-                if ((settings_showDrives_dest_local.get() and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
-                        or (settings_showDrives_dest_network.get() and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
+                if ((prefs.get('selection', 'destination_local_drives', data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
+                        or (prefs.get('selection', 'destination_network_drives', data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
                     try:
                         drive_size = shutil.disk_usage(drive).total
                         vsn = os.stat(drive).st_dev
@@ -1389,16 +1395,8 @@ if config['cliMode']:
         # ## Input validation ## #
 
         # Validate drive selection
-        if platform.system() == 'Windows':
-            drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-            remote_drives = [drive for drive in drive_list if win32file.GetDriveType(drive) == 4]
-            drive_list = [drive[:2] for drive in drive_list]
-        elif platform.system() == 'Linux':
-            out = subprocess.run("df -tcifs -tnfs --output=target", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-            remote_drives = out.stdout.decode('utf-8').split('\n')[1:]
-            remote_drives = [mount for mount in remote_drives if mount]
-
-        if len(remote_drives) <= 0:
+        load_source()
+        if len(source_avail_drive_list) <= 0:
             print(f"{bcolor.FAIL}No network drives are available{bcolor.ENDC}")
             exit()
 
@@ -1410,25 +1408,24 @@ if config['cliMode']:
 
         # Source drive
         if command_line.has_param('interactive'):
-            source_drive = prefs.get('selection', 'sourceDrive', remote_drives[0], verify_data=remote_drives)
+            source_drive = prefs.get('selection', 'sourceDrive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
         else:
-            source_drive = prefs.get('selection', 'sourceDrive', remote_drives[0], verify_data=remote_drives)
-            source_drive = command_line.get_param('source')[0][0].upper() + ':' if command_line.has_param('source') and command_line.get_param('source')[0] in remote_drives else source_drive
+            source_drive = prefs.get('selection', 'sourceDrive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
+            source_drive = command_line.get_param('source')[0][0].upper() + ':' if command_line.has_param('source') and command_line.get_param('source')[0] in source_avail_drive_list else source_drive
 
         if command_line.has_param('interactive') and not command_line.validate_yes_no(f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
             print('\nAvailable drives are as follows:\n')
-            print(f"Available drives: {', '.join(remote_drives)}\n")
+            print(f"Available drives: {', '.join(source_avail_drive_list)}\n")
             config['sourceDrive'] = command_line.validate_choice(
                 message='Which source drive would you like to use?',
-                choices=remote_drives,
+                choices=source_avail_drive_list,
                 default=source_drive,
                 chars_required=1
             )
         else:
             if source_drive is None:
-                print('Please specify a source drive')
                 exit()
-            elif source_drive not in remote_drives:
+            elif source_drive not in source_avail_drive_list:
                 print(f"{bcolor.FAIL}Source drive is not valid for selection{bcolor.ENDC}")
                 exit()
 
