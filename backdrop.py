@@ -33,13 +33,18 @@ from bin.backup import Backup
 from bin.update import UpdateHandler
 from bin.status import Status
 
-# Set meta info
-APP_VERSION = '3.0.0-rc.1'
-
 # Platform sanity check
 if not platform.system() in ['Windows', 'Linux']:
     print('This operating system is not supported')
     exit()
+
+# Set meta info
+APP_VERSION = '3.0.0-rc.1'
+
+# Set constants
+SOURCE_MODE_SINGLE = 'single'
+SOURCE_MODE_MULTI = 'multiple'
+SOURCE_MODE_OPTIONS = [SOURCE_MODE_SINGLE, SOURCE_MODE_MULTI]
 
 def center(win, center_to_window=None):
     """Center a tkinter window on screen.
@@ -2069,6 +2074,11 @@ def show_config_builder():
         # Load connected drives
         builder_start_refresh_connected()
 
+def change_source_mode():
+    """Write the changes to the current source mode to user preferences."""
+
+    prefs.set('source', 'mode', settings_sourceMode.get())
+
 ############
 # GUI Mode #
 ############
@@ -2231,6 +2241,12 @@ if not config['cliMode']:
 
     # Selection menu
     selection_menu = tk.Menu(menubar, tearoff=0)
+    selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0)
+    settings_sourceMode = tk.StringVar(value=prefs.get('source', 'mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE))
+    selection_source_mode_menu.add_checkbutton(label='Single source, select folders', accelerator='WIP', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
+    selection_source_mode_menu.add_checkbutton(label='Show all, select sources', accelerator='WIP', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
+    selection_menu.add_cascade(label='Source Mode', underline=7, menu=selection_source_mode_menu)
+    selection_menu.add_separator()
     selection_menu.add_command(label='Delete Config from Selected Drives', command=delete_config_file_from_selected_drives)
     menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
 
