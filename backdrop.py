@@ -664,14 +664,73 @@ def start_backup_analysis():
         thread_manager.start(thread_manager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
 def load_source():
-    """Load the source share list, and display it in the tree."""
-
-    global backup
+    """Load the source drive and share lists, and display shares in the tree."""
 
     progress.start_indeterminate()
 
     # Empty tree in case this is being refreshed
     tree_source.delete(*tree_source.get_children())
+
+    # Empty dropdown
+    source_drive_default.set('')
+    source_select_menu['menu'].delete(0, 'end')
+
+    if platform.system() == 'Windows':
+        drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+        drive_type_list = []
+        if settings_showDrives_source_network.get():
+            drive_type_list.append(DRIVE_TYPE_REMOTE)
+        if settings_showDrives_source_local.get():
+            drive_type_list.append(DRIVE_TYPE_LOCAL)
+        source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
+        drive_list = [drive[:2] for drive in drive_list]
+    elif platform.system() == 'Linux':
+        local_selected = settings_showDrives_source_local.get()
+        network_selected = settings_showDrives_source_network.get()
+
+        if network_selected and not local_selected:
+            cmd = 'df -tcifs -tnfs --output=target'
+        elif local_selected and not network_selected:
+            cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target'
+        elif local_selected and network_selected:
+            cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs --output=target'
+
+        out = subprocess.run(cmd, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+        logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
+        logical_drive_list = [mount for mount in logical_drive_list if mount]
+
+        # Filter system drive out from available selection
+        source_avail_drive_list = []
+        for drive in logical_drive_list:
+            drive_name = f'"{drive}"'
+
+            out = subprocess.run("mount | grep " + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            physical_disk = out.stdout.decode('utf-8').split('\n')[0].strip()
+
+            # Only process mount point if it's not on the system drive
+            if physical_disk != SYSTEM_DRIVE and drive != '/':
+                source_avail_drive_list.append(drive)
+
+    source_drive_list_valid = len(source_avail_drive_list) > 0
+
+    if source_drive_list_valid:
+        config['sourceDrive'] = prefs.get('selection', 'sourceDrive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
+        source_drive_default.set(config['sourceDrive'])
+
+        for item in source_avail_drive_list:
+            source_select_menu['menu'].add_command(label=item)
+
+        source_warning.grid_forget()
+        tree_source_frame.grid(row=1, column=1, sticky='ns')
+        source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+        source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2))
+    else:
+        source_drive_default.set('No remotes')
+
+        tree_source_frame.grid_forget()
+        source_meta_frame.grid_forget()
+        source_select_frame.grid_forget()
+        source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
     share_selected_space.configure(text='Selected: ' + human_filesize(0))
     share_total_space.configure(text='Total: ~' + human_filesize(0))
@@ -685,8 +744,7 @@ def load_source():
 def load_source_in_background():
     """Start a source refresh in a new thread."""
 
-    if source_drive_list_valid:
-        thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_source, name='Load Source', daemon=True)
+    thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_source, name='Load Source', daemon=True)
 
 def change_source_drive(selection):
     """Change the source drive to pull shares from to a new selection.
@@ -2088,9 +2146,17 @@ def show_config_builder():
         builder_start_refresh_connected()
 
 def change_source_mode():
-    """Write the changes to the current source mode to user preferences."""
+    """Change the mode for source selection."""
 
     prefs.set('source', 'mode', settings_sourceMode.get())
+
+def change_source_type():
+    """Change the drive types for source selection."""
+
+    prefs.set('selection', 'source_network_drives', settings_showDrives_source_network.get())
+    prefs.set('selection', 'source_local_drives', settings_showDrives_source_local.get())
+
+    load_source_in_background()
 
 def change_destination_type():
     """Change the drive types for source selection."""
@@ -2262,6 +2328,12 @@ if not config['cliMode']:
 
     # Selection menu
     selection_menu = tk.Menu(menubar, tearoff=0)
+    selection_source_select_menu = tk.Menu(selection_menu, tearoff=0)
+    settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN))
+    settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN))
+    selection_source_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=change_source_type, selectcolor=uicolor.FG)
+    selection_source_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=change_source_type, selectcolor=uicolor.FG)
+    selection_menu.add_cascade(label='Source Type', menu=selection_source_select_menu)
     selection_dest_select_menu = tk.Menu(selection_menu, tearoff=0)
     settings_showDrives_dest_network = tk.BooleanVar(value=prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
     settings_showDrives_dest_local = tk.BooleanVar(value=prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
@@ -2331,65 +2403,45 @@ if not config['cliMode']:
         thread_manager=thread_manager
     )
 
-    # Set source drives and start to set up source dropdown
+    source_drive_list_valid = False
     source_drive_default = tk.StringVar()
-    if platform.system() == 'Windows':
-        drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-        remote_drives = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) == 4]
-        drive_list = [drive[:2] for drive in drive_list]
-    elif platform.system() == 'Linux':
-        out = subprocess.run("df -tcifs -tnfs --output=target", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-        remote_drives = out.stdout.decode('utf-8').split('\n')[1:]
-        remote_drives = [mount for mount in remote_drives if mount]
 
-    source_drive_list_valid = len(remote_drives) > 0
+    # Tree frames for tree and scrollbar
+    tree_source_frame = tk.Frame(main_frame)
 
-    if source_drive_list_valid:
-        config['sourceDrive'] = prefs.get('selection', 'sourceDrive', remote_drives[0], verify_data=remote_drives)
-        source_drive_default.set(config['sourceDrive'])
+    tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize'), style='custom.Treeview')
+    tree_source.heading('#0', text='Share')
+    tree_source.column('#0', width=170)
+    tree_source.heading('size', text='Size')
+    tree_source.column('size', width=80)
+    tree_source['displaycolumns'] = ('size')
 
-        # Tree frames for tree and scrollbar
-        tree_source_frame = tk.Frame(main_frame)
-        tree_source_frame.grid(row=1, column=1, sticky='ns')
+    tree_source.pack(side='left')
+    tree_source_scrollbar = ttk.Scrollbar(tree_source_frame, orient='vertical', command=tree_source.yview)
+    tree_source_scrollbar.pack(side='left', fill='y')
+    tree_source.configure(yscrollcommand=tree_source_scrollbar.set)
 
-        tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize'), style='custom.Treeview')
-        tree_source.heading('#0', text='Share')
-        tree_source.column('#0', width=170)
-        tree_source.heading('size', text='Size')
-        tree_source.column('size', width=80)
-        tree_source['displaycolumns'] = ('size')
+    source_meta_frame = tk.Frame(main_frame)
+    tk.Grid.columnconfigure(source_meta_frame, 0, weight=1)
 
-        tree_source.pack(side='left')
-        tree_source_scrollbar = ttk.Scrollbar(tree_source_frame, orient='vertical', command=tree_source.yview)
-        tree_source_scrollbar.pack(side='left', fill='y')
-        tree_source.configure(yscrollcommand=tree_source_scrollbar.set)
+    share_space_frame = tk.Frame(source_meta_frame)
+    share_space_frame.grid(row=0, column=0)
+    share_selected_space = tk.Label(share_space_frame, text='Selected: ' + human_filesize(0))
+    share_selected_space.grid(row=0, column=0)
+    share_total_space = tk.Label(share_space_frame, text='Total: ~' + human_filesize(0))
+    share_total_space.grid(row=0, column=1, padx=(12, 0))
 
-        root.bind('<Control-F5>', lambda x: load_source_in_background())
+    source_select_frame = tk.Frame(main_frame)
+    source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, *tuple([]), command=change_source_drive)
+    # source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, config['sourceDrive'], *tuple(remote_drives), command=change_source_drive)
+    source_select_menu.pack(side='left')
 
-        source_meta_frame = tk.Frame(main_frame)
-        source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
-        tk.Grid.columnconfigure(source_meta_frame, 0, weight=1)
+    tree_source.bind("<<TreeviewSelect>>", calculate_source_size_in_background)
 
-        share_space_frame = tk.Frame(source_meta_frame)
-        share_space_frame.grid(row=0, column=0)
-        share_selected_space = tk.Label(share_space_frame, text='Selected: ' + human_filesize(0))
-        share_selected_space.grid(row=0, column=0)
-        share_total_space = tk.Label(share_space_frame, text='Total: ~' + human_filesize(0))
-        share_total_space.grid(row=0, column=1, padx=(12, 0))
+    source_warning = tk.Label(main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=uicolor.ERROR, fg=uicolor.BLACK)
 
-        load_source_in_background()
-
-        source_select_frame = tk.Frame(main_frame)
-        source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2))
-        source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, config['sourceDrive'], *tuple(remote_drives), command=change_source_drive)
-        source_select_menu.pack(side='left')
-
-        tree_source.bind("<<TreeviewSelect>>", calculate_source_size_in_background)
-    else:
-        source_drive_default.set('No remotes')
-
-        source_warning = tk.Label(main_frame, text='No network drives are available to use as source', font=(None, 14), wraplength=250, bg=uicolor.ERROR)
-        source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
+    load_source_in_background()
+    root.bind('<Control-F5>', lambda x: load_source_in_background())
 
     tree_dest_frame = tk.Frame(main_frame)
     tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
