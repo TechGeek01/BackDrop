@@ -843,23 +843,29 @@ def load_dest():
                     vsn = os.stat(drive).st_dev
                     vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
                     try:
-                        serial = logical_to_physical_map[drive[0]]
-                    except KeyError:
-                        serial = 'Not Found'
+                        drive_size = shutil.disk_usage(drive).total
+                        vsn = os.stat(drive).st_dev
+                        vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
+                        try:
+                            serial = logical_to_physical_map[drive[0]]
+                        except KeyError:
+                            serial = 'Not Found'
 
-                    drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+                        drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
 
-                    total_drive_space_available = total_drive_space_available + drive_size
-                    if not config['cliMode']:
-                        tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+                        total_drive_space_available = total_drive_space_available + drive_size
+                        if not config['cliMode']:
+                            tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
 
-                    dest_drive_master_list.append({
-                        'name': drive,
-                        'vid': vsn,
-                        'serial': serial,
-                        'capacity': drive_size,
-                        'hasConfig': drive_has_config_file
-                    })
+                        dest_drive_master_list.append({
+                            'name': drive,
+                            'vid': vsn,
+                            'serial': serial,
+                            'capacity': drive_size,
+                            'hasConfig': drive_has_config_file
+                        })
+                    except FileNotFoundError:
+                        pass
     elif platform.system() == 'Linux':
         out = subprocess.run('df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target', stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
         logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
@@ -1784,32 +1790,35 @@ def show_config_builder():
                 if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
                     drive_type = win32file.GetDriveType(drive)
                     if drive_type not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
-                        drive_size = shutil.disk_usage(drive).total
-                        vsn = os.stat(drive).st_dev
-                        vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
                         try:
-                            serial = logical_to_physical_map[drive[0]]
-                        except KeyError:
-                            serial = 'Not Found'
+                            drive_size = shutil.disk_usage(drive).total
+                            vsn = os.stat(drive).st_dev
+                            vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
+                            try:
+                                serial = logical_to_physical_map[drive[0]]
+                            except KeyError:
+                                serial = 'Not Found'
 
-                        # Add drive to drive list
-                        dest_drive_letter_to_info[drive[0]] = {
-                            'vid': vsn,
-                            'serial': serial
-                        }
+                            # Add drive to drive list
+                            dest_drive_letter_to_info[drive[0]] = {
+                                'vid': vsn,
+                                'serial': serial
+                            }
 
-                        drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+                            drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
 
-                        total_usage = total_usage + drive_size
-                        tree_current_connected.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+                            total_usage = total_usage + drive_size
+                            tree_current_connected.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
 
-                        dest_drive_master_list.append({
-                            'name': drive,
-                            'vid': vsn,
-                            'serial': serial,
-                            'capacity': drive_size,
-                            'hasConfig': drive_has_config_file
-                        })
+                            dest_drive_master_list.append({
+                                'name': drive,
+                                'vid': vsn,
+                                'serial': serial,
+                                'capacity': drive_size,
+                                'hasConfig': drive_has_config_file
+                            })
+                        except FileNotFoundError:
+                            pass
         elif platform.system() == 'Linux':
             out = subprocess.run('df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target', stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             drive_list = out.stdout.decode('utf-8').split('\n')[1:]
