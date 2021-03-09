@@ -674,10 +674,6 @@ def load_source():
         # Empty tree in case this is being refreshed
         tree_source.delete(*tree_source.get_children())
 
-        # Empty dropdown
-        source_drive_default.set('')
-        source_select_menu['menu'].delete(0, 'end')
-
     if platform.system() == 'Windows':
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
         drive_type_list = []
@@ -721,9 +717,7 @@ def load_source():
 
         if not config['cliMode']:
             source_drive_default.set(config['sourceDrive'])
-
-            for item in source_avail_drive_list:
-                source_select_menu['menu'].add_command(label=item)
+            source_select_menu.set_menu(config['sourceDrive'], *tuple(source_avail_drive_list))
 
             source_warning.grid_forget()
             tree_source_frame.grid(row=1, column=1, sticky='ns')
@@ -2469,8 +2463,7 @@ if not config['cliMode']:
     share_total_space.grid(row=0, column=1, padx=(12, 0))
 
     source_select_frame = tk.Frame(main_frame)
-    source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, *tuple([]), command=change_source_drive)
-    # source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, config['sourceDrive'], *tuple(remote_drives), command=change_source_drive)
+    source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, config['sourceDrive'], *tuple([]), command=change_source_drive)
     source_select_menu.pack(side='left')
 
     tree_source.bind("<<TreeviewSelect>>", calculate_source_size_in_background)
