@@ -927,9 +927,19 @@ def load_dest():
                     except FileNotFoundError:
                         pass
     elif platform.system() == 'Linux':
-        out = subprocess.run('df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target', stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+        local_selected = settings_showDrives_dest_local.get()
+        network_selected = settings_showDrives_dest_network.get()
+
+        if network_selected and not local_selected:
+            cmd = 'df -tcifs -tnfs --output=target'
+        elif local_selected and not network_selected:
+            cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target'
+        elif local_selected and network_selected:
+            cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs --output=target'
+
+        out = subprocess.run(cmd, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
         logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
-        logical_drive_list = [mount for mount in logical_drive_list if mount]
+        logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['sourceDrive']]
 
         total_drive_space_available = 0
         dest_drive_master_list = []
