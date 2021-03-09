@@ -2160,16 +2160,46 @@ def change_source_mode():
 
     prefs.set('source', 'mode', settings_sourceMode.get())
 
-def change_source_type():
-    """Change the drive types for source selection."""
+def change_source_type(toggle_type):
+    """Change the drive types for source selection.
+
+    Args:
+        toggle_type (int): The drive type to toggle.
+    """
+
+    selected_local = settings_showDrives_source_local.get()
+    selected_network = settings_showDrives_source_network.get()
+
+    # If both selections are unchecked, the last one has just been unchecked
+    # In this case, re-check it, so that there's always some selection
+    if not selected_local and not selected_network:
+        if toggle_type == DRIVE_TYPE_LOCAL:
+            settings_showDrives_source_local.set(True)
+        elif toggle_type == DRIVE_TYPE_REMOTE:
+            settings_showDrives_source_network.set(True)
 
     prefs.set('selection', 'source_network_drives', settings_showDrives_source_network.get())
     prefs.set('selection', 'source_local_drives', settings_showDrives_source_local.get())
 
     load_source_in_background()
 
-def change_destination_type():
-    """Change the drive types for source selection."""
+def change_destination_type(toggle_type):
+    """Change the drive types for source selection.
+
+    Args:
+        toggle_type (int): The drive type to toggle.
+    """
+
+    selected_local = settings_showDrives_dest_local.get()
+    selected_network = settings_showDrives_dest_network.get()
+
+    # If both selections are unchecked, the last one has just been unchecked
+    # In this case, re-check it, so that there's always some selection
+    if not selected_local and not selected_network:
+        if toggle_type == DRIVE_TYPE_LOCAL:
+            settings_showDrives_dest_local.set(True)
+        elif toggle_type == DRIVE_TYPE_REMOTE:
+            settings_showDrives_dest_network.set(True)
 
     prefs.set('selection', 'destination_network_drives', settings_showDrives_dest_network.get())
     prefs.set('selection', 'destination_local_drives', settings_showDrives_dest_local.get())
@@ -2341,14 +2371,14 @@ if not config['cliMode']:
     selection_source_select_menu = tk.Menu(selection_menu, tearoff=0)
     settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN))
     settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN))
-    selection_source_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=change_source_type, selectcolor=uicolor.FG)
-    selection_source_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=change_source_type, selectcolor=uicolor.FG)
+    selection_source_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=lambda: change_source_type(DRIVE_TYPE_REMOTE), selectcolor=uicolor.FG)
+    selection_source_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=lambda: change_source_type(DRIVE_TYPE_LOCAL), selectcolor=uicolor.FG)
     selection_menu.add_cascade(label='Source Type', menu=selection_source_select_menu)
     selection_dest_select_menu = tk.Menu(selection_menu, tearoff=0)
     settings_showDrives_dest_network = tk.BooleanVar(value=prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
     settings_showDrives_dest_local = tk.BooleanVar(value=prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
-    selection_dest_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=change_destination_type, selectcolor=uicolor.FG)
-    selection_dest_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=change_destination_type, selectcolor=uicolor.FG)
+    selection_dest_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE), selectcolor=uicolor.FG)
+    selection_dest_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL), selectcolor=uicolor.FG)
     selection_menu.add_cascade(label='Destination Type', menu=selection_dest_select_menu)
     selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0)
     settings_sourceMode = tk.StringVar(value=prefs.get('source', 'mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE))
