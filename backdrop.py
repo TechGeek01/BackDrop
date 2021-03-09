@@ -2264,7 +2264,7 @@ if not config['cliMode']:
     # Preferences menu
     preferences_menu = tk.Menu(menubar, tearoff=0)
     settings_darkModeEnabled = tk.BooleanVar(value=uicolor.is_dark_mode())
-    preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'darkMode', settings_darkModeEnabled.get()))
+    preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'darkMode', settings_darkModeEnabled.get()), selectcolor=uicolor.FG)
     menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
 
     # Help menu
@@ -2584,7 +2584,7 @@ if not config['cliMode']:
 
     show_file_details_pane = tk.BooleanVar()
     view_menu.add_separator()
-    view_menu.add_checkbutton(label='File details pane', onvalue=1, offvalue=0, variable=show_file_details_pane, accelerator='Ctrl+D', command=toggle_file_details_pane)
+    view_menu.add_checkbutton(label='File details pane', onvalue=1, offvalue=0, variable=show_file_details_pane, accelerator='Ctrl+D', command=toggle_file_details_pane, selectcolor=uicolor.FG)
 
     tk.Grid.columnconfigure(main_frame, 3, weight=1)
 
