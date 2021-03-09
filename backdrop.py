@@ -46,6 +46,10 @@ SOURCE_MODE_SINGLE = 'single'
 SOURCE_MODE_MULTI = 'multiple'
 SOURCE_MODE_OPTIONS = [SOURCE_MODE_SINGLE, SOURCE_MODE_MULTI]
 
+DRIVE_TYPE_LOCAL = 3
+DRIVE_TYPE_REMOTE = 4
+DRIVE_TYPE_RAMDISK = 6
+
 def center(win, center_to_window=None):
     """Center a tkinter window on screen.
 
@@ -838,10 +842,8 @@ def load_dest():
         for drive in logical_drive_list:
             if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
                 drive_type = win32file.GetDriveType(drive)
-                if drive_type not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
-                    drive_size = shutil.disk_usage(drive).total
-                    vsn = os.stat(drive).st_dev
-                    vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
+                if ((settings_showDrives_dest_local.get() and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
+                        or (settings_showDrives_dest_network.get() and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
                     try:
                         drive_size = shutil.disk_usage(drive).total
                         vsn = os.stat(drive).st_dev
@@ -917,6 +919,7 @@ def load_dest():
 def load_dest_in_background():
     """Start the loading of the destination drive info in a new thread."""
 
+    # URGENT: Make load_dest replaceable or, queueable
     if not thread_manager.is_alive('Refresh destination'):
         thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh destination', daemon=True)
 
@@ -1789,7 +1792,8 @@ def show_config_builder():
             for drive in drive_list:
                 if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
                     drive_type = win32file.GetDriveType(drive)
-                    if drive_type not in (4, 6):  # Make sure drive isn't REMOTE or RAMDISK
+                    if ((settings_showDrives_dest_local.get() and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
+                            or (settings_showDrives_dest_network.get() and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
                         try:
                             drive_size = shutil.disk_usage(drive).total
                             vsn = os.stat(drive).st_dev
@@ -2088,6 +2092,14 @@ def change_source_mode():
 
     prefs.set('source', 'mode', settings_sourceMode.get())
 
+def change_destination_type():
+    """Change the drive types for source selection."""
+
+    prefs.set('selection', 'destination_network_drives', settings_showDrives_dest_network.get())
+    prefs.set('selection', 'destination_local_drives', settings_showDrives_dest_local.get())
+
+    load_dest_in_background()
+
 ############
 # GUI Mode #
 ############
@@ -2250,6 +2262,12 @@ if not config['cliMode']:
 
     # Selection menu
     selection_menu = tk.Menu(menubar, tearoff=0)
+    selection_dest_select_menu = tk.Menu(selection_menu, tearoff=0)
+    settings_showDrives_dest_network = tk.BooleanVar(value=prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
+    settings_showDrives_dest_local = tk.BooleanVar(value=prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
+    selection_dest_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=change_destination_type, selectcolor=uicolor.FG)
+    selection_dest_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=change_destination_type, selectcolor=uicolor.FG)
+    selection_menu.add_cascade(label='Destination Type', menu=selection_dest_select_menu)
     selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0)
     settings_sourceMode = tk.StringVar(value=prefs.get('source', 'mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE))
     selection_source_mode_menu.add_checkbutton(label='Single source, select folders', accelerator='WIP', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
