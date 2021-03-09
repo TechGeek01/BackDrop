@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Added update checking
 - Linux support!
+- Local/network type can be changed for both source and destination
 - Files are now deleted from destination if they're not copied successfully
 - Deleting is now handled in code, rather than with subprocess
 - Added menu bar and consolidated some options and controls

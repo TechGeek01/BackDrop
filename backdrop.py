@@ -760,6 +760,12 @@ def change_source_drive(selection):
 
     load_source_in_background()
 
+    # If a drive type is selected for both source and destination, reload
+    # destination so that the source drive doesn't show in destination list
+    if ((settings_showDrives_source_local.get() and settings_showDrives_dest_local.get())  # Local selected
+            or (settings_showDrives_source_network.get() and settings_showDrives_dest_network.get())):  # Network selected
+        load_dest_in_background()
+
 # IDEA: @Calculate total space of all @shares in background
 prev_share_selection = []
 def calculate_selected_shares():
