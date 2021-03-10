@@ -1,6 +1,6 @@
 import platform
 import tkinter as tk
-from tkinter import ttk, messagebox, font as tkfont, filedialog
+from tkinter import ttk, messagebox, simpledialog, font as tkfont, filedialog
 import shutil
 import os
 import subprocess
@@ -13,6 +13,7 @@ import time
 import ctypes
 from signal import signal, SIGINT
 from datetime import datetime
+import re
 
 import clipboard
 import keyboard
@@ -39,7 +40,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.0.0-rc.1'
+APP_VERSION = '3.0.0-rc.2'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
@@ -663,16 +664,12 @@ def start_backup_analysis():
             )
         thread_manager.start(thread_manager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
-def load_source():
-    """Load the source drive and share lists, and display shares in the tree."""
+def get_source_drive_list():
+    """Get the list of available source drives.
 
-    global source_avail_drive_list
-
-    if not config['cliMode']:
-        progress.start_indeterminate()
-
-        # Empty tree in case this is being refreshed
-        tree_source.delete(*tree_source.get_children())
+    Returns:
+        list: The list of source drives.
+    """
 
     if platform.system() == 'Windows':
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
@@ -710,21 +707,60 @@ def load_source():
             if physical_disk != SYSTEM_DRIVE and drive != '/':
                 source_avail_drive_list.append(drive)
 
+    return source_avail_drive_list
+
+def load_source():
+    """Load the source drive and share lists, and display shares in the tree."""
+
+    global source_avail_drive_list
+    global source_drive_list_valid
+
+    if not config['cliMode']:
+        progress.start_indeterminate()
+
+        # Empty tree in case this is being refreshed
+        tree_source.delete(*tree_source.get_children())
+
+    source_avail_drive_list = get_source_drive_list()
     source_drive_list_valid = len(source_avail_drive_list) > 0
 
     if source_drive_list_valid:
-        config['sourceDrive'] = prefs.get('selection', 'sourceDrive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
+        # Display empty selection sizes
+        if not config['cliMode']:
+            share_selected_space.configure(text='Selected: ' + human_filesize(0))
+            share_total_space.configure(text='Total: ~' + human_filesize(0))
+
+        selected_source_mode = prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
+
+        if selected_source_mode == SOURCE_MODE_SINGLE:
+            config['source_drive'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
+
+            if not config['cliMode']:
+                source_drive_default.set(config['source_drive'])
+                source_select_menu.config(state='normal')
+                source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
+
+                # Enumerate list of shares in source
+                for directory in next(os.walk(config['source_drive']))[1]:
+                    tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
+        elif selected_source_mode == SOURCE_MODE_MULTI:
+            if not config['cliMode']:
+                # Disable source select dropdown
+                source_drive_default.set('Multi-source mode, selection disabled')
+                source_select_menu.config(state='disabled')
+
+                # Enumerate list of shares in source
+                for drive in source_avail_drive_list:
+                    drive_name = prefs.get('source_names', drive, default='')
+                    tree_source.insert(parent='', index='end', text=drive, values=('Unknown', 0, drive_name))
 
         if not config['cliMode']:
-            source_drive_default.set(config['sourceDrive'])
-            source_select_menu.set_menu(config['sourceDrive'], *tuple(source_avail_drive_list))
-
             source_warning.grid_forget()
             tree_source_frame.grid(row=1, column=1, sticky='ns')
             source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
             source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2))
     elif not config['cliMode']:
-        source_drive_default.set('No remotes')
+        source_drive_default.set('No drives available')
 
         tree_source_frame.grid_forget()
         source_meta_frame.grid_forget()
@@ -732,13 +768,6 @@ def load_source():
         source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
     if not config['cliMode']:
-        share_selected_space.configure(text='Selected: ' + human_filesize(0))
-        share_total_space.configure(text='Total: ~' + human_filesize(0))
-
-        # Enumerate list of shares in source
-        for directory in next(os.walk(config['sourceDrive']))[1]:
-            tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
-
         progress.stop_indeterminate()
 
 def load_source_in_background():
@@ -755,8 +784,8 @@ def change_source_drive(selection):
 
     global config
 
-    config['sourceDrive'] = selection
-    prefs.set('selection', 'sourceDrive', selection)
+    config['source_drive'] = selection
+    prefs.set('selection', 'source_drive', selection)
 
     load_source_in_background()
 
@@ -791,10 +820,10 @@ def calculate_selected_shares():
         # FIXME: This crashes if you change the source drive, and the number of items in the tree changes while it's calculating things
         share_name = tree_source.item(item, 'text')
 
-        if platform.system() == 'Windows':
-            share_path = config['sourceDrive'] + share_name
-        elif platform.system() == 'Linux':
-            share_path = config['sourceDrive'] + DIR_SLASH + share_name
+        if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
+            share_path = config['source_drive'] + DIR_SLASH + share_name
+        elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
+            share_path = share_name
 
         share_dir_size = get_directory_size(share_path)
         tree_source.set(item, 'size', human_filesize(share_dir_size))
@@ -805,10 +834,29 @@ def calculate_selected_shares():
         selected_share_list = []
         for item in tree_source.selection():
             # Write selected shares to config
-            selected_share_list.append({
-                'name': tree_source.item(item, 'text'),
+            share_info = {
                 'size': int(tree_source.item(item, 'values')[1])
-            })
+            }
+
+            if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+                share_info['path'] = tree_source.item(item, 'text')
+
+                share_vals = tree_source.item(item, 'values')
+
+                if platform.system() == 'Windows':
+                    # Windows uses drive letters, so default name is letter
+                    default_name = tree_source.item(item, 'text')[0]
+                elif platform.system() == 'Linux':
+                    # Linux uses mount points, so get last dir name
+                    default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
+
+                share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
+            else:
+                # If single drive mode, use share name as dest name
+                share_info['path'] = config['source_drive'] + DIR_SLASH + tree_source.item(item, 'text')
+                share_info['dest_name'] = tree_source.item(item, 'text')
+
+            selected_share_list.append(share_info)
 
             # Add total space of selection
             if tree_source.item(item, 'values')[0] != 'Unknown':
@@ -845,10 +893,33 @@ def calculate_selected_shares():
 
     selected = tree_source.selection()
 
-    config['shares'] = [{
-        'name': tree_source.item(item, 'text'),
-        'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
-    } for item in tree_source.selection()]
+    new_shares = []
+    for item in tree_source.selection():
+        share_info = {
+            'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
+        }
+
+        if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+            share_info['path'] = tree_source.item(item, 'text')
+
+            share_vals = tree_source.item(item, 'values')
+
+            if platform.system() == 'Windows':
+                # Windows uses drive letters, so default name is letter
+                default_name = tree_source.item(item, 'text')[0]
+            elif platform.system() == 'Linux':
+                # Linux uses mount points, so get last dir name
+                default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
+
+            share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
+        else:
+            # If single drive mode, use share name as dest name
+            share_info['path'] = config['source_drive'] + DIR_SLASH + tree_source.item(item, 'text')
+            share_info['dest_name'] = tree_source.item(item, 'text')
+
+        new_shares.append(share_info)
+
+    config['shares'] = new_shares
     update_status_bar_selection()
 
     # If selection is different than last time, invalidate the analysis
@@ -904,7 +975,7 @@ def load_dest():
         total_drive_space_available = 0
         dest_drive_master_list = []
         for drive in logical_drive_list:
-            if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
+            if drive != config['source_drive'] and drive != SYSTEM_DRIVE:
                 drive_type = win32file.GetDriveType(drive)
                 if ((prefs.get('selection', 'destination_local_drives', data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
                         or (prefs.get('selection', 'destination_network_drives', data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
@@ -945,7 +1016,7 @@ def load_dest():
 
         out = subprocess.run(cmd, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
         logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
-        logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['sourceDrive']]
+        logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['source_drive']]
 
         total_drive_space_available = 0
         dest_drive_master_list = []
@@ -1003,8 +1074,8 @@ def gui_select_from_config():
     global drive_select_bind
 
     # Get list of shares in config
-    config_share_name_list = [item['name'] for item in config['shares']]
-    config_shares_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in config_share_name_list]
+    config_share_name_list = [item['dest_name'] for item in config['shares']]
+    config_shares_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'values')[2] in config_share_name_list]
 
     if config_shares_source_tree_id_list:
         tree_source.focus(config_shares_source_tree_id_list[-1])
@@ -1038,12 +1109,32 @@ def gui_select_from_config():
     # would get stuck into an endless loop of trying to load the config
     # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
     if len(config_drive_tree_id_list) > 0 and tree_dest.selection() != tuple(config_drive_tree_id_list):
-        tree_dest.unbind('<<TreeviewSelect>>', drive_select_bind)
+        try:
+            tree_dest.unbind('<<TreeviewSelect>>', drive_select_bind)
+        except tk._tkinter.TclError:
+            pass
 
         tree_dest.focus(config_drive_tree_id_list[-1])
         tree_dest.selection_set(tuple(config_drive_tree_id_list))
 
         drive_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_drive_in_background)
+
+def get_share_path_from_name(share):
+    """Get a share path from a share name.
+
+    Args:
+        share (String): The share to get.
+
+    Returns:
+        String: The path name for the share.
+    """
+
+    if prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE:
+        # Single source mode, so source is source drive
+        return os.path.join(config['source_drive'], share)
+    else:
+        reference_list = {prefs.get('source_names', mountpoint, ''): mountpoint for mountpoint in source_avail_drive_list if prefs.get('source_names', mountpoint, '')}
+        return reference_list[share]
 
 def load_config_from_file(filename):
     """Read a config file, and set the current config based off of it.
@@ -1060,10 +1151,18 @@ def load_config_from_file(filename):
     # Get shares
     shares = config_file.get('selection', 'shares')
     if shares is not None and len(shares) > 0:
-        new_config['shares'] = [{
-            'name': share,
-            'size': None
-        } for share in shares.split(',')]
+        if not config['cliMode']:
+            new_config['shares'] = [{
+                'path': [tree_source.item(item, 'text') if (len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] == share) else tree_source.item(item, 'text') for item in tree_source.get_children()][0],
+                'size': None,
+                'dest_name': share
+            } for share in shares.split(',')]
+        else:
+            new_config['shares'] = [{
+                'path': get_share_path_from_name(share),
+                'size': None,
+                'dest_name': share
+            } for share in shares.split(',')]
 
     # Get VID list
     vids = config_file.get('selection', 'vids').split(',')
@@ -1333,7 +1432,8 @@ elif platform.system() == 'Linux':
 
 prefs = Config(APPDATA_FOLDER + '/' + PREFERENCES_CONFIG_FILE)
 config = {
-    'sourceDrive': None,
+    'source_drive': None,
+    'source_mode': prefs.get('source', 'mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS),
     'splitMode': False,
     'shares': [],
     'drives': [],
@@ -1365,7 +1465,7 @@ if config['cliMode']:
             ('-d', '--destination', 1, 'The destination drive to back up to.'),
             '',
             ('-i', '--interactive', 0, 'Run in interactive mode instead of specifying backup configuration.'),
-            ('-l', '--config', 1, 'Load config file from a drive instead of specifying backup configuration.'),
+            ('-l', '--load-config', 1, 'Load config file from a drive instead of specifying backup configuration.'),
             ('-m', '--split-mode', 0, 'Run in split mode if not all destination drives are connected.'),
             ('-U', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
             '',
@@ -1407,31 +1507,35 @@ if config['cliMode']:
         dest_drive_name_list = [drive['name'] for drive in dest_drive_master_list]
 
         # Source drive
-        if command_line.has_param('interactive'):
-            source_drive = prefs.get('selection', 'sourceDrive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
+        if prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE:
+            if command_line.has_param('interactive'):
+                source_drive = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
+            else:
+                source_drive = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
+                source_drive = command_line.get_param('source')[0][0].upper() + ':' if command_line.has_param('source') and command_line.get_param('source')[0] in source_avail_drive_list else source_drive
+
+            if command_line.has_param('interactive') and not command_line.validate_yes_no(f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
+                print('\nAvailable drives are as follows:\n')
+                print(f"Available drives: {', '.join(source_avail_drive_list)}\n")
+                config['source_drive'] = command_line.validate_choice(
+                    message='Which source drive would you like to use?',
+                    choices=source_avail_drive_list,
+                    default=source_drive,
+                    chars_required=1
+                )
+            else:
+                if source_drive is None:
+                    exit()
+                elif source_drive not in source_avail_drive_list:
+                    print(f"{bcolor.FAIL}Source drive is not valid for selection{bcolor.ENDC}")
+                    exit()
+
+                config['source_drive'] = source_drive
+
+            shares_loaded_from_config = False
         else:
-            source_drive = prefs.get('selection', 'sourceDrive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
-            source_drive = command_line.get_param('source')[0][0].upper() + ':' if command_line.has_param('source') and command_line.get_param('source')[0] in source_avail_drive_list else source_drive
-
-        if command_line.has_param('interactive') and not command_line.validate_yes_no(f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
-            print('\nAvailable drives are as follows:\n')
-            print(f"Available drives: {', '.join(source_avail_drive_list)}\n")
-            config['sourceDrive'] = command_line.validate_choice(
-                message='Which source drive would you like to use?',
-                choices=source_avail_drive_list,
-                default=source_drive,
-                chars_required=1
-            )
-        else:
-            if source_drive is None:
-                exit()
-            elif source_drive not in source_avail_drive_list:
-                print(f"{bcolor.FAIL}Source drive is not valid for selection{bcolor.ENDC}")
-                exit()
-
-            config['sourceDrive'] = source_drive
-
-        shares_loaded_from_config = False
+            # Multi-source mode
+            print(f"{bcolor.OKCYAN}Multi-source mode, so no source drives to select{bcolor.ENDC}")
 
         # Destination drives
         if command_line.has_param('interactive'):
@@ -1471,11 +1575,11 @@ if config['cliMode']:
         else:
             # Load from config
             split_mode = command_line.has_param('split')
-            load_config_drive = command_line.get_param('config')[0]
+            load_config_drive = command_line.get_param('load-config')[0]
             if platform.system() == 'Windows':
                 load_config_drive = load_config_drive[0].upper() + ':'
-            if type(load_config_drive) is list and load_config_drive in dest_drive_name_list:
-                load_config_from_file(f"{load_config_drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+            if type(load_config_drive) is str and load_config_drive in dest_drive_name_list:
+                load_config_from_file(os.path.join(load_config_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                 shares_loaded_from_config = True
 
@@ -1535,18 +1639,46 @@ if config['cliMode']:
             config['splitMode'] = split_mode
 
         # Shares
+        source_select_mode = prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
         if command_line.has_param('interactive'):
-            print('\nAvailable shares drives are as follows:\n')
+            if source_select_mode == SOURCE_MODE_SINGLE:
+                all_share_name_list = [share for share in next(os.walk(config['source_drive']))[1]]
+                share_name_to_source_map = {share: os.path.join(config['source_drive'], share) for share in all_share_name_list}
 
-            all_share_list = [share for share in next(os.walk(config['sourceDrive']))[1]]
-            print('\n'.join(all_share_list) + '\n')
+                print('\nAvailable shares drives are as follows:\n')
+                print('\n'.join(all_share_name_list) + '\n')
+            else:
+                print(f"{bcolor.OKCYAN}To rename shares, please use GUI mode.{bcolor.ENDC}")
+                print('Available shares drives are as follows:\n')
+
+                all_share_list = [{
+                    'path': drive,
+                    'name': prefs.get('source_names', drive, default='')
+                } for drive in get_source_drive_list()]
+                all_share_name_list = [share['name'] for share in all_share_list]
+                share_name_to_source_map = {share['name']: share['path'] for share in all_share_list}
+
+                share_path_list = ['Path']
+                share_name_list = ['Name']
+                share_path_list.extend(share['path'] for share in all_share_list)
+                share_name_list.extend(share['name'] for share in all_share_list)
+
+                share_display_length = {
+                    'path': len(max(share_path_list, key=len)),
+                    'name': len(max(share_name_list, key=len))
+                }
+
+                for i, cur_share in enumerate(share_path_list):
+                    print(f"{cur_share: <{share_display_length['path']}}  {share_name_list[i]: <{share_display_length['name']}}")
+                print('')
 
             config['shares'] = [{
-                'name': share,
-                'size': get_directory_size(config['sourceDrive'] + DIR_SLASH + share)
+                'path': share_name_to_source_map[share],
+                'dest_name': share,
+                'size': get_directory_size(share_name_to_source_map[share])
             } for share in command_line.validate_choice_list(
                 message='Which shares (space separated) would you like to use?',
-                choices=all_share_list,
+                choices=all_share_name_list,
                 default=None,
                 case_sensitive=True
             )]
@@ -1559,17 +1691,22 @@ if config['cliMode']:
             if not shares_loaded_from_config:
                 share_list = sorted(command_line.get_param('share'))
             else:
-                share_list = [share['name'] for share in config['shares']]
+                share_list = [share['dest_name'] for share in config['shares']]
 
-            source_share_list = [directory for directory in next(os.walk(config['sourceDrive']))[1]]
-            filtered_share_input = [share for share in share_list if share in source_share_list]
+            if source_select_mode == SOURCE_MODE_SINGLE:
+                source_share_list = [directory for directory in next(os.walk(config['source_drive']))[1]]
+                filtered_share_input = [share for share in share_list if share in source_share_list]
+            else:
+                filtered_share_input = [share for share in share_list if get_share_path_from_name(share)]
+
             if len(filtered_share_input) < len(share_list):
                 print(f"{bcolor.FAIL}One or more shares are not valid for selection{bcolor.ENDC}")
                 exit()
 
             config['shares'] = [{
-                'name': share,
-                'size': get_directory_size(config['sourceDrive'] + DIR_SLASH + share)
+                'path': get_share_path_from_name(share),
+                'dest_name': share,
+                'size': get_directory_size(get_share_path_from_name(share))
             } for share in share_list]
 
         # ## Show summary ## #
@@ -1580,14 +1717,14 @@ if config['cliMode']:
         header_spacing = len(max(header_list, key=len)) + 1
 
         print('')
-        print(f"{'Source:': <{header_spacing}} {config['sourceDrive']}")
+        print(f"{'Source:': <{header_spacing}} {config['source_drive']}")
         print(f"{'Destination:': <{header_spacing}} {', '.join([drive['name'] for drive in config['drives']])}")
 
         if len(config['missingDrives']) > 0:
             print(f"{'Missing drives:': <{header_spacing}} {', '.join([drive for drive in config['missingDrives'].keys()])}")
             print(f"{'Split mode:': <{header_spacing}} {bcolor.OKGREEN + 'Enabled' + bcolor.ENDC if split_mode else bcolor.FAIL + 'Disabled' + bcolor.ENDC}")
 
-        print(f"{'Shares:': <{header_spacing}} {', '.join([share['name'] for share in config['shares']])}\n")
+        print(f"{'Shares:': <{header_spacing}} {', '.join([share['dest_name'] for share in config['shares']])}\n")
 
         if len(config['missingDrives']) > 0 and not split_mode:
             print(f"{bcolor.FAIL}Missing drives; split mode disabled{bcolor.ENDC}")
@@ -1728,7 +1865,7 @@ def save_config_file():
     """Save the config to selected drives."""
 
     if config['shares'] and config['drives']:
-        share_list = ','.join([item['name'] for item in config['shares']])
+        share_list = ','.join([item['dest_name'] for item in config['shares']])
         raw_vid_list = [drive['vid'] for drive in config['drives']]
         raw_vid_list.extend(config['missingDrives'].keys())
         vid_list = ','.join(raw_vid_list)
@@ -1768,7 +1905,7 @@ def save_config_file_as():
     filename = filedialog.asksaveasfilename(initialdir='', initialfile='backup.ini', title='Save drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
 
     if config['shares'] and config['drives']:
-        share_list = ','.join([item['name'] for item in config['shares']])
+        share_list = ','.join([item['dest_name'] for item in config['shares']])
         raw_vid_list = [drive['vid'] for drive in config['drives']]
         raw_vid_list.extend(config['missingDrives'].keys())
         vid_list = ','.join(raw_vid_list)
@@ -1855,7 +1992,7 @@ def show_config_builder():
             dest_drive_master_list = []
             dest_drive_letter_to_info = {}
             for drive in drive_list:
-                if drive != config['sourceDrive'] and drive != SYSTEM_DRIVE:
+                if drive != config['source_drive'] and drive != SYSTEM_DRIVE:
                     drive_type = win32file.GetDriveType(drive)
                     if ((settings_showDrives_dest_local.get() and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
                             or (settings_showDrives_dest_network.get() and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
@@ -2152,10 +2289,65 @@ def show_config_builder():
         # Load connected drives
         builder_start_refresh_connected()
 
+def rename_source_item(item):
+    """Rename an item in the source tree for multi-source mode.
+
+    Args:
+        item: The TreeView item to rename.
+    """
+
+    current_vals = tree_source.item(item, 'values')
+    current_name = current_vals[2] if len(current_vals) >= 3 else ''
+
+    new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root).strip()
+    new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
+    new_name = new_name.group(0) if new_name is not None else ''
+
+    drive_name = tree_source.item(item, 'text')
+    prefs.set('source_names', drive_name, new_name)
+
+    tree_source.set(item, 'name', new_name)
+
+def show_source_right_click_menu(event):
+    """Show the right click menu in the source tree for multi-source mode."""
+
+    if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        item = tree_source.identify_row(event.y)
+        if item:
+            tree_source.selection_set(item)
+            source_right_click_menu.entryconfig('Rename', command=lambda: rename_source_item(item))
+            source_right_click_menu.post(event.x_root, event.y_root)
+
 def change_source_mode():
     """Change the mode for source selection."""
 
+    global source_right_click_bind
+
     prefs.set('source', 'mode', settings_sourceMode.get())
+
+    if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
+        tree_source.heading('#0', text='Share')
+        tree_source.column('#0', width=170)
+        tree_source['displaycolumns'] = ('size')
+
+        # Unbind right click menu
+        try:
+            tree_source.unbind('<Button-3>', source_right_click_bind)
+        except tk._tkinter.TclError:
+            pass
+
+        config['source_mode'] == SOURCE_MODE_SINGLE
+    elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        tree_source.heading('#0', text='Drive')
+        tree_source.column('#0', width=170)
+        tree_source['displaycolumns'] = ('name', 'size')
+
+        # Bind right click menu
+        source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
+
+        config['source_mode'] == SOURCE_MODE_MULTI
+
+    load_source()
 
 def change_source_type(toggle_type):
     """Change the drive types for source selection.
@@ -2260,7 +2452,7 @@ if not config['cliMode']:
     menu_font.configure(size=9)
 
     # Create Color class instance for UI
-    uicolor = Color(root, prefs.get('ui', 'darkMode', False, data_type=Config.BOOLEAN))
+    uicolor = Color(root, prefs.get('ui', 'dark_mode', False, data_type=Config.BOOLEAN))
 
     if uicolor.is_dark_mode():
         root.tk_setPalette(background=uicolor.BG)
@@ -2364,6 +2556,7 @@ if not config['cliMode']:
     menubar.add_cascade(label='File', underline=0, menu=file_menu)
 
     # Selection menu
+    # FIXME: Add -c configuration option for CLI mode to change preference options
     selection_menu = tk.Menu(menubar, tearoff=0)
     selection_source_select_menu = tk.Menu(selection_menu, tearoff=0)
     settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN))
@@ -2379,8 +2572,8 @@ if not config['cliMode']:
     selection_menu.add_cascade(label='Destination Type', menu=selection_dest_select_menu)
     selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0)
     settings_sourceMode = tk.StringVar(value=prefs.get('source', 'mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE))
-    selection_source_mode_menu.add_checkbutton(label='Single source, select folders', accelerator='WIP', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
-    selection_source_mode_menu.add_checkbutton(label='Show all, select sources', accelerator='WIP', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
+    selection_source_mode_menu.add_checkbutton(label='Single source, select folders', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
+    selection_source_mode_menu.add_checkbutton(label='Show all, select sources', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_menu.add_separator()
     selection_menu.add_cascade(label='Source Mode', underline=7, menu=selection_source_mode_menu)
     selection_menu.add_separator()
@@ -2401,7 +2594,7 @@ if not config['cliMode']:
     # Preferences menu
     preferences_menu = tk.Menu(menubar, tearoff=0)
     settings_darkModeEnabled = tk.BooleanVar(value=uicolor.is_dark_mode())
-    preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'darkMode', settings_darkModeEnabled.get()), selectcolor=uicolor.FG)
+    preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()), selectcolor=uicolor.FG)
     menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
 
     # Help menu
@@ -2447,12 +2640,20 @@ if not config['cliMode']:
     # Tree frames for tree and scrollbar
     tree_source_frame = tk.Frame(main_frame)
 
-    tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize'), style='custom.Treeview')
-    tree_source.heading('#0', text='Share')
+    tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize', 'name'), style='custom.Treeview')
+    if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
+        tree_source_first_col_name = 'Share'
+        tree_source_display_cols = ('size')
+    elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        tree_source_first_col_name = 'Drive'
+        tree_source_display_cols = ('name', 'size')
+    tree_source.heading('#0', text=tree_source_first_col_name)
     tree_source.column('#0', width=170)
+    tree_source.heading('name', text='Name')
+    tree_source.column('name', width=170)
     tree_source.heading('size', text='Size')
     tree_source.column('size', width=80)
-    tree_source['displaycolumns'] = ('size')
+    tree_source['displaycolumns'] = tree_source_display_cols
 
     tree_source.pack(side='left')
     tree_source_scrollbar = ttk.Scrollbar(tree_source_frame, orient='vertical', command=tree_source.yview)
@@ -2470,11 +2671,19 @@ if not config['cliMode']:
     share_total_space.grid(row=0, column=1, padx=(12, 0))
 
     source_select_frame = tk.Frame(main_frame)
-    source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, config['sourceDrive'], *tuple([]), command=change_source_drive)
+    source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
     source_select_menu['menu'].config(selectcolor=uicolor.FG)
     source_select_menu.pack(side='left')
 
+    # Source tree right click menu
+    source_right_click_menu = tk.Menu(tree_source, tearoff=0)
+    source_right_click_menu.add_command(label='Rename', underline=0)
+
     tree_source.bind("<<TreeviewSelect>>", calculate_source_size_in_background)
+    if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
+    else:
+        source_right_click_bind = None
 
     source_warning = tk.Label(main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=uicolor.ERROR, fg=uicolor.BLACK)
 

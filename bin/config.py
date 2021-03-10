@@ -19,7 +19,10 @@ class Config:
         """
 
         self.filename = re.sub(r'\\', '/', filename)
-        self.config = ConfigParser()
+        self.config = ConfigParser(delimiters=('=',))
+
+        # Disable forcing to lowercase
+        self.config.optionxform = str
 
         # Make sure destination path exists before copying
         if self.filename.find('/') > -1:
