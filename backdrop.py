@@ -679,7 +679,6 @@ def get_source_drive_list():
         if prefs.get('selection', 'source_local_drives', data_type=Config.BOOLEAN):
             drive_type_list.append(DRIVE_TYPE_LOCAL)
         source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
-        drive_list = [drive[:2] for drive in drive_list]
     elif platform.system() == 'Linux':
         local_selected = settings_showDrives_source_local.get()
         network_selected = settings_showDrives_source_network.get()

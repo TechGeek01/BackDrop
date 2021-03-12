@@ -627,7 +627,6 @@ class Backup:
             }
 
             for share in shares:
-                share_path = self.get_share_source_path(share)
                 file_list['new'].extend(scan_share_source_for_new_files(drive, share, path, exclusions, shares)['new'])
 
             return file_list
