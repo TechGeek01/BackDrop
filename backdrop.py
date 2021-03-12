@@ -2431,7 +2431,10 @@ if not config['cliMode']:
     root = tk.Tk()
     root.title('BackDrop - Network Drive Backup Tool')
     root.resizable(False, False)
-    WINDOW_WIDTH = 1200
+    if prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE:
+        WINDOW_WIDTH = 1200
+    else:
+        WINDOW_WIDTH = 1370
     WINDOW_HEIGHT = 720
     root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}')
 
@@ -2647,10 +2650,22 @@ if not config['cliMode']:
     elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
         tree_source_first_col_name = 'Drive'
         tree_source_display_cols = ('name', 'size')
+
+    if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        if platform.system() == 'Windows':
+            SOURCE_TEXT_COL_WIDTH = 120
+            SOURCE_NAME_COL_WIDTH = 220
+        else:
+            SOURCE_TEXT_COL_WIDTH = 200
+            SOURCE_NAME_COL_WIDTH = 140
+    else:
+        SOURCE_TEXT_COL_WIDTH = 170
+        SOURCE_NAME_COL_WIDTH = 170
+
     tree_source.heading('#0', text=tree_source_first_col_name)
-    tree_source.column('#0', width=170)
+    tree_source.column('#0', width=SOURCE_TEXT_COL_WIDTH)
     tree_source.heading('name', text='Name')
-    tree_source.column('name', width=170)
+    tree_source.column('name', width=SOURCE_NAME_COL_WIDTH)
     tree_source.heading('size', text='Size')
     tree_source.column('size', width=80)
     tree_source['displaycolumns'] = tree_source_display_cols
@@ -2895,16 +2910,20 @@ if not config['cliMode']:
     file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
 
     def toggle_file_details_pane():
+        global WINDOW_WIDTH
+
         root_geom = root.geometry().split('+')
-        pos_x = int(root_geom[1])
-        pos_y = int(root_geom[2])
+        POS_X = int(root_geom[1])
+        POS_Y = int(root_geom[2])
 
         # FIXME: Is fixing the flicker effect here possible?
         if bool(backup_file_details_frame.grid_info()):
             backup_file_details_frame.grid_remove()
-            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{pos_x + 400 + WINDOW_ELEMENT_PADDING}+{pos_y}')
+            WINDOW_WIDTH -= 400 + WINDOW_ELEMENT_PADDING
+            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X + 400 + WINDOW_ELEMENT_PADDING}+{POS_Y}')
         else:
-            root.geometry(f'{1600 + WINDOW_ELEMENT_PADDING}x{WINDOW_HEIGHT}+{pos_x - 400 - WINDOW_ELEMENT_PADDING}+{pos_y}')
+            WINDOW_WIDTH += 400 + WINDOW_ELEMENT_PADDING
+            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X - 400 - WINDOW_ELEMENT_PADDING}+{POS_Y}')
             backup_file_details_frame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
     show_file_details_pane = tk.BooleanVar()
