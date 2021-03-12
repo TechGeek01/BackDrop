@@ -821,7 +821,7 @@ def calculate_selected_shares():
         share_name = tree_source.item(item, 'text')
 
         if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
-            share_path = config['source_drive'] + DIR_SLASH + share_name
+            share_path = os.path.join(config['source_drive'], share_name)
         elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
             share_path = share_name
 
@@ -853,7 +853,7 @@ def calculate_selected_shares():
                 share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
             else:
                 # If single drive mode, use share name as dest name
-                share_info['path'] = config['source_drive'] + DIR_SLASH + tree_source.item(item, 'text')
+                share_info['path'] = os.path.join(config['source_drive'], tree_source.item(item, 'text'))
                 share_info['dest_name'] = tree_source.item(item, 'text')
 
             selected_share_list.append(share_info)
@@ -914,7 +914,7 @@ def calculate_selected_shares():
             share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
         else:
             # If single drive mode, use share name as dest name
-            share_info['path'] = config['source_drive'] + DIR_SLASH + tree_source.item(item, 'text')
+            share_info['path'] = os.path.join(config['source_drive'], tree_source.item(item, 'text'))
             share_info['dest_name'] = tree_source.item(item, 'text')
 
         new_shares.append(share_info)
@@ -1424,11 +1424,6 @@ BACKUP_CONFIG_DIR = '.backdrop'
 BACKUP_CONFIG_FILE = 'backup.ini'
 PREFERENCES_CONFIG_FILE = 'preferences.ini'
 WINDOW_ELEMENT_PADDING = 16
-
-if platform.system() == 'Windows':
-    DIR_SLASH = '\\'
-elif platform.system() == 'Linux':
-    DIR_SLASH = '/'
 
 prefs = Config(APPDATA_FOLDER + '/' + PREFERENCES_CONFIG_FILE)
 config = {

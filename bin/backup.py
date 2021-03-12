@@ -33,11 +33,6 @@ class Backup:
             progress (Progress): The progress tracker to bind to.
         """
 
-        if platform.system() == 'Windows':
-            self.DIR_SLASH = '\\'
-        elif platform.system() == 'Linux':
-            self.DIR_SLASH = '/'
-
         self.totals = {
             'master': 0,
             'delete': 0,
@@ -127,8 +122,7 @@ class Backup:
             share (String): The share to convert.
 
         Returns:
-            tuple: The share path, followed by the dir name to be appended
-                if in single source mode.
+            String: The source path for the given share.
         """
 
         share_base = share.split(os.path.sep)[0]
@@ -136,7 +130,7 @@ class Backup:
         share_base_path = self.SHARE_NAME_PATH_INFO[share_base]
         share_full_path = os.path.join(share_base_path, share_slug).strip(os.path.sep)
 
-        return (share_full_path, share_slug)
+        return share_full_path
 
     # IDEA: When we ignore other stuff on the drives, and delete it, have a dialog popup that summarizes what's being deleted, and ask the user to confirm
     def analyze(self):
@@ -190,7 +184,7 @@ class Backup:
 
             # If drive is connected, collect info about config size and free space
             if drive_connected:
-                current_drive_info['configSize'] = get_directory_size(drive['name'] + self.DIR_SLASH + self.BACKUP_CONFIG_DIR)
+                current_drive_info['configSize'] = get_directory_size(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR))
             else:
                 current_drive_info['name'] = f"[{drive['vid']}]"
                 current_drive_info['configSize'] = 20000  # Assume 20K config size
@@ -283,7 +277,7 @@ class Backup:
             drive_file_list = {drive['vid']: [] for drive in drive_info}
 
             file_info = {}
-            share_path, share_slug = self.get_share_source_path(share)
+            share_path = self.get_share_source_path(share)
 
             for entry in os.scandir(share_path):
                 if entry.is_file():
@@ -318,9 +312,9 @@ class Backup:
                     file_list = {}
                     dir_list = {}
                     for file, size in small_file_list.items():
-                        if os.path.isfile(share_path + self.DIR_SLASH + file):
+                        if os.path.isfile(os.path.join(share_path, file)):
                             file_list[file] = size
-                        elif os.path.isdir(share_path + self.DIR_SLASH + file):
+                        elif os.path.isdir(os.path.join(share_path, file)):
                             dir_list[file] = size
 
                     # Sort file list by largest first, and truncate to prevent unreasonably large number of combinations
@@ -361,7 +355,7 @@ class Backup:
             }]
 
             for file in file_info.keys():
-                file_path = share + self.DIR_SLASH + file
+                file_path = os.path.join(share, file)
                 share_split_summary.extend(split_share(file_path))
 
             return share_split_summary
@@ -370,7 +364,7 @@ class Backup:
         # share_info contains shares not sorted into drives
         drive_exclusions = {drive['name']: [] for drive in master_drive_list}
         for share in share_info.keys():
-            share_path, share_slug = self.get_share_source_path(share)
+            share_path = self.get_share_source_path(share)
 
             if os.path.exists(share_path) and os.path.isdir(share_path):
                 summary = split_share(share)
@@ -394,8 +388,6 @@ class Backup:
                     all_files = share_files.copy()
                     all_files['exclusions'] = share_exclusions
 
-                    source_path_stub = share_name + self.DIR_SLASH
-
                     # For each drive, gather list of files to be written to other drives, and
                     # use that as exclusions
                     for drive, files in share_files.items():
@@ -411,7 +403,7 @@ class Backup:
                                 drive_exclusions[self.DRIVE_VID_INFO[drive]['name']].remove(share_name)
 
                             # Add new exclusions to list
-                            drive_exclusions[self.DRIVE_VID_INFO[drive]['name']].extend([source_path_stub + file for file in master_exclusions])
+                            drive_exclusions[self.DRIVE_VID_INFO[drive]['name']].extend([os.path.join(share_name, file) for file in master_exclusions])
                             drive_share_list[drive].append(share_name)
 
         def recurse_file_list(directory):
@@ -490,7 +482,7 @@ class Backup:
                         else:  # File is in share on destination drive
                             target_share = max(shares_to_process, key=len)
                             path_slug = stub_path[len(target_share):].strip(os.path.sep)
-                            share_path, share_slug = self.get_share_source_path(target_share)
+                            share_path = self.get_share_source_path(target_share)
 
                             source_path = os.path.join(share_path, path_slug)
 
@@ -508,7 +500,7 @@ class Backup:
 
                         for item in shares:
                             path_slug = stub_path[len(item):].strip(os.path.sep)
-                            share_path, share_slug = self.get_share_source_path(item)
+                            share_path = self.get_share_source_path(item)
                             source_path = os.path.join(share_path, path_slug)
 
                             if (stub_path == item  # Dir is share, so it stays
@@ -560,12 +552,28 @@ class Backup:
             """
 
             def scan_share_source_for_new_files(drive, share, path, exclusions, all_shares):
+                """Get lists of files to copy to the destination drive from a given share.
+
+                Args:
+                    drive (String): The drive to check.
+                    share (String): The share to check.
+                    path (String): The path to check.
+                    exclusions (String[]): The list of files and folders to exclude.
+                    all_shares (String[]): The list of shares the drive should contain, to
+                        avoid recursing into split shares.
+
+                Returns:
+                    {
+                        'new' (tuple(String, int)[]): The list of file destinations and filesizes to copy.
+                    }
+                """
+
                 file_list = {
                     'new': []
                 }
 
                 try:
-                    share_path, share_slug = self.get_share_source_path(share)
+                    share_path = self.get_share_source_path(share)
                     source_path = os.path.join(share_path, path)
 
                     # Check if directory has files
@@ -577,16 +585,11 @@ class Backup:
 
                             # For each entry, either add filesize to the total, or recurse into the directory
                             if entry.is_file():
-                                # if (stub_path.find(self.DIR_SLASH) > -1  # File is not in root of source
                                 if (not os.path.isfile(target_path)  # File doesn't exist in destination drive
                                         and exclusion_stub_path not in exclusions):  # File isn't part of drive exclusion
                                     file_list['new'].append((drive, share, stub_path, entry.stat().st_size))
                                     self.update_file_detail_list_fn('copy', target_path)
                             elif entry.is_dir():
-                                # for item in shares:
-                                #     if (stub_path == item  # Dir is share, so it stays
-                                #             or stub_path.find(item + self.DIR_SLASH) == 0  # Dir is subdir inside share
-                                #             or item.find(stub_path + self.DIR_SLASH) == 0):  # Dir is parent directory of share
                                 # Avoid recursing into any split share directories and double counting files
                                 if exclusion_stub_path not in all_shares:
                                     if os.path.isdir(target_path):
@@ -624,7 +627,7 @@ class Backup:
             }
 
             for share in shares:
-                share_path, share_slug = self.get_share_source_path(share)
+                share_path = self.get_share_source_path(share)
                 file_list['new'].extend(scan_share_source_for_new_files(drive, share, path, exclusions, shares)['new'])
 
             return file_list
@@ -813,10 +816,10 @@ class Backup:
             # For each drive letter connected, get drive info, and write file
             for drive in self.config['drives']:
                 # If config exists on drives, back it up first
-                if os.path.isfile(f"{drive['name']}{self.BACKUP_CONFIG_DIR}{self.DIR_SLASH}{self.BACKUP_CONFIG_FILE}"):
-                    shutil.move(f"{drive['name']}{self.BACKUP_CONFIG_DIR}{self.DIR_SLASH}{self.BACKUP_CONFIG_FILE}", f"{drive['name']}{self.BACKUP_CONFIG_DIR}{self.DIR_SLASH}{self.BACKUP_CONFIG_FILE}.old")
+                if os.path.isfile(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE)):
+                    shutil.move(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE), os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE + '.old'))
 
-                drive_config_file = Config(f"{self.DRIVE_VID_INFO[drive['vid']]['name']}{self.BACKUP_CONFIG_DIR}{self.DIR_SLASH}{self.BACKUP_CONFIG_FILE}")
+                drive_config_file = Config(os.path.join(self.DRIVE_VID_INFO[drive['vid']]['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE))
 
                 # Write shares and VIDs to config file
                 drive_config_file.set('selection', 'shares', share_list)
@@ -892,7 +895,7 @@ class Backup:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
 
-                        share_path, share_slug = self.get_share_source_path(share)
+                        share_path = self.get_share_source_path(share)
 
                         src = os.path.join(drive, share, file)
                         dest = os.path.join(share_path, file)
@@ -907,7 +910,7 @@ class Backup:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
 
-                        share_path, share_slug = self.get_share_source_path(share)
+                        share_path = self.get_share_source_path(share)
 
                         src = os.path.join(drive, share, file)
                         dest = os.path.join(share_path, file)
