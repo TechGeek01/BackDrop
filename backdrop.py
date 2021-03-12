@@ -1824,6 +1824,7 @@ def update_status_bar_backup(status):
         statusbar_backup.configure(text='Analysis running')
     elif status == Status.BACKUP_READY_FOR_BACKUP:
         statusbar_backup.configure(text='Analysis finished, ready for backup')
+        backup_eta_label.configure(text='Analysis finished, ready for backup', fg=uicolor.NORMAL)
     elif status == Status.BACKUP_BACKUP_RUNNING:
         statusbar_backup.configure(text='Backup running')
     elif status == Status.BACKUP_HALT_REQUESTED:
