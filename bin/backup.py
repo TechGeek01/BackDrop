@@ -1,4 +1,3 @@
-import platform
 from tkinter import messagebox
 import os
 import itertools
