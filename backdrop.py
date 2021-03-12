@@ -94,7 +94,7 @@ def update_file_detail_lists(list_name, filename):
 
     if not config['cliMode']:
         file_detail_list[list_name].append({
-            'displayName': filename.split('/')[-1],
+            'displayName': filename.split(os.path.sep)[-1],
             'filename': filename
         })
 
@@ -119,7 +119,7 @@ def update_file_detail_lists(list_name, filename):
 
             # Update copy list scrollable
             if list_name in ['success', 'deleteSuccess']:
-                tk.Label(file_details_copied_scrollable_frame, text=filename.split('/')[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+                tk.Label(file_details_copied_scrollable_frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
 
                 # HACK: The scroll yview won't see the label instantly after it's packed.
                 # Sleeping for a brief time fixes that. This is acceptable as long as it's
@@ -127,7 +127,7 @@ def update_file_detail_lists(list_name, filename):
                 time.sleep(0.01)
                 file_details_copied_info_canvas.yview_moveto(1)
             else:
-                tk.Label(file_details_failed_scrollable_frame, text=filename.split('/')[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+                tk.Label(file_details_failed_scrollable_frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
                 time.sleep(0.01)
                 file_details_failed_info_canvas.yview_moveto(1)
 
@@ -142,7 +142,7 @@ def do_delete(filename, size, gui_options={}):
 
     if not thread_manager.threadlist['Backup']['killFlag'] and os.path.exists(filename):
         gui_options['mode'] = 'delete'
-        gui_options['filename'] = filename.split('/')[-1]
+        gui_options['filename'] = filename.split(os.path.sep)[-1]
 
         if os.path.isfile(filename):
             os.remove(filename)
@@ -201,7 +201,7 @@ def copy_file(source_filename, dest_filename, callback, gui_options={}):
             file_size = READINTO_BUFSIZE
 
         # Make sure destination path exists before copying
-        path_stub = dest_filename[0:dest_filename.rindex('/')]
+        path_stub = dest_filename[0:dest_filename.rindex(os.path.sep)]
         if not os.path.exists(path_stub):
             os.makedirs(path_stub)
 
@@ -344,11 +344,11 @@ def do_copy(src, dest, gui_options={}):
                 if thread_manager.threadlist['Backup']['killFlag']:
                     break
 
-                filename = entry.path.split('/')[-1]
+                filename = entry.path.split(os.path.sep)[-1]
                 if entry.is_file():
-                    copy_file(src + '/' + filename, dest + '/' + filename, display_backup_progress, gui_options)
+                    copy_file(os.path.join(src, filename), os.path.join(dest, filename), display_backup_progress, gui_options)
                 elif entry.is_dir():
-                    do_copy(src + '/' + filename, dest + '/' + filename)
+                    do_copy(os.path.join(src, filename), os.path.join(dest, filename))
 
             # Handle changing attributes of folders if we copy a new folder
             shutil.copymode(src, dest)
@@ -992,7 +992,7 @@ def load_dest():
                         except KeyError:
                             serial = 'Not Found'
 
-                        drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+                        drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                         total_drive_space_available = total_drive_space_available + drive_size
                         if not config['cliMode']:
@@ -1046,7 +1046,7 @@ def load_dest():
                 # Set default if serial not found
                 serial = serial if serial else 'Not Found'
 
-                drive_has_config_file = os.path.exists(f"{drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+                drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                 total_drive_space_available += drive_size
                 if not config['cliMode']:
@@ -1228,7 +1228,7 @@ def handle_drive_selection_click():
     # are no other drives selected except the one we clicked).
     if len(dest_selection) > 0:
         selected_drive = tree_dest.item(dest_selection[0], 'text')
-        SELECTED_DRIVE_CONFIG_FILE = f"{selected_drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}"
+        SELECTED_DRIVE_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
         drives_read_from_config_file = False
         if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.exists(SELECTED_DRIVE_CONFIG_FILE) and os.path.isfile(SELECTED_DRIVE_CONFIG_FILE):
             # Found config file, so read it
@@ -1439,7 +1439,7 @@ BACKUP_CONFIG_FILE = 'backup.ini'
 PREFERENCES_CONFIG_FILE = 'preferences.ini'
 WINDOW_ELEMENT_PADDING = 16
 
-prefs = Config(APPDATA_FOLDER + '/' + PREFERENCES_CONFIG_FILE)
+prefs = Config(os.path.join(APPDATA_FOLDER, PREFERENCES_CONFIG_FILE))
 config = {
     'source_drive': None,
     'source_mode': prefs.get('source', 'mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS),
@@ -1883,10 +1883,10 @@ def save_config_file():
         # For each drive letter that's connected, get drive info, and write file
         for drive in config['drives']:
             # If config exists on drives, back it up first
-            if os.path.isfile(f"{drive['name']}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}"):
-                shutil.move(f"{drive['name']}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}", f"{drive['name']}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}.old")
+            if os.path.isfile(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)):
+                shutil.move(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE), os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE + '.old'))
 
-            new_config_file = Config(f"{drive['name']}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+            new_config_file = Config(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
             # Write shares and VIDs to config file
             new_config_file.set('selection', 'shares', share_list)
@@ -1944,16 +1944,15 @@ def save_config_file_as():
 def delete_config_file_from_selected_drives():
     """Delete config files from drives in destination selection."""
 
-    drive_list = [tree_dest.item(drive, 'text')[0] for drive in tree_dest.selection()]
-    drive_list = [drive for drive in drive_list if os.path.isfile(f"{drive}:/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")]
+    drive_list = [tree_dest.item(drive, 'text').strip(os.path.sep) for drive in tree_dest.selection()]
+    drive_list = [drive for drive in drive_list if os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))]
 
     if drive_list:
         # Ask for confirmation before deleting
         if messagebox.askyesno('Delete config files?', 'Are you sure you want to delete the config files from the selected drives?'):
             # Delete config file on each drive
             for drive in drive_list:
-                config_file_path = f"{drive}:/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}"
-                os.remove(config_file_path)
+                os.remove(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
             # Since config files on drives changed, refresh the destination list
             load_dest_in_background()
@@ -2021,7 +2020,7 @@ def show_config_builder():
                                 'serial': serial
                             }
 
-                            drive_has_config_file = os.path.exists(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+                            drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                             total_usage = total_usage + drive_size
                             tree_current_connected.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
@@ -2063,7 +2062,7 @@ def show_config_builder():
                     # Set default if serial not found
                     serial = serial if serial else 'Not Found'
 
-                    drive_has_config_file = os.path.exists(f"{drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}") and os.path.isfile(f"{drive}/{BACKUP_CONFIG_DIR}/{BACKUP_CONFIG_FILE}")
+                    drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                     total_drive_space_available += drive_size
                     tree_current_connected.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
