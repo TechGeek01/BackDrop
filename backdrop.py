@@ -40,7 +40,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.0.0'
+APP_VERSION = '3.0.1'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
@@ -1359,24 +1359,42 @@ def display_update_screen(update_info):
         github_link.bind('<Button-1>', lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
 
         icon_info = {
-            'exe': {
-                'flat': icon_windows,
-                'color': icon_windows_color
+            'backdrop.exe': {
+                'flat_icon': icon_windows,
+                'color_icon': icon_windows_color,
+                'supplemental': {
+                    'name': 'backdrop.zip',
+                    'flat_icon': icon_zip,
+                    'color_icon': icon_zip_color
+                }
             },
-            'zip': {
-                'flat': icon_zip,
-                'color': icon_zip_color
+            'backdrop-debian': {
+                'flat_icon': icon_linux,
+                'color_icon': icon_linux_color,
+                'supplemental': {
+                    'name': 'backdrop-debian.tar.gz',
+                    'flat_icon': icon_targz,
+                    'color_icon': icon_targz_color
+                }
             }
         }
-        download_map = {url[-3:].lower(): url for url in update_info['download']}
+        download_map = {url.split('/')[-1].lower(): url for url in update_info['download']}
 
-        for file_type, icons in icon_info.items():
+        for file_type, info in icon_info.items():
             if file_type in download_map.keys():
-                download_btn = tk.Label(download_frame, image=icons['flat'])
-                download_btn.pack(side='left', padx=8)
-                download_btn.bind('<Enter>', lambda e, icon=icons['color']: e.widget.configure(image=icon))
-                download_btn.bind('<Leave>', lambda e, icon=icons['flat']: e.widget.configure(image=icon))
+                download_btn = tk.Label(download_frame, image=info['flat_icon'])
+                download_btn.pack(side='left', padx=(12, 4))
+                download_btn.bind('<Enter>', lambda e, icon=info['color_icon']: e.widget.configure(image=icon))
+                download_btn.bind('<Leave>', lambda e, icon=info['flat_icon']: e.widget.configure(image=icon))
                 download_btn.bind('<Button-1>', lambda e, url=download_map[file_type]: webbrowser.open_new(url))
+
+                # Add supplemental icon if download is available
+                if 'supplemental' in icon_info[file_type].keys() or info['supplemental']['name'] in download_map.keys():
+                    download_btn = tk.Label(download_frame, image=info['supplemental']['flat_icon'])
+                    download_btn.pack(side='left', padx=(0, 4))
+                    download_btn.bind('<Enter>', lambda e, icon=info['supplemental']['color_icon']: e.widget.configure(image=icon))
+                    download_btn.bind('<Leave>', lambda e, icon=info['supplemental']['flat_icon']: e.widget.configure(image=icon))
+                    download_btn.bind('<Button-1>', lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
 
         center(update_window, root)
         update_window.transient(root)
@@ -2659,6 +2677,10 @@ if not config['cliMode']:
     icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media/windows_color.png')))
     icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media/zip{'_light' if uicolor.is_dark_mode() else ''}.png")))
     icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media/zip_color.png')))
+    icon_linux = ImageTk.PhotoImage(Image.open(resource_path(f"media/linux{'_light' if uicolor.is_dark_mode() else ''}.png")))
+    icon_linux_color = ImageTk.PhotoImage(Image.open(resource_path('media/linux_color.png')))
+    icon_targz = ImageTk.PhotoImage(Image.open(resource_path(f"media/targz{'_light' if uicolor.is_dark_mode() else ''}.png")))
+    icon_targz_color = ImageTk.PhotoImage(Image.open(resource_path('media/targz_color.png')))
 
     # Progress/status values
     progress_bar = ttk.Progressbar(main_frame, maximum=100, style='custom.Progressbar')
