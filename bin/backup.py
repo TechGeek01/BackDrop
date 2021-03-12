@@ -854,7 +854,12 @@ class Backup:
         # Write config file to drives
         self.write_config_to_disks()
 
+        self.totals['running'] = 0
+        self.totals['buffer'] = 0
+        self.totals['progressBar'] = 0
+
         if not self.config['cliMode']:
+            self.progress.set(0)
             self.progress.set_max(self.totals['master'])
 
             for cmd in self.command_list:
