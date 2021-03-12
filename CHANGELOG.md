@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Added update checking
 - Linux support!
+- Source can now be a set of mount points for a set of shares, rather than one root share containing all of the shares as folders
 - Local/network type can be changed for both source and destination
 - Files are now deleted from destination if they're not copied successfully
 - Deleting is now handled in code, rather than with subprocess
