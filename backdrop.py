@@ -1318,11 +1318,6 @@ def display_update_screen(update_info):
         if platform.system() == 'Windows':
             update_window.iconbitmap(resource_path('media/icon.ico'))
 
-        center(update_window, root)
-        update_window.transient(root)
-        update_window.grab_set()
-        root.wm_attributes('-disabled', True)
-
         def on_close():
             update_window.destroy()
             root.wm_attributes('-disabled', False)
@@ -1382,6 +1377,11 @@ def display_update_screen(update_info):
                 download_btn.bind('<Enter>', lambda e, icon=icons['color']: e.widget.configure(image=icon))
                 download_btn.bind('<Leave>', lambda e, icon=icons['flat']: e.widget.configure(image=icon))
                 download_btn.bind('<Button-1>', lambda e, url=download_map[file_type]: webbrowser.open_new(url))
+
+        center(update_window, root)
+        update_window.transient(root)
+        update_window.grab_set()
+        root.wm_attributes('-disabled', True)
 
 def check_for_updates(info):
     """Process the update information provided by the UpdateHandler class.
