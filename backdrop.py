@@ -1357,6 +1357,13 @@ def display_update_screen(update_info):
         download_frame = tk.Frame(main_frame)
         download_frame.pack()
 
+        download_source_frame = tk.Frame(main_frame)
+        download_source_frame.pack()
+        tk.Label(download_source_frame, text='Or, check out the source on').pack(side='left')
+        github_link = tk.Label(download_source_frame, text='GitHub', fg=uicolor.INFOTEXT)
+        github_link.pack(side='left')
+        github_link.bind('<Button-1>', lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
+
         icon_info = {
             'exe': {
                 'flat': icon_windows,
