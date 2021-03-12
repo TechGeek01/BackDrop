@@ -1079,7 +1079,10 @@ def gui_select_from_config():
 
     # Get list of shares in config
     config_share_name_list = [item['dest_name'] for item in config['shares']]
-    config_shares_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'values')[2] in config_share_name_list]
+    if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
+        config_shares_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in config_share_name_list]
+    else:
+        config_shares_source_tree_id_list = [item for item in tree_source.get_children() if len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] in config_share_name_list]
 
     if config_shares_source_tree_id_list:
         tree_source.focus(config_shares_source_tree_id_list[-1])
