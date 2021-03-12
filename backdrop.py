@@ -2687,7 +2687,6 @@ if not config['cliMode']:
 
     source_warning = tk.Label(main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=uicolor.ERROR, fg=uicolor.BLACK)
 
-    load_source_in_background()
     root.bind('<Control-F5>', lambda x: load_source_in_background())
 
     tree_dest_frame = tk.Frame(main_frame)
@@ -2944,6 +2943,7 @@ if not config['cliMode']:
     start_backup_btn = ttk.Button(backup_summary_button_frame, text='Run Backup', command=start_backup, state='disable')
     start_backup_btn.pack(side='left', padx=4)
 
+    load_source_in_background()
     # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
     thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
 
