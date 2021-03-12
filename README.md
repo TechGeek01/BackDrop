@@ -7,7 +7,7 @@
   <img alt="undefined" src="https://img.shields.io/github/downloads/TechGeek01/BackDrop/total" />
   <a href="https://github.com/TechGeek01/BackDrop/blob/master/LICENSE"><img alt="undefined" src="https://img.shields.io/github/license/TechGeek01/BackDrop"></a>
   <br />
-  <a href="https://github.com/TechGeek01/BackDrop/releases/download/v2.1.3/backdrop.exe" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a>
+  <a href="https://github.com/TechGeek01/BackDrop/releases/download/v3.0.0/backdrop.exe" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a>
   <br /><br />
 </p>
 
@@ -18,7 +18,7 @@ Online storage of data can get expensive. Obviously, the cheap way to back up im
 ![BackDrop UI](https://raw.githubusercontent.com/TechGeek01/BackDrop/master/docs/img/showcase.png)
 
 ## Installation
-If you're not running a precompiled version of the source code, you can run the Python directly. All packages can be installed by passing the associated requirements.txt file to `pip`.
+If you're not running a pre-compiled version of the source code, you can run the Python directly. All packages can be installed by passing the associated requirements.txt file to `pip`.
 
 *BackDrop uses tkinter for the GUI frontend. If you're on Linux, this isn't included with Python and will need to be installed separately.*
 

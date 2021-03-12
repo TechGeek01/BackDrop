@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 3.0.0 - TBD
+## 3.0.0 - 2021-03-12
 *Previously compiled Windows binaries had CLI mode broken due to lacking console. This has been fixed, but now means there's a console window in the background that will open when launched. As far as I know, this is unavoidable due to the nature of Python.*
 
 ### Added
