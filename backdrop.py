@@ -2322,13 +2322,21 @@ def change_source_mode():
     """Change the mode for source selection."""
 
     global source_right_click_bind
+    global WINDOW_WIDTH
 
     prefs.set('source', 'mode', settings_sourceMode.get())
+    root_geom = root.geometry().split('+')
+    POS_X = int(root_geom[1])
+    POS_Y = int(root_geom[2])
 
     if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
         tree_source.heading('#0', text='Share')
-        tree_source.column('#0', width=170)
+        tree_source.column('#0', width=SINGLE_SOURCE_TEXT_COL_WIDTH)
+        tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
         tree_source['displaycolumns'] = ('size')
+
+        WINDOW_WIDTH -= WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
 
         # Unbind right click menu
         try:
@@ -2338,8 +2346,12 @@ def change_source_mode():
 
         config['source_mode'] == SOURCE_MODE_SINGLE
     elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        WINDOW_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
+
         tree_source.heading('#0', text='Drive')
-        tree_source.column('#0', width=170)
+        tree_source.column('#0', width=MULTI_SOURCE_TEXT_COL_WIDTH)
+        tree_source.column('name', width=MULTI_SOURCE_NAME_COL_WIDTH)
         tree_source['displaycolumns'] = ('name', 'size')
 
         # Bind right click menu
@@ -2428,13 +2440,18 @@ if not config['cliMode']:
 
         return os.path.join(base_path, relative_path)
 
+    WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
+    MULTI_SOURCE_TEXT_COL_WIDTH = 120 if platform.system() == 'Windows' else 200
+    MULTI_SOURCE_NAME_COL_WIDTH = 220 if platform.system() == 'Windows' else 140
+    SINGLE_SOURCE_TEXT_COL_WIDTH = 170
+    SINGLE_SOURCE_NAME_COL_WIDTH = 170
+
     root = tk.Tk()
     root.title('BackDrop - Network Drive Backup Tool')
     root.resizable(False, False)
-    if prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE:
-        WINDOW_WIDTH = 1200
-    else:
-        WINDOW_WIDTH = 1370
+    WINDOW_WIDTH = 1200
+    if prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_MULTI:
+        WINDOW_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
     WINDOW_HEIGHT = 720
     root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}')
 
