@@ -727,8 +727,8 @@ def load_source():
     if source_drive_list_valid:
         # Display empty selection sizes
         if not config['cliMode']:
-            share_selected_space.configure(text='Selected: ' + human_filesize(0))
-            share_total_space.configure(text='Total: ~' + human_filesize(0))
+            share_selected_space.configure(text='None', fg=uicolor.FADED)
+            share_total_space.configure(text='~None', fg=uicolor.FADED)
 
         selected_source_mode = prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
 
@@ -864,12 +864,12 @@ def calculate_selected_shares():
                 share_size = tree_source.item(item, 'values')[1]
                 selected_total = selected_total + int(share_size)
 
-        share_selected_space.configure(text='Selected: ' + human_filesize(selected_total))
+        share_selected_space.configure(text=human_filesize(selected_total), fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
         config['shares'] = selected_share_list
 
         share_total = 0
         is_total_approximate = False
-        total_prefix = 'Total: '
+        total_prefix = ''
         for item in tree_source.get_children():
             share_total += int(tree_source.item(item, 'values')[1])
 
@@ -878,7 +878,7 @@ def calculate_selected_shares():
                 is_total_approximate = True
                 total_prefix += '~'
 
-        share_total_space.configure(text=total_prefix + human_filesize(share_total))
+        share_total_space.configure(text=total_prefix + human_filesize(share_total), fg=uicolor.NORMAL if share_total > 0 else uicolor.FADED)
 
         # If everything's calculated, enable analysis button to be clicked
         all_shares_known = True
@@ -894,30 +894,34 @@ def calculate_selected_shares():
     selected = tree_source.selection()
 
     new_shares = []
-    for item in tree_source.selection():
-        share_info = {
-            'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
-        }
+    if len(selected) > 0:
+        for item in selected:
+            share_info = {
+                'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
+            }
 
-        if settings_sourceMode.get() == SOURCE_MODE_MULTI:
-            share_info['path'] = tree_source.item(item, 'text')
+            if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+                share_info['path'] = tree_source.item(item, 'text')
 
-            share_vals = tree_source.item(item, 'values')
+                share_vals = tree_source.item(item, 'values')
 
-            if platform.system() == 'Windows':
-                # Windows uses drive letters, so default name is letter
-                default_name = tree_source.item(item, 'text')[0]
-            elif platform.system() == 'Linux':
-                # Linux uses mount points, so get last dir name
-                default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
+                if platform.system() == 'Windows':
+                    # Windows uses drive letters, so default name is letter
+                    default_name = tree_source.item(item, 'text')[0]
+                elif platform.system() == 'Linux':
+                    # Linux uses mount points, so get last dir name
+                    default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
 
-            share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
-        else:
-            # If single drive mode, use share name as dest name
-            share_info['path'] = os.path.join(config['source_drive'], tree_source.item(item, 'text'))
-            share_info['dest_name'] = tree_source.item(item, 'text')
+                share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
+            else:
+                # If single drive mode, use share name as dest name
+                share_info['path'] = os.path.join(config['source_drive'], tree_source.item(item, 'text'))
+                share_info['dest_name'] = tree_source.item(item, 'text')
 
-        new_shares.append(share_info)
+            new_shares.append(share_info)
+    else:
+        # Nothing selected, so empty the meta counter
+        share_selected_space.configure(text='None', fg=uicolor.FADED)
 
     config['shares'] = new_shares
     update_status_bar_selection()
@@ -1241,7 +1245,7 @@ def handle_drive_selection_click():
         selected_drive_list.append(selected_drive)
         selected_total = selected_total + selected_drive['capacity']
 
-    drive_selected_space.configure(text=human_filesize(selected_total), fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
+    drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
     if not drives_read_from_config_file:
         config['drives'] = selected_drive_list
         config_selected_space.configure(text='None', fg=uicolor.FADED)
@@ -2692,10 +2696,16 @@ if not config['cliMode']:
 
     share_space_frame = tk.Frame(source_meta_frame)
     share_space_frame.grid(row=0, column=0)
-    share_selected_space = tk.Label(share_space_frame, text='Selected: ' + human_filesize(0))
-    share_selected_space.grid(row=0, column=0)
-    share_total_space = tk.Label(share_space_frame, text='Total: ~' + human_filesize(0))
-    share_total_space.grid(row=0, column=1, padx=(12, 0))
+    share_selected_space_frame = tk.Frame(share_space_frame)
+    share_selected_space_frame.grid(row=0, column=0)
+    share_selected_space_label = tk.Label(share_selected_space_frame, text='Selected:').pack(side='left')
+    share_selected_space = tk.Label(share_selected_space_frame, text='None', fg=uicolor.FADED)
+    share_selected_space.pack(side='left')
+    share_total_space_frame = tk.Frame(share_space_frame)
+    share_total_space_frame.grid(row=0, column=1, padx=(12, 0))
+    share_total_space_label = tk.Label(share_total_space_frame, text='Total:').pack(side='left')
+    share_total_space = tk.Label(share_total_space_frame, text='~None', fg=uicolor.FADED)
+    share_total_space.pack(side='left')
 
     source_select_frame = tk.Frame(main_frame)
     source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
@@ -2792,7 +2802,7 @@ if not config['cliMode']:
     drive_selected_space_frame = tk.Frame(drive_space_frame)
     drive_selected_space_frame.grid(row=0, column=1, padx=(12, 0))
     tk.Label(drive_selected_space_frame, text='Selected:').pack(side='left')
-    drive_selected_space = tk.Label(drive_selected_space_frame, text=human_filesize(0), fg=uicolor.FADED)
+    drive_selected_space = tk.Label(drive_selected_space_frame, text='None', fg=uicolor.FADED)
     drive_selected_space.pack(side='left')
 
     drive_total_space_frame = tk.Frame(drive_space_frame)
