@@ -2510,16 +2510,23 @@ if not config['cliMode']:
     elif platform.system() == 'Linux':
         tk_style.theme_use('clam')
     tk_style.configure('TButton', padding=(6, 4))
-    tk_style.configure('danger.TButton', padding=(6, 4), background='#b00')
     tk_style.configure('icon.TButton', width=2, height=1, padding=0, font=(None, 15), background='#00bfe6')
 
-    if platform.system() == 'Linux':
-        tk_style.configure('danger.TButton', foreground='#fff', bordercolor='#600', borderwidth=0, padding=(8, 6))
-        tk_style.map(
-            'danger.TButton',
-            # foreground=[('pressed', '#fff'), ('active', '#fff')],
-            background=[('pressed', '!disabled', '#900'), ('active', '!disabled', '#c00')]
-        )
+    tk_style.element_create('danger.TButton', 'from', 'clam')
+    tk_style.layout('danger.TButton', [
+        ('danger.TButton.border', {'sticky': 'nswe', 'border': '1', 'children': [
+            ('danger.TButton.focus', {'sticky': 'nswe', 'children': [
+                ('danger.TButton.padding', {'sticky': 'nswe', 'children': [
+                    ('danger.TButton.label', {'sticky': 'nswe'})
+                ]})
+            ]})
+        ]})
+    ])
+    tk_style.map(
+        'danger.TButton',
+        background=[('pressed', '!disabled', '#900'), ('active', '!disabled', '#c00')]
+    )
+    tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#600', borderwidth=0, padding=(8, 6))
 
     tk_style.configure('TCheckbutton', background=uicolor.BG, foreground=uicolor.NORMAL)
     tk_style.configure('TFrame', background=uicolor.BG, foreground=uicolor.NORMAL)
