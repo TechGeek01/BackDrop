@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 3.1.0 - 2021-03-12
+## 3.0.1 - 2021-03-12
 ### Added
 - Linux now has a packaged version, and appropriate icons on the update screen
 
