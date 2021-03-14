@@ -200,6 +200,7 @@ class Backup:
 
         # Get inode list for all files
         bad_inode_files = []
+        saved_inodes = {}
         for drive in self.config['drives']:
             drive_inode_path = os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_INODE_FILE)
 
@@ -229,7 +230,7 @@ class Backup:
 
             for drive in self.config['drives']:
                 with open(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_INODE_FILE), 'wb') as f:
-                    pickle.dump(inodes, f)
+                    pickle.dump(saved_inodes, f)
 
         drive_info = []
         drive_share_list = {}
@@ -505,6 +506,23 @@ class Backup:
             for file in files:
                 all_drive_files[drive].extend(recurse_file_list(file))
 
+        # For each share, read the inodes to a new dict
+        inodes = {}
+        for share in self.config['shares']:
+            share_path = self.get_share_source_path(share['dest_name'])
+            new_inodes = self.scan_path_for_inodes(share_path)
+            inodes.update(new_inodes)
+
+        # Generate list of renamed or moved files
+        dest_inode_lookup = {inode: file for file, inode in saved_inodes.items()}
+
+        changed_files = {dest_inode_lookup[inode]: cur_source_file for cur_source_file, inode in inodes.items() if cur_source_file != dest_inode_lookup[inode]}
+
+        consolidated_renamed_files = {}
+        for from_file, to_file in changed_files.items():
+            if (from_file.find(os.path.sep)  # File has parent directory
+                    and from_file[:from_file.rindex(os.path.sep)] not in changed_files.keys()):  # Parent is not in list
+                consolidated_renamed_files[from_file] = to_file
         def build_delta_file_list(drive, path, shares, exclusions):
             """Get lists of files to delete and replace from the destination drive, that no longer
             exist in the source, or have changed.
