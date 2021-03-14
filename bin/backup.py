@@ -145,7 +145,7 @@ class Backup:
 
         try:
             for entry in os.scandir(path):
-                working_file_stats = entry.stat()
+                working_file_stats = os.stat(entry.path)
                 if entry.is_file():
                     inodes[entry.path] = working_file_stats.st_ino
                 elif entry.is_dir():
