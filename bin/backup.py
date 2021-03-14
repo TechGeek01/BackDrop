@@ -3,6 +3,7 @@ import os
 import itertools
 from datetime import datetime
 import shutil
+import pickle
 
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import bcolor
@@ -59,6 +60,8 @@ class Backup:
 
         self.BACKUP_CONFIG_DIR = backup_config_dir
         self.BACKUP_CONFIG_FILE = backup_config_file
+        self.BACKUP_INODE_FILE = 'inodes.pkl'
+
         self.uicolor = uicolor
         self.do_copy_fn = do_copy_fn
         self.do_del_fn = do_del_fn
@@ -131,6 +134,32 @@ class Backup:
 
         return share_full_path
 
+    def scan_path_for_inodes(self, path):
+        """Scan a path for inodes of all files.
+
+        Returns:
+            tuple[]: The list of inode data for the path.
+        """
+
+        inodes = {}
+
+        try:
+            for entry in os.scandir(path):
+                working_file_stats = entry.stat()
+                if entry.is_file():
+                    inodes[entry.path] = working_file_stats.st_ino
+                elif entry.is_dir():
+                    inodes[entry.path] = working_file_stats.st_ino
+                    inodes.update(self.scan_path_for_inodes(entry.path))
+        except NotADirectoryError:
+            return []
+        except PermissionError:
+            return []
+        except OSError:
+            return []
+
+        return inodes
+
     # IDEA: When we ignore other stuff on the drives, and delete it, have a dialog popup that summarizes what's being deleted, and ask the user to confirm
     def analyze(self):
         """Analyze the list of selected shares and drives and figure out how to split files.
@@ -169,6 +198,39 @@ class Backup:
             reset=True
         )
 
+        # Get inode list for all files
+        bad_inode_files = []
+        for drive in self.config['drives']:
+            drive_inode_path = os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_INODE_FILE)
+
+            if os.path.isfile(drive_inode_path):
+                with open(drive_inode_path, 'rb') as f:
+                    try:
+                        saved_inodes = pickle.load(f)
+                    except Exception:
+                        print(f"Bad file: {drive_inode_path}")
+                        bad_inode_files.append(drive_inode_path)
+            else:
+                bad_inode_files.append(drive_inode_path)
+
+        # If there are missing or corrupted pickle files, write corrected data
+        if saved_inodes and bad_inode_files:
+            for file in bad_inode_files:
+                with open(file, 'wb') as f:
+                    pickle.dump(inodes, f)
+
+        # If inode files not loaded, generate them
+        if not saved_inodes:
+            saved_inodes = {}
+            for share in self.config['shares']:
+                share_path = self.get_share_source_path(share['dest_name'])
+                new_inodes = self.scan_path_for_inodes(share_path)
+                saved_inodes.update(new_inodes)
+
+            for drive in self.config['drives']:
+                with open(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_INODE_FILE), 'wb') as f:
+                    pickle.dump(inodes, f)
+
         drive_info = []
         drive_share_list = {}
         master_drive_list = [drive for drive in self.config['drives']]
@@ -183,10 +245,11 @@ class Backup:
 
             # If drive is connected, collect info about config size and free space
             if drive_connected:
-                current_drive_info['configSize'] = get_directory_size(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR))
+                # Reserve 20 MB for config files
+                current_drive_info['configSize'] = max(20 * 1000 * 1000, get_directory_size(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR)))
             else:
                 current_drive_info['name'] = f"[{drive['vid']}]"
-                current_drive_info['configSize'] = 20000  # Assume 20K config size
+                current_drive_info['configSize'] = 20 * 1000 * 1000  # Assume 20 MB config size
 
             current_drive_info['free'] = drive['capacity'] - drive['configSize']
 
