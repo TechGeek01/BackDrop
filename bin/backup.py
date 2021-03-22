@@ -3,6 +3,7 @@ import os
 import itertools
 from datetime import datetime
 import shutil
+import pickle
 
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import bcolor
@@ -59,6 +60,7 @@ class Backup:
 
         self.BACKUP_CONFIG_DIR = backup_config_dir
         self.BACKUP_CONFIG_FILE = backup_config_file
+        self.BACKUP_HASH_FILE = 'hashes.pkl'
         self.uicolor = uicolor
         self.do_copy_fn = do_copy_fn
         self.do_del_fn = do_del_fn

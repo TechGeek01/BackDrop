@@ -2433,6 +2433,11 @@ def change_destination_type(toggle_type):
 
     load_dest_in_background()
 
+def start_verify_data_from_hash_list():
+    """Verify itegrity of files on destination drives by checking hashes."""
+
+    pass
+
 ############
 # GUI Mode #
 ############
@@ -2641,6 +2646,7 @@ if not config['cliMode']:
 
     # Tools menu
     tools_menu = tk.Menu(menubar, tearoff=0)
+    tools_menu.add_command(label='Verify data integrity on selected drives', underline=0, accelerator='WIP', command=start_verify_data_from_hash_list)
     tools_menu.add_command(label='Config Builder', underline=7, accelerator='Ctrl+B', command=show_config_builder)
     menubar.add_cascade(label='Tools', underline=0, menu=tools_menu)
 
