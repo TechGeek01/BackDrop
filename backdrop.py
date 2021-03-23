@@ -1325,6 +1325,19 @@ def cleanup_handler(signal_received, frame):
 
     exit(0)
 
+def verify_data_integrity():
+    """Verify itegrity of files on destination drives by checking hashes."""
+
+    print('==== DATA VERIFICATION STARTED ====')
+
+    verify_all_files = prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN)
+    if verify_all_files:
+        print('Verifying all files')
+    else:
+        print('Verifying files in hash list')
+
+    print('==== DATA VERIFICATION COMPLETE ====')
+
 update_window = None
 
 def display_update_screen(update_info):
@@ -1521,6 +1534,7 @@ if config['cliMode']:
             ('-l', '--load-config', 1, 'Load config file from a drive instead of specifying backup configuration.'),
             ('-m', '--split-mode', 0, 'Run in split mode if not all destination drives are connected.'),
             ('-U', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
+            ('-V', '--verify', 1, 'Verify data integrity on selected destination drives.'),
             '',
             ('-h', '--help', 0, 'Display this help menu.'),
             ('-v', '--version', 0, 'Display the program version.'),
@@ -1540,6 +1554,8 @@ if config['cliMode']:
             update_callback=check_for_updates
         )
         update_handler.check()
+    elif command_line.has_param('verify'):
+        verify_data_integrity()
     else:
         # Backup config mode
         # TODO: Remove CLI mode stability warning
@@ -2461,9 +2477,9 @@ def change_destination_type(toggle_type):
     load_dest_in_background()
 
 def start_verify_data_from_hash_list():
-    """Verify itegrity of files on destination drives by checking hashes."""
+    """Start data verification in a new thread"""
 
-    pass
+    thread_manager.start(ThreadManager.SINGLE, target=verify_data_integrity, name='Data Verification', daemon=True)
 
 ############
 # GUI Mode #
@@ -2673,12 +2689,16 @@ if not config['cliMode']:
 
     # Tools menu
     tools_menu = tk.Menu(menubar, tearoff=0)
-    tools_menu.add_command(label='Verify data integrity on selected drives', underline=0, accelerator='WIP', command=start_verify_data_from_hash_list)
+    tools_menu.add_command(label='Verify Data Integrity on Selected Drives', underline=0, accelerator='WIP', command=start_verify_data_from_hash_list)
     tools_menu.add_command(label='Config Builder', underline=7, accelerator='Ctrl+B', command=show_config_builder)
     menubar.add_cascade(label='Tools', underline=0, menu=tools_menu)
 
     # Preferences menu
     preferences_menu = tk.Menu(menubar, tearoff=0)
+    preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0)
+    settings_verifyAllFiles = tk.BooleanVar(value=prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN))
+    preferences_verification_menu.add_checkbutton(label='Verify All Drives', onvalue=True, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()), selectcolor=uicolor.FG)
+    preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
     settings_darkModeEnabled = tk.BooleanVar(value=uicolor.is_dark_mode())
     preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()), selectcolor=uicolor.FG)
     menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
