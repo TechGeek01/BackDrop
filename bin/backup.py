@@ -902,8 +902,8 @@ class Backup:
 
                         share_path = self.get_share_source_path(share)
 
-                        src = os.path.join(drive, share, file)
-                        dest = os.path.join(share_path, file)
+                        src = os.path.join(share_path, file)
+                        dest = os.path.join(drive, share, file)
 
                         gui_options = {
                             'displayIndex': cmd['displayIndex']
@@ -917,8 +917,8 @@ class Backup:
 
                         share_path = self.get_share_source_path(share)
 
-                        src = os.path.join(drive, share, file)
-                        dest = os.path.join(share_path, file)
+                        src = os.path.join(share_path, file)
+                        dest = os.path.join(drive, share, file)
 
                         gui_options = {
                             'displayIndex': cmd['displayIndex']
