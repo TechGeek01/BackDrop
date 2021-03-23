@@ -177,6 +177,7 @@ class Backup:
         # Get hash list for all drives
         bad_hash_files = []
         self.file_hashes = {drive['name']: {} for drive in self.config['drives']}
+        special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
         for drive in self.config['drives']:
             drive_hash_file_path = os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
 
@@ -184,8 +185,10 @@ class Backup:
                 write_trimmed_changes = False
                 with open(drive_hash_file_path, 'rb') as f:
                     try:
+                        # Load hash list, and filter out ignored folders
                         hash_list = pickle.load(f)
-                        new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in hash_list.items() if os.path.isfile(os.path.join(drive['name'], file_name))}
+                        new_hash_list = {file_name: hash_val for file_name, hash_val in hash_list.items() if file_name.split('/')[0] not in special_ignore_list}
+                        new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in new_hash_list.items() if os.path.isfile(os.path.join(drive['name'], file_name))}
 
                         # If trimmed list is shorter, new changes have to be written to the file
                         if len(new_hash_list) < len(hash_list):
