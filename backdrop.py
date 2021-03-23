@@ -441,7 +441,10 @@ def update_backup_eta_timer():
         backup_totals = backup.totals
 
         running_time = datetime.now() - backup_start_time
-        percent_copied = (backup_totals['running'] + backup_totals['buffer'] - backup_totals['delete']) / total_to_copy
+        if total_to_copy > 0:
+            percent_copied = (backup_totals['running'] + backup_totals['buffer'] - backup_totals['delete']) / total_to_copy
+        else:
+            percent_copied = 0
 
         if percent_copied > 0:
             remaining_time = running_time / percent_copied - running_time
