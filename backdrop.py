@@ -1360,11 +1360,61 @@ def verify_data_integrity(drive_list):
 
         return h.hexdigest()
 
+    def recurse_for_hash(path, drive, hash_file_path):
+        """Recurse a given path and check hashes.
+
+        Args:
+            path (String): The path to check.
+            drive (String): The mountpoint of the drive.
+            hash_file_path (String): The path to the hash file.
+        """
+
+        try:
+            for entry in os.scandir(path):
+                path_stub = entry.path.split(drive)[1].strip(os.path.sep)
+                if entry.is_file():
+                    # If entry is a file, hash it, and check for a computed hash
+                    print(entry.path)
+
+                    file_hash = get_file_hash(entry.path)
+
+                    if path_stub in hash_list[drive].keys():
+                        # Hash saved, so check integrity against saved file
+                        saved_hash = hash_list[drive][path_stub]
+
+                        if file_hash != saved_hash:
+                            # Computed hash different from saved, so delete
+                            # corrupted file
+                            print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
+                            if os.path.isfile(entry.path):
+                                os.remove(entry.path)
+                            elif os.path.isdir(entry.path):
+                                shutil.rmtree(entry.path)
+
+                            # Also delete the saved hash
+                            if path_stub in hash_list[drive].keys():
+                                del hash_list[drive][path_stub]
+                            with open(drive_hash_file_path, 'wb') as f:
+                                pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+                    else:
+                        # Hash not saved, so store it
+                        hash_list[drive][path_stub] = file_hash
+                        with open(drive_hash_file_path, 'wb') as f:
+                            pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+                elif entry.is_dir():
+                    # If entry is path, recurse into it
+                    if path_stub not in special_ignore_list:
+                        recurse_for_hash(entry.path, drive, hash_file_path)
+        except Exception:
+            pass
+
+    # URGENT: Find a way to display or export a list of files that failed verification
     print('==== DATA VERIFICATION STARTED ====')
 
     # Get hash list for all drives
     bad_hash_files = []
     hash_list = {drive: {} for drive in drive_list}
+    special_ignore_list = [BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
     for drive in drive_list:
         drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
 
@@ -1373,7 +1423,8 @@ def verify_data_integrity(drive_list):
             with open(drive_hash_file_path, 'rb') as f:
                 try:
                     drive_hash_list = pickle.load(f)
-                    new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in drive_hash_list.items() if os.path.isfile(os.path.join(drive, file_name))}
+                    new_hash_list = {file_name: hash_val for file_name, hash_val in drive_hash_list.items() if file_name.split('/')[0] not in special_ignore_list}
+                    new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in new_hash_list.items() if os.path.isfile(os.path.join(drive['name'], file_name))}
 
                     # If trimmed list is shorter, new changes have to be written to the file
                     if len(new_hash_list) < len(drive_hash_list):
@@ -1387,7 +1438,7 @@ def verify_data_integrity(drive_list):
             # If trimmed list is different length than original, write changes to file
             if write_trimmed_changes:
                 with open(drive_hash_file_path, 'wb') as f:
-                    pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in new_hash_list.items()}, f)
+                    pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
         else:
             bad_hash_files.append(drive_hash_file_path)
 
@@ -1399,26 +1450,30 @@ def verify_data_integrity(drive_list):
 
     verify_all_files = prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN)
     if verify_all_files:
-        print('Verifying all files is a work in progress')
+        for drive in drive_list:
+            drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
+            recurse_for_hash(drive, drive, drive_hash_file_path)
     else:
         for drive in drive_list:
+            drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
             for file, saved_hash in hash_list[drive].items():
-                print('==== FILE HASH ====')
                 filename = os.path.join(drive, file)
                 print(filename)
-
                 computed_hash = get_file_hash(filename)
 
                 # If file has hash mismatch, delete the corrupted file
                 if saved_hash != computed_hash:
+                    print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
                     if os.path.isfile(filename):
                         os.remove(filename)
                     elif os.path.isdir(filename):
                         shutil.rmtree(filename)
 
-            print('==== HASH LIST ====')
-            print(drive)
-            print(len(hash_list[drive]))
+                    # Delete the saved hash, and write changes to the hash file
+                    if file in hash_list[drive].keys():
+                        del hash_list[drive][file]
+                    with open(drive_hash_file_path, 'wb') as f:
+                        pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in new_hash_list.items()}, f)
 
     print('==== DATA VERIFICATION COMPLETE ====')
 
