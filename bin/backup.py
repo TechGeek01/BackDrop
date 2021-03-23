@@ -935,6 +935,15 @@ class Backup:
                         }
 
                         self.do_del_fn(src, size, gui_options)
+
+                        # If file hash was in list, remove it, and write changes to file
+                        if file in self.file_hashes[drive].keys():
+                            del self.file_hashes[drive][file]
+
+                            drive_hash_file_path = os.path.join(drive, self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
+                            with open(drive_hash_file_path, 'wb') as f:
+                                hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
+                                pickle.dump(hash_list, f)
                 if cmd['mode'] == 'replace':
                     for drive, share, file, source_size, dest_size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
