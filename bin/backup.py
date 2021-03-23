@@ -183,7 +183,8 @@ class Backup:
             if os.path.isfile(drive_hash_file_path):
                 with open(drive_hash_file_path, 'rb') as f:
                     try:
-                        self.file_hashes[drive['name']] = pickle.load(f)
+                        hash_list = pickle.load(f)
+                        self.file_hashes[drive['name']] = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in hash_list.items()}
                     except Exception:
                         # Hash file is corrupt
                         bad_hash_files.append(drive_hash_file_path)
@@ -942,7 +943,8 @@ class Backup:
                         # Write updated hash file to drive
                         drive_hash_file_path = os.path.join(drive, self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
                         with open(drive_hash_file_path, 'wb') as f:
-                            pickle.dump(self.file_hashes[drive], f)
+                            hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
+                            pickle.dump(hash_list, f)
                 elif cmd['mode'] == 'copy':
                     for drive, share, file, size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
@@ -963,7 +965,8 @@ class Backup:
                         # Write updated hash file to drive
                         drive_hash_file_path = os.path.join(drive, self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
                         with open(drive_hash_file_path, 'wb') as f:
-                            pickle.dump(self.file_hashes[drive], f)
+                            hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
+                            pickle.dump(hash_list, f)
 
             if self.thread_manager.threadlist['Backup']['killFlag']:
                 if not self.config['cliMode']:
