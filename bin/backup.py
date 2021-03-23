@@ -181,13 +181,25 @@ class Backup:
             drive_hash_file_path = os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
 
             if os.path.isfile(drive_hash_file_path):
+                write_trimmed_changes = False
                 with open(drive_hash_file_path, 'rb') as f:
                     try:
                         hash_list = pickle.load(f)
-                        self.file_hashes[drive['name']] = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in hash_list.items()}
+                        new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in hash_list.items() if os.path.isfile(os.path.join(drive['name'], file_name))}
+
+                        # If trimmed list is shorter, new changes have to be written to the file
+                        if len(new_hash_list) < len(hash_list):
+                            write_trimmed_changes = True
+
+                        self.file_hashes[drive['name']] = new_hash_list
                     except Exception:
                         # Hash file is corrupt
                         bad_hash_files.append(drive_hash_file_path)
+
+                # If trimmed list is different length than original, write changes to file
+                if write_trimmed_changes:
+                    with open(drive_hash_file_path, 'wb') as f:
+                        pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in new_hash_list.items()}, f)
             else:
                 bad_hash_files.append(drive_hash_file_path)
 
