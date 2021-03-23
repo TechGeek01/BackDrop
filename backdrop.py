@@ -1401,7 +1401,24 @@ def verify_data_integrity(drive_list):
     if verify_all_files:
         print('Verifying all files is a work in progress')
     else:
-        print('Verifying files in hash list')
+        for drive in drive_list:
+            for file, saved_hash in hash_list[drive].items():
+                print('==== FILE HASH ====')
+                filename = os.path.join(drive, file)
+                print(filename)
+
+                computed_hash = get_file_hash(filename)
+
+                # If file has hash mismatch, delete the corrupted file
+                if saved_hash != computed_hash:
+                    if os.path.isfile(filename):
+                        os.remove(filename)
+                    elif os.path.isdir(filename):
+                        shutil.rmtree(filename)
+
+            print('==== HASH LIST ====')
+            print(drive)
+            print(len(hash_list[drive]))
 
     print('==== DATA VERIFICATION COMPLETE ====')
 
