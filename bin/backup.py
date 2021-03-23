@@ -553,11 +553,13 @@ class Backup:
 
                     # For each entry, either add filesize to the total, or recurse into the directory
                     if entry.is_file():
+                        file_stat = entry.stat()
+
                         if (stub_path.find(os.path.sep) == -1  # Files should not be on root of drive
                                 # or not os.path.isfile(source_path)  # File doesn't exist in source, so delete it
                                 or stub_path in exclusions  # File is excluded from drive
                                 or len(shares_to_process) == 0):  # File should only count if dir is share or child, not parent
-                            file_list['delete'].append((drive, stub_path, entry.stat().st_size))
+                            file_list['delete'].append((drive, stub_path, file_stat.st_size))
                             self.update_file_detail_list_fn('delete', entry.path)
                         else:  # File is in share on destination drive
                             target_share = max(shares_to_process, key=len)
@@ -567,13 +569,13 @@ class Backup:
                             source_path = os.path.join(share_path, path_slug)
 
                             if os.path.isfile(source_path):  # File exists on source
-                                if (entry.stat().st_mtime != os.path.getmtime(source_path)  # Existing file is older than source
-                                        or entry.stat().st_size != os.path.getsize(source_path)):  # Existing file is different size than source
+                                if (file_stat.st_mtime != os.path.getmtime(source_path)  # Existing file is older than source
+                                        or file_stat.st_size != os.path.getsize(source_path)):  # Existing file is different size than source
                                     # If existing dest file is not same time as source, it needs to be replaced
-                                    file_list['replace'].append((drive, target_share, path_slug, os.path.getsize(source_path), entry.stat().st_size))
+                                    file_list['replace'].append((drive, target_share, path_slug, os.path.getsize(source_path), file_stat.st_size))
                                     self.update_file_detail_list_fn('copy', entry.path)
                             else:  # File doesn't exist on source, so delete it
-                                file_list['delete'].append((drive, stub_path, entry.stat().st_size))
+                                file_list['delete'].append((drive, stub_path, file_stat.st_size))
                                 self.update_file_detail_list_fn('delete', entry.path)
                     elif entry.is_dir():
                         found_share = False
@@ -981,8 +983,8 @@ class Backup:
 
                         share_path = self.get_share_source_path(share)
 
-                        src = os.path.join(drive, share, file)
-                        dest = os.path.join(share_path, file)
+                        src = os.path.join(share_path, file)
+                        dest = os.path.join(drive, share, file)
 
                         gui_options = {
                             'displayIndex': cmd['displayIndex']
@@ -996,8 +998,8 @@ class Backup:
 
                         share_path = self.get_share_source_path(share)
 
-                        src = os.path.join(drive, share, file)
-                        dest = os.path.join(share_path, file)
+                        src = os.path.join(share_path, file)
+                        dest = os.path.join(drive, share, file)
 
                         gui_options = {
                             'displayIndex': cmd['displayIndex']

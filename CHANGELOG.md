@@ -1,7 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 3.1.0 - 2021-03-12
+## 3.0.2 - 2021-03-22
+### Fixed
+- Fixed broken file copy action when running backups
+
+## 3.0.1 - 2021-03-12
 ### Added
 - Linux now has a packaged version, and appropriate icons on the update screen
 
