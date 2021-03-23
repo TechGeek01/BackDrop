@@ -196,9 +196,6 @@ class Backup:
                 with open(file, 'wb') as f:
                     pickle.dump({}, f)
 
-        print('\n\n===== HASH LIST =====')
-        print(self.file_hashes)
-
         drive_info = []
         drive_share_list = {}
         master_drive_list = [drive for drive in self.config['drives']]
