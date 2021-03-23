@@ -61,6 +61,9 @@ class Backup:
         self.BACKUP_CONFIG_DIR = backup_config_dir
         self.BACKUP_CONFIG_FILE = backup_config_file
         self.BACKUP_HASH_FILE = 'hashes.pkl'
+
+        self.file_hashes = {drive['name']: {} for drive in self.config['drives']}
+
         self.uicolor = uicolor
         self.do_copy_fn = do_copy_fn
         self.do_del_fn = do_del_fn
@@ -170,6 +173,31 @@ class Backup:
             payload=[(share['dest_name'], human_filesize(share['size'])) for share in self.config['shares']],
             reset=True
         )
+
+        # Get hash list for all drives
+        bad_hash_files = []
+        self.file_hashes = {drive['name']: {} for drive in self.config['drives']}
+        for drive in self.config['drives']:
+            drive_hash_file_path = os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
+
+            if os.path.isfile(drive_hash_file_path):
+                with open(drive_hash_file_path, 'rb') as f:
+                    try:
+                        self.file_hashes[drive['name']] = pickle.load(f)
+                    except Exception:
+                        # Hash file is corrupt
+                        bad_hash_files.append(drive_hash_file_path)
+            else:
+                bad_hash_files.append(drive_hash_file_path)
+
+        # If there are missing or corrupted pickle files, write empty data
+        if bad_hash_files:
+            for file in bad_hash_files:
+                with open(file, 'wb') as f:
+                    pickle.dump({}, f)
+
+        print('\n\n===== HASH LIST =====')
+        print(self.file_hashes)
 
         drive_info = []
         drive_share_list = {}
@@ -911,7 +939,13 @@ class Backup:
                             'displayIndex': cmd['displayIndex']
                         }
 
-                        self.do_copy_fn(src, dest, gui_options)
+                        file_hashes = self.do_copy_fn(src, dest, drive, gui_options)
+                        self.file_hashes[drive].update(file_hashes)
+
+                        # Write updated hash file to drive
+                        drive_hash_file_path = os.path.join(drive, self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
+                        with open(drive_hash_file_path, 'wb') as f:
+                            pickle.dump(self.file_hashes[drive], f)
                 elif cmd['mode'] == 'copy':
                     for drive, share, file, size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
@@ -926,7 +960,13 @@ class Backup:
                             'displayIndex': cmd['displayIndex']
                         }
 
-                        self.do_copy_fn(src, dest, gui_options)
+                        file_hashes = self.do_copy_fn(src, dest, drive, gui_options)
+                        self.file_hashes[drive].update(file_hashes)
+
+                        # Write updated hash file to drive
+                        drive_hash_file_path = os.path.join(drive, self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
+                        with open(drive_hash_file_path, 'wb') as f:
+                            pickle.dump(self.file_hashes[drive], f)
 
             if self.thread_manager.threadlist['Backup']['killFlag']:
                 if not self.config['cliMode']:

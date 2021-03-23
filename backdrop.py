@@ -40,7 +40,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.0.2'
+APP_VERSION = '3.1.0-alpha.1'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
@@ -160,17 +160,22 @@ def do_delete(filename, size, gui_options={}):
 # differs from shutil.COPY_BUFSIZE on platforms != Windows
 READINTO_BUFSIZE = 1024 * 1024
 
-def copy_file(source_filename, dest_filename, callback, gui_options={}):
+def copy_file(source_filename, dest_filename, drive_path, callback, gui_options={}):
     """Copy a source binary file to a destination.
 
     Args:
         source_filename (String): The source to copy.
         dest_filename (String): The destination to copy to.
+        drive_path (String): The path of the destination drive to copy to.
         callback (def): The function to call on progress change.
         gui_options (obj): Options to handle GUI interaction (optional).
 
     Returns:
-        bool: True if file was copied and verified successfully, False otherwise.
+        tuple:
+            String: The destination drive the file was copied to.
+            String: The resulting file hash if the file was copied successfully.
+        None:
+            If the file failed to copy, returns None.
     """
 
     global file_detail_list
@@ -258,7 +263,10 @@ def copy_file(source_filename, dest_filename, callback, gui_options={}):
                 print(f"    Source: {h.hexdigest()}")
                 print(F"    Dest:   {dest_hash.hexdigest()}")
 
-        return h.hexdigest() == dest_hash.hexdigest()
+        if h.hexdigest() == dest_hash.hexdigest():
+            return (drive_path, dest_hash.hexdigest())
+        else:
+            return None
     else:
         # If file wasn't copied successfully, delete it
         if os.path.isfile(dest_filename):
@@ -266,7 +274,7 @@ def copy_file(source_filename, dest_filename, callback, gui_options={}):
         elif os.path.isdir(dest_filename):
             shutil.rmtree(dest_filename)
 
-        return False
+        return None
 
 def display_backup_progress(copied, total, gui_options):
     """Display the copy progress of a transfer
@@ -322,18 +330,27 @@ def display_backup_progress(copied, total, gui_options):
     if copied >= total:
         backup_totals['running'] += backup_totals['buffer']
 
-def do_copy(src, dest, gui_options={}):
+def do_copy(src, dest, drive_path, gui_options={}):
     """Copy a source to a destination.
 
     Args:
         src (String): The source to copy.
         dest (String): The destination to copy to.
+        drive_path (String): The path of the destination drive to copy to.
         gui_options (obj): Options to handle GUI interaction (optional).
+
+    Returns:
+        dict: A list of file hashes for each file copied
     """
+
+    new_hash_list = {}
 
     if os.path.isfile(src):
         if not thread_manager.threadlist['Backup']['killFlag']:
-            copy_file(src, dest, display_backup_progress, gui_options)
+            new_hash = copy_file(src, dest, drive_path, display_backup_progress, gui_options)
+            if new_hash is not None and dest.find(new_hash[0]) == 0:
+                file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
+                new_hash_list[file_path_stub] = new_hash[1]
     elif os.path.isdir(src):
         # Make dir if it doesn't exist
         if not os.path.exists(dest):
@@ -346,16 +363,23 @@ def do_copy(src, dest, gui_options={}):
 
                 filename = entry.path.split(os.path.sep)[-1]
                 if entry.is_file():
-                    copy_file(os.path.join(src, filename), os.path.join(dest, filename), display_backup_progress, gui_options)
+                    src_file = os.path.join(src, filename)
+                    dest_file = os.path.join(dest, filename)
+
+                    new_hash = copy_file(src_file, dest_file, drive_path, display_backup_progress, gui_options)
+                    if new_hash is not None and dest.find(new_hash[0]) == 0:
+                        file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
+                        new_hash_list[file_path_stub] = new_hash[1]
                 elif entry.is_dir():
-                    do_copy(os.path.join(src, filename), os.path.join(dest, filename))
+                    new_hash_list.update(do_copy(os.path.join(src, filename), os.path.join(dest, filename)))
 
             # Handle changing attributes of folders if we copy a new folder
             shutil.copymode(src, dest)
             shutil.copystat(src, dest)
         except Exception:
-            return False
-        return True
+            return {}
+
+    return new_hash_list
 
 def display_backup_summary_chunk(title, payload, reset=False):
     """Display a chunk of a backup analysis summary to the user.
