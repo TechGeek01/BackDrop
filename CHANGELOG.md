@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## 3.1.0 - TBD
 ### Fixed
 - Fixed division by zero when not copying any new files
+- Fixed crash on CLI mode when loading destination drives
 
 ## 3.0.2 - 2021-03-22
 ### Fixed

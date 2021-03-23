@@ -1007,8 +1007,8 @@ def load_dest():
         for drive in logical_drive_list:
             if drive != config['source_drive'] and drive != SYSTEM_DRIVE:
                 drive_type = win32file.GetDriveType(drive)
-                if ((prefs.get('selection', 'destination_local_drives', data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
-                        or (prefs.get('selection', 'destination_network_drives', data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
+                if ((prefs.get('selection', 'destination_local_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
+                        or (prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
                     try:
                         drive_size = shutil.disk_usage(drive).total
                         vsn = os.stat(drive).st_dev
@@ -1034,8 +1034,8 @@ def load_dest():
                     except FileNotFoundError:
                         pass
     elif platform.system() == 'Linux':
-        local_selected = settings_showDrives_dest_local.get()
-        network_selected = settings_showDrives_dest_network.get()
+        local_selected = prefs.get('selection', 'destination_local_drives', default=False, data_type=Config.BOOLEAN)
+        network_selected = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
 
         if network_selected and not local_selected:
             cmd = 'df -tcifs -tnfs --output=target'
