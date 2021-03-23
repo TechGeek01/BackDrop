@@ -14,6 +14,7 @@ import ctypes
 from signal import signal, SIGINT
 from datetime import datetime
 import re
+import pickle
 
 import clipboard
 import keyboard
@@ -1325,14 +1326,80 @@ def cleanup_handler(signal_received, frame):
 
     exit(0)
 
-def verify_data_integrity():
-    """Verify itegrity of files on destination drives by checking hashes."""
+def verify_data_integrity(drive_list):
+    """Verify itegrity of files on destination drives by checking hashes.
+
+    Args:
+        drive_list (String[]): A list of mount points for drives to check.
+    """
+
+    def get_file_hash(filename):
+        """Get the hash of a file.
+
+        Args:
+            filename (String): The file to get the hash of.
+
+        Returns:
+            String: The blake2b hash of the file if readable. None otherwise.
+        """
+
+        buffer_size = 1024 * 1024
+
+        # Optimize the buffer for small files
+        buffer_size = min(buffer_size, os.path.getsize(filename))
+        if buffer_size == 0:
+            buffer_size = 1024
+
+        h = hashlib.blake2b()
+        b = bytearray(buffer_size)
+        mv = memoryview(b)
+
+        with open(filename, 'rb', buffering=0) as f:
+            for n in iter(lambda: f.readinto(mv), 0):
+                h.update(mv[:n])
+
+        return h.hexdigest()
 
     print('==== DATA VERIFICATION STARTED ====')
 
+    # Get hash list for all drives
+    bad_hash_files = []
+    hash_list = {drive: {} for drive in drive_list}
+    for drive in drive_list:
+        drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
+
+        if os.path.isfile(drive_hash_file_path):
+            write_trimmed_changes = False
+            with open(drive_hash_file_path, 'rb') as f:
+                try:
+                    drive_hash_list = pickle.load(f)
+                    new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in drive_hash_list.items() if os.path.isfile(os.path.join(drive, file_name))}
+
+                    # If trimmed list is shorter, new changes have to be written to the file
+                    if len(new_hash_list) < len(drive_hash_list):
+                        write_trimmed_changes = True
+
+                    hash_list[drive] = new_hash_list
+                except Exception:
+                    # Hash file is corrupt
+                    bad_hash_files.append(drive_hash_file_path)
+
+            # If trimmed list is different length than original, write changes to file
+            if write_trimmed_changes:
+                with open(drive_hash_file_path, 'wb') as f:
+                    pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in new_hash_list.items()}, f)
+        else:
+            bad_hash_files.append(drive_hash_file_path)
+
+    # If there are missing or corrupted pickle files, write empty data
+    if bad_hash_files:
+        for file in bad_hash_files:
+            with open(file, 'wb') as f:
+                pickle.dump({}, f)
+
     verify_all_files = prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN)
     if verify_all_files:
-        print('Verifying all files')
+        print('Verifying all files is a work in progress')
     else:
         print('Verifying files in hash list')
 
@@ -1493,6 +1560,7 @@ elif platform.system() == 'Linux':
 # Set app defaults
 BACKUP_CONFIG_DIR = '.backdrop'
 BACKUP_CONFIG_FILE = 'backup.ini'
+BACKUP_HASH_FILE = 'hashes.pkl'
 PREFERENCES_CONFIG_FILE = 'preferences.ini'
 WINDOW_ELEMENT_PADDING = 16
 
@@ -1555,7 +1623,31 @@ if config['cliMode']:
         )
         update_handler.check()
     elif command_line.has_param('verify'):
-        verify_data_integrity()
+        drive_list = command_line.get_param('verify')
+
+        if not drive_list:
+            print('Please specify one or more drives to verify')
+            exit()
+
+        load_dest()
+        if len(dest_drive_master_list) <= 0:
+            print(f"{bcolor.FAIL}No destination drives are available{bcolor.ENDC}")
+            exit()
+        dest_drive_name_list = [drive['name'] for drive in dest_drive_master_list]
+
+        # If we're on Windows, normalize drive letter inputs
+        if platform.system() == 'Windows':
+            drive_list = [f"{drive[0].upper()}:" for drive in drive_list]
+
+        print(dest_drive_name_list)
+        print(drive_list)
+        print([drive for drive in drive_list if drive not in dest_drive_name_list])
+
+        if [drive for drive in drive_list if drive not in dest_drive_name_list]:
+            print('Please specify a valid drive mount point')
+            exit()
+
+        verify_data_integrity(drive_list)
     else:
         # Backup config mode
         # TODO: Remove CLI mode stability warning
@@ -2479,7 +2571,8 @@ def change_destination_type(toggle_type):
 def start_verify_data_from_hash_list():
     """Start data verification in a new thread"""
 
-    thread_manager.start(ThreadManager.SINGLE, target=verify_data_integrity, name='Data Verification', daemon=True)
+    drive_list = [drive['name'] for drive in config['drives']]
+    thread_manager.start(ThreadManager.SINGLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', daemon=True)
 
 ############
 # GUI Mode #
