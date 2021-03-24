@@ -1428,7 +1428,7 @@ def verify_data_integrity(drive_list):
                 try:
                     drive_hash_list = pickle.load(f)
                     new_hash_list = {file_name: hash_val for file_name, hash_val in drive_hash_list.items() if file_name.split('/')[0] not in special_ignore_list}
-                    new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in new_hash_list.items() if os.path.isfile(os.path.join(drive['name'], file_name))}
+                    new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in new_hash_list.items() if os.path.isfile(os.path.join(drive, file_name))}
 
                     # If trimmed list is shorter, new changes have to be written to the file
                     if len(new_hash_list) < len(drive_hash_list):
@@ -1477,7 +1477,7 @@ def verify_data_integrity(drive_list):
                     if file in hash_list[drive].keys():
                         del hash_list[drive][file]
                     with open(drive_hash_file_path, 'wb') as f:
-                        pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in new_hash_list.items()}, f)
+                        pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
 
     verification_running = False
     print('==== DATA VERIFICATION COMPLETE ====')
