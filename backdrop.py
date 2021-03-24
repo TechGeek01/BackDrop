@@ -651,7 +651,7 @@ def start_backup_analysis():
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    if (not backup or not backup.is_running()) and (config['cliMode'] or source_drive_list_valid):
+    if (not backup or not backup.is_running()) and not verification_running and (config['cliMode'] or source_drive_list_valid):
         # TODO: There has to be a better way to handle stopping and starting this split mode toggling
         if not config['cliMode']:
             split_mode_enabled = dest_mode_split_check_var.get()
@@ -1292,7 +1292,7 @@ def select_drive_in_background(event):
 def start_backup():
     """Start the backup in a new thread."""
 
-    if backup:
+    if backup and not verification_running:
         thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
 force_non_graceful_cleanup = False
@@ -1326,12 +1326,15 @@ def cleanup_handler(signal_received, frame):
 
     exit(0)
 
+verification_running = False
 def verify_data_integrity(drive_list):
     """Verify itegrity of files on destination drives by checking hashes.
 
     Args:
         drive_list (String[]): A list of mount points for drives to check.
     """
+
+    global verification_running
 
     def get_file_hash(filename):
         """Get the hash of a file.
@@ -1410,6 +1413,7 @@ def verify_data_integrity(drive_list):
 
     # URGENT: Find a way to display or export a list of files that failed verification
     print('==== DATA VERIFICATION STARTED ====')
+    verification_running = True
 
     # Get hash list for all drives
     bad_hash_files = []
@@ -1475,6 +1479,7 @@ def verify_data_integrity(drive_list):
                     with open(drive_hash_file_path, 'wb') as f:
                         pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in new_hash_list.items()}, f)
 
+    verification_running = False
     print('==== DATA VERIFICATION COMPLETE ====')
 
 update_window = None
@@ -2643,8 +2648,9 @@ def change_destination_type(toggle_type):
 def start_verify_data_from_hash_list():
     """Start data verification in a new thread"""
 
-    drive_list = [drive['name'] for drive in config['drives']]
-    thread_manager.start(ThreadManager.SINGLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', daemon=True)
+    if not backup or not backup.is_running():
+        drive_list = [drive['name'] for drive in config['drives']]
+        thread_manager.start(ThreadManager.SINGLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', daemon=True)
 
 ############
 # GUI Mode #
