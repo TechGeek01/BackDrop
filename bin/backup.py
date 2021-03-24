@@ -1010,7 +1010,7 @@ class Backup:
 
         if not self.config['cliMode']:
             self.update_ui_component_fn(Status.UPDATEUI_START_BACKUP_BTN)
-            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_IDLE)
+            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.IDLE)
 
         self.backup_running = False
 

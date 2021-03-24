@@ -660,6 +660,8 @@ def start_backup_analysis():
             split_mode_status.configure(text=f"Split mode\n{split_mode_text}", fg=split_mode_color)
 
         reset_ui()
+        statusbar_counter.configure(text='')
+        statusbar_details.configure(text='')
 
         if not config['cliMode']:
             backup = Backup(
@@ -1293,6 +1295,8 @@ def start_backup():
     """Start the backup in a new thread."""
 
     if backup and not verification_running:
+        statusbar_counter.configure(text='')
+        statusbar_details.configure(text='')
         thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
 force_non_graceful_cleanup = False
@@ -1327,6 +1331,7 @@ def cleanup_handler(signal_received, frame):
     exit(0)
 
 verification_running = False
+verification_failed_list = []
 def verify_data_integrity(drive_list):
     """Verify itegrity of files on destination drives by checking hashes.
 
@@ -1335,6 +1340,7 @@ def verify_data_integrity(drive_list):
     """
 
     global verification_running
+    global verification_failed_list
 
     def get_file_hash(filename):
         """Get the hash of a file.
@@ -1377,7 +1383,10 @@ def verify_data_integrity(drive_list):
                 path_stub = entry.path.split(drive)[1].strip(os.path.sep)
                 if entry.is_file():
                     # If entry is a file, hash it, and check for a computed hash
-                    print(entry.path)
+                    if not config['cliMode']:
+                        statusbar_details.configure(text=entry.path)
+                    else:
+                        print(entry.path)
 
                     file_hash = get_file_hash(entry.path)
 
@@ -1388,11 +1397,17 @@ def verify_data_integrity(drive_list):
                         if file_hash != saved_hash:
                             # Computed hash different from saved, so delete
                             # corrupted file
-                            print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
                             if os.path.isfile(entry.path):
                                 os.remove(entry.path)
                             elif os.path.isdir(entry.path):
                                 shutil.rmtree(entry.path)
+
+                            # Update UI counter
+                            verification_failed_list.append(entry.path)
+                            if not config['cliMode']:
+                                statusbar_counter.configure(text=f"{len(verification_failed_list)} failed", fg=uicolor.DANGER)
+                            else:
+                                print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
 
                             # Also delete the saved hash
                             if path_stub in hash_list[drive].keys():
@@ -1412,8 +1427,15 @@ def verify_data_integrity(drive_list):
             pass
 
     # URGENT: Find a way to display or export a list of files that failed verification
-    print('==== DATA VERIFICATION STARTED ====')
+    if not config['cliMode']:
+        update_status_bar_action(Status.VERIFICATION_RUNNING)
+        progress.start_indeterminate()
+        statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
+        statusbar_details.configure(text='')
+    else:
+        print('==== DATA VERIFICATION STARTED ====')
     verification_running = True
+    verification_failed_list = []
 
     # Get hash list for all drives
     bad_hash_files = []
@@ -1462,16 +1484,25 @@ def verify_data_integrity(drive_list):
             drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
             for file, saved_hash in hash_list[drive].items():
                 filename = os.path.join(drive, file)
-                print(filename)
+                if not config['cliMode']:
+                    statusbar_details.configure(text=filename)
+                else:
+                    print(filename)
                 computed_hash = get_file_hash(filename)
 
                 # If file has hash mismatch, delete the corrupted file
                 if saved_hash != computed_hash:
-                    print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
                     if os.path.isfile(filename):
                         os.remove(filename)
                     elif os.path.isdir(filename):
                         shutil.rmtree(filename)
+
+                    # Update UI counter
+                    verification_failed_list.append(filename)
+                    if not config['cliMode']:
+                        statusbar_counter.configure(text=f"{len(verification_failed_list)} failed", fg=uicolor.DANGER)
+                    else:
+                        print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
 
                     # Delete the saved hash, and write changes to the hash file
                     if file in hash_list[drive].keys():
@@ -1480,7 +1511,11 @@ def verify_data_integrity(drive_list):
                         pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
 
     verification_running = False
-    print('==== DATA VERIFICATION COMPLETE ====')
+    if not config['cliMode']:
+        progress.stop_indeterminate()
+        update_status_bar_action(Status.IDLE)
+    else:
+        print('==== DATA VERIFICATION COMPLETE ====')
 
 update_window = None
 
@@ -2040,24 +2075,26 @@ def update_status_bar_selection(status=None):
     elif status == Status.BACKUPSELECT_ANALYSIS_WAITING:
         statusbar_selection.configure(text='Selection OK, ready for analysis')
 
-def update_status_bar_backup(status):
-    """Update the status bar backup status.
+def update_status_bar_action(status):
+    """Update the status bar action status.
 
     Args:
         status (int): The status code to use.
     """
 
-    if status == Status.BACKUP_IDLE:
-        statusbar_backup.configure(text='Idle')
+    if status == Status.IDLE:
+        statusbar_action.configure(text='Idle')
     elif status == Status.BACKUP_ANALYSIS_RUNNING:
-        statusbar_backup.configure(text='Analysis running')
+        statusbar_action.configure(text='Analysis running')
     elif status == Status.BACKUP_READY_FOR_BACKUP:
-        statusbar_backup.configure(text='Analysis finished, ready for backup')
+        statusbar_action.configure(text='Analysis finished, ready for backup')
         backup_eta_label.configure(text='Analysis finished, ready for backup', fg=uicolor.NORMAL)
     elif status == Status.BACKUP_BACKUP_RUNNING:
-        statusbar_backup.configure(text='Backup running')
+        statusbar_action.configure(text='Backup running')
     elif status == Status.BACKUP_HALT_REQUESTED:
-        statusbar_backup.configure(text='Stopping backup')
+        statusbar_action.configure(text='Stopping backup')
+    elif status == Status.VERIFICATION_RUNNING:
+        statusbar_action.configure(text='Data verification running')
 
 def update_status_bar_update(status):
     """Update the status bar update message.
@@ -2086,12 +2123,12 @@ def update_ui_component(status, data=None):
     elif status == Status.UPDATEUI_BACKUP_BTN:
         start_backup_btn.configure(**data)
     elif status == Status.UPDATEUI_START_BACKUP_BTN:
-        update_status_bar_backup(Status.BACKUP_HALT_REQUESTED)
+        update_status_bar_action(Status.BACKUP_HALT_REQUESTED)
         start_backup_btn.configure(text='Run Backup', command=start_backup, style='win.TButton')
     elif status == Status.UPDATEUI_STOP_BACKUP_BTN:
         start_backup_btn.configure(text='Halt Backup', command=lambda: thread_manager.kill('Backup'), style='danger.TButton')
     elif status == Status.UPDATEUI_STATUS_BAR:
-        update_status_bar_backup(data)
+        update_status_bar_action(data)
 
 def open_config_file():
     """Open a config file and load it."""
@@ -2650,7 +2687,7 @@ def start_verify_data_from_hash_list():
 
     if not backup or not backup.is_running():
         drive_list = [drive['name'] for drive in config['drives']]
-        thread_manager.start(ThreadManager.SINGLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', daemon=True)
+        thread_manager.start(ThreadManager.SINGLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
 ############
 # GUI Mode #
@@ -2737,9 +2774,13 @@ if not config['cliMode']:
     statusbar_selection = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
     statusbar_selection.grid(row=0, column=0, padx=6)
     update_status_bar_selection()
-    statusbar_backup = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
-    statusbar_backup.grid(row=0, column=1, padx=6)
-    update_status_bar_backup(Status.BACKUP_IDLE)
+    statusbar_action = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
+    statusbar_action.grid(row=0, column=1, padx=6)
+    update_status_bar_action(Status.IDLE)
+    statusbar_counter = tk.Label(statusbar_frame, text='0 failed', fg=uicolor.FADED, bg=uicolor.STATUS_BAR)
+    statusbar_counter.grid(row=0, column=2, padx=6)
+    statusbar_details = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
+    statusbar_details.grid(row=0, column=3, padx=6)
 
     # Update status, right side
     statusbar_update = tk.Label(statusbar_frame, text='', bg=uicolor.STATUS_BAR)
