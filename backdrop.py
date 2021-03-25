@@ -2610,7 +2610,9 @@ def change_source_mode():
         tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
         tree_source['displaycolumns'] = ('size')
 
-        WINDOW_WIDTH -= WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+        WINDOW_WIDTH = WINDOW_BASE_WIDTH
+        if bool(backup_file_details_frame.grid_info()):
+            WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
         root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
 
         # Unbind right click menu
@@ -2621,7 +2623,9 @@ def change_source_mode():
 
         config['source_mode'] == SOURCE_MODE_SINGLE
     elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
-        WINDOW_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+        WINDOW_WIDTH = WINDOW_BASE_WIDTH + WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+        if bool(backup_file_details_frame.grid_info()):
+            WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
         root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
 
         tree_source.heading('#0', text='Drive')
@@ -2722,7 +2726,9 @@ if not config['cliMode']:
 
         return os.path.join(base_path, relative_path)
 
+    WINDOW_BASE_WIDTH = 1200
     WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
+    WINDOW_FILE_DETAILS_EXTRA_WIDTH = 400 + WINDOW_ELEMENT_PADDING
     MULTI_SOURCE_TEXT_COL_WIDTH = 120 if platform.system() == 'Windows' else 200
     MULTI_SOURCE_NAME_COL_WIDTH = 220 if platform.system() == 'Windows' else 140
     SINGLE_SOURCE_TEXT_COL_WIDTH = 170
@@ -2731,7 +2737,7 @@ if not config['cliMode']:
     root = tk.Tk()
     root.title('BackDrop - Network Drive Backup Tool')
     root.resizable(False, False)
-    WINDOW_WIDTH = 1200
+    WINDOW_WIDTH = WINDOW_BASE_WIDTH
     if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_MULTI:
         WINDOW_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
     WINDOW_HEIGHT = 720
@@ -3244,11 +3250,11 @@ if not config['cliMode']:
         # FIXME: Is fixing the flicker effect here possible?
         if bool(backup_file_details_frame.grid_info()):
             backup_file_details_frame.grid_remove()
-            WINDOW_WIDTH -= 400 + WINDOW_ELEMENT_PADDING
-            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X + 400 + WINDOW_ELEMENT_PADDING}+{POS_Y}')
+            WINDOW_WIDTH -= WINDOW_FILE_DETAILS_EXTRA_WIDTH
+            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X + WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
         else:
-            WINDOW_WIDTH += 400 + WINDOW_ELEMENT_PADDING
-            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X - 400 - WINDOW_ELEMENT_PADDING}+{POS_Y}')
+            WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
+            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X - WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
             backup_file_details_frame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
     show_file_details_pane = tk.BooleanVar()
