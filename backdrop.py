@@ -759,7 +759,7 @@ def load_source():
             share_selected_space.configure(text='None', fg=uicolor.FADED)
             share_total_space.configure(text='~None', fg=uicolor.FADED)
 
-        selected_source_mode = prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
+        selected_source_mode = prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
 
         if selected_source_mode == SOURCE_MODE_SINGLE:
             config['source_drive'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
@@ -1165,7 +1165,7 @@ def get_share_path_from_name(share):
         String: The path name for the share.
     """
 
-    if prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE:
+    if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE:
         # Single source mode, so source is source drive
         return os.path.join(config['source_drive'], share)
     else:
@@ -1679,7 +1679,7 @@ WINDOW_ELEMENT_PADDING = 16
 prefs = Config(os.path.join(APPDATA_FOLDER, PREFERENCES_CONFIG_FILE))
 config = {
     'source_drive': None,
-    'source_mode': prefs.get('source', 'mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS),
+    'source_mode': prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS),
     'splitMode': False,
     'shares': [],
     'drives': [],
@@ -1780,7 +1780,7 @@ if config['cliMode']:
         dest_drive_name_list = [drive['name'] for drive in dest_drive_master_list]
 
         # Source drive
-        if prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE:
+        if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE:
             if command_line.has_param('interactive'):
                 source_drive = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
             else:
@@ -1912,7 +1912,7 @@ if config['cliMode']:
             config['splitMode'] = split_mode
 
         # Shares
-        source_select_mode = prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
+        source_select_mode = prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
         if command_line.has_param('interactive'):
             if source_select_mode == SOURCE_MODE_SINGLE:
                 all_share_name_list = [share for share in next(os.walk(config['source_drive']))[1]]
@@ -2599,7 +2599,7 @@ def change_source_mode():
     global source_right_click_bind
     global WINDOW_WIDTH
 
-    prefs.set('source', 'mode', settings_sourceMode.get())
+    prefs.set('selection', 'source_mode', settings_sourceMode.get())
     root_geom = root.geometry().split('+')
     POS_X = int(root_geom[1])
     POS_Y = int(root_geom[2])
@@ -2732,7 +2732,7 @@ if not config['cliMode']:
     root.title('BackDrop - Network Drive Backup Tool')
     root.resizable(False, False)
     WINDOW_WIDTH = 1200
-    if prefs.get('source', 'mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_MULTI:
+    if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_MULTI:
         WINDOW_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
     WINDOW_HEIGHT = 720
     root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}')
@@ -2884,7 +2884,7 @@ if not config['cliMode']:
     selection_dest_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL), selectcolor=uicolor.FG)
     selection_menu.add_cascade(label='Destination Type', menu=selection_dest_select_menu)
     selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0)
-    settings_sourceMode = tk.StringVar(value=prefs.get('source', 'mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE))
+    settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE))
     selection_source_mode_menu.add_checkbutton(label='Single source, select folders', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_source_mode_menu.add_checkbutton(label='Show all, select sources', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_menu.add_separator()
