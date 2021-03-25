@@ -660,7 +660,7 @@ def start_backup_analysis():
             split_mode_status.configure(text=f"Split mode\n{split_mode_text}", fg=split_mode_color)
 
         reset_ui()
-        statusbar_counter.configure(text='')
+        statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
         statusbar_details.configure(text='')
 
         if not config['cliMode']:
@@ -1295,7 +1295,7 @@ def start_backup():
     """Start the backup in a new thread."""
 
     if backup and not verification_running:
-        statusbar_counter.configure(text='')
+        statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
         statusbar_details.configure(text='')
         thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
