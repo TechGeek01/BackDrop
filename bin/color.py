@@ -89,6 +89,8 @@ class Color:
         Color.ENABLED = Color.GREEN
         Color.DISABLED = Color.RED
 
+        Color.DANGER = Color.RED
+
         Color.FINISHED = Color.GREEN
         Color.RUNNING = Color.BLUE
         Color.STOPPED = Color.RED

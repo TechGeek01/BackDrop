@@ -14,6 +14,7 @@ import ctypes
 from signal import signal, SIGINT
 from datetime import datetime
 import re
+import pickle
 
 import clipboard
 import keyboard
@@ -40,7 +41,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.0.3.beta.1'
+APP_VERSION = '3.1.0-alpha.1'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
@@ -160,17 +161,22 @@ def do_delete(filename, size, gui_options={}):
 # differs from shutil.COPY_BUFSIZE on platforms != Windows
 READINTO_BUFSIZE = 1024 * 1024
 
-def copy_file(source_filename, dest_filename, callback, gui_options={}):
+def copy_file(source_filename, dest_filename, drive_path, callback, gui_options={}):
     """Copy a source binary file to a destination.
 
     Args:
         source_filename (String): The source to copy.
         dest_filename (String): The destination to copy to.
+        drive_path (String): The path of the destination drive to copy to.
         callback (def): The function to call on progress change.
         gui_options (obj): Options to handle GUI interaction (optional).
 
     Returns:
-        bool: True if file was copied and verified successfully, False otherwise.
+        tuple:
+            String: The destination drive the file was copied to.
+            String: The resulting file hash if the file was copied successfully.
+        None:
+            If the file failed to copy, returns None.
     """
 
     global file_detail_list
@@ -258,7 +264,10 @@ def copy_file(source_filename, dest_filename, callback, gui_options={}):
                 print(f"    Source: {h.hexdigest()}")
                 print(F"    Dest:   {dest_hash.hexdigest()}")
 
-        return h.hexdigest() == dest_hash.hexdigest()
+        if h.hexdigest() == dest_hash.hexdigest():
+            return (drive_path, dest_hash.hexdigest())
+        else:
+            return None
     else:
         # If file wasn't copied successfully, delete it
         if os.path.isfile(dest_filename):
@@ -266,7 +275,7 @@ def copy_file(source_filename, dest_filename, callback, gui_options={}):
         elif os.path.isdir(dest_filename):
             shutil.rmtree(dest_filename)
 
-        return False
+        return None
 
 def display_backup_progress(copied, total, gui_options):
     """Display the copy progress of a transfer
@@ -322,18 +331,27 @@ def display_backup_progress(copied, total, gui_options):
     if copied >= total:
         backup_totals['running'] += backup_totals['buffer']
 
-def do_copy(src, dest, gui_options={}):
+def do_copy(src, dest, drive_path, gui_options={}):
     """Copy a source to a destination.
 
     Args:
         src (String): The source to copy.
         dest (String): The destination to copy to.
+        drive_path (String): The path of the destination drive to copy to.
         gui_options (obj): Options to handle GUI interaction (optional).
+
+    Returns:
+        dict: A list of file hashes for each file copied
     """
+
+    new_hash_list = {}
 
     if os.path.isfile(src):
         if not thread_manager.threadlist['Backup']['killFlag']:
-            copy_file(src, dest, display_backup_progress, gui_options)
+            new_hash = copy_file(src, dest, drive_path, display_backup_progress, gui_options)
+            if new_hash is not None and dest.find(new_hash[0]) == 0:
+                file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
+                new_hash_list[file_path_stub] = new_hash[1]
     elif os.path.isdir(src):
         # Make dir if it doesn't exist
         if not os.path.exists(dest):
@@ -346,16 +364,23 @@ def do_copy(src, dest, gui_options={}):
 
                 filename = entry.path.split(os.path.sep)[-1]
                 if entry.is_file():
-                    copy_file(os.path.join(src, filename), os.path.join(dest, filename), display_backup_progress, gui_options)
+                    src_file = os.path.join(src, filename)
+                    dest_file = os.path.join(dest, filename)
+
+                    new_hash = copy_file(src_file, dest_file, drive_path, display_backup_progress, gui_options)
+                    if new_hash is not None and dest.find(new_hash[0]) == 0:
+                        file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
+                        new_hash_list[file_path_stub] = new_hash[1]
                 elif entry.is_dir():
-                    do_copy(os.path.join(src, filename), os.path.join(dest, filename))
+                    new_hash_list.update(do_copy(os.path.join(src, filename), os.path.join(dest, filename)))
 
             # Handle changing attributes of folders if we copy a new folder
             shutil.copymode(src, dest)
             shutil.copystat(src, dest)
         except Exception:
-            return False
-        return True
+            return {}
+
+    return new_hash_list
 
 def display_backup_summary_chunk(title, payload, reset=False):
     """Display a chunk of a backup analysis summary to the user.
@@ -626,7 +651,7 @@ def start_backup_analysis():
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    if (not backup or not backup.is_running()) and (config['cliMode'] or source_drive_list_valid):
+    if (not backup or not backup.is_running()) and not verification_running and (config['cliMode'] or source_drive_list_valid):
         # TODO: There has to be a better way to handle stopping and starting this split mode toggling
         if not config['cliMode']:
             split_mode_enabled = dest_mode_split_check_var.get()
@@ -635,6 +660,8 @@ def start_backup_analysis():
             split_mode_status.configure(text=f"Split mode\n{split_mode_text}", fg=split_mode_color)
 
         reset_ui()
+        statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
+        statusbar_details.configure(text='')
 
         if not config['cliMode']:
             backup = Backup(
@@ -983,8 +1010,8 @@ def load_dest():
         for drive in logical_drive_list:
             if drive != config['source_drive'] and drive != SYSTEM_DRIVE:
                 drive_type = win32file.GetDriveType(drive)
-                if ((prefs.get('selection', 'destination_local_drives', data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
-                        or (prefs.get('selection', 'destination_network_drives', data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
+                if ((prefs.get('selection', 'destination_local_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
+                        or (prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
                     try:
                         drive_size = shutil.disk_usage(drive).total
                         vsn = os.stat(drive).st_dev
@@ -1010,8 +1037,8 @@ def load_dest():
                     except FileNotFoundError:
                         pass
     elif platform.system() == 'Linux':
-        local_selected = settings_showDrives_dest_local.get()
-        network_selected = settings_showDrives_dest_network.get()
+        local_selected = prefs.get('selection', 'destination_local_drives', default=False, data_type=Config.BOOLEAN)
+        network_selected = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
 
         if network_selected and not local_selected:
             cmd = 'df -tcifs -tnfs --output=target'
@@ -1267,7 +1294,9 @@ def select_drive_in_background(event):
 def start_backup():
     """Start the backup in a new thread."""
 
-    if backup:
+    if backup and not verification_running:
+        statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
+        statusbar_details.configure(text='')
         thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
 force_non_graceful_cleanup = False
@@ -1300,6 +1329,193 @@ def cleanup_handler(signal_received, frame):
         print(f"{bcolor.FAIL}SIGINT or Ctrl-C detected. Force closing...{bcolor.ENDC}")
 
     exit(0)
+
+verification_running = False
+verification_failed_list = []
+def verify_data_integrity(drive_list):
+    """Verify itegrity of files on destination drives by checking hashes.
+
+    Args:
+        drive_list (String[]): A list of mount points for drives to check.
+    """
+
+    global verification_running
+    global verification_failed_list
+
+    def get_file_hash(filename):
+        """Get the hash of a file.
+
+        Args:
+            filename (String): The file to get the hash of.
+
+        Returns:
+            String: The blake2b hash of the file if readable. None otherwise.
+        """
+
+        buffer_size = 1024 * 1024
+
+        # Optimize the buffer for small files
+        buffer_size = min(buffer_size, os.path.getsize(filename))
+        if buffer_size == 0:
+            buffer_size = 1024
+
+        h = hashlib.blake2b()
+        b = bytearray(buffer_size)
+        mv = memoryview(b)
+
+        with open(filename, 'rb', buffering=0) as f:
+            for n in iter(lambda: f.readinto(mv), 0):
+                h.update(mv[:n])
+
+        return h.hexdigest()
+
+    def recurse_for_hash(path, drive, hash_file_path):
+        """Recurse a given path and check hashes.
+
+        Args:
+            path (String): The path to check.
+            drive (String): The mountpoint of the drive.
+            hash_file_path (String): The path to the hash file.
+        """
+
+        try:
+            for entry in os.scandir(path):
+                path_stub = entry.path.split(drive)[1].strip(os.path.sep)
+                if entry.is_file():
+                    # If entry is a file, hash it, and check for a computed hash
+                    if not config['cliMode']:
+                        statusbar_details.configure(text=entry.path)
+                    else:
+                        print(entry.path)
+
+                    file_hash = get_file_hash(entry.path)
+
+                    if path_stub in hash_list[drive].keys():
+                        # Hash saved, so check integrity against saved file
+                        saved_hash = hash_list[drive][path_stub]
+
+                        if file_hash != saved_hash:
+                            # Computed hash different from saved, so delete
+                            # corrupted file
+                            if os.path.isfile(entry.path):
+                                os.remove(entry.path)
+                            elif os.path.isdir(entry.path):
+                                shutil.rmtree(entry.path)
+
+                            # Update UI counter
+                            verification_failed_list.append(entry.path)
+                            if not config['cliMode']:
+                                statusbar_counter.configure(text=f"{len(verification_failed_list)} failed", fg=uicolor.DANGER)
+                            else:
+                                print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
+
+                            # Also delete the saved hash
+                            if path_stub in hash_list[drive].keys():
+                                del hash_list[drive][path_stub]
+                            with open(drive_hash_file_path, 'wb') as f:
+                                pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+                    else:
+                        # Hash not saved, so store it
+                        hash_list[drive][path_stub] = file_hash
+                        with open(drive_hash_file_path, 'wb') as f:
+                            pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+                elif entry.is_dir():
+                    # If entry is path, recurse into it
+                    if path_stub not in special_ignore_list:
+                        recurse_for_hash(entry.path, drive, hash_file_path)
+        except Exception:
+            pass
+
+    # URGENT: Find a way to display or export a list of files that failed verification
+    if not config['cliMode']:
+        update_status_bar_action(Status.VERIFICATION_RUNNING)
+        progress.start_indeterminate()
+        statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
+        statusbar_details.configure(text='')
+    else:
+        print('==== DATA VERIFICATION STARTED ====')
+    verification_running = True
+    verification_failed_list = []
+
+    # Get hash list for all drives
+    bad_hash_files = []
+    hash_list = {drive: {} for drive in drive_list}
+    special_ignore_list = [BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
+    for drive in drive_list:
+        drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
+
+        if os.path.isfile(drive_hash_file_path):
+            write_trimmed_changes = False
+            with open(drive_hash_file_path, 'rb') as f:
+                try:
+                    drive_hash_list = pickle.load(f)
+                    new_hash_list = {file_name: hash_val for file_name, hash_val in drive_hash_list.items() if file_name.split('/')[0] not in special_ignore_list}
+                    new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in new_hash_list.items() if os.path.isfile(os.path.join(drive, file_name))}
+
+                    # If trimmed list is shorter, new changes have to be written to the file
+                    if len(new_hash_list) < len(drive_hash_list):
+                        write_trimmed_changes = True
+
+                    hash_list[drive] = new_hash_list
+                except Exception:
+                    # Hash file is corrupt
+                    bad_hash_files.append(drive_hash_file_path)
+
+            # If trimmed list is different length than original, write changes to file
+            if write_trimmed_changes:
+                with open(drive_hash_file_path, 'wb') as f:
+                    pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+        else:
+            bad_hash_files.append(drive_hash_file_path)
+
+    # If there are missing or corrupted pickle files, write empty data
+    if bad_hash_files:
+        for file in bad_hash_files:
+            with open(file, 'wb') as f:
+                pickle.dump({}, f)
+
+    verify_all_files = prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN)
+    if verify_all_files:
+        for drive in drive_list:
+            drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
+            recurse_for_hash(drive, drive, drive_hash_file_path)
+    else:
+        for drive in drive_list:
+            drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
+            for file, saved_hash in hash_list[drive].items():
+                filename = os.path.join(drive, file)
+                if not config['cliMode']:
+                    statusbar_details.configure(text=filename)
+                else:
+                    print(filename)
+                computed_hash = get_file_hash(filename)
+
+                # If file has hash mismatch, delete the corrupted file
+                if saved_hash != computed_hash:
+                    if os.path.isfile(filename):
+                        os.remove(filename)
+                    elif os.path.isdir(filename):
+                        shutil.rmtree(filename)
+
+                    # Update UI counter
+                    verification_failed_list.append(filename)
+                    if not config['cliMode']:
+                        statusbar_counter.configure(text=f"{len(verification_failed_list)} failed", fg=uicolor.DANGER)
+                    else:
+                        print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
+
+                    # Delete the saved hash, and write changes to the hash file
+                    if file in hash_list[drive].keys():
+                        del hash_list[drive][file]
+                    with open(drive_hash_file_path, 'wb') as f:
+                        pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+
+    verification_running = False
+    if not config['cliMode']:
+        progress.stop_indeterminate()
+        update_status_bar_action(Status.IDLE)
+    else:
+        print('==== DATA VERIFICATION COMPLETE ====')
 
 update_window = None
 
@@ -1456,6 +1672,7 @@ elif platform.system() == 'Linux':
 # Set app defaults
 BACKUP_CONFIG_DIR = '.backdrop'
 BACKUP_CONFIG_FILE = 'backup.ini'
+BACKUP_HASH_FILE = 'hashes.pkl'
 PREFERENCES_CONFIG_FILE = 'preferences.ini'
 WINDOW_ELEMENT_PADDING = 16
 
@@ -1497,6 +1714,7 @@ if config['cliMode']:
             ('-l', '--load-config', 1, 'Load config file from a drive instead of specifying backup configuration.'),
             ('-m', '--split-mode', 0, 'Run in split mode if not all destination drives are connected.'),
             ('-U', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
+            ('-V', '--verify', 1, 'Verify data integrity on selected destination drives.'),
             '',
             ('-h', '--help', 0, 'Display this help menu.'),
             ('-v', '--version', 0, 'Display the program version.'),
@@ -1516,6 +1734,32 @@ if config['cliMode']:
             update_callback=check_for_updates
         )
         update_handler.check()
+    elif command_line.has_param('verify'):
+        drive_list = command_line.get_param('verify')
+
+        if not drive_list:
+            print('Please specify one or more drives to verify')
+            exit()
+
+        load_dest()
+        if len(dest_drive_master_list) <= 0:
+            print(f"{bcolor.FAIL}No destination drives are available{bcolor.ENDC}")
+            exit()
+        dest_drive_name_list = [drive['name'] for drive in dest_drive_master_list]
+
+        # If we're on Windows, normalize drive letter inputs
+        if platform.system() == 'Windows':
+            drive_list = [f"{drive[0].upper()}:" for drive in drive_list]
+
+        print(dest_drive_name_list)
+        print(drive_list)
+        print([drive for drive in drive_list if drive not in dest_drive_name_list])
+
+        if [drive for drive in drive_list if drive not in dest_drive_name_list]:
+            print('Please specify a valid drive mount point')
+            exit()
+
+        verify_data_integrity(drive_list)
     else:
         # Backup config mode
         # TODO: Remove CLI mode stability warning
@@ -1831,24 +2075,26 @@ def update_status_bar_selection(status=None):
     elif status == Status.BACKUPSELECT_ANALYSIS_WAITING:
         statusbar_selection.configure(text='Selection OK, ready for analysis')
 
-def update_status_bar_backup(status):
-    """Update the status bar backup status.
+def update_status_bar_action(status):
+    """Update the status bar action status.
 
     Args:
         status (int): The status code to use.
     """
 
-    if status == Status.BACKUP_IDLE:
-        statusbar_backup.configure(text='Idle')
+    if status == Status.IDLE:
+        statusbar_action.configure(text='Idle')
     elif status == Status.BACKUP_ANALYSIS_RUNNING:
-        statusbar_backup.configure(text='Analysis running')
+        statusbar_action.configure(text='Analysis running')
     elif status == Status.BACKUP_READY_FOR_BACKUP:
-        statusbar_backup.configure(text='Analysis finished, ready for backup')
+        statusbar_action.configure(text='Analysis finished, ready for backup')
         backup_eta_label.configure(text='Analysis finished, ready for backup', fg=uicolor.NORMAL)
     elif status == Status.BACKUP_BACKUP_RUNNING:
-        statusbar_backup.configure(text='Backup running')
+        statusbar_action.configure(text='Backup running')
     elif status == Status.BACKUP_HALT_REQUESTED:
-        statusbar_backup.configure(text='Stopping backup')
+        statusbar_action.configure(text='Stopping backup')
+    elif status == Status.VERIFICATION_RUNNING:
+        statusbar_action.configure(text='Data verification running')
 
 def update_status_bar_update(status):
     """Update the status bar update message.
@@ -1877,12 +2123,12 @@ def update_ui_component(status, data=None):
     elif status == Status.UPDATEUI_BACKUP_BTN:
         start_backup_btn.configure(**data)
     elif status == Status.UPDATEUI_START_BACKUP_BTN:
-        update_status_bar_backup(Status.BACKUP_HALT_REQUESTED)
+        update_status_bar_action(Status.BACKUP_HALT_REQUESTED)
         start_backup_btn.configure(text='Run Backup', command=start_backup, style='win.TButton')
     elif status == Status.UPDATEUI_STOP_BACKUP_BTN:
         start_backup_btn.configure(text='Halt Backup', command=lambda: thread_manager.kill('Backup'), style='danger.TButton')
     elif status == Status.UPDATEUI_STATUS_BAR:
-        update_status_bar_backup(data)
+        update_status_bar_action(data)
 
 def open_config_file():
     """Open a config file and load it."""
@@ -2436,6 +2682,13 @@ def change_destination_type(toggle_type):
 
     load_dest_in_background()
 
+def start_verify_data_from_hash_list():
+    """Start data verification in a new thread"""
+
+    if not backup or not backup.is_running():
+        drive_list = [drive['name'] for drive in config['drives']]
+        thread_manager.start(ThreadManager.SINGLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
+
 ############
 # GUI Mode #
 ############
@@ -2521,9 +2774,13 @@ if not config['cliMode']:
     statusbar_selection = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
     statusbar_selection.grid(row=0, column=0, padx=6)
     update_status_bar_selection()
-    statusbar_backup = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
-    statusbar_backup.grid(row=0, column=1, padx=6)
-    update_status_bar_backup(Status.BACKUP_IDLE)
+    statusbar_action = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
+    statusbar_action.grid(row=0, column=1, padx=6)
+    update_status_bar_action(Status.IDLE)
+    statusbar_counter = tk.Label(statusbar_frame, text='0 failed', fg=uicolor.FADED, bg=uicolor.STATUS_BAR)
+    statusbar_counter.grid(row=0, column=2, padx=6)
+    statusbar_details = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
+    statusbar_details.grid(row=0, column=3, padx=6)
 
     # Update status, right side
     statusbar_update = tk.Label(statusbar_frame, text='', bg=uicolor.STATUS_BAR)
@@ -2644,11 +2901,16 @@ if not config['cliMode']:
 
     # Tools menu
     tools_menu = tk.Menu(menubar, tearoff=0)
+    tools_menu.add_command(label='Verify Data Integrity on Selected Drives', underline=0, accelerator='WIP', command=start_verify_data_from_hash_list)
     tools_menu.add_command(label='Config Builder', underline=7, accelerator='Ctrl+B', command=show_config_builder)
     menubar.add_cascade(label='Tools', underline=0, menu=tools_menu)
 
     # Preferences menu
     preferences_menu = tk.Menu(menubar, tearoff=0)
+    preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0)
+    settings_verifyAllFiles = tk.BooleanVar(value=prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN))
+    preferences_verification_menu.add_checkbutton(label='Verify All Drives', onvalue=True, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()), selectcolor=uicolor.FG)
+    preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
     settings_darkModeEnabled = tk.BooleanVar(value=uicolor.is_dark_mode())
     preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()), selectcolor=uicolor.FG)
     menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)

@@ -3,6 +3,7 @@ import os
 import itertools
 from datetime import datetime
 import shutil
+import pickle
 
 from bin.fileutils import human_filesize, get_directory_size
 from bin.color import bcolor
@@ -59,6 +60,10 @@ class Backup:
 
         self.BACKUP_CONFIG_DIR = backup_config_dir
         self.BACKUP_CONFIG_FILE = backup_config_file
+        self.BACKUP_HASH_FILE = 'hashes.pkl'
+
+        self.file_hashes = {drive['name']: {} for drive in self.config['drives']}
+
         self.uicolor = uicolor
         self.do_copy_fn = do_copy_fn
         self.do_del_fn = do_del_fn
@@ -168,6 +173,44 @@ class Backup:
             payload=[(share['dest_name'], human_filesize(share['size'])) for share in self.config['shares']],
             reset=True
         )
+
+        # Get hash list for all drives
+        bad_hash_files = []
+        self.file_hashes = {drive['name']: {} for drive in self.config['drives']}
+        special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
+        for drive in self.config['drives']:
+            drive_hash_file_path = os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
+
+            if os.path.isfile(drive_hash_file_path):
+                write_trimmed_changes = False
+                with open(drive_hash_file_path, 'rb') as f:
+                    try:
+                        # Load hash list, and filter out ignored folders
+                        hash_list = pickle.load(f)
+                        new_hash_list = {file_name: hash_val for file_name, hash_val in hash_list.items() if file_name.split('/')[0] not in special_ignore_list}
+                        new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in new_hash_list.items() if os.path.isfile(os.path.join(drive['name'], file_name))}
+
+                        # If trimmed list is shorter, new changes have to be written to the file
+                        if len(new_hash_list) < len(hash_list):
+                            write_trimmed_changes = True
+
+                        self.file_hashes[drive['name']] = new_hash_list
+                    except Exception:
+                        # Hash file is corrupt
+                        bad_hash_files.append(drive_hash_file_path)
+
+                # If trimmed list is different length than original, write changes to file
+                if write_trimmed_changes:
+                    with open(drive_hash_file_path, 'wb') as f:
+                        pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in new_hash_list.items()}, f)
+            else:
+                bad_hash_files.append(drive_hash_file_path)
+
+        # If there are missing or corrupted pickle files, write empty data
+        if bad_hash_files:
+            for file in bad_hash_files:
+                with open(file, 'wb') as f:
+                    pickle.dump({}, f)
 
         drive_info = []
         drive_share_list = {}
@@ -895,6 +938,15 @@ class Backup:
                         }
 
                         self.do_del_fn(src, size, gui_options)
+
+                        # If file hash was in list, remove it, and write changes to file
+                        if file in self.file_hashes[drive].keys():
+                            del self.file_hashes[drive][file]
+
+                            drive_hash_file_path = os.path.join(drive, self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
+                            with open(drive_hash_file_path, 'wb') as f:
+                                hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
+                                pickle.dump(hash_list, f)
                 if cmd['mode'] == 'replace':
                     for drive, share, file, source_size, dest_size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
@@ -909,7 +961,14 @@ class Backup:
                             'displayIndex': cmd['displayIndex']
                         }
 
-                        self.do_copy_fn(src, dest, gui_options)
+                        file_hashes = self.do_copy_fn(src, dest, drive, gui_options)
+                        self.file_hashes[drive].update(file_hashes)
+
+                        # Write updated hash file to drive
+                        drive_hash_file_path = os.path.join(drive, self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
+                        with open(drive_hash_file_path, 'wb') as f:
+                            hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
+                            pickle.dump(hash_list, f)
                 elif cmd['mode'] == 'copy':
                     for drive, share, file, size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
@@ -924,7 +983,14 @@ class Backup:
                             'displayIndex': cmd['displayIndex']
                         }
 
-                        self.do_copy_fn(src, dest, gui_options)
+                        file_hashes = self.do_copy_fn(src, dest, drive, gui_options)
+                        self.file_hashes[drive].update(file_hashes)
+
+                        # Write updated hash file to drive
+                        drive_hash_file_path = os.path.join(drive, self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
+                        with open(drive_hash_file_path, 'wb') as f:
+                            hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
+                            pickle.dump(hash_list, f)
 
             if self.thread_manager.threadlist['Backup']['killFlag']:
                 if not self.config['cliMode']:
@@ -944,7 +1010,7 @@ class Backup:
 
         if not self.config['cliMode']:
             self.update_ui_component_fn(Status.UPDATEUI_START_BACKUP_BTN)
-            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_IDLE)
+            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.IDLE)
 
         self.backup_running = False
 
