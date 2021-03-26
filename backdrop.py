@@ -50,6 +50,10 @@ SOURCE_MODE_CUSTOM_SINGLE = 'custom'
 SOURCE_MODE_CUSTOM_MULTI = 'custom_multiple'
 SOURCE_MODE_OPTIONS = [SOURCE_MODE_SINGLE, SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_SINGLE, SOURCE_MODE_CUSTOM_MULTI]
 
+DEST_MODE_NORMAL = 'normal'
+DEST_MODE_CUSTOM = 'custom'
+DEST_MODE_OPTIONS = [DEST_MODE_NORMAL, DEST_MODE_CUSTOM]
+
 DRIVE_TYPE_LOCAL = 3
 DRIVE_TYPE_REMOTE = 4
 DRIVE_TYPE_RAMDISK = 6
@@ -2703,6 +2707,11 @@ def change_source_mode():
 
     load_source()
 
+def change_dest_mode():
+    """Change the mode for destination selection."""
+
+    pass
+
 def change_source_type(toggle_type):
     """Change the drive types for source selection.
 
@@ -2960,6 +2969,11 @@ if not config['cliMode']:
     selection_source_mode_menu.add_checkbutton(label='Custom location', accelerator='WIP', onvalue=SOURCE_MODE_CUSTOM_SINGLE, offvalue=SOURCE_MODE_CUSTOM_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_source_mode_menu.add_checkbutton(label='Custom location, multi source', accelerator='WIP', onvalue=SOURCE_MODE_CUSTOM_MULTI, offvalue=SOURCE_MODE_CUSTOM_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
+    selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0)
+    settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=DEST_MODE_OPTIONS, default=DEST_MODE_NORMAL))
+    selection_dest_mode_menu.add_checkbutton(label='Normal, select drives', onvalue=DEST_MODE_NORMAL, offvalue=DEST_MODE_NORMAL, variable=settings_destMode, command=change_dest_mode, selectcolor=uicolor.FG)
+    selection_dest_mode_menu.add_checkbutton(label='Custom location', accelerator='WIP', onvalue=DEST_MODE_CUSTOM, offvalue=DEST_MODE_CUSTOM, variable=settings_destMode, command=change_dest_mode, selectcolor=uicolor.FG)
+    selection_menu.add_cascade(label='Destination Mode', underline=0, menu=selection_dest_mode_menu)
     selection_menu.add_separator()
     selection_menu.add_command(label='Delete Config from Selected Drives', command=delete_config_file_from_selected_drives)
     menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
