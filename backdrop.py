@@ -800,6 +800,11 @@ def load_source():
                 source_select_multi_frame.pack_forget()
                 source_select_custom_multi_frame.pack_forget()
                 source_select_custom_single_frame.pack(fill='x', expand=1)
+
+                if config['source_drive'] and os.path.isdir(config['source_drive']):
+                    for directory in next(os.walk(config['source_drive']))[1]:
+                        # QUESTION: Should files be allowed in custom source?
+                        tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
         elif selected_source_mode == SOURCE_MODE_CUSTOM_MULTI:
             if not config['cliMode']:
                 source_select_single_frame.pack_forget()
@@ -872,9 +877,9 @@ def calculate_selected_shares():
         # FIXME: This crashes if you change the source drive, and the number of items in the tree changes while it's calculating things
         share_name = tree_source.item(item, 'text')
 
-        if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
+        if settings_sourceMode.get() in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
             share_path = os.path.join(config['source_drive'], share_name)
-        elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        elif settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
             share_path = share_name
 
         share_dir_size = get_directory_size(share_path)
@@ -1700,8 +1705,9 @@ PREFERENCES_CONFIG_FILE = 'preferences.ini'
 WINDOW_ELEMENT_PADDING = 16
 
 prefs = Config(os.path.join(APPDATA_FOLDER, PREFERENCES_CONFIG_FILE))
+last_selected_custom_source = prefs.get('selection', 'last_selected_custom_source', default=None)
 config = {
-    'source_drive': None,
+    'source_drive': last_selected_custom_source if prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_CUSTOM_SINGLE else None,
     'source_mode': prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS),
     'splitMode': False,
     'shares': [],
@@ -2590,10 +2596,19 @@ def show_config_builder():
 def browse_for_source():
     """Browse for a source path, and either make it the source, or add to the list."""
 
+    global last_selected_custom_source
+
     dir_name = filedialog.askdirectory(initialdir='', title='Select source folder')
 
     if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
         source_select_custom_single_path_label.configure(text=dir_name)
+        config['source_drive'] = dir_name
+
+        # Log last selection to preferences
+        last_selected_custom_source = dir_name
+        prefs.set('selection', 'last_selected_custom_source', dir_name)
+
+        load_source_in_background()
     elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
         source_select_custom_single_path_label.configure(text=dir_name)
 
@@ -2637,9 +2652,7 @@ def change_source_mode():
     POS_X = int(root_geom[1])
     POS_Y = int(root_geom[2])
 
-    if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
-        # FIXME: Rename all these to "path"
-        tree_source.heading('#0', text='Share')
+    if settings_sourceMode.get() in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
         tree_source.column('#0', width=SINGLE_SOURCE_TEXT_COL_WIDTH)
         tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
         tree_source['displaycolumns'] = ('size')
@@ -2655,32 +2668,17 @@ def change_source_mode():
         except tk._tkinter.TclError:
             pass
 
-        config['source_mode'] == SOURCE_MODE_SINGLE
-    elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
-        tree_source.heading('#0', text='Folder')
-        tree_source.column('#0', width=SINGLE_SOURCE_TEXT_COL_WIDTH)
-        tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
-        tree_source['displaycolumns'] = ('size')
+        config['source_mode'] == settings_sourceMode.get()
 
-        WINDOW_WIDTH = WINDOW_BASE_WIDTH
-        if bool(backup_file_details_frame.grid_info()):
-            WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
-
-        # Unbind right click menu
-        try:
-            tree_source.unbind('<Button-3>', source_right_click_bind)
-        except tk._tkinter.TclError:
-            pass
-
-        config['source_mode'] == SOURCE_MODE_CUSTOM_SINGLE
-    elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
+            # FIXME: Save last custom location to preferences, and load it instead of blank
+            config['source_drive'] = last_selected_custom_source
+    elif settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
         WINDOW_WIDTH = WINDOW_BASE_WIDTH + WINDOW_MULTI_SOURCE_EXTRA_WIDTH
         if bool(backup_file_details_frame.grid_info()):
             WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
         root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
 
-        tree_source.heading('#0', text='Drive')
         tree_source.column('#0', width=MULTI_SOURCE_TEXT_COL_WIDTH)
         tree_source.column('name', width=MULTI_SOURCE_NAME_COL_WIDTH)
         tree_source['displaycolumns'] = ('name', 'size')
@@ -2688,22 +2686,7 @@ def change_source_mode():
         # Bind right click menu
         source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
 
-        config['source_mode'] == SOURCE_MODE_MULTI
-    elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
-        WINDOW_WIDTH = WINDOW_BASE_WIDTH + WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-        if bool(backup_file_details_frame.grid_info()):
-            WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
-
-        tree_source.heading('#0', text='Path')
-        tree_source.column('#0', width=MULTI_SOURCE_TEXT_COL_WIDTH)
-        tree_source.column('name', width=MULTI_SOURCE_NAME_COL_WIDTH)
-        tree_source['displaycolumns'] = ('name', 'size')
-
-        # Bind right click menu
-        source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
-
-        config['source_mode'] == SOURCE_MODE_CUSTOM_MULTI
+        config['source_mode'] == settings_sourceMode.get()
 
     load_source()
 
@@ -2966,7 +2949,7 @@ if not config['cliMode']:
     settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE))
     selection_source_mode_menu.add_checkbutton(label='Single source, select folders', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_source_mode_menu.add_checkbutton(label='Multi source, select sources', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
-    selection_source_mode_menu.add_checkbutton(label='Custom location', accelerator='WIP', onvalue=SOURCE_MODE_CUSTOM_SINGLE, offvalue=SOURCE_MODE_CUSTOM_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
+    selection_source_mode_menu.add_checkbutton(label='Custom location', onvalue=SOURCE_MODE_CUSTOM_SINGLE, offvalue=SOURCE_MODE_CUSTOM_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_source_mode_menu.add_checkbutton(label='Custom location, multi source', accelerator='WIP', onvalue=SOURCE_MODE_CUSTOM_MULTI, offvalue=SOURCE_MODE_CUSTOM_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
     selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0)
@@ -3049,16 +3032,12 @@ if not config['cliMode']:
 
     tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize', 'name'), style='custom.Treeview')
     if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
-        tree_source_first_col_name = 'Share'
         tree_source_display_cols = ('size')
     elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
-        tree_source_first_col_name = 'Share'
         tree_source_display_cols = ('size')
     elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
-        tree_source_first_col_name = 'Drive'
         tree_source_display_cols = ('name', 'size')
     elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
-        tree_source_first_col_name = 'Drive'
         tree_source_display_cols = ('name', 'size')
 
     if settings_sourceMode.get() == SOURCE_MODE_MULTI:
@@ -3072,7 +3051,7 @@ if not config['cliMode']:
         SOURCE_TEXT_COL_WIDTH = 170
         SOURCE_NAME_COL_WIDTH = 170
 
-    tree_source.heading('#0', text=tree_source_first_col_name)
+    tree_source.heading('#0', text='Path')
     tree_source.column('#0', width=SOURCE_TEXT_COL_WIDTH)
     tree_source.heading('name', text='Name')
     tree_source.column('name', width=SOURCE_NAME_COL_WIDTH)
@@ -3114,7 +3093,8 @@ if not config['cliMode']:
 
     source_select_custom_single_frame = tk.Frame(source_select_frame)
     source_select_custom_single_frame.grid_columnconfigure(0, weight=1)
-    source_select_custom_single_path_label = tk.Label(source_select_custom_single_frame, text='Custom source')
+    selected_custom_source_text = last_selected_custom_source if last_selected_custom_source and os.path.isdir(last_selected_custom_source) else 'Custom source'
+    source_select_custom_single_path_label = tk.Label(source_select_custom_single_frame, text=selected_custom_source_text)
     source_select_custom_single_path_label.grid(row=0, column=0)
     source_select_custom_single_browse_button = ttk.Button(source_select_custom_single_frame, text='Browse', command=browse_for_source)
     source_select_custom_single_browse_button.grid(row=0, column=1)
