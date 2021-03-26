@@ -46,7 +46,9 @@ APP_VERSION = '3.1.0-alpha.1'
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
 SOURCE_MODE_MULTI = 'multiple'
-SOURCE_MODE_OPTIONS = [SOURCE_MODE_SINGLE, SOURCE_MODE_MULTI]
+SOURCE_MODE_CUSTOM_SINGLE = 'custom'
+SOURCE_MODE_CUSTOM_MULTI = 'custom_multiple'
+SOURCE_MODE_OPTIONS = [SOURCE_MODE_SINGLE, SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_SINGLE, SOURCE_MODE_CUSTOM_MULTI]
 
 DRIVE_TYPE_LOCAL = 3
 DRIVE_TYPE_REMOTE = 4
@@ -765,6 +767,11 @@ def load_source():
             config['source_drive'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
 
             if not config['cliMode']:
+                source_select_custom_single_frame.pack_forget()
+                source_select_custom_multi_frame.pack_forget()
+                source_select_multi_frame.pack_forget()
+                source_select_single_frame.pack()
+
                 source_drive_default.set(config['source_drive'])
                 source_select_menu.config(state='normal')
                 source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
@@ -774,20 +781,32 @@ def load_source():
                     tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
         elif selected_source_mode == SOURCE_MODE_MULTI:
             if not config['cliMode']:
-                # Disable source select dropdown
-                source_drive_default.set('Multi-source mode, selection disabled')
-                source_select_menu.config(state='disabled')
+                source_select_single_frame.pack_forget()
+                source_select_custom_single_frame.pack_forget()
+                source_select_custom_multi_frame.pack_forget()
+                source_select_multi_frame.pack()
 
                 # Enumerate list of shares in source
                 for drive in source_avail_drive_list:
                     drive_name = prefs.get('source_names', drive, default='')
                     tree_source.insert(parent='', index='end', text=drive, values=('Unknown', 0, drive_name))
+        elif selected_source_mode == SOURCE_MODE_CUSTOM_SINGLE:
+            if not config['cliMode']:
+                source_select_single_frame.pack_forget()
+                source_select_multi_frame.pack_forget()
+                source_select_custom_multi_frame.pack_forget()
+                source_select_custom_single_frame.pack(fill='x', expand=1)
+        elif selected_source_mode == SOURCE_MODE_CUSTOM_MULTI:
+            if not config['cliMode']:
+                source_select_single_frame.pack_forget()
+                source_select_multi_frame.pack_forget()
+                source_select_custom_single_frame.pack_forget()
+                source_select_custom_multi_frame.pack(fill='x', expand=1)
 
         if not config['cliMode']:
             source_warning.grid_forget()
             tree_source_frame.grid(row=1, column=1, sticky='ns')
             source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
-            source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2))
     elif not config['cliMode']:
         source_drive_default.set('No drives available')
 
@@ -2564,6 +2583,16 @@ def show_config_builder():
         # Load connected drives
         builder_start_refresh_connected()
 
+def browse_for_source():
+    """Browse for a source path, and either make it the source, or add to the list."""
+
+    dir_name = filedialog.askdirectory(initialdir='', title='Select source folder')
+
+    if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
+        source_select_custom_single_path_label.configure(text=dir_name)
+    elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
+        source_select_custom_single_path_label.configure(text=dir_name)
+
 def rename_source_item(item):
     """Rename an item in the source tree for multi-source mode.
 
@@ -2605,6 +2634,7 @@ def change_source_mode():
     POS_Y = int(root_geom[2])
 
     if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
+        # FIXME: Rename all these to "path"
         tree_source.heading('#0', text='Share')
         tree_source.column('#0', width=SINGLE_SOURCE_TEXT_COL_WIDTH)
         tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
@@ -2622,6 +2652,24 @@ def change_source_mode():
             pass
 
         config['source_mode'] == SOURCE_MODE_SINGLE
+    elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
+        tree_source.heading('#0', text='Folder')
+        tree_source.column('#0', width=SINGLE_SOURCE_TEXT_COL_WIDTH)
+        tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
+        tree_source['displaycolumns'] = ('size')
+
+        WINDOW_WIDTH = WINDOW_BASE_WIDTH
+        if bool(backup_file_details_frame.grid_info()):
+            WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
+        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
+
+        # Unbind right click menu
+        try:
+            tree_source.unbind('<Button-3>', source_right_click_bind)
+        except tk._tkinter.TclError:
+            pass
+
+        config['source_mode'] == SOURCE_MODE_CUSTOM_SINGLE
     elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
         WINDOW_WIDTH = WINDOW_BASE_WIDTH + WINDOW_MULTI_SOURCE_EXTRA_WIDTH
         if bool(backup_file_details_frame.grid_info()):
@@ -2637,6 +2685,21 @@ def change_source_mode():
         source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
 
         config['source_mode'] == SOURCE_MODE_MULTI
+    elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
+        WINDOW_WIDTH = WINDOW_BASE_WIDTH + WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+        if bool(backup_file_details_frame.grid_info()):
+            WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
+        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
+
+        tree_source.heading('#0', text='Path')
+        tree_source.column('#0', width=MULTI_SOURCE_TEXT_COL_WIDTH)
+        tree_source.column('name', width=MULTI_SOURCE_NAME_COL_WIDTH)
+        tree_source['displaycolumns'] = ('name', 'size')
+
+        # Bind right click menu
+        source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
+
+        config['source_mode'] == SOURCE_MODE_CUSTOM_MULTI
 
     load_source()
 
@@ -2889,12 +2952,14 @@ if not config['cliMode']:
     selection_dest_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE), selectcolor=uicolor.FG)
     selection_dest_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL), selectcolor=uicolor.FG)
     selection_menu.add_cascade(label='Destination Type', menu=selection_dest_select_menu)
+    selection_menu.add_separator()
     selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0)
     settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE))
     selection_source_mode_menu.add_checkbutton(label='Single source, select folders', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
-    selection_source_mode_menu.add_checkbutton(label='Show all, select sources', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
-    selection_menu.add_separator()
-    selection_menu.add_cascade(label='Source Mode', underline=7, menu=selection_source_mode_menu)
+    selection_source_mode_menu.add_checkbutton(label='Multi source, select sources', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
+    selection_source_mode_menu.add_checkbutton(label='Custom location', accelerator='WIP', onvalue=SOURCE_MODE_CUSTOM_SINGLE, offvalue=SOURCE_MODE_CUSTOM_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
+    selection_source_mode_menu.add_checkbutton(label='Custom location, multi source', accelerator='WIP', onvalue=SOURCE_MODE_CUSTOM_MULTI, offvalue=SOURCE_MODE_CUSTOM_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
+    selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
     selection_menu.add_separator()
     selection_menu.add_command(label='Delete Config from Selected Drives', command=delete_config_file_from_selected_drives)
     menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
@@ -2972,7 +3037,13 @@ if not config['cliMode']:
     if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
         tree_source_first_col_name = 'Share'
         tree_source_display_cols = ('size')
+    elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
+        tree_source_first_col_name = 'Share'
+        tree_source_display_cols = ('size')
     elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        tree_source_first_col_name = 'Drive'
+        tree_source_display_cols = ('name', 'size')
+    elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
         tree_source_first_col_name = 'Drive'
         tree_source_display_cols = ('name', 'size')
 
@@ -3017,9 +3088,29 @@ if not config['cliMode']:
     share_total_space.pack(side='left')
 
     source_select_frame = tk.Frame(main_frame)
-    source_select_menu = ttk.OptionMenu(source_select_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
+    source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
+
+    source_select_single_frame = tk.Frame(source_select_frame)
+    source_select_menu = ttk.OptionMenu(source_select_single_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
     source_select_menu['menu'].config(selectcolor=uicolor.FG)
     source_select_menu.pack(side='left')
+
+    source_select_multi_frame = tk.Frame(source_select_frame)
+    tk.Label(source_select_multi_frame, text='Multi-source mode, selection disabled').pack()
+
+    source_select_custom_single_frame = tk.Frame(source_select_frame)
+    source_select_custom_single_frame.grid_columnconfigure(0, weight=1)
+    source_select_custom_single_path_label = tk.Label(source_select_custom_single_frame, text='Custom source')
+    source_select_custom_single_path_label.grid(row=0, column=0)
+    source_select_custom_single_browse_button = ttk.Button(source_select_custom_single_frame, text='Browse', command=browse_for_source)
+    source_select_custom_single_browse_button.grid(row=0, column=1)
+
+    source_select_custom_multi_frame = tk.Frame(source_select_frame)
+    source_select_custom_multi_frame.grid_columnconfigure(0, weight=1)
+    source_select_custom_multi_path_label = tk.Label(source_select_custom_multi_frame, text='Custom multi-source')
+    source_select_custom_multi_path_label.grid(row=0, column=0)
+    source_select_custom_multi_browse_button = ttk.Button(source_select_custom_multi_frame, text='Browse', command=browse_for_source)
+    source_select_custom_multi_browse_button.grid(row=0, column=1)
 
     # Source tree right click menu
     source_right_click_menu = tk.Menu(tree_source, tearoff=0)
