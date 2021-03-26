@@ -996,14 +996,14 @@ class Backup:
                             hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
                             pickle.dump(hash_list, f)
 
-            if self.thread_manager.threadlist['Backup']['killFlag']:
+            if self.thread_manager.threadlist['Backup']['killFlag'] and self.totals['running'] < self.totals['progressBar']:
                 if not self.config['cliMode']:
                     self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=self.uicolor.STOPPED)
                     self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=self.uicolor.STOPPED)
                 else:
                     print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 break
-            if not self.thread_manager.threadlist['Backup']['killFlag']:
+            else:
                 if not self.config['cliMode']:
                     self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Done', fg=self.uicolor.FINISHED)
                     self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=self.uicolor.FINISHED)

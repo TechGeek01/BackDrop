@@ -465,18 +465,18 @@ def update_backup_eta_timer():
             print(f"{str(running_time).split('.')[0]} elapsed => {str(remaining_time).split('.')[0]} remaining")
         time.sleep(0.25)
 
-    if not thread_manager.threadlist['Backup']['killFlag']:
-        # Backup not killed, so completed successfully
-        if not config['cliMode']:
-            backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=uicolor.FINISHED)
-        else:
-            print(f"{bcolor.OKGREEN}Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
-    else:
+    if thread_manager.threadlist['Backup']['killFlag'] and backup.totals['running'] < backup.totals['progressBar']:
         # Backup aborted
         if not config['cliMode']:
             backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=uicolor.STOPPED)
         else:
             print(f"{bcolor.FAIL}Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
+    else:
+        # Backup not killed, so completed successfully
+        if not config['cliMode']:
+            backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=uicolor.FINISHED)
+        else:
+            print(f"{bcolor.OKGREEN}Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
 
 # FIXME: There's definitely a better way to handle working with items in the Backup instance than passing self into this function
 def display_backup_command_info(self, display_command_list):
