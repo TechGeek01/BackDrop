@@ -204,7 +204,11 @@ class Backup:
                     with open(drive_hash_file_path, 'wb') as f:
                         pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in new_hash_list.items()}, f)
             else:
-                bad_hash_files.append(drive_hash_file_path)
+                # Hash file doesn't exist, so create it
+                if not os.path.exists(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR)):
+                    os.makedirs(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR))
+                with open(drive_hash_file_path, 'wb') as f:
+                    pickle.dump({}, f)
 
         # If there are missing or corrupted pickle files, write empty data
         if bad_hash_files:
