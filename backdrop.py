@@ -2643,8 +2643,10 @@ def rename_source_item(item):
     new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
     new_name = new_name.group(0) if new_name is not None else ''
 
-    drive_name = tree_source.item(item, 'text')
-    prefs.set('source_names', drive_name, new_name)
+    # Only set name in preferences if not in custom source mode
+    if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        drive_name = tree_source.item(item, 'text')
+        prefs.set('source_names', drive_name, new_name)
 
     tree_source.set(item, 'name', new_name)
 
