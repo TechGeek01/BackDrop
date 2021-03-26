@@ -895,7 +895,7 @@ def calculate_selected_shares():
                 'size': int(tree_source.item(item, 'values')[1])
             }
 
-            if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+            if settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
                 share_info['path'] = tree_source.item(item, 'text')
 
                 share_vals = tree_source.item(item, 'values')
@@ -957,7 +957,7 @@ def calculate_selected_shares():
                 'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
             }
 
-            if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+            if settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
                 share_info['path'] = tree_source.item(item, 'text')
 
                 share_vals = tree_source.item(item, 'values')
@@ -2599,6 +2599,9 @@ def browse_for_source():
     global last_selected_custom_source
 
     dir_name = filedialog.askdirectory(initialdir='', title='Select source folder')
+    dir_name = os.path.sep.join(dir_name.split('/'))
+    if not dir_name:
+        return
 
     if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
         source_select_custom_single_path_label.configure(text=dir_name)
@@ -2610,7 +2613,21 @@ def browse_for_source():
 
         load_source_in_background()
     elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
-        source_select_custom_single_path_label.configure(text=dir_name)
+        # Get list of paths already in tree
+        existing_path_list = []
+        for item in tree_source.get_children():
+            existing_path_list.append(tree_source.item(item, 'text'))
+
+        # Only add item to list if it's not already there
+        if dir_name not in existing_path_list:
+            # Log last selection to preferences
+            last_selected_custom_source = dir_name
+            prefs.set('selection', 'last_selected_custom_source', dir_name)
+
+            # Custom multi-source isn't stored in preferences, so default to
+            # dir name
+            path_name = dir_name.split(os.path.sep)[-1]
+            tree_source.insert(parent='', index='end', text=dir_name, values=('Unknown', 0, path_name))
 
 def rename_source_item(item):
     """Rename an item in the source tree for multi-source mode.
@@ -2631,14 +2648,24 @@ def rename_source_item(item):
 
     tree_source.set(item, 'name', new_name)
 
+def delete_source_item(item):
+    """Delete an item in the source tree for multi-source mode.
+
+    Args:
+        item: The TreeView item to rename.
+    """
+
+    tree_source.delete(item)
+
 def show_source_right_click_menu(event):
     """Show the right click menu in the source tree for multi-source mode."""
 
-    if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+    if settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
         item = tree_source.identify_row(event.y)
         if item:
             tree_source.selection_set(item)
             source_right_click_menu.entryconfig('Rename', command=lambda: rename_source_item(item))
+            source_right_click_menu.entryconfig('Delete', command=lambda: delete_source_item(item))
             source_right_click_menu.post(event.x_root, event.y_root)
 
 def change_source_mode():
@@ -2684,7 +2711,8 @@ def change_source_mode():
         tree_source['displaycolumns'] = ('name', 'size')
 
         # Bind right click menu
-        source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
+        if settings_sourceMode.get() == SOURCE_MODE_MULTI:  # Delete option should only show in custom mode
+            source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
 
         config['source_mode'] == settings_sourceMode.get()
 
@@ -2793,7 +2821,7 @@ if not config['cliMode']:
     root.title('BackDrop - Network Drive Backup Tool')
     root.resizable(False, False)
     WINDOW_WIDTH = WINDOW_BASE_WIDTH
-    if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_MULTI:
+    if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
         WINDOW_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
     WINDOW_HEIGHT = 720
     root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}')
@@ -2950,7 +2978,7 @@ if not config['cliMode']:
     selection_source_mode_menu.add_checkbutton(label='Single source, select folders', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_source_mode_menu.add_checkbutton(label='Multi source, select sources', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_source_mode_menu.add_checkbutton(label='Custom location', onvalue=SOURCE_MODE_CUSTOM_SINGLE, offvalue=SOURCE_MODE_CUSTOM_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
-    selection_source_mode_menu.add_checkbutton(label='Custom location, multi source', accelerator='WIP', onvalue=SOURCE_MODE_CUSTOM_MULTI, offvalue=SOURCE_MODE_CUSTOM_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
+    selection_source_mode_menu.add_checkbutton(label='Custom location, multi source', onvalue=SOURCE_MODE_CUSTOM_MULTI, offvalue=SOURCE_MODE_CUSTOM_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
     selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
     selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0)
     settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=DEST_MODE_OPTIONS, default=DEST_MODE_NORMAL))
@@ -3031,22 +3059,14 @@ if not config['cliMode']:
     tree_source_frame = tk.Frame(main_frame)
 
     tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize', 'name'), style='custom.Treeview')
-    if settings_sourceMode.get() == SOURCE_MODE_SINGLE:
+    if settings_sourceMode.get() in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
         tree_source_display_cols = ('size')
-    elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
-        tree_source_display_cols = ('size')
-    elif settings_sourceMode.get() == SOURCE_MODE_MULTI:
-        tree_source_display_cols = ('name', 'size')
-    elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
+    elif settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
         tree_source_display_cols = ('name', 'size')
 
-    if settings_sourceMode.get() == SOURCE_MODE_MULTI:
-        if platform.system() == 'Windows':
-            SOURCE_TEXT_COL_WIDTH = 120
-            SOURCE_NAME_COL_WIDTH = 220
-        else:
-            SOURCE_TEXT_COL_WIDTH = 200
-            SOURCE_NAME_COL_WIDTH = 140
+    if settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+        SOURCE_TEXT_COL_WIDTH = 200  # Windows 120
+        SOURCE_NAME_COL_WIDTH = 140  # Windows 220
     else:
         SOURCE_TEXT_COL_WIDTH = 170
         SOURCE_NAME_COL_WIDTH = 170
@@ -3101,7 +3121,7 @@ if not config['cliMode']:
 
     source_select_custom_multi_frame = tk.Frame(source_select_frame)
     source_select_custom_multi_frame.grid_columnconfigure(0, weight=1)
-    source_select_custom_multi_path_label = tk.Label(source_select_custom_multi_frame, text='Custom multi-source')
+    source_select_custom_multi_path_label = tk.Label(source_select_custom_multi_frame, text='Custom multi-source mode')
     source_select_custom_multi_path_label.grid(row=0, column=0)
     source_select_custom_multi_browse_button = ttk.Button(source_select_custom_multi_frame, text='Browse', command=browse_for_source)
     source_select_custom_multi_browse_button.grid(row=0, column=1)
@@ -3109,9 +3129,11 @@ if not config['cliMode']:
     # Source tree right click menu
     source_right_click_menu = tk.Menu(tree_source, tearoff=0)
     source_right_click_menu.add_command(label='Rename', underline=0)
+    if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
+        source_right_click_menu.add_command(label='Delete')
 
     tree_source.bind("<<TreeviewSelect>>", calculate_source_size_in_background)
-    if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+    if settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
         source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
     else:
         source_right_click_bind = None
