@@ -710,9 +710,9 @@ def get_source_drive_list():
     if platform.system() == 'Windows':
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
         drive_type_list = []
-        if prefs.get('selection', 'source_network_drives', data_type=Config.BOOLEAN):
+        if prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN):
             drive_type_list.append(DRIVE_TYPE_REMOTE)
-        if prefs.get('selection', 'source_local_drives', data_type=Config.BOOLEAN):
+        if prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN):
             drive_type_list.append(DRIVE_TYPE_LOCAL)
         source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
     elif platform.system() == 'Linux':
@@ -1070,7 +1070,7 @@ def load_dest():
                         except FileNotFoundError:
                             pass
         elif platform.system() == 'Linux':
-            local_selected = prefs.get('selection', 'destination_local_drives', default=False, data_type=Config.BOOLEAN)
+            local_selected = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
             network_selected = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
 
             if network_selected and not local_selected:
