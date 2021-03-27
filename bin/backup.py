@@ -90,6 +90,12 @@ class Backup:
             share_total = 0
             drive_total = 0
 
+            # Shares and destinations need identifiers
+            if [share for share in self.config['shares'] if not share['dest_name']]:
+                return False
+            if [drive for drive in self.config['drives'] if not drive['vid']]:
+                return False
+
             shares_known = True
             for share in self.config['shares']:
                 if share['size'] is None:
