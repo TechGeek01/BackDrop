@@ -759,7 +759,7 @@ def load_source():
     source_avail_drive_list = get_source_drive_list()
     source_drive_list_valid = len(source_avail_drive_list) > 0
 
-    if source_drive_list_valid:
+    if source_drive_list_valid or settings_sourceMode.get() in [SOURCE_MODE_CUSTOM_SINGLE, SOURCE_MODE_CUSTOM_MULTI]:
         # Display empty selection sizes
         if not config['cliMode']:
             share_selected_space.configure(text='None', fg=uicolor.FADED)
@@ -801,6 +801,9 @@ def load_source():
                 source_select_custom_multi_frame.pack_forget()
                 source_select_custom_single_frame.pack(fill='x', expand=1)
 
+                if not source_select_frame.grid_info():
+                    source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
+
                 if config['source_drive'] and os.path.isdir(config['source_drive']):
                     for directory in next(os.walk(config['source_drive']))[1]:
                         # QUESTION: Should files be allowed in custom source?
@@ -812,17 +815,21 @@ def load_source():
                 source_select_custom_single_frame.pack_forget()
                 source_select_custom_multi_frame.pack(fill='x', expand=1)
 
+                if not source_select_frame.grid_info():
+                    source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
+
         if not config['cliMode']:
             source_warning.grid_forget()
             tree_source_frame.grid(row=1, column=1, sticky='ns')
             source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
     elif not config['cliMode']:
-        source_drive_default.set('No drives available')
+        if settings_sourceMode.get() in [SOURCE_MODE_SINGLE, SOURCE_MODE_MULTI]:
+            source_drive_default.set('No drives available')
 
-        tree_source_frame.grid_forget()
-        source_meta_frame.grid_forget()
-        source_select_frame.grid_forget()
-        source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
+            tree_source_frame.grid_forget()
+            source_meta_frame.grid_forget()
+            source_select_frame.grid_forget()
+            source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
     if not config['cliMode']:
         progress.stop_indeterminate()
