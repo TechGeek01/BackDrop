@@ -2667,7 +2667,8 @@ def show_source_right_click_menu(event):
         if item:
             tree_source.selection_set(item)
             source_right_click_menu.entryconfig('Rename', command=lambda: rename_source_item(item))
-            source_right_click_menu.entryconfig('Delete', command=lambda: delete_source_item(item))
+            if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
+                source_right_click_menu.entryconfig('Delete', command=lambda: delete_source_item(item))
             source_right_click_menu.post(event.x_root, event.y_root)
 
 def change_source_mode():
