@@ -935,7 +935,7 @@ class Backup:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
 
-                        src = os.path.join(drive + file)
+                        src = os.path.join(drive, file)
 
                         gui_options = {
                             'displayIndex': cmd['displayIndex']
