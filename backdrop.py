@@ -1788,8 +1788,6 @@ if os.name == 'nt':
     k = windll.kernel32
     k.SetConsoleMode(k.GetStdHandle(-11), 7)
 
-print(f"{bcolor.OKGREEN}Testing the thing{bcolor.ENDC}")
-
 ############
 # CLI Mode #
 ############
