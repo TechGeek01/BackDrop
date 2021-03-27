@@ -1782,14 +1782,19 @@ signal(SIGINT, cleanup_handler)
 
 thread_manager = ThreadManager()
 
+# If running on Windows, set params to allow ANSI escapes for color
+if os.name == 'nt':
+    from ctypes import windll
+    k = windll.kernel32
+    k.SetConsoleMode(k.GetStdHandle(-11), 7)
+
+print(f"{bcolor.OKGREEN}Testing the thing{bcolor.ENDC}")
+
 ############
 # CLI Mode #
 ############
 
 if config['cliMode']:
-    # Colored text does not work without this empty call first
-    os.system('')
-
     command_line = CommandLine(
         [
             'Usage: backdrop [options]\n',
@@ -2945,8 +2950,6 @@ file_detail_list = {
 }
 
 if not config['cliMode']:
-    os.system('')
-
     update_handler = UpdateHandler(
         current_version=APP_VERSION,
         status_change_fn=update_status_bar_update,
