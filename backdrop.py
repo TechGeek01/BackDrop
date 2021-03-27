@@ -3019,7 +3019,10 @@ if not config['cliMode']:
     statusbar_details = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
     statusbar_details.grid(row=0, column=3, padx=6)
 
-    # Update status, right side
+    # Portable mode indicator and update status, right side
+    if PORTABLE_MODE:
+        statusbar_portablemode = tk.Label(statusbar_frame, text='Portable mode', bg=uicolor.STATUS_BAR)
+        statusbar_portablemode.grid(row=0, column=99, padx=6)
     statusbar_update = tk.Label(statusbar_frame, text='', bg=uicolor.STATUS_BAR)
     statusbar_update.grid(row=0, column=100, padx=6)
     statusbar_update.bind('<Button-1>', lambda e: display_update_screen(update_info))
