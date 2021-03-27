@@ -2855,11 +2855,15 @@ def change_dest_mode():
 
     if settings_destMode.get() == DEST_MODE_NORMAL:
         tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
+        tree_dest.heading('vid', text='Volume ID')
+        tree_dest.column('vid', width=90)
         tree_dest['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
 
         tree_dest.unbind('<Button-3>', dest_right_click_bind)
     elif settings_destMode.get() == DEST_MODE_CUSTOM:
-        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL)
+        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
+        tree_dest.column('vid', width=140)
+        tree_dest.heading('vid', text='Name')
         tree_dest['displaycolumns'] = ('vid', 'size', 'configfile')
 
         dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
@@ -2962,7 +2966,7 @@ if not config['cliMode']:
     SINGLE_SOURCE_NAME_COL_WIDTH = 170
 
     root = tk.Tk()
-    root.title('BackDrop - Network Drive Backup Tool')
+    root.title('BackDrop - Data Backup Tool')
     root.resizable(False, False)
     WINDOW_WIDTH = WINDOW_BASE_WIDTH
     if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
@@ -3044,6 +3048,8 @@ if not config['cliMode']:
         background=[('pressed', '!disabled', '#900'), ('active', '!disabled', '#c00')]
     )
     tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#600', borderwidth=0, padding=(8, 6))
+    tk_style.configure('slim.TButton', padding=(2, 2))
+    tk_style.configure('slim.danger.TButton', background='#b00', foreground='#fff', bordercolor='#600', borderwidth=0, padding=(6, 4))
 
     tk_style.configure('TCheckbutton', background=uicolor.BG, foreground=uicolor.NORMAL)
     tk_style.configure('TFrame', background=uicolor.BG, foreground=uicolor.NORMAL)
@@ -3259,15 +3265,15 @@ if not config['cliMode']:
     source_select_custom_single_frame.grid_columnconfigure(0, weight=1)
     selected_custom_source_text = last_selected_custom_source if last_selected_custom_source and os.path.isdir(last_selected_custom_source) else 'Custom source'
     source_select_custom_single_path_label = tk.Label(source_select_custom_single_frame, text=selected_custom_source_text)
-    source_select_custom_single_path_label.grid(row=0, column=0)
-    source_select_custom_single_browse_button = ttk.Button(source_select_custom_single_frame, text='Browse', command=browse_for_source)
+    source_select_custom_single_path_label.grid(row=0, column=0, sticky='w')
+    source_select_custom_single_browse_button = ttk.Button(source_select_custom_single_frame, text='Browse', command=browse_for_source, style='slim.TButton')
     source_select_custom_single_browse_button.grid(row=0, column=1)
 
     source_select_custom_multi_frame = tk.Frame(source_select_frame)
     source_select_custom_multi_frame.grid_columnconfigure(0, weight=1)
     source_select_custom_multi_path_label = tk.Label(source_select_custom_multi_frame, text='Custom multi-source mode')
     source_select_custom_multi_path_label.grid(row=0, column=0)
-    source_select_custom_multi_browse_button = ttk.Button(source_select_custom_multi_frame, text='Browse', command=browse_for_source)
+    source_select_custom_multi_browse_button = ttk.Button(source_select_custom_multi_frame, text='Browse', command=browse_for_source, style='slim.TButton')
     source_select_custom_multi_browse_button.grid(row=0, column=1)
 
     # Source tree right click menu
@@ -3315,7 +3321,7 @@ if not config['cliMode']:
     dest_select_custom_frame.grid_columnconfigure(0, weight=1)
     dest_select_custom_label = tk.Label(dest_select_custom_frame, text='Custom destination mode')
     dest_select_custom_label.grid(row=0, column=0)
-    dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest)
+    dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest, style='slim.TButton')
     dest_select_custom_browse_button.grid(row=0, column=1)
 
     DEST_TREE_COLWIDTH_DRIVE = 50 if platform.system() == 'Windows' else 150
@@ -3325,7 +3331,7 @@ if not config['cliMode']:
     tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
     tree_dest.heading('#0', text='Drive')
     if settings_destMode.get() == DEST_MODE_CUSTOM:
-        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL)
+        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
     else:
         tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
     tree_dest.heading('size', text='Size')
