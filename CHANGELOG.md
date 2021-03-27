@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## 3.1.0 - TBD
 ### Added
 - Custom source selection
+- Custom destination selection
 
 ### Fixed
 - Fixed division by zero when not copying any new files

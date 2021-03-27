@@ -41,7 +41,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.0-alpha.1'
+APP_VERSION = '3.1.0-beta.1'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
@@ -1016,106 +1016,117 @@ def load_dest():
     if not config['cliMode']:
         tree_dest.delete(*tree_dest.get_children())
 
-    if platform.system() == 'Windows':
-        logical_drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-        logical_drive_list = [drive[:2] for drive in logical_drive_list]
-
-        # Associate logical drives with physical drives, and map them to physical serial numbers
-        logical_to_physical_map = {}
+    if settings_destMode.get() == DEST_MODE_NORMAL:
         if not config['cliMode']:
-            pythoncom.CoInitialize()
-        try:
-            for physical_disk in wmi.WMI().Win32_DiskDrive():
-                for partition in physical_disk.associators("Win32_DiskDriveToDiskPartition"):
-                    logical_to_physical_map.update({logical_disk.DeviceID[0]: physical_disk.SerialNumber.strip() for logical_disk in partition.associators("Win32_LogicalDiskToPartition")})
-        finally:
+            dest_select_custom_frame.pack_forget()
+            dest_select_normal_frame.pack()
+
+        if platform.system() == 'Windows':
+            logical_drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+            logical_drive_list = [drive[:2] for drive in logical_drive_list]
+
+            # Associate logical drives with physical drives, and map them to physical serial numbers
+            logical_to_physical_map = {}
             if not config['cliMode']:
-                pythoncom.CoUninitialize()
-
-        # Enumerate drive list to find info about all non-source drives
-        total_drive_space_available = 0
-        dest_drive_master_list = []
-        for drive in logical_drive_list:
-            if drive != config['source_drive'] and drive != SYSTEM_DRIVE:
-                drive_type = win32file.GetDriveType(drive)
-                if ((prefs.get('selection', 'destination_local_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
-                        or (prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
-                    try:
-                        drive_size = shutil.disk_usage(drive).total
-                        vsn = os.stat(drive).st_dev
-                        vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
-                        try:
-                            serial = logical_to_physical_map[drive[0]]
-                        except KeyError:
-                            serial = 'Not Found'
-
-                        drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
-
-                        total_drive_space_available = total_drive_space_available + drive_size
-                        if not config['cliMode']:
-                            tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
-
-                        dest_drive_master_list.append({
-                            'name': drive,
-                            'vid': vsn,
-                            'serial': serial,
-                            'capacity': drive_size,
-                            'hasConfig': drive_has_config_file
-                        })
-                    except FileNotFoundError:
-                        pass
-    elif platform.system() == 'Linux':
-        local_selected = prefs.get('selection', 'destination_local_drives', default=False, data_type=Config.BOOLEAN)
-        network_selected = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
-
-        if network_selected and not local_selected:
-            cmd = 'df -tcifs -tnfs --output=target'
-        elif local_selected and not network_selected:
-            cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target'
-        elif local_selected and network_selected:
-            cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs --output=target'
-
-        out = subprocess.run(cmd, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-        logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
-        logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['source_drive']]
-
-        total_drive_space_available = 0
-        dest_drive_master_list = []
-        for drive in logical_drive_list:
-            drive_name = f'"{drive}"'
-
-            out = subprocess.run("mount | grep " + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-            physical_disk = out.stdout.decode('utf-8').split('\n')[0].strip()
-
-            # Only process mount point if it's not on the system drive
-            if physical_disk != SYSTEM_DRIVE and drive != '/':
-                drive_size = shutil.disk_usage(drive).total
-
-                # Get volume ID, remove dashes, and format the last 8 characters
-                out = subprocess.run(f"df {drive_name} --output=source | awk 'NR==2' | xargs lsblk -o uuid | awk 'NR==2'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-                vsn = out.stdout.decode('utf-8').split('\n')[0].strip().replace('-', '').upper()
-                vsn = vsn[-8:-4] + '-' + vsn[-4:]
-
-                # Get drive serial, if present
-                out = subprocess.run(f"lsblk -o serial '{physical_disk}' | awk 'NR==2'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-                serial = out.stdout.decode('utf-8').split('\n')[0].strip()
-
-                # Set default if serial not found
-                serial = serial if serial else 'Not Found'
-
-                drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
-
-                total_drive_space_available += drive_size
+                pythoncom.CoInitialize()
+            try:
+                for physical_disk in wmi.WMI().Win32_DiskDrive():
+                    for partition in physical_disk.associators("Win32_DiskDriveToDiskPartition"):
+                        logical_to_physical_map.update({logical_disk.DeviceID[0]: physical_disk.SerialNumber.strip() for logical_disk in partition.associators("Win32_LogicalDiskToPartition")})
+            finally:
                 if not config['cliMode']:
-                    tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+                    pythoncom.CoUninitialize()
 
-                dest_drive_master_list.append({
-                    'name': drive,
-                    'vid': vsn,
-                    'serial': serial,
-                    'capacity': drive_size,
-                    'hasConfig': drive_has_config_file
-                })
+            # Enumerate drive list to find info about all non-source drives
+            total_drive_space_available = 0
+            dest_drive_master_list = []
+            for drive in logical_drive_list:
+                if drive != config['source_drive'] and drive != SYSTEM_DRIVE:
+                    drive_type = win32file.GetDriveType(drive)
+                    if ((prefs.get('selection', 'destination_local_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
+                            or (prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
+                        try:
+                            drive_size = shutil.disk_usage(drive).total
+                            vsn = os.stat(drive).st_dev
+                            vsn = '{:04X}-{:04X}'.format(vsn >> 16, vsn & 0xffff)
+                            try:
+                                serial = logical_to_physical_map[drive[0]]
+                            except KeyError:
+                                serial = 'Not Found'
+
+                            drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+
+                            total_drive_space_available = total_drive_space_available + drive_size
+                            if not config['cliMode']:
+                                tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+
+                            dest_drive_master_list.append({
+                                'name': drive,
+                                'vid': vsn,
+                                'serial': serial,
+                                'capacity': drive_size,
+                                'hasConfig': drive_has_config_file
+                            })
+                        except FileNotFoundError:
+                            pass
+        elif platform.system() == 'Linux':
+            local_selected = prefs.get('selection', 'destination_local_drives', default=False, data_type=Config.BOOLEAN)
+            network_selected = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
+
+            if network_selected and not local_selected:
+                cmd = 'df -tcifs -tnfs --output=target'
+            elif local_selected and not network_selected:
+                cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target'
+            elif local_selected and network_selected:
+                cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs --output=target'
+
+            out = subprocess.run(cmd, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
+            logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['source_drive']]
+
+            total_drive_space_available = 0
+            dest_drive_master_list = []
+            for drive in logical_drive_list:
+                drive_name = f'"{drive}"'
+
+                out = subprocess.run("mount | grep " + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+                physical_disk = out.stdout.decode('utf-8').split('\n')[0].strip()
+
+                # Only process mount point if it's not on the system drive
+                if physical_disk != SYSTEM_DRIVE and drive != '/':
+                    drive_size = shutil.disk_usage(drive).total
+
+                    # Get volume ID, remove dashes, and format the last 8 characters
+                    out = subprocess.run(f"df {drive_name} --output=source | awk 'NR==2' | xargs lsblk -o uuid | awk 'NR==2'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+                    vsn = out.stdout.decode('utf-8').split('\n')[0].strip().replace('-', '').upper()
+                    vsn = vsn[-8:-4] + '-' + vsn[-4:]
+
+                    # Get drive serial, if present
+                    out = subprocess.run(f"lsblk -o serial '{physical_disk}' | awk 'NR==2'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+                    serial = out.stdout.decode('utf-8').split('\n')[0].strip()
+
+                    # Set default if serial not found
+                    serial = serial if serial else 'Not Found'
+
+                    drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+
+                    total_drive_space_available += drive_size
+                    if not config['cliMode']:
+                        tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+
+                    dest_drive_master_list.append({
+                        'name': drive,
+                        'vid': vsn,
+                        'serial': serial,
+                        'capacity': drive_size,
+                        'hasConfig': drive_has_config_file
+                    })
+    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+        if not config['cliMode']:
+            dest_select_normal_frame.pack_forget()
+            dest_select_custom_frame.pack(fill='x', expand=1)
+
+        total_drive_space_available = 0
 
     if not config['cliMode']:
         drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=uicolor.NORMAL if total_drive_space_available > 0 else uicolor.FADED)
@@ -1147,7 +1158,6 @@ def gui_select_from_config():
 
     # Get list of drives where volume ID is in config
     connected_vid_list = [drive['vid'] for drive in config['drives']]
-    config_drive_tree_id_list = [item for item in tree_dest.get_children() if tree_dest.item(item, 'values')[3] in connected_vid_list]
 
     # If drives aren't mounted that should be, display the warning
     MISSING_DRIVE_COUNT = len(config['missingDrives'])
@@ -1172,16 +1182,18 @@ def gui_select_from_config():
     # Because of the <<TreeviewSelect>> handler, re-selecting the same single item
     # would get stuck into an endless loop of trying to load the config
     # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
-    if len(config_drive_tree_id_list) > 0 and tree_dest.selection() != tuple(config_drive_tree_id_list):
-        try:
-            tree_dest.unbind('<<TreeviewSelect>>', drive_select_bind)
-        except tk._tkinter.TclError:
-            pass
+    if settings_destMode.get() == DEST_MODE_NORMAL:
+        config_drive_tree_id_list = [item for item in tree_dest.get_children() if tree_dest.item(item, 'values')[3] in connected_vid_list]
+        if len(config_drive_tree_id_list) > 0 and tree_dest.selection() != tuple(config_drive_tree_id_list):
+            try:
+                tree_dest.unbind('<<TreeviewSelect>>', drive_select_bind)
+            except tk._tkinter.TclError:
+                pass
 
-        tree_dest.focus(config_drive_tree_id_list[-1])
-        tree_dest.selection_set(tuple(config_drive_tree_id_list))
+            tree_dest.focus(config_drive_tree_id_list[-1])
+            tree_dest.selection_set(tuple(config_drive_tree_id_list))
 
-        drive_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_drive_in_background)
+            drive_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_drive_in_background)
 
 def get_share_path_from_name(share):
     """Get a share path from a share name.
@@ -1228,24 +1240,29 @@ def load_config_from_file(filename):
                 'dest_name': share
             } for share in shares.split(',')]
 
-    # Get VID list
-    vids = config_file.get('selection', 'vids').split(',')
+    if settings_destMode.get() == DEST_MODE_NORMAL:
+        # Get VID list
+        vids = config_file.get('selection', 'vids').split(',')
 
-    # Get drive info
-    config_drive_total = 0
-    new_config['drives'] = []
-    new_config['missingDrives'] = {}
-    drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
-    for drive in vids:
-        if drive in drive_lookup_list.keys():
-            # If drive connected, add to drive list
-            new_config['drives'].append(drive_lookup_list[drive])
-            config_drive_total += drive_lookup_list[drive]['capacity']
-        else:
-            # Add drive capacity info to missing drive list
-            reported_drive_capacity = config_file.get(drive, 'capacity', 0, data_type=Config.INTEGER)
-            new_config['missingDrives'][drive] = reported_drive_capacity
-            config_drive_total += reported_drive_capacity
+        # Get drive info
+        config_drive_total = 0
+        new_config['drives'] = []
+        new_config['missingDrives'] = {}
+        drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
+        for drive in vids:
+            if drive in drive_lookup_list.keys():
+                # If drive connected, add to drive list
+                new_config['drives'].append(drive_lookup_list[drive])
+                config_drive_total += drive_lookup_list[drive]['capacity']
+            else:
+                # Add drive capacity info to missing drive list
+                reported_drive_capacity = config_file.get(drive, 'capacity', 0, data_type=Config.INTEGER)
+                new_config['missingDrives'][drive] = reported_drive_capacity
+                config_drive_total += reported_drive_capacity
+    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+        # Get drive info
+        config_drive_total = 0
+        new_config['missingDrives'] = {}
 
     config.update(new_config)
 
@@ -1283,13 +1300,13 @@ def handle_drive_selection_click():
     # Check if newly selected drive has a config file
     # We only want to do this if the click is the first selection (that is, there
     # are no other drives selected except the one we clicked).
+    drives_read_from_config_file = False
     if len(dest_selection) > 0:
         selected_drive = tree_dest.item(dest_selection[0], 'text')
-        SELECTED_DRIVE_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
-        drives_read_from_config_file = False
-        if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.exists(SELECTED_DRIVE_CONFIG_FILE) and os.path.isfile(SELECTED_DRIVE_CONFIG_FILE):
+        SELECTED_PATH_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
+        if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
             # Found config file, so read it
-            load_config_from_file(SELECTED_DRIVE_CONFIG_FILE)
+            load_config_from_file(SELECTED_PATH_CONFIG_FILE)
             dest_selection = tree_dest.selection()
             drives_read_from_config_file = True
         else:
@@ -1298,12 +1315,35 @@ def handle_drive_selection_click():
 
     selected_total = 0
     selected_drive_list = []
-    drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
-    for item in dest_selection:
-        # Write drive IDs to config
-        selected_drive = drive_lookup_list[tree_dest.item(item, 'values')[3]]
-        selected_drive_list.append(selected_drive)
-        selected_total = selected_total + selected_drive['capacity']
+
+    if settings_destMode.get() == DEST_MODE_NORMAL:
+        drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
+        for item in dest_selection:
+            # Write drive IDs to config
+            selected_drive = drive_lookup_list[tree_dest.item(item, 'values')[3]]
+            selected_drive_list.append(selected_drive)
+            selected_total += selected_drive['capacity']
+    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+        for item in dest_selection:
+            drive_path = tree_dest.item(item, 'text')
+            drive_vals = tree_dest.item(item, 'values')
+
+            drive_name = drive_vals[3] if len(drive_vals) >= 4 else ''
+            drive_capacity = int(drive_vals[1])
+            drive_has_config = True if drive_vals[2] == 'Yes' else False
+
+            drive_data = {
+                'name': drive_path,
+                'vid': drive_name,
+                'serial': None,
+                'capacity': drive_capacity,
+                'hasConfig': drive_has_config
+            }
+
+            selected_drive_list.append(drive_data)
+            selected_total += drive_capacity
+
+        config['drives'] = selected_drive_list
 
     drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
     if not drives_read_from_config_file:
@@ -2629,6 +2669,33 @@ def browse_for_source():
             path_name = dir_name.split(os.path.sep)[-1]
             tree_source.insert(parent='', index='end', text=dir_name, values=('Unknown', 0, path_name))
 
+def browse_for_dest():
+    """Browse for a destination path, and add to the list."""
+
+    dir_name = filedialog.askdirectory(initialdir='', title='Select destination folder')
+    dir_name = os.path.sep.join(dir_name.split('/'))
+    if not dir_name:
+        return
+
+    if settings_destMode.get() == DEST_MODE_CUSTOM:
+        # Get list of paths already in tree
+        existing_path_list = []
+        for item in tree_dest.get_children():
+            existing_path_list.append(tree_dest.item(item, 'text'))
+
+        # Only add item to list if it's not already there
+        if dir_name not in existing_path_list:
+            # Custom dest isn't stored in preferences, so default to
+            # dir name
+            drive_free_space = shutil.disk_usage(dir_name).free
+            path_space = get_directory_size(dir_name)
+            config_space = get_directory_size(os.path.join(dir_name, BACKUP_CONFIG_DIR))
+
+            dir_has_config_file = os.path.isfile(os.path.join(dir_name, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+            name_stub = dir_name.split(os.path.sep)[-1].strip()
+            avail_space = drive_free_space + path_space - config_space
+            tree_dest.insert(parent='', index='end', text=dir_name, values=(human_filesize(avail_space), avail_space, 'Yes' if dir_has_config_file else '', name_stub))
+
 def rename_source_item(item):
     """Rename an item in the source tree for multi-source mode.
 
@@ -2639,16 +2706,22 @@ def rename_source_item(item):
     current_vals = tree_source.item(item, 'values')
     current_name = current_vals[2] if len(current_vals) >= 3 else ''
 
-    new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root).strip()
-    new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
-    new_name = new_name.group(0) if new_name is not None else ''
+    new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root)
+    if new_name is not None:
+        new_name = new_name.strip()
+        new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
+        new_name = new_name.group(0) if new_name is not None else ''
+    else:
+        new_name = ''
 
-    # Only set name in preferences if not in custom source mode
-    if settings_sourceMode.get() == SOURCE_MODE_MULTI:
-        drive_name = tree_source.item(item, 'text')
-        prefs.set('source_names', drive_name, new_name)
+    # Prevent rename if field is blank
+    if new_name:
+        # Only set name in preferences if not in custom source mode
+        if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+            drive_name = tree_source.item(item, 'text')
+            prefs.set('source_names', drive_name, new_name)
 
-    tree_source.set(item, 'name', new_name)
+        tree_source.set(item, 'name', new_name)
 
 def delete_source_item(item):
     """Delete an item in the source tree for multi-source mode.
@@ -2658,6 +2731,36 @@ def delete_source_item(item):
     """
 
     tree_source.delete(item)
+
+def rename_dest_item(item):
+    """Rename an item in the dest tree for custom dest mode.
+
+    Args:
+        item: The TreeView item to rename.
+    """
+
+    current_vals = tree_dest.item(item, 'values')
+    current_name = current_vals[3] if len(current_vals) >= 4 else ''
+
+    new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root)
+    if new_name is not None:
+        new_name = new_name.strip()
+        new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
+        new_name = new_name.group(0) if new_name is not None else ''
+    else:
+        new_name = ''
+
+    if new_name:
+        tree_dest.set(item, 'vid', new_name)
+
+def delete_dest_item(item):
+    """Delete an item in the dest tree for custom dest mode.
+
+    Args:
+        item: The TreeView item to rename.
+    """
+
+    tree_dest.delete(item)
 
 def show_source_right_click_menu(event):
     """Show the right click menu in the source tree for multi-source mode."""
@@ -2670,6 +2773,17 @@ def show_source_right_click_menu(event):
             if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
                 source_right_click_menu.entryconfig('Delete', command=lambda: delete_source_item(item))
             source_right_click_menu.post(event.x_root, event.y_root)
+
+def show_dest_right_click_menu(event):
+    """Show the right click menu in the dest tree for custom dest mode."""
+
+    if settings_destMode.get() == DEST_MODE_CUSTOM:
+        item = tree_dest.identify_row(event.y)
+        if item:
+            tree_dest.selection_set(item)
+            dest_right_click_menu.entryconfig('Rename', command=lambda: rename_dest_item(item))
+            dest_right_click_menu.entryconfig('Delete', command=lambda: delete_dest_item(item))
+            dest_right_click_menu.post(event.x_root, event.y_root)
 
 def change_source_mode():
     """Change the mode for source selection."""
@@ -2701,7 +2815,6 @@ def change_source_mode():
         config['source_mode'] == settings_sourceMode.get()
 
         if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
-            # FIXME: Save last custom location to preferences, and load it instead of blank
             config['source_drive'] = last_selected_custom_source
     elif settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
         WINDOW_WIDTH = WINDOW_BASE_WIDTH + WINDOW_MULTI_SOURCE_EXTRA_WIDTH
@@ -2719,12 +2832,29 @@ def change_source_mode():
 
         config['source_mode'] == settings_sourceMode.get()
 
+    # URGENT: Fix this not being run in separate thread
     load_source()
 
 def change_dest_mode():
     """Change the mode for destination selection."""
 
-    pass
+    global dest_right_click_bind
+
+    prefs.set('selection', 'dest_mode', settings_destMode.get())
+
+    if settings_destMode.get() == DEST_MODE_NORMAL:
+        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
+        tree_dest['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
+
+        tree_dest.unbind('<Button-3>', dest_right_click_bind)
+    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL)
+        tree_dest['displaycolumns'] = ('vid', 'size', 'configfile')
+
+        dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
+
+    # URGENT: Fix this not being run in separate thread
+    load_dest()
 
 def change_source_type(toggle_type):
     """Change the drive types for source selection.
@@ -2986,7 +3116,7 @@ if not config['cliMode']:
     selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0)
     settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=DEST_MODE_OPTIONS, default=DEST_MODE_NORMAL))
     selection_dest_mode_menu.add_checkbutton(label='Normal, select drives', onvalue=DEST_MODE_NORMAL, offvalue=DEST_MODE_NORMAL, variable=settings_destMode, command=change_dest_mode, selectcolor=uicolor.FG)
-    selection_dest_mode_menu.add_checkbutton(label='Custom location', accelerator='WIP', onvalue=DEST_MODE_CUSTOM, offvalue=DEST_MODE_CUSTOM, variable=settings_destMode, command=change_dest_mode, selectcolor=uicolor.FG)
+    selection_dest_mode_menu.add_checkbutton(label='Custom location', onvalue=DEST_MODE_CUSTOM, offvalue=DEST_MODE_CUSTOM, variable=settings_destMode, command=change_dest_mode, selectcolor=uicolor.FG)
     selection_menu.add_cascade(label='Destination Mode', underline=0, menu=selection_dest_mode_menu)
     selection_menu.add_separator()
     selection_menu.add_command(label='Delete Config from Selected Drives', command=delete_config_file_from_selected_drives)
@@ -3149,7 +3279,7 @@ if not config['cliMode']:
     tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
 
     dest_mode_frame = tk.Frame(main_frame)
-    dest_mode_frame.grid(row=0, column=2, pady=(0, WINDOW_ELEMENT_PADDING / 2))
+    dest_mode_frame.grid(row=0, column=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
     def toggle_split_mode_with_checkbox():
         """Handle toggling of split mode based on checkbox value."""
@@ -3161,25 +3291,49 @@ if not config['cliMode']:
 
     dest_mode_split_check_var = tk.BooleanVar()
 
-    alt_tooltip_frame = tk.Frame(dest_mode_frame, bg=uicolor.INFO)
+    dest_select_normal_frame = tk.Frame(dest_mode_frame)
+    dest_select_normal_frame.pack()
+    alt_tooltip_frame = tk.Frame(dest_select_normal_frame, bg=uicolor.INFO)
     alt_tooltip_frame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
     tk.Label(alt_tooltip_frame, text='Hold ALT when selecting a drive to ignore config files', bg=uicolor.INFO, fg=uicolor.BLACK).pack(fill='y', expand=1)
 
     # Split mode checkbox
-    ttk.Checkbutton(dest_mode_frame, text='Use split mode', variable=dest_mode_split_check_var, command=toggle_split_mode_with_checkbox).pack(side='left', padx=(12, 0))
+    ttk.Checkbutton(dest_select_normal_frame, text='Use split mode', variable=dest_mode_split_check_var, command=toggle_split_mode_with_checkbox).pack(side='left', padx=(12, 0))
+
+    dest_select_custom_frame = tk.Frame(dest_mode_frame)
+    dest_select_custom_frame.grid_columnconfigure(0, weight=1)
+    dest_select_custom_label = tk.Label(dest_select_custom_frame, text='Custom destination mode')
+    dest_select_custom_label.grid(row=0, column=0)
+    dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest)
+    dest_select_custom_browse_button.grid(row=0, column=1)
+
+    DEST_TREE_COLWIDTH_DRIVE = 50 if platform.system() == 'Windows' else 150
+    DEST_TREE_COLWIDTH_VID = 140 if settings_destMode.get() == DEST_MODE_CUSTOM else 90
+    DEST_TREE_COLWIDTH_SERIAL = 200 if platform.system() == 'Windows' else 100
 
     tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
     tree_dest.heading('#0', text='Drive')
-    tree_dest.column('#0', width=50 if platform.system() == 'Windows' else 150)
+    if settings_destMode.get() == DEST_MODE_CUSTOM:
+        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL)
+    else:
+        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
     tree_dest.heading('size', text='Size')
     tree_dest.column('size', width=80)
     tree_dest.heading('configfile', text='Config')
     tree_dest.column('configfile', width=50)
-    tree_dest.heading('vid', text='Volume ID')
-    tree_dest.column('vid', width=90)
+    if settings_destMode.get() == DEST_MODE_NORMAL:
+        tree_dest.heading('vid', text='Volume ID')
+    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+        tree_dest.heading('vid', text='Name')
+    tree_dest.column('vid', width=DEST_TREE_COLWIDTH_VID)
     tree_dest.heading('serial', text='Serial')
-    tree_dest.column('serial', width=200 if platform.system() == 'Windows' else 100)
-    tree_dest['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
+    tree_dest.column('serial', width=DEST_TREE_COLWIDTH_SERIAL)
+
+    if settings_destMode.get() == DEST_MODE_NORMAL:
+        tree_dest_display_cols = ('size', 'configfile', 'vid', 'serial')
+    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+        tree_dest_display_cols = ('vid', 'size', 'configfile')
+    tree_dest['displaycolumns'] = tree_dest_display_cols
 
     tree_dest.pack(side='left')
     tree_dest_scrollbar = ttk.Scrollbar(tree_dest_frame, orient='vertical', command=tree_dest.yview)
@@ -3187,6 +3341,16 @@ if not config['cliMode']:
     tree_dest.configure(yscrollcommand=tree_dest_scrollbar.set)
 
     root.bind('<F5>', lambda x: load_dest_in_background())
+
+    # Dest tree right click menu
+    dest_right_click_menu = tk.Menu(tree_source, tearoff=0)
+    dest_right_click_menu.add_command(label='Rename', underline=0)
+    dest_right_click_menu.add_command(label='Delete')
+
+    if settings_destMode.get() == DEST_MODE_CUSTOM:
+        dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
+    else:
+        dest_right_click_bind = None
 
     # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
     # visible, so 1px needs to be added back
