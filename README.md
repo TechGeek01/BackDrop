@@ -27,6 +27,9 @@ BackDrop was intended for use with Unraid, or another NAS solution. My setup inv
 
 When you open BackDrop for the first time, you'll want to select the drive letter of your source. From there, select the drives you want to back up to, select the shares to back up, and let it rip. The backup itself is two parts.
 
+## Portable Mode
+By default, BackDrop stores the config inside of the user's AppData folder. If you want to run in portable mode, you can create a `backdrop.ini` file in the same directory as the executable (or Python) file, and it will use that instead. A sample file can be found in the repo, named `backdrop-example.ini`
+
 ### Analysis
 First, the analysis scans the directory structure of the shares, and the drives you have. It will try and pack as efficiently as possible, avoiding splitting shares if they don't have to be split. If a share has to be split, it will try and arrange it so that it most efficiently fills up one drive, and split as least as possible.
 

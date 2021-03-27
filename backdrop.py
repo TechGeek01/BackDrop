@@ -41,7 +41,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.0-beta.1'
+APP_VERSION = '3.1.0-rc.1'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
@@ -1742,9 +1742,20 @@ BACKUP_CONFIG_DIR = '.backdrop'
 BACKUP_CONFIG_FILE = 'backup.ini'
 BACKUP_HASH_FILE = 'hashes.pkl'
 PREFERENCES_CONFIG_FILE = 'preferences.ini'
+PORTABLE_PREFERENCES_CONFIG_FILE = 'backdrop.ini'
 WINDOW_ELEMENT_PADDING = 16
 
-prefs = Config(os.path.join(APPDATA_FOLDER, PREFERENCES_CONFIG_FILE))
+PORTABLE_CONFIG_FILE_PATH = os.path.join(os.getcwd(), PORTABLE_PREFERENCES_CONFIG_FILE)
+
+PORTABLE_MODE = os.path.isfile(PORTABLE_CONFIG_FILE_PATH)
+
+if not PORTABLE_MODE:
+    CONFIG_FILE_PATH = os.path.join(APPDATA_FOLDER, PREFERENCES_CONFIG_FILE)
+else:
+    # Portable mode
+    CONFIG_FILE_PATH = PORTABLE_CONFIG_FILE_PATH
+
+prefs = Config(CONFIG_FILE_PATH)
 last_selected_custom_source = prefs.get('selection', 'last_selected_custom_source', default=None)
 config = {
     'source_drive': last_selected_custom_source if prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_CUSTOM_SINGLE else None,

@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Custom source selection
 - Custom destination selection
+- Portable mode
 
 ### Fixed
 - Fixed division by zero when not copying any new files
