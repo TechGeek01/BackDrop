@@ -41,7 +41,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.0-rc.1'
+APP_VERSION = '3.1.0-rc.2'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
@@ -128,6 +128,10 @@ def update_file_detail_lists(list_name, filename):
             if list_name in ['success', 'deleteSuccess']:
                 tk.Label(file_details_copied_scrollable_frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
 
+                # Remove all but the most recent 250 items
+                for item in file_details_copied_scrollable_frame.winfo_children()[:-250]:
+                    item.destroy()
+
                 # HACK: The scroll yview won't see the label instantly after it's packed.
                 # Sleeping for a brief time fixes that. This is acceptable as long as it's
                 # not run in the main thread, else the UI will hang.
@@ -135,6 +139,10 @@ def update_file_detail_lists(list_name, filename):
                 file_details_copied_info_canvas.yview_moveto(1)
             else:
                 tk.Label(file_details_failed_scrollable_frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+
+                # HACK: The scroll yview won't see the label instantly after it's packed.
+                # Sleeping for a brief time fixes that. This is acceptable as long as it's
+                # not run in the main thread, else the UI will hang.
                 time.sleep(0.01)
                 file_details_failed_info_canvas.yview_moveto(1)
 
