@@ -1010,7 +1010,7 @@ class Backup:
                             hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
                             pickle.dump(hash_list, f)
 
-            if self.thread_manager.threadlist['Backup']['killFlag'] and self.totals['running'] < self.totals['progressBar']:
+            if self.thread_manager.threadlist['Backup']['killFlag'] and self.totals['running'] < self.totals['master']:
                 if not self.config['cliMode']:
                     self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=self.uicolor.STOPPED)
                     self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=self.uicolor.STOPPED)

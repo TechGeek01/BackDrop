@@ -465,7 +465,7 @@ def update_backup_eta_timer():
             print(f"{str(running_time).split('.')[0]} elapsed => {str(remaining_time).split('.')[0]} remaining")
         time.sleep(0.25)
 
-    if thread_manager.threadlist['Backup']['killFlag'] and backup.totals['running'] < backup.totals['progressBar']:
+    if thread_manager.threadlist['Backup']['killFlag'] and backup.totals['running'] < backup.totals['master']:
         # Backup aborted
         if not config['cliMode']:
             backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=uicolor.STOPPED)
