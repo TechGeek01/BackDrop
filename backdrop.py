@@ -1767,6 +1767,7 @@ last_selected_custom_source = prefs.get('selection', 'last_selected_custom_sourc
 config = {
     'source_drive': last_selected_custom_source if prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_CUSTOM_SINGLE else None,
     'source_mode': prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS),
+    'dest_mode': prefs.get('selection', 'dest_mode', default=DEST_MODE_NORMAL, verify_data=DEST_MODE_OPTIONS),
     'splitMode': False,
     'shares': [],
     'drives': [],
@@ -2735,14 +2736,12 @@ def rename_source_item(item):
     else:
         new_name = ''
 
-    # Prevent rename if field is blank
-    if new_name:
-        # Only set name in preferences if not in custom source mode
-        if settings_sourceMode.get() == SOURCE_MODE_MULTI:
-            drive_name = tree_source.item(item, 'text')
-            prefs.set('source_names', drive_name, new_name)
+    # Only set name in preferences if not in custom source mode
+    if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+        drive_name = tree_source.item(item, 'text')
+        prefs.set('source_names', drive_name, new_name)
 
-        tree_source.set(item, 'name', new_name)
+    tree_source.set(item, 'name', new_name)
 
 def delete_source_item(item):
     """Delete an item in the source tree for multi-source mode.
@@ -2771,8 +2770,7 @@ def rename_dest_item(item):
     else:
         new_name = ''
 
-    if new_name:
-        tree_dest.set(item, 'vid', new_name)
+    tree_dest.set(item, 'vid', new_name)
 
 def delete_dest_item(item):
     """Delete an item in the dest tree for custom dest mode.
@@ -2870,6 +2868,8 @@ def change_dest_mode():
         tree_dest['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
 
         tree_dest.unbind('<Button-3>', dest_right_click_bind)
+
+        config['dest_mode'] = settings_destMode.get()
     elif settings_destMode.get() == DEST_MODE_CUSTOM:
         tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
         tree_dest.column('vid', width=140)
@@ -2877,6 +2877,8 @@ def change_dest_mode():
         tree_dest['displaycolumns'] = ('vid', 'size', 'configfile')
 
         dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
+
+        config['dest_mode'] = settings_destMode.get()
 
     # URGENT: Fix this not being run in separate thread
     load_dest()

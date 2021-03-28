@@ -11,6 +11,14 @@ from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.status import Status
 
+SOURCE_MODE_SINGLE = 'single'
+SOURCE_MODE_MULTI = 'multiple'
+SOURCE_MODE_CUSTOM_SINGLE = 'custom'
+SOURCE_MODE_CUSTOM_MULTI = 'custom_multiple'
+
+DEST_MODE_NORMAL = 'normal'
+DEST_MODE_CUSTOM = 'custom'
+
 class Backup:
     def __init__(self, config, backup_config_dir, backup_config_file, do_copy_fn, do_del_fn, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager, update_ui_component_fn=None, uicolor=None, progress=None):
         """Configure a backup to be run on a set of drives.
@@ -91,9 +99,9 @@ class Backup:
             drive_total = 0
 
             # Shares and destinations need identifiers
-            if [share for share in self.config['shares'] if not share['dest_name']]:
+            if self.config['source_mode'] in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI] and [share for share in self.config['shares'] if not share['dest_name']]:
                 return False
-            if [drive for drive in self.config['drives'] if not drive['vid']]:
+            if self.config['dest_mode'] == DEST_MODE_CUSTOM and [drive for drive in self.config['drives'] if not drive['vid']]:
                 return False
 
             shares_known = True
