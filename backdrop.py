@@ -668,7 +668,7 @@ def start_backup_analysis():
     if (not backup or not backup.is_running()) and not verification_running and (config['cliMode'] or source_drive_list_valid):
         # TODO: There has to be a better way to handle stopping and starting this split mode toggling
         if not config['cliMode']:
-            split_mode_enabled = dest_mode_split_check_var.get()
+            split_mode_enabled = config['splitMode']
             split_mode_text = 'Enabled' if split_mode_enabled else 'Disabled'
             split_mode_color = uicolor.ENABLED if split_mode_enabled else uicolor.DISABLED
             split_mode_status.configure(text=f"Split mode\n{split_mode_text}", fg=split_mode_color)
@@ -2975,7 +2975,7 @@ if not config['cliMode']:
 
         return os.path.join(base_path, relative_path)
 
-    WINDOW_BASE_WIDTH = 1200
+    WINDOW_BASE_WIDTH = 1150
     WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
     WINDOW_FILE_DETAILS_EXTRA_WIDTH = 400 + WINDOW_ELEMENT_PADDING
     MULTI_SOURCE_TEXT_COL_WIDTH = 120 if platform.system() == 'Windows' else 200
@@ -3070,7 +3070,10 @@ if not config['cliMode']:
     )
     tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#600', borderwidth=0, padding=(8, 6))
     tk_style.configure('slim.TButton', padding=(2, 2))
-    tk_style.configure('slim.danger.TButton', background='#b00', foreground='#fff', bordercolor='#600', borderwidth=0, padding=(6, 4))
+
+    tk_style.configure('tooltip.TLabel', background=uicolor.BG, foreground=uicolor.TOOLTIP)
+    tk_style.configure('on.toggle.TLabel', background=uicolor.BG, foreground=uicolor.GREEN)
+    tk_style.configure('off.toggle.TLabel', background=uicolor.BG, foreground=uicolor.FADED)
 
     tk_style.configure('TCheckbutton', background=uicolor.BG, foreground=uicolor.NORMAL)
     tk_style.configure('TFrame', background=uicolor.BG, foreground=uicolor.NORMAL)
@@ -3319,35 +3322,38 @@ if not config['cliMode']:
     dest_mode_frame = tk.Frame(main_frame)
     dest_mode_frame.grid(row=0, column=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
-    def toggle_split_mode_with_checkbox():
+    def toggle_split_mode(event):
         """Handle toggling of split mode based on checkbox value."""
 
-        config['splitMode'] = dest_mode_split_check_var.get()
-
         if not backup or not backup.analysis_started:
-            split_mode_status.configure(text=f"Split mode\n{'Enabled' if config['splitMode'] else 'Disabled'}", fg=uicolor.ENABLED if config['splitMode'] else uicolor.DISABLED)
+            config['splitMode'] = not config['splitMode']
 
-    dest_mode_split_check_var = tk.BooleanVar()
+            if config['splitMode']:
+                split_mode_frame.configure(highlightbackground=uicolor.GREEN)
+                split_mode_status.configure(style='on.toggle.TLabel')
+            else:
+                split_mode_frame.configure(highlightbackground=uicolor.FADED)
+                split_mode_status.configure(style='off.toggle.TLabel')
 
     dest_select_normal_frame = tk.Frame(dest_mode_frame)
     dest_select_normal_frame.pack()
-    alt_tooltip_frame = tk.Frame(dest_select_normal_frame, bg=uicolor.INFO)
-    alt_tooltip_frame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
-    tk.Label(alt_tooltip_frame, text='Hold ALT when selecting a drive to ignore config files', bg=uicolor.INFO, fg=uicolor.BLACK).pack(fill='y', expand=1)
-
-    # Split mode checkbox
-    ttk.Checkbutton(dest_select_normal_frame, text='Use split mode', variable=dest_mode_split_check_var, command=toggle_split_mode_with_checkbox).pack(side='left', padx=(12, 0))
+    alt_tooltip_normal_frame = tk.Frame(dest_select_normal_frame, highlightbackground=uicolor.TOOLTIP, highlightthickness=1)
+    alt_tooltip_normal_frame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
+    ttk.Label(alt_tooltip_normal_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
 
     dest_select_custom_frame = tk.Frame(dest_mode_frame)
     dest_select_custom_frame.grid_columnconfigure(0, weight=1)
-    dest_select_custom_label = tk.Label(dest_select_custom_frame, text='Custom destination mode')
-    dest_select_custom_label.grid(row=0, column=0)
+    # dest_select_custom_label = tk.Label(dest_select_custom_frame, text='Custom destination mode')
+    # dest_select_custom_label.grid(row=0, column=0)
+    alt_tooltip_custom_frame = tk.Frame(dest_select_custom_frame, highlightbackground=uicolor.TOOLTIP, highlightthickness=1)
+    alt_tooltip_custom_frame.grid(row=0, column=0, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
+    ttk.Label(alt_tooltip_custom_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
     dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest, style='slim.TButton')
     dest_select_custom_browse_button.grid(row=0, column=1)
 
     DEST_TREE_COLWIDTH_DRIVE = 50 if platform.system() == 'Windows' else 150
     DEST_TREE_COLWIDTH_VID = 140 if settings_destMode.get() == DEST_MODE_CUSTOM else 90
-    DEST_TREE_COLWIDTH_SERIAL = 200 if platform.system() == 'Windows' else 100
+    DEST_TREE_COLWIDTH_SERIAL = 150 if platform.system() == 'Windows' else 50
 
     tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
     tree_dest.heading('#0', text='Drive')
@@ -3428,11 +3434,16 @@ if not config['cliMode']:
 
     drive_total_space_frame = tk.Frame(drive_space_frame)
     drive_total_space_frame.grid(row=0, column=2, padx=(12, 0))
-    tk.Label(drive_total_space_frame, text='Available:').pack(side='left')
+    tk.Label(drive_total_space_frame, text='Avail:').pack(side='left')
     drive_total_space = tk.Label(drive_total_space_frame, text=human_filesize(0), fg=uicolor.FADED)
     drive_total_space.pack(side='left')
-    split_mode_status = tk.Label(drive_space_frame, text=f"Split mode\n{'Enabled' if config['splitMode'] else 'Disabled'}", fg=uicolor.ENABLED if config['splitMode'] else uicolor.DISABLED)
-    split_mode_status.grid(row=0, column=3, padx=(12, 0))
+    split_mode_frame = tk.Frame(drive_space_frame, highlightbackground=uicolor.GREEN if config['splitMode'] else uicolor.FADED, highlightthickness=1)
+    split_mode_frame.grid(row=0, column=3, padx=(12, 0), pady=4, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=3)
+    split_mode_status = ttk.Label(split_mode_frame, text='Split mode', style='on.toggle.TLabel' if config['splitMode'] else 'off.toggle.TLabel')
+    split_mode_status.pack(fill='y', expand=1)
+
+    split_mode_frame.bind('<Button-1>', toggle_split_mode)
+    split_mode_status.bind('<Button-1>', toggle_split_mode)
 
     drive_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_drive_in_background)
 

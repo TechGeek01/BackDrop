@@ -12,6 +12,7 @@ class Color:
     NORMAL = BLACK
 
     INFO = '#bbe6ff'
+    TOOLTIP = '#008cbb'
     INFOTEXT = '#0095c7'
     INFOTEXTDARK = '#0095c7'
     WARNING = '#ffe69d'
@@ -84,6 +85,7 @@ class Color:
             Color.RED = '#f53'
 
             Color.INFO = '#3bceff'
+            Color.TOOLTIP = '#3bceff'
             Color.INFOTEXT = '#00b2ee'
 
         Color.ENABLED = Color.GREEN
