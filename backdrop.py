@@ -1031,7 +1031,7 @@ def load_dest():
     if not config['cliMode']:
         tree_dest.delete(*tree_dest.get_children())
 
-    if settings_destMode.get() == DEST_MODE_NORMAL:
+    if prefs.get('selection', 'dest_mode', default=DEST_MODE_NORMAL, verify_data=DEST_MODE_OPTIONS) == DEST_MODE_NORMAL:
         if not config['cliMode']:
             dest_select_custom_frame.pack_forget()
             dest_select_normal_frame.pack()
@@ -1220,11 +1220,11 @@ def get_share_path_from_name(share):
         String: The path name for the share.
     """
 
-    if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE:
+    if prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
         # Single source mode, so source is source drive
         return os.path.join(config['source_drive'], share)
     else:
-        reference_list = {prefs.get('source_names', mountpoint, ''): mountpoint for mountpoint in source_avail_drive_list if prefs.get('source_names', mountpoint, '')}
+        reference_list = {prefs.get('source_names', mountpoint, default=''): mountpoint for mountpoint in source_avail_drive_list if prefs.get('source_names', mountpoint, '')}
         return reference_list[share]
 
 def load_config_from_file(filename):
@@ -1238,6 +1238,8 @@ def load_config_from_file(filename):
 
     new_config = {}
     config_file = Config(filename)
+
+    SELECTED_DEST_MODE = prefs.get('selection', 'dest_mode', default=DEST_MODE_NORMAL, verify_data=DEST_MODE_OPTIONS)
 
     # Get shares
     shares = config_file.get('selection', 'shares')
@@ -1255,7 +1257,7 @@ def load_config_from_file(filename):
                 'dest_name': share
             } for share in shares.split(',')]
 
-    if settings_destMode.get() == DEST_MODE_NORMAL:
+    if SELECTED_DEST_MODE == DEST_MODE_NORMAL:
         # Get VID list
         vids = config_file.get('selection', 'vids').split(',')
 
@@ -1274,7 +1276,7 @@ def load_config_from_file(filename):
                 reported_drive_capacity = config_file.get(drive, 'capacity', 0, data_type=Config.INTEGER)
                 new_config['missingDrives'][drive] = reported_drive_capacity
                 config_drive_total += reported_drive_capacity
-    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+    elif SELECTED_DEST_MODE == DEST_MODE_CUSTOM:
         # Get drive info
         config_drive_total = 0
         new_config['missingDrives'] = {}
@@ -1849,10 +1851,6 @@ if config['cliMode']:
         if platform.system() == 'Windows':
             drive_list = [f"{drive[0].upper()}:" for drive in drive_list]
 
-        print(dest_drive_name_list)
-        print(drive_list)
-        print([drive for drive in drive_list if drive not in dest_drive_name_list])
-
         if [drive for drive in drive_list if drive not in dest_drive_name_list]:
             print('Please specify a valid drive mount point')
             exit()
@@ -1877,142 +1875,178 @@ if config['cliMode']:
             exit()
         dest_drive_name_list = [drive['name'] for drive in dest_drive_master_list]
 
-        # Source drive
-        if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE:
-            if command_line.has_param('interactive'):
-                source_drive = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
-            else:
-                source_drive = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
-                source_drive = command_line.get_param('source')[0][0].upper() + ':' if command_line.has_param('source') and command_line.get_param('source')[0] in source_avail_drive_list else source_drive
+        SELECTED_SOURCE_MODE = prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
+        SELECTED_DEST_MODE = prefs.get('selection', 'dest_mode', default=DEST_MODE_NORMAL, verify_data=DEST_MODE_OPTIONS)
 
-            if command_line.has_param('interactive') and not command_line.validate_yes_no(f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
-                print('\nAvailable drives are as follows:\n')
-                print(f"Available drives: {', '.join(source_avail_drive_list)}\n")
-                config['source_drive'] = command_line.validate_choice(
-                    message='Which source drive would you like to use?',
-                    choices=source_avail_drive_list,
-                    default=source_drive,
-                    chars_required=1
-                )
-            else:
-                if source_drive is None:
-                    exit()
-                elif source_drive not in source_avail_drive_list:
-                    print(f"{bcolor.FAIL}Source drive is not valid for selection{bcolor.ENDC}")
-                    exit()
+        # Warn and exit with unsupported source and destination modes
+        if SELECTED_SOURCE_MODE in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+            # FIXME: Get multi source modes working in CLI mode
+            print('CLI mode does not currently work in multi-source mode')
+            exit()
+        elif SELECTED_DEST_MODE == DEST_MODE_CUSTOM:
+            # FIXME: Get cutom destination mode working in CLI mode
+            print('CLI mode currently only works with normal destination mode')
 
-                config['source_drive'] = source_drive
+        # Load config from destination if specified
+        LOAD_CONFIG_LOCATION = command_line.get_param('load-config')
+        LOAD_CONFIG_LOCATION = LOAD_CONFIG_LOCATION[0] if LOAD_CONFIG_LOCATION else ''
+        if LOAD_CONFIG_LOCATION:
+            if platform.system() == 'Windows' and SELECTED_DEST_MODE == DEST_MODE_NORMAL:
+                LOAD_CONFIG_LOCATION = LOAD_CONFIG_LOCATION[0].upper() + ':'
 
-            shares_loaded_from_config = False
-        else:
-            # Multi-source mode
-            print(f"{bcolor.OKCYAN}Multi-source mode, so no source drives to select{bcolor.ENDC}")
+            if not os.path.isdir(LOAD_CONFIG_LOCATION):
+                print('Please specify a valid destination to load a config from')
+                exit()
 
-        # Destination drives
-        if command_line.has_param('interactive'):
-            print('\nAvailable destination drives are as follows:\n')
+            # Config location valid, so load it
+            load_config_from_file(os.path.join(LOAD_CONFIG_LOCATION, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+            data_loaded_from_config = True  # FIXME: Can this var be removed?
+        else:  # Config not loaded from destination, so gather data
+            # Source drive
+            if SELECTED_SOURCE_MODE in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
+                # Load source from preferences, or user input
+                if command_line.has_param('interactive'):
+                    if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE:
+                        # Single source is loaded from preferences, or defaulted to first drive in source list
+                        source_drive = prefs.get('selection', 'source_drive', default=source_avail_drive_list[0], verify_data=source_avail_drive_list)
+                    elif SELECTED_SOURCE_MODE == SOURCE_MODE_CUSTOM_SINGLE:
+                        # Custom single source is loaded from preferences if it's a valid path
+                        source_drive = prefs.get('selection', 'last_selected_custom_source', default='')
 
-            # TODO: Generalize this into function for table-izing data?
-            drive_name_list = ['Drive']
-            drive_size_list = ['Size']
-            drive_config_list = ['Config file']
-            drive_vid_list = ['Volume ID']
-            drive_serial_list = ['Serial']
-            drive_name_list.extend([drive['name'] for drive in dest_drive_master_list])
-            drive_size_list.extend([human_filesize(drive['capacity']) for drive in dest_drive_master_list])
-            drive_config_list.extend(['Yes' if drive['hasConfig'] else '' for drive in dest_drive_master_list])
-            drive_vid_list.extend([drive['vid'] for drive in dest_drive_master_list])
-            drive_serial_list.extend([drive['serial'] for drive in dest_drive_master_list])
+                    if source_drive and not os.path.isdir(source_drive):
+                        source_drive = ''
 
-            drive_display_length = {
-                'name': len(max(drive_name_list, key=len)),
-                'size': len(max(drive_size_list, key=len)),
-                'config': len(max(drive_config_list, key=len)),
-                'vid': len(max(drive_vid_list, key=len))
-            }
+                    # Validate source
+                    if not source_drive or not command_line.validate_yes_no(f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
+                        if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE:
+                            print(f"Available drives: {', '.join(source_avail_drive_list)}\n")
+                            config['source_drive'] = command_line.validate_choice(
+                                message='Which source drive would you like to use?',
+                                choices=source_avail_drive_list,
+                                default=source_drive,
+                                chars_required=1
+                            )
+                        elif SELECTED_SOURCE_MODE == SOURCE_MODE_CUSTOM_SINGLE:
+                            source_drive = ''
 
-            for i, cur_drive in enumerate(drive_name_list):
-                print(f"{cur_drive: <{drive_display_length['name']}}  {drive_size_list[i]: <{drive_display_length['size']}}  {drive_config_list[i]: <{drive_display_length['config']}}  {drive_vid_list[i]: <{drive_display_length['vid']}}  {drive_serial_list[i]}")
-            print('')
+                            while not os.path.isdir(source_drive):
+                                source_drive = input(f"{bcolor.OKCYAN}Which source path would you like to use?{bcolor.ENDC} ")
+                else:
+                    if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE:
+                        if platform.system() == 'Windows':
+                            source_drive = command_line.get_param('source')[0][0].upper() + ':' if command_line.has_param('source') and command_line.get_param('source')[0][0].upper() + ':' in source_avail_drive_list else ''
+                        elif platform.system() == 'Linux':
+                            source_drive = command_line.get_param('source')[0] if command_line.has_param('source') and command_line.get_param('source')[0] in source_avail_drive_list else ''
+                    elif SELECTED_SOURCE_MODE == SOURCE_MODE_CUSTOM_SINGLE:
+                        source_drive = command_line.get_param('source')[0]
 
-            drive_list = command_line.validate_choice_list(
-                message='Which destination drives (space separated) would you like to use?',
-                choices=[drive['name'] for drive in dest_drive_master_list],
-                default=None,
-                chars_required=1
-            )
-
-            config['drives'] = [drive for drive in dest_drive_master_list if drive['name'] in drive_list]
-        else:
-            # Load from config
-            split_mode = command_line.has_param('split')
-            load_config_drive = command_line.get_param('load-config')[0]
-            if platform.system() == 'Windows':
-                load_config_drive = load_config_drive[0].upper() + ':'
-            if type(load_config_drive) is str and load_config_drive in dest_drive_name_list:
-                load_config_from_file(os.path.join(load_config_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
-
-                shares_loaded_from_config = True
-
-                dest_list = [drive['name'] for drive in config['drives']]
-
-                # If drives aren't mounted that should be, display the warning
-                missing_drive_count = len(config['missingDrives'])
-                if missing_drive_count > 0 and not split_mode:
-                    config_missing_vids = [vid for vid in config['missingDrives'].keys()]
-
-                    missing_vid_string = ', '.join(config_missing_vids[:-2] + [' and '.join(config_missing_vids[-2:])])
-                    warning_message = f"The drive{'s' if len(config_missing_vids) > 1 else ''} with volume ID{'s' if len(config_missing_vids) > 1 else ''} {missing_vid_string} {'are' if len(config_missing_vids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
-                    warning_title = f"Drive{'s' if len(config_missing_vids) > 1 else ''} missing"
-
-                    drive_parts = [
-                        'is' if missing_drive_count == 1 else 'are',
-                        'drive' if missing_drive_count == 1 else 'drives',
-                        'isn\'t' if missing_drive_count == 1 else 'aren\'t',
-                        'it' if missing_drive_count == 1 else 'them'
-                    ]
-                    print(f"{bcolor.WARNING}There {drive_parts[0]} {missing_drive_count} {drive_parts[1]} in the config that {drive_parts[2]} connected. Please connect {drive_parts[3]}, or enable split mode.{bcolor.ENDC}\n")
-            else:
-                if not config['drives'] and (not command_line.has_param('destination') or not command_line.get_param('destination')):
-                    print('Please specify at least one destination drive')
-                    exit()
-
-                dest_list = [drive[0].upper() + ':' for drive in command_line.get_param('destination')]
-
-                for drive in dest_list:
-                    if drive not in dest_drive_name_list:
-                        print(f"{bcolor.FAIL}One or more destinations are not valid for selection.\nAvailable drives are as follows:{bcolor.ENDC}")
-
-                        drive_name_list = ['Drive']
-                        drive_size_list = ['Size']
-                        drive_config_list = ['Config file']
-                        drive_vid_list = ['Volume ID']
-                        drive_serial_list = ['Serial']
-                        drive_name_list.extend([drive['name'] for drive in dest_drive_master_list])
-                        drive_size_list.extend([human_filesize(drive['capacity']) for drive in dest_drive_master_list])
-                        drive_config_list.extend(['Yes' if drive['hasConfig'] else '' for drive in dest_drive_master_list])
-                        drive_vid_list.extend([drive['vid'] for drive in dest_drive_master_list])
-                        drive_serial_list.extend([drive['serial'] for drive in dest_drive_master_list])
-
-                        drive_display_length = {
-                            'name': len(max(drive_name_list, key=len)),
-                            'size': len(max(drive_size_list, key=len)),
-                            'config': len(max(drive_config_list, key=len)),
-                            'vid': len(max(drive_vid_list, key=len))
-                        }
-
-                        for i, cur_drive in enumerate(drive_name_list):
-                            print(f"{cur_drive: <{drive_display_length['name']}}  {drive_size_list[i]: <{drive_display_length['size']}}  {drive_config_list[i]: <{drive_display_length['config']}}  {drive_vid_list[i]: <{drive_display_length['vid']}}  {drive_serial_list[i]}")
-
+                    if not source_drive or not os.path.isdir(source_drive):
+                        print('Please specify a valid source')
                         exit()
 
-            config['drives'] = [drive for drive in dest_drive_master_list if drive['name'] in dest_list]
-            config['splitMode'] = split_mode
+                config['source_drive'] = source_drive
+                data_loaded_from_config = False
+
+        # Destination drives
+        if SELECTED_DEST_MODE == DEST_MODE_NORMAL:
+            if command_line.has_param('interactive'):
+                print('\nAvailable destination drives are as follows:\n')
+
+                # TODO: Generalize this into function for table-izing data?
+                drive_name_list = ['Drive']
+                drive_size_list = ['Size']
+                drive_config_list = ['Config file']
+                drive_vid_list = ['Volume ID']
+                drive_serial_list = ['Serial']
+                drive_name_list.extend([drive['name'] for drive in dest_drive_master_list])
+                drive_size_list.extend([human_filesize(drive['capacity']) for drive in dest_drive_master_list])
+                drive_config_list.extend(['Yes' if drive['hasConfig'] else '' for drive in dest_drive_master_list])
+                drive_vid_list.extend([drive['vid'] for drive in dest_drive_master_list])
+                drive_serial_list.extend([drive['serial'] for drive in dest_drive_master_list])
+
+                drive_display_length = {
+                    'name': len(max(drive_name_list, key=len)),
+                    'size': len(max(drive_size_list, key=len)),
+                    'config': len(max(drive_config_list, key=len)),
+                    'vid': len(max(drive_vid_list, key=len))
+                }
+
+                for i, cur_drive in enumerate(drive_name_list):
+                    print(f"{cur_drive: <{drive_display_length['name']}}  {drive_size_list[i]: <{drive_display_length['size']}}  {drive_config_list[i]: <{drive_display_length['config']}}  {drive_vid_list[i]: <{drive_display_length['vid']}}  {drive_serial_list[i]}")
+                print('')
+
+                drive_list = command_line.validate_choice_list(
+                    message='Which destination drives (space separated) would you like to use?',
+                    choices=[drive['name'] for drive in dest_drive_master_list],
+                    default=None,
+                    chars_required=1
+                )
+
+                config['drives'] = [drive for drive in dest_drive_master_list if drive['name'] in drive_list]
+            else:
+                # Load from config
+                split_mode = command_line.has_param('split')
+                if data_loaded_from_config:
+                    dest_list = [drive['name'] for drive in config['drives']]
+
+                    # If drives aren't mounted that should be, display the warning
+                    missing_drive_count = len(config['missingDrives'])
+                    if missing_drive_count > 0 and not split_mode:
+                        config_missing_vids = [vid for vid in config['missingDrives'].keys()]
+
+                        missing_vid_string = ', '.join(config_missing_vids[:-2] + [' and '.join(config_missing_vids[-2:])])
+                        warning_message = f"The drive{'s' if len(config_missing_vids) > 1 else ''} with volume ID{'s' if len(config_missing_vids) > 1 else ''} {missing_vid_string} {'are' if len(config_missing_vids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
+                        warning_title = f"Drive{'s' if len(config_missing_vids) > 1 else ''} missing"
+
+                        drive_parts = [
+                            'is' if missing_drive_count == 1 else 'are',
+                            'drive' if missing_drive_count == 1 else 'drives',
+                            'isn\'t' if missing_drive_count == 1 else 'aren\'t',
+                            'it' if missing_drive_count == 1 else 'them'
+                        ]
+                        print(f"{bcolor.WARNING}There {drive_parts[0]} {missing_drive_count} {drive_parts[1]} in the config that {drive_parts[2]} connected. Please connect {drive_parts[3]}, or enable split mode.{bcolor.ENDC}\n")
+                else:
+                    if not config['drives'] and (not command_line.has_param('destination') or not command_line.get_param('destination')):
+                        print('Please specify at least one destination drive')
+                        exit()
+
+                    dest_list = [drive[0].upper() + ':' for drive in command_line.get_param('destination')]
+
+                    for drive in dest_list:
+                        if drive not in dest_drive_name_list:
+                            print(f"{bcolor.FAIL}One or more destinations are not valid for selection.\nAvailable drives are as follows:{bcolor.ENDC}")
+
+                            drive_name_list = ['Drive']
+                            drive_size_list = ['Size']
+                            drive_config_list = ['Config file']
+                            drive_vid_list = ['Volume ID']
+                            drive_serial_list = ['Serial']
+                            drive_name_list.extend([drive['name'] for drive in dest_drive_master_list])
+                            drive_size_list.extend([human_filesize(drive['capacity']) for drive in dest_drive_master_list])
+                            drive_config_list.extend(['Yes' if drive['hasConfig'] else '' for drive in dest_drive_master_list])
+                            drive_vid_list.extend([drive['vid'] for drive in dest_drive_master_list])
+                            drive_serial_list.extend([drive['serial'] for drive in dest_drive_master_list])
+
+                            drive_display_length = {
+                                'name': len(max(drive_name_list, key=len)),
+                                'size': len(max(drive_size_list, key=len)),
+                                'config': len(max(drive_config_list, key=len)),
+                                'vid': len(max(drive_vid_list, key=len))
+                            }
+
+                            for i, cur_drive in enumerate(drive_name_list):
+                                print(f"{cur_drive: <{drive_display_length['name']}}  {drive_size_list[i]: <{drive_display_length['size']}}  {drive_config_list[i]: <{drive_display_length['config']}}  {drive_vid_list[i]: <{drive_display_length['vid']}}  {drive_serial_list[i]}")
+
+                            exit()
+
+                config['drives'] = [drive for drive in dest_drive_master_list if drive['name'] in dest_list]
+                config['splitMode'] = split_mode
+        else:
+            exit()
 
         # Shares
-        source_select_mode = prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
         if command_line.has_param('interactive'):
-            if source_select_mode == SOURCE_MODE_SINGLE:
+            if SELECTED_SOURCE_MODE in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
                 all_share_name_list = [share for share in next(os.walk(config['source_drive']))[1]]
                 share_name_to_source_map = {share: os.path.join(config['source_drive'], share) for share in all_share_name_list}
 
@@ -2059,12 +2093,12 @@ if config['cliMode']:
                 print('Please specify at least one share to back up')
                 exit()
 
-            if not shares_loaded_from_config:
+            if not data_loaded_from_config:
                 share_list = sorted(command_line.get_param('share'))
             else:
                 share_list = [share['dest_name'] for share in config['shares']]
 
-            if source_select_mode == SOURCE_MODE_SINGLE:
+            if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE:
                 source_share_list = [directory for directory in next(os.walk(config['source_drive']))[1]]
                 filtered_share_input = [share for share in share_list if share in source_share_list]
             else:
