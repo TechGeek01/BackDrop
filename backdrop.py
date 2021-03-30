@@ -1793,8 +1793,7 @@ thread_manager = ThreadManager()
 
 # If running on Windows, set params to allow ANSI escapes for color
 if os.name == 'nt':
-    from ctypes import windll
-    k = windll.kernel32
+    k = ctypes.windll.kernel32
     k.SetConsoleMode(k.GetStdHandle(-11), 7)
 
 ############
