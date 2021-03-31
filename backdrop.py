@@ -1385,6 +1385,34 @@ def start_backup():
     if backup and not verification_running:
         statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
         statusbar_details.configure(text='')
+
+        # Reset UI
+        if not config['cliMode']:
+            # Reset file detail success and fail lists
+            for list_name in ['deleteSuccess', 'deleteFail', 'success', 'fail']:
+                file_detail_list[list_name].clear()
+
+            # Reset file details counters
+            FILE_DELETE_COUNT = len(file_detail_list['delete'])
+            FILE_COPY_COUNT = len(file_detail_list['copy'])
+            file_details_pending_delete_counter.configure(text=str(FILE_DELETE_COUNT))
+            file_details_pending_delete_counter_total.configure(text=str(FILE_DELETE_COUNT))
+            file_details_pending_copy_counter.configure(text=str(FILE_COPY_COUNT))
+            file_details_pending_copy_counter_total.configure(text=str(FILE_COPY_COUNT))
+            file_details_copied_counter.configure(text='0')
+            file_details_failed_counter.configure(text='0')
+
+            # Empty file details list panes
+            for child in file_details_copied_scrollable_frame.winfo_children():
+                child.destroy()
+            for child in file_details_failed_scrollable_frame.winfo_children():
+                child.destroy()
+
+            # Scroll back to top of scrollable canvas
+            time.sleep(0.01)
+            file_details_copied_info_canvas.yview_moveto(0)
+            file_details_failed_info_canvas.yview_moveto(0)
+
         thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
 force_non_graceful_cleanup = False

@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 - Fixed typo in CLI mode
 - Fixed broken CLI mode in Linux
 - Fixed split mode toggle before analysis causing crash
+- Fixed file detail lists not emptying during a UI reset
+- Fixed file detail lists not scrolling back to top when emptying lists during UI reset
 
 ## 3.1.0-rc.3 - 2021-03-30
 ### Added
