@@ -127,6 +127,7 @@ def update_file_detail_lists(list_name, filename):
             # Update copy list scrollable
             if list_name in ['success', 'deleteSuccess']:
                 tk.Label(file_details_copied_scrollable_frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+                file_details_copied_counter.configure(text=len(file_detail_list[list_name]))
 
                 # Remove all but the most recent 250 items
                 for item in file_details_copied_scrollable_frame.winfo_children()[:-250]:
@@ -139,6 +140,7 @@ def update_file_detail_lists(list_name, filename):
                 file_details_copied_info_canvas.yview_moveto(1)
             else:
                 tk.Label(file_details_failed_scrollable_frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+                file_details_failed_counter.configure(text=len(file_detail_list[list_name]))
 
                 # HACK: The scroll yview won't see the label instantly after it's packed.
                 # Sleeping for a brief time fixes that. This is acceptable as long as it's
@@ -651,12 +653,20 @@ def reset_ui():
         file_details_pending_delete_counter_total.configure(text='0')
         file_details_pending_copy_counter.configure(text='0')
         file_details_pending_copy_counter_total.configure(text='0')
+        file_details_copied_counter.configure(text='0')
+        file_details_failed_counter.configure(text='0')
 
         # Empty file details list panes
         for child in file_details_copied_scrollable_frame.winfo_children():
             child.destroy()
         for child in file_details_failed_scrollable_frame.winfo_children():
             child.destroy()
+
+        # Scroll back to top of scrollable canvas
+        time.sleep(0.01)
+        file_details_copied_info_canvas.yview_moveto(0)
+        file_details_failed_info_canvas.yview_moveto(0)
+
 
 def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
@@ -3536,11 +3546,14 @@ if not config['cliMode']:
     file_details_pending_copy_counter_total.pack(side='left', anchor='s', pady=(0, 5))
 
     file_details_copied_header_line = tk.Frame(backup_file_details_frame)
-    file_details_copied_header_line.grid(row=2, column=0, columnspan=2, sticky='w')
+    file_details_copied_header_line.grid(row=2, column=0, columnspan=2, sticky='ew')
+    file_details_copied_header_line.grid_columnconfigure(1, weight=1)
     file_details_copied_header = tk.Label(file_details_copied_header_line, text='Successful', font=(None, 11, 'bold'))
-    file_details_copied_header.pack(side='left')
+    file_details_copied_header.grid(row=0, column=0)
     file_details_copied_tooltip = tk.Label(file_details_copied_header_line, text='(Click to copy)', fg=uicolor.FADED)
-    file_details_copied_tooltip.pack(side='left')
+    file_details_copied_tooltip.grid(row=0, column=1, sticky='w')
+    file_details_copied_counter = tk.Label(file_details_copied_header_line, text='0', font=(None, 11, 'bold'))
+    file_details_copied_counter.grid(row=0, column=2)
     file_details_copied_frame = tk.Frame(backup_file_details_frame)
     file_details_copied_frame.grid(row=3, column=0, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='nsew')
     file_details_copied_frame.pack_propagate(0)
@@ -3557,11 +3570,14 @@ if not config['cliMode']:
     file_details_copied_info_canvas.configure(yscrollcommand=file_details_copied_scrollbar.set)
 
     file_details_failed_header_line = tk.Frame(backup_file_details_frame)
-    file_details_failed_header_line.grid(row=4, column=0, columnspan=2, sticky='w')
+    file_details_failed_header_line.grid(row=4, column=0, columnspan=2, sticky='ew')
+    file_details_failed_header_line.grid_columnconfigure(1, weight=1)
     file_details_failed_header = tk.Label(file_details_failed_header_line, text='Failed', font=(None, 11, 'bold'))
-    file_details_failed_header.pack(side='left')
+    file_details_failed_header.grid(row=0, column=0)
     file_details_failed_tooltip = tk.Label(file_details_failed_header_line, text='(Click to copy)', fg=uicolor.FADED)
-    file_details_failed_tooltip.pack(side='left')
+    file_details_failed_tooltip.grid(row=0, column=1, sticky='w')
+    file_details_failed_counter = tk.Label(file_details_failed_header_line, text='0', font=(None, 11, 'bold'))
+    file_details_failed_counter.grid(row=0, column=2)
     file_details_failed_frame = tk.Frame(backup_file_details_frame)
     file_details_failed_frame.grid(row=5, column=0, columnspan=2, sticky='nsew')
     file_details_failed_frame.pack_propagate(0)
@@ -3589,8 +3605,10 @@ if not config['cliMode']:
     file_details_pending_copy_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['copy']])))
     file_details_copied_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['success']])))
     file_details_copied_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['success']])))
+    file_details_copied_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['success']])))
     file_details_failed_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
     file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
+    file_details_failed_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
 
     def toggle_file_details_pane():
         global WINDOW_WIDTH
