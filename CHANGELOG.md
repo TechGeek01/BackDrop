@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 3.1.0-rc.4 - TBD
+## 3.1.0 - 2021-03-30
 ### Fixed
 - Fixed typo in CLI mode
 - Fixed broken CLI mode in Linux
