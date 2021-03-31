@@ -41,7 +41,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.0-rc.3'
+APP_VERSION = '3.1.0-rc.4'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
@@ -2050,11 +2050,11 @@ if config['cliMode']:
                 all_share_name_list = [share for share in next(os.walk(config['source_drive']))[1]]
                 share_name_to_source_map = {share: os.path.join(config['source_drive'], share) for share in all_share_name_list}
 
-                print('\nAvailable shares drives are as follows:\n')
+                print('\nAvailable paths are as follows:\n')
                 print('\n'.join(all_share_name_list) + '\n')
             else:
-                print(f"{bcolor.OKCYAN}To rename shares, please use GUI mode.{bcolor.ENDC}")
-                print('Available shares drives are as follows:\n')
+                print(f"{bcolor.OKCYAN}To rename paths, please use GUI mode.{bcolor.ENDC}")
+                print('Available paths are as follows:\n')
 
                 all_share_list = [{
                     'path': drive,
