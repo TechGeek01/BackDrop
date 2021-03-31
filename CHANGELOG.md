@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 3.1.1 - 2021-03-31
+### Fixed
+- Fixed incorrect accelerator in tools menu
+
 ## 3.1.0 - 2021-03-30
 ### Fixed
 - Fixed typo in CLI mode
