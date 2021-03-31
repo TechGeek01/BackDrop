@@ -666,13 +666,6 @@ def start_backup_analysis():
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
     if (not backup or not backup.is_running()) and not verification_running and (config['cliMode'] or source_drive_list_valid):
-        # TODO: There has to be a better way to handle stopping and starting this split mode toggling
-        if not config['cliMode']:
-            split_mode_enabled = config['splitMode']
-            split_mode_text = 'Enabled' if split_mode_enabled else 'Disabled'
-            split_mode_color = uicolor.ENABLED if split_mode_enabled else uicolor.DISABLED
-            split_mode_status.configure(text=f"Split mode\n{split_mode_text}", fg=split_mode_color)
-
         reset_ui()
         statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
         statusbar_details.configure(text='')
@@ -3361,7 +3354,7 @@ if not config['cliMode']:
     def toggle_split_mode(event):
         """Handle toggling of split mode based on checkbox value."""
 
-        if not backup or not backup.analysis_started:
+        if (not backup or not backup.is_running()) and not verification_running:
             config['splitMode'] = not config['splitMode']
 
             if config['splitMode']:

@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Fixed typo in CLI mode
 - Fixed broken CLI mode in Linux
+- Fixed split mode toggle before analysis causing crash
 
 ## 3.1.0-rc.3 - 2021-03-30
 ### Added
