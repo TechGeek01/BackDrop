@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## 3.1.0-rc.4 - TBD
 ### Fixed
 - Fixed typo in CLI mode
+- Fixed broken CLI mode in Linux
+
 ## 3.1.0-rc.3 - 2021-03-30
 ### Added
 - Custom source selection

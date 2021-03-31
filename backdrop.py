@@ -724,8 +724,8 @@ def get_source_drive_list():
             drive_type_list.append(DRIVE_TYPE_LOCAL)
         source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
     elif platform.system() == 'Linux':
-        local_selected = settings_showDrives_source_local.get()
-        network_selected = settings_showDrives_source_network.get()
+        local_selected = prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN)
+        network_selected = prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN)
 
         if network_selected and not local_selected:
             cmd = 'df -tcifs -tnfs --output=target'
@@ -1949,6 +1949,7 @@ if config['cliMode']:
 
         # Destination drives
         if SELECTED_DEST_MODE == DEST_MODE_NORMAL:
+            split_mode = False
             if command_line.has_param('interactive'):
                 print('\nAvailable destination drives are as follows:\n')
 
@@ -1985,7 +1986,7 @@ if config['cliMode']:
                 config['drives'] = [drive for drive in dest_drive_master_list if drive['name'] in drive_list]
             else:
                 # Load from config
-                split_mode = command_line.has_param('split')
+                split_mode = command_line.has_param('split-mode')
                 if data_loaded_from_config:
                     dest_list = [drive['name'] for drive in config['drives']]
 
