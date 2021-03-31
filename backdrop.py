@@ -41,7 +41,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.0-rc.2'
+APP_VERSION = '3.1.0-rc.3'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
