@@ -41,7 +41,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.1'
+APP_VERSION = '3.1.2-alpha.1'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
@@ -141,6 +141,10 @@ def update_file_detail_lists(list_name, filename):
             else:
                 tk.Label(file_details_failed_scrollable_frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
                 file_details_failed_counter.configure(text=len(file_detail_list[list_name]))
+
+                # Update counter in status bar
+                FAILED_FILE_COUNT = len(file_detail_list['fail']) + len(file_detail_list['deleteFail'])
+                statusbar_counter.configure(text=f"{FAILED_FILE_COUNT} failed", fg=uicolor.DANGER if FAILED_FILE_COUNT > 0 else uicolor.FADED)
 
                 # HACK: The scroll yview won't see the label instantly after it's packed.
                 # Sleeping for a brief time fixes that. This is acceptable as long as it's

@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 3.1.2 - TBD
+### Added
+- Failed file operations now increment the status bar file counter
+
 ## 3.1.1 - 2021-03-31
 ### Fixed
 - Fixed incorrect accelerator in tools menu
