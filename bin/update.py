@@ -157,15 +157,19 @@ class UpdateHandler:
 
         self.status_change_fn(Status.UPDATE_CHECKING)
 
-        latest_version = self.__get_latest_version()
-        update_info = {
-            'current_version': self.current_version,
-            'updateAvailable': not self.__current_is_latest_version(self.__parse_version(self.current_version), self.__parse_version(latest_version['latest'])),
-            'latestVersion': latest_version['latest'],
-            'download': latest_version['download']
-        }
+        try:
+            latest_version = self.__get_latest_version()
+            update_info = {
+                'current_version': self.current_version,
+                'updateAvailable': not self.__current_is_latest_version(self.__parse_version(self.current_version), self.__parse_version(latest_version['latest'])),
+                'latestVersion': latest_version['latest'],
+                'download': latest_version['download']
+            }
 
-        self.status_change_fn(Status.UPDATE_AVAILABLE if update_info['updateAvailable'] else Status.UPDATE_UP_TO_DATE)
-        self.update_callback(update_info)
+            self.status_change_fn(Status.UPDATE_AVAILABLE if update_info['updateAvailable'] else Status.UPDATE_UP_TO_DATE)
+            self.update_callback(update_info)
+        except Exception:
+            update_info = {}
+            self.status_change_fn(Status.UPDATE_FAILED)
 
         return update_info

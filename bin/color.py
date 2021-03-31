@@ -91,6 +91,9 @@ class Color:
         Color.ENABLED = Color.GREEN
         Color.DISABLED = Color.RED
 
+        Color.SUCCESS = Color.GREEN
+        Color.FAILED = Color.RED
+
         Color.DANGER = Color.RED
 
         Color.FINISHED = Color.GREEN

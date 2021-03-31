@@ -2241,6 +2241,8 @@ def update_status_bar_update(status):
         statusbar_update.configure(text='Update available!', fg=uicolor.INFOTEXT)
     elif status == Status.UPDATE_UP_TO_DATE:
         statusbar_update.configure(text='Up to date', fg=uicolor.NORMAL)
+    elif status == Status.UPDATE_FAILED:
+        statusbar_update.configure(text='Update failed', fg=uicolor.FAILED)
 
 def update_ui_component(status, data=None):
     """Update UI elements with given data..

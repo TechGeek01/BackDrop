@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Fixed division by zero when not copying any new files
+- Fixed update check timeout causing crash in thread
 - Fixed crash on CLI mode when loading destination drives
 - Fixed aborted message showing when aborting backup on last file verification
 

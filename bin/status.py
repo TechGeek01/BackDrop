@@ -37,3 +37,4 @@ class Status:
     UPDATE_CHECKING = 0xf0
     UPDATE_AVAILABLE = 0xf1
     UPDATE_UP_TO_DATE = 0xf2
+    UPDATE_FAILED = 0xf3
