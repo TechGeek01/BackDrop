@@ -3048,7 +3048,7 @@ if not config['cliMode']:
     down_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if uicolor.is_dark_mode() else ''}.png")))
 
     main_frame = tk.Frame(root)
-    main_frame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING, pady=(WINDOW_ELEMENT_PADDING / 2, WINDOW_ELEMENT_PADDING))
+    main_frame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING, pady=(WINDOW_ELEMENT_PADDING / 4, WINDOW_ELEMENT_PADDING))
 
     statusbar_frame = tk.Frame(root, bg=uicolor.STATUS_BAR)
     statusbar_frame.pack(fill='x', pady=0)
@@ -3304,7 +3304,7 @@ if not config['cliMode']:
     share_total_space.pack(side='left')
 
     source_select_frame = tk.Frame(main_frame)
-    source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
+    source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 4), sticky='ew')
 
     source_select_single_frame = tk.Frame(source_select_frame)
     source_select_menu = ttk.OptionMenu(source_select_single_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
@@ -3349,7 +3349,7 @@ if not config['cliMode']:
     tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
 
     dest_mode_frame = tk.Frame(main_frame)
-    dest_mode_frame.grid(row=0, column=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
+    dest_mode_frame.grid(row=0, column=2, pady=(0, WINDOW_ELEMENT_PADDING / 4), sticky='ew')
 
     def toggle_split_mode(event):
         """Handle toggling of split mode based on checkbox value."""
