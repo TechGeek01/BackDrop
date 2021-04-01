@@ -849,6 +849,7 @@ def load_source():
     if not config['cliMode']:
         progress.stop_indeterminate()
 
+# FIXME: Should load_source_in_background be a separate function?
 def load_source_in_background():
     """Start a source refresh in a new thread."""
 
@@ -1935,7 +1936,7 @@ if config['cliMode']:
 
             # Config location valid, so load it
             load_config_from_file(os.path.join(LOAD_CONFIG_LOCATION, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
-            data_loaded_from_config = True  # FIXME: Can this var be removed?
+            data_loaded_from_config = True
         else:  # Config not loaded from destination, so gather data
             # Source drive
             if SELECTED_SOURCE_MODE in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
@@ -2930,8 +2931,7 @@ def change_source_mode():
 
         config['source_mode'] == settings_sourceMode.get()
 
-    # URGENT: Fix this not being run in separate thread
-    load_source()
+    load_source_in_background()
 
 def change_dest_mode():
     """Change the mode for destination selection."""
@@ -2959,8 +2959,8 @@ def change_dest_mode():
 
         config['dest_mode'] = settings_destMode.get()
 
-    # URGENT: Fix this not being run in separate thread
-    load_dest()
+    if not thread_manager.is_alive('Refresh destination'):
+        thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh destination', daemon=True)
 
 def change_source_type(toggle_type):
     """Change the drive types for source selection.
@@ -3090,7 +3090,7 @@ if not config['cliMode']:
     down_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if uicolor.is_dark_mode() else ''}.png")))
 
     main_frame = tk.Frame(root)
-    main_frame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING, pady=(WINDOW_ELEMENT_PADDING / 4, WINDOW_ELEMENT_PADDING))
+    main_frame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
 
     statusbar_frame = tk.Frame(root, bg=uicolor.STATUS_BAR)
     statusbar_frame.pack(fill='x', pady=0)
@@ -3346,12 +3346,13 @@ if not config['cliMode']:
     share_total_space.pack(side='left')
 
     source_select_frame = tk.Frame(main_frame)
-    source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 4), sticky='ew')
+    source_select_frame.grid(row=0, column=1, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
 
     source_select_single_frame = tk.Frame(source_select_frame)
+    tk.Label(source_select_single_frame, text='Source:').pack(side='left')
     source_select_menu = ttk.OptionMenu(source_select_single_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
     source_select_menu['menu'].config(selectcolor=uicolor.FG)
-    source_select_menu.pack(side='left')
+    source_select_menu.pack(side='left', padx=(12, 0))
 
     source_select_multi_frame = tk.Frame(source_select_frame)
     tk.Label(source_select_multi_frame, text='Multi-source mode, selection disabled').pack()
@@ -3391,7 +3392,7 @@ if not config['cliMode']:
     tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
 
     dest_mode_frame = tk.Frame(main_frame)
-    dest_mode_frame.grid(row=0, column=2, pady=(0, WINDOW_ELEMENT_PADDING / 4), sticky='ew')
+    dest_mode_frame.grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
 
     def toggle_split_mode(event):
         """Handle toggling of split mode based on checkbox value."""
