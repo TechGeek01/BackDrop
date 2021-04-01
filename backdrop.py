@@ -3122,24 +3122,51 @@ if not config['cliMode']:
         tk_style.theme_use('vista')
     elif platform.system() == 'Linux':
         tk_style.theme_use('clam')
-    tk_style.configure('TButton', padding=(6, 4))
-    tk_style.configure('icon.TButton', width=2, height=1, padding=0, font=(None, 15), background='#00bfe6')
 
-    tk_style.element_create('danger.TButton', 'from', 'clam')
-    tk_style.layout('danger.TButton', [
-        ('danger.TButton.border', {'sticky': 'nswe', 'border': '1', 'children': [
-            ('danger.TButton.focus', {'sticky': 'nswe', 'children': [
-                ('danger.TButton.padding', {'sticky': 'nswe', 'children': [
-                    ('danger.TButton.label', {'sticky': 'nswe'})
+    tk_style.element_create('TButton', 'from', 'clam')
+    tk_style.layout('TButton', [
+        ('TButton.border', {'sticky': 'nswe', 'border': '1', 'children': [
+            ('TButton.focus', {'sticky': 'nswe', 'children': [
+                ('TButton.padding', {'sticky': 'nswe', 'children': [
+                    ('TButton.label', {'sticky': 'nswe'})
                 ]})
             ]})
         ]})
     ])
+
+    if not uicolor.is_dark_mode():
+        BUTTON_NORMAL_COLOR = '#ccc'
+        BUTTON_TEXT_COLOR = '#000'
+        BUTTON_ACTIVE_COLOR = '#d7d7d7'
+        BUTTON_PRESSED_COLOR = '#c8c8c8'
+        BUTTON_DISABLED_COLOR = '#ddd'
+        BUTTON_DISABLED_TEXT_COLOR = '#777'
+
+        DANGER_BUTTON_DISABLED_COLOR = '#900'
+        DANGER_BUTTON_DISABLED_TEXT_COLOR = '#caa'
+    else:
+        BUTTON_NORMAL_COLOR = '#585858'
+        BUTTON_TEXT_COLOR = '#fff'
+        BUTTON_ACTIVE_COLOR = '#666'
+        BUTTON_PRESSED_COLOR = '#525252'
+        BUTTON_DISABLED_COLOR = '#484848'
+        BUTTON_DISABLED_TEXT_COLOR = '#888'
+
+        DANGER_BUTTON_DISABLED_COLOR = '#700'
+        DANGER_BUTTON_DISABLED_TEXT_COLOR = '#988'
+
+    tk_style.map(
+        'TButton',
+        background=[('pressed', '!disabled', BUTTON_PRESSED_COLOR), ('active', '!disabled', BUTTON_ACTIVE_COLOR), ('disabled', BUTTON_DISABLED_COLOR)],
+        foreground=[('disabled', BUTTON_DISABLED_TEXT_COLOR)]
+    )
     tk_style.map(
         'danger.TButton',
-        background=[('pressed', '!disabled', '#900'), ('active', '!disabled', '#c00')]
+        background=[('pressed', '!disabled', '#900'), ('active', '!disabled', '#c00'), ('disabled', DANGER_BUTTON_DISABLED_COLOR)],
+        foreground=[('disabled', DANGER_BUTTON_DISABLED_TEXT_COLOR)]
     )
-    tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#600', borderwidth=0, padding=(8, 6))
+    tk_style.configure('TButton', background=BUTTON_NORMAL_COLOR, foreground=BUTTON_TEXT_COLOR, bordercolor=BUTTON_NORMAL_COLOR, borderwidth=0, padding=(6, 4))
+    tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#b00', borderwidth=0)
     tk_style.configure('slim.TButton', padding=(2, 2))
 
     tk_style.configure('tooltip.TLabel', background=uicolor.BG, foreground=uicolor.TOOLTIP)
