@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - File verification is prevented from running when backup is active
+- Fixed menubar taking background of main window in dark mode
 
 ## 3.1.1 - 2021-03-31
 ### Fixed

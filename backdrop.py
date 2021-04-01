@@ -3222,7 +3222,7 @@ if not config['cliMode']:
     menubar = tk.Menu(root)
 
     # File menu
-    file_menu = tk.Menu(menubar, tearoff=0)
+    file_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     file_menu.add_command(label='Open Backup Config', underline=0, accelerator='Ctrl+O', command=open_config_file)
     file_menu.add_command(label='Save Backup Config', underline=0, accelerator='Ctrl+S', command=save_config_file)
     file_menu.add_command(label='Save Backup Config As', underline=19, accelerator='Ctrl+Shift+S', command=save_config_file_as)
@@ -3232,60 +3232,60 @@ if not config['cliMode']:
 
     # Selection menu
     # FIXME: Add -c configuration option for CLI mode to change preference options
-    selection_menu = tk.Menu(menubar, tearoff=0)
-    selection_source_select_menu = tk.Menu(selection_menu, tearoff=0)
+    selection_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+    selection_source_select_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN))
     settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN))
-    selection_source_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=lambda: change_source_type(DRIVE_TYPE_REMOTE), selectcolor=uicolor.FG)
-    selection_source_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=lambda: change_source_type(DRIVE_TYPE_LOCAL), selectcolor=uicolor.FG)
+    selection_source_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=lambda: change_source_type(DRIVE_TYPE_REMOTE))
+    selection_source_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=lambda: change_source_type(DRIVE_TYPE_LOCAL))
     selection_menu.add_cascade(label='Source Type', menu=selection_source_select_menu)
-    selection_dest_select_menu = tk.Menu(selection_menu, tearoff=0)
+    selection_dest_select_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     settings_showDrives_dest_network = tk.BooleanVar(value=prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
     settings_showDrives_dest_local = tk.BooleanVar(value=prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
-    selection_dest_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE), selectcolor=uicolor.FG)
-    selection_dest_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL), selectcolor=uicolor.FG)
+    selection_dest_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE))
+    selection_dest_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL))
     selection_menu.add_cascade(label='Destination Type', menu=selection_dest_select_menu)
     selection_menu.add_separator()
-    selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0)
+    selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE))
-    selection_source_mode_menu.add_checkbutton(label='Single source, select folders', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
-    selection_source_mode_menu.add_checkbutton(label='Multi source, select sources', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
-    selection_source_mode_menu.add_checkbutton(label='Custom location', onvalue=SOURCE_MODE_CUSTOM_SINGLE, offvalue=SOURCE_MODE_CUSTOM_SINGLE, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
-    selection_source_mode_menu.add_checkbutton(label='Custom location, multi source', onvalue=SOURCE_MODE_CUSTOM_MULTI, offvalue=SOURCE_MODE_CUSTOM_MULTI, variable=settings_sourceMode, command=change_source_mode, selectcolor=uicolor.FG)
+    selection_source_mode_menu.add_checkbutton(label='Single source, select folders', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode)
+    selection_source_mode_menu.add_checkbutton(label='Multi source, select sources', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode)
+    selection_source_mode_menu.add_checkbutton(label='Custom location', onvalue=SOURCE_MODE_CUSTOM_SINGLE, offvalue=SOURCE_MODE_CUSTOM_SINGLE, variable=settings_sourceMode, command=change_source_mode)
+    selection_source_mode_menu.add_checkbutton(label='Custom location, multi source', onvalue=SOURCE_MODE_CUSTOM_MULTI, offvalue=SOURCE_MODE_CUSTOM_MULTI, variable=settings_sourceMode, command=change_source_mode)
     selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
-    selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0)
+    selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=DEST_MODE_OPTIONS, default=DEST_MODE_NORMAL))
-    selection_dest_mode_menu.add_checkbutton(label='Normal, select drives', onvalue=DEST_MODE_NORMAL, offvalue=DEST_MODE_NORMAL, variable=settings_destMode, command=change_dest_mode, selectcolor=uicolor.FG)
-    selection_dest_mode_menu.add_checkbutton(label='Custom location', onvalue=DEST_MODE_CUSTOM, offvalue=DEST_MODE_CUSTOM, variable=settings_destMode, command=change_dest_mode, selectcolor=uicolor.FG)
+    selection_dest_mode_menu.add_checkbutton(label='Normal, select drives', onvalue=DEST_MODE_NORMAL, offvalue=DEST_MODE_NORMAL, variable=settings_destMode, command=change_dest_mode)
+    selection_dest_mode_menu.add_checkbutton(label='Custom location', onvalue=DEST_MODE_CUSTOM, offvalue=DEST_MODE_CUSTOM, variable=settings_destMode, command=change_dest_mode)
     selection_menu.add_cascade(label='Destination Mode', underline=0, menu=selection_dest_mode_menu)
     selection_menu.add_separator()
     selection_menu.add_command(label='Delete Config from Selected Drives', command=delete_config_file_from_selected_drives)
     menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
 
     # View menu
-    view_menu = tk.Menu(menubar, tearoff=0)
+    view_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     view_menu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=load_source_in_background)
     view_menu.add_command(label='Refresh Destination', underline=0, accelerator='F5', command=load_dest_in_background)
     menubar.add_cascade(label='View', underline=0, menu=view_menu)
 
     # Tools menu
-    tools_menu = tk.Menu(menubar, tearoff=0)
+    tools_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     tools_menu.add_command(label='Verify Data Integrity on Selected Drives', underline=0, command=start_verify_data_from_hash_list)
     tools_menu.add_command(label='Config Builder', underline=7, accelerator='Ctrl+B', command=show_config_builder)
     menubar.add_cascade(label='Tools', underline=0, menu=tools_menu)
 
     # Preferences menu
-    preferences_menu = tk.Menu(menubar, tearoff=0)
-    preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0)
+    preferences_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+    preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     settings_verifyAllFiles = tk.BooleanVar(value=prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN))
-    preferences_verification_menu.add_checkbutton(label='Verify All Drives', onvalue=True, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()), selectcolor=uicolor.FG)
+    preferences_verification_menu.add_checkbutton(label='Verify All Drives', onvalue=True, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
     preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
     settings_darkModeEnabled = tk.BooleanVar(value=uicolor.is_dark_mode())
-    preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()), selectcolor=uicolor.FG)
+    preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()))
     menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
 
     # Help menu
-    help_menu = tk.Menu(menubar, tearoff=0)
+    help_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     help_menu.add_command(label='Check for Updates', command=lambda: thread_manager.start(
         thread_manager.SINGLE,
         target=update_handler.check,

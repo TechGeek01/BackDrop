@@ -57,6 +57,8 @@ class Color:
 
         self.dark_mode = dark_mode
 
+        Color.DEFAULT_BG = root.cget('background')
+
         if not dark_mode:
             Color.BG = root.winfo_rgb(root.cget('background'))
             r, g, b = [x >> 8 for x in Color.BG]
