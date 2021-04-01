@@ -1548,95 +1548,96 @@ def verify_data_integrity(drive_list):
             pass
 
     # URGENT: Find a way to display or export a list of files that failed verification
-    if not config['cliMode']:
-        update_status_bar_action(Status.VERIFICATION_RUNNING)
-        progress.start_indeterminate()
-        statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
-        statusbar_details.configure(text='')
-    else:
-        print('==== DATA VERIFICATION STARTED ====')
-    verification_running = True
-    verification_failed_list = []
-
-    # Get hash list for all drives
-    bad_hash_files = []
-    hash_list = {drive: {} for drive in drive_list}
-    special_ignore_list = [BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
-    for drive in drive_list:
-        drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
-
-        if os.path.isfile(drive_hash_file_path):
-            write_trimmed_changes = False
-            with open(drive_hash_file_path, 'rb') as f:
-                try:
-                    drive_hash_list = pickle.load(f)
-                    new_hash_list = {file_name: hash_val for file_name, hash_val in drive_hash_list.items() if file_name.split('/')[0] not in special_ignore_list}
-                    new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in new_hash_list.items() if os.path.isfile(os.path.join(drive, file_name))}
-
-                    # If trimmed list is shorter, new changes have to be written to the file
-                    if len(new_hash_list) < len(drive_hash_list):
-                        write_trimmed_changes = True
-
-                    hash_list[drive] = new_hash_list
-                except Exception:
-                    # Hash file is corrupt
-                    bad_hash_files.append(drive_hash_file_path)
-
-            # If trimmed list is different length than original, write changes to file
-            if write_trimmed_changes:
-                with open(drive_hash_file_path, 'wb') as f:
-                    pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+    if not backup or not backup.is_running():
+        if not config['cliMode']:
+            update_status_bar_action(Status.VERIFICATION_RUNNING)
+            progress.start_indeterminate()
+            statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
+            statusbar_details.configure(text='')
         else:
-            bad_hash_files.append(drive_hash_file_path)
+            print('==== DATA VERIFICATION STARTED ====')
+        verification_running = True
+        verification_failed_list = []
 
-    # If there are missing or corrupted pickle files, write empty data
-    if bad_hash_files:
-        for file in bad_hash_files:
-            with open(file, 'wb') as f:
-                pickle.dump({}, f)
-
-    verify_all_files = prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN)
-    if verify_all_files:
+        # Get hash list for all drives
+        bad_hash_files = []
+        hash_list = {drive: {} for drive in drive_list}
+        special_ignore_list = [BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
         for drive in drive_list:
             drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
-            recurse_for_hash(drive, drive, drive_hash_file_path)
-    else:
-        for drive in drive_list:
-            drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
-            for file, saved_hash in hash_list[drive].items():
-                filename = os.path.join(drive, file)
-                if not config['cliMode']:
-                    statusbar_details.configure(text=filename)
-                else:
-                    print(filename)
-                computed_hash = get_file_hash(filename)
 
-                # If file has hash mismatch, delete the corrupted file
-                if saved_hash != computed_hash:
-                    if os.path.isfile(filename):
-                        os.remove(filename)
-                    elif os.path.isdir(filename):
-                        shutil.rmtree(filename)
+            if os.path.isfile(drive_hash_file_path):
+                write_trimmed_changes = False
+                with open(drive_hash_file_path, 'rb') as f:
+                    try:
+                        drive_hash_list = pickle.load(f)
+                        new_hash_list = {file_name: hash_val for file_name, hash_val in drive_hash_list.items() if file_name.split('/')[0] not in special_ignore_list}
+                        new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in new_hash_list.items() if os.path.isfile(os.path.join(drive, file_name))}
 
-                    # Update UI counter
-                    verification_failed_list.append(filename)
-                    if not config['cliMode']:
-                        statusbar_counter.configure(text=f"{len(verification_failed_list)} failed", fg=uicolor.DANGER)
-                    else:
-                        print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
+                        # If trimmed list is shorter, new changes have to be written to the file
+                        if len(new_hash_list) < len(drive_hash_list):
+                            write_trimmed_changes = True
 
-                    # Delete the saved hash, and write changes to the hash file
-                    if file in hash_list[drive].keys():
-                        del hash_list[drive][file]
+                        hash_list[drive] = new_hash_list
+                    except Exception:
+                        # Hash file is corrupt
+                        bad_hash_files.append(drive_hash_file_path)
+
+                # If trimmed list is different length than original, write changes to file
+                if write_trimmed_changes:
                     with open(drive_hash_file_path, 'wb') as f:
                         pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+            else:
+                bad_hash_files.append(drive_hash_file_path)
 
-    verification_running = False
-    if not config['cliMode']:
-        progress.stop_indeterminate()
-        update_status_bar_action(Status.IDLE)
-    else:
-        print('==== DATA VERIFICATION COMPLETE ====')
+        # If there are missing or corrupted pickle files, write empty data
+        if bad_hash_files:
+            for file in bad_hash_files:
+                with open(file, 'wb') as f:
+                    pickle.dump({}, f)
+
+        verify_all_files = prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN)
+        if verify_all_files:
+            for drive in drive_list:
+                drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
+                recurse_for_hash(drive, drive, drive_hash_file_path)
+        else:
+            for drive in drive_list:
+                drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
+                for file, saved_hash in hash_list[drive].items():
+                    filename = os.path.join(drive, file)
+                    if not config['cliMode']:
+                        statusbar_details.configure(text=filename)
+                    else:
+                        print(filename)
+                    computed_hash = get_file_hash(filename)
+
+                    # If file has hash mismatch, delete the corrupted file
+                    if saved_hash != computed_hash:
+                        if os.path.isfile(filename):
+                            os.remove(filename)
+                        elif os.path.isdir(filename):
+                            shutil.rmtree(filename)
+
+                        # Update UI counter
+                        verification_failed_list.append(filename)
+                        if not config['cliMode']:
+                            statusbar_counter.configure(text=f"{len(verification_failed_list)} failed", fg=uicolor.DANGER)
+                        else:
+                            print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
+
+                        # Delete the saved hash, and write changes to the hash file
+                        if file in hash_list[drive].keys():
+                            del hash_list[drive][file]
+                        with open(drive_hash_file_path, 'wb') as f:
+                            pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+
+        verification_running = False
+        if not config['cliMode']:
+            progress.stop_indeterminate()
+            update_status_bar_action(Status.IDLE)
+        else:
+            print('==== DATA VERIFICATION COMPLETE ====')
 
 update_window = None
 

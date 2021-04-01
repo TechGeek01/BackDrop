@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Failed file operations now increment the status bar file counter
 
+### Fixed
+- File verification is prevented from running when backup is active
+
 ## 3.1.1 - 2021-03-31
 ### Fixed
 - Fixed incorrect accelerator in tools menu
