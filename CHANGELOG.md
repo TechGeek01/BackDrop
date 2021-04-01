@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## 3.1.2 - TBD
 ### Added
 - Failed file operations now increment the status bar file counter
+- Data verification is now killable
 - Data verification now lists files in file details pane
 
 ### Fixed

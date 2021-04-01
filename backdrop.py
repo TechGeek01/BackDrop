@@ -1485,7 +1485,12 @@ def verify_data_integrity(drive_list):
 
         with open(filename, 'rb', buffering=0) as f:
             for n in iter(lambda: f.readinto(mv), 0):
+                if thread_manager.threadlist['Data Verification']['killFlag']:
+                    break
                 h.update(mv[:n])
+
+        if thread_manager.threadlist['Data Verification']['killFlag']:
+            return ''
 
         return h.hexdigest()
 
@@ -1509,6 +1514,9 @@ def verify_data_integrity(drive_list):
                         print(entry.path)
 
                     file_hash = get_file_hash(entry.path)
+
+                    if thread_manager.threadlist['Data Verification']['killFlag']:
+                        break
 
                     if path_stub in hash_list[drive].keys():
                         # Hash saved, so check integrity against saved file
@@ -1534,7 +1542,7 @@ def verify_data_integrity(drive_list):
                                 del hash_list[drive][path_stub]
                             with open(drive_hash_file_path, 'wb') as f:
                                 pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
-                        
+
                         # Update file detail lists
                         if not config['cliMode']:
                             if file_hash == saved_hash:
@@ -1550,16 +1558,20 @@ def verify_data_integrity(drive_list):
                     # If entry is path, recurse into it
                     if path_stub not in special_ignore_list:
                         recurse_for_hash(entry.path, drive, hash_file_path)
+
+                if thread_manager.threadlist['Data Verification']['killFlag']:
+                    break
         except Exception:
             pass
 
-    # URGENT: Find a way to display or export a list of files that failed verification
     if not backup or not backup.is_running():
         if not config['cliMode']:
             update_status_bar_action(Status.VERIFICATION_RUNNING)
             progress.start_indeterminate()
             statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
             statusbar_details.configure(text='')
+
+            halt_verification_btn.pack(side='left', padx=4)
 
             # Empty file detail lists
             for list_name in ['success', 'fail']:
@@ -1641,6 +1653,9 @@ def verify_data_integrity(drive_list):
                         print(filename)
                     computed_hash = get_file_hash(filename)
 
+                    if thread_manager.threadlist['Data Verification']['killFlag']:
+                        break
+
                     # If file has hash mismatch, delete the corrupted file
                     if saved_hash != computed_hash:
                         if os.path.isfile(filename):
@@ -1668,9 +1683,18 @@ def verify_data_integrity(drive_list):
                         else:
                             update_file_detail_lists('fail', filename)
 
+                    if thread_manager.threadlist['Data Verification']['killFlag']:
+                        break
+
+                if thread_manager.threadlist['Data Verification']['killFlag']:
+                    break
+
         verification_running = False
         if not config['cliMode']:
+            halt_verification_btn.pack_forget()
+
             progress.stop_indeterminate()
+            statusbar_details.configure(text='')
             update_status_bar_action(Status.IDLE)
         else:
             print('==== DATA VERIFICATION COMPLETE ====')
@@ -3050,7 +3074,7 @@ def start_verify_data_from_hash_list():
 
     if not backup or not backup.is_running():
         drive_list = [drive['name'] for drive in config['drives']]
-        thread_manager.start(ThreadManager.SINGLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
+        thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
 ############
 # GUI Mode #
@@ -3755,6 +3779,7 @@ if not config['cliMode']:
              wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
     backup_summary_button_frame = tk.Frame(backup_summary_frame)
     backup_summary_button_frame.pack(pady=WINDOW_ELEMENT_PADDING / 2)
+    halt_verification_btn = ttk.Button(backup_summary_button_frame, text='Halt Verification', command=lambda: thread_manager.kill('Data Verification'), style='danger.TButton')
     start_analysis_btn = ttk.Button(backup_summary_button_frame, text='Analyze', width=7, command=start_backup_analysis, state='normal' if source_drive_list_valid else 'disabled')
     start_analysis_btn.pack(side='left', padx=4)
     start_backup_btn = ttk.Button(backup_summary_button_frame, text='Run Backup', command=start_backup, state='disable')
