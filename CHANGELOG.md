@@ -4,10 +4,14 @@ All notable changes to this project will be documented in this file.
 ## 3.1.2 - TBD
 ### Added
 - Failed file operations now increment the status bar file counter
+- Data verification now lists files in file details pane
 
 ### Fixed
 - File verification is prevented from running when backup is active
 - Fixed menubar taking background of main window in dark mode
+
+### Changed
+- Styled buttons to match the rest of the UI
 
 ## 3.1.1 - 2021-03-31
 ### Fixed

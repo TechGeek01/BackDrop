@@ -671,7 +671,6 @@ def reset_ui():
         file_details_copied_info_canvas.yview_moveto(0)
         file_details_failed_info_canvas.yview_moveto(0)
 
-
 def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
 
@@ -1535,6 +1534,13 @@ def verify_data_integrity(drive_list):
                                 del hash_list[drive][path_stub]
                             with open(drive_hash_file_path, 'wb') as f:
                                 pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+                        
+                        # Update file detail lists
+                        if not config['cliMode']:
+                            if file_hash == saved_hash:
+                                update_file_detail_lists('success', entry.path)
+                            else:
+                                update_file_detail_lists('fail', entry.path)
                     else:
                         # Hash not saved, so store it
                         hash_list[drive][path_stub] = file_hash
@@ -1554,6 +1560,29 @@ def verify_data_integrity(drive_list):
             progress.start_indeterminate()
             statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
             statusbar_details.configure(text='')
+
+            # Empty file detail lists
+            for list_name in ['success', 'fail']:
+                file_detail_list[list_name].clear()
+
+            # Reset file details counters
+            file_details_pending_delete_counter.configure(text='0')
+            file_details_pending_delete_counter_total.configure(text='0')
+            file_details_pending_copy_counter.configure(text='0')
+            file_details_pending_copy_counter_total.configure(text='0')
+            file_details_copied_counter.configure(text='0')
+            file_details_failed_counter.configure(text='0')
+
+            # Empty file details list panes
+            for child in file_details_copied_scrollable_frame.winfo_children():
+                child.destroy()
+            for child in file_details_failed_scrollable_frame.winfo_children():
+                child.destroy()
+
+            # Scroll back to top of scrollable canvas
+            time.sleep(0.01)
+            file_details_copied_info_canvas.yview_moveto(0)
+            file_details_failed_info_canvas.yview_moveto(0)
         else:
             print('==== DATA VERIFICATION STARTED ====')
         verification_running = True
@@ -1631,6 +1660,13 @@ def verify_data_integrity(drive_list):
                             del hash_list[drive][file]
                         with open(drive_hash_file_path, 'wb') as f:
                             pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
+
+                    # Update file detail lists
+                    if not config['cliMode']:
+                        if saved_hash == computed_hash:
+                            update_file_detail_lists('success', filename)
+                        else:
+                            update_file_detail_lists('fail', filename)
 
         verification_running = False
         if not config['cliMode']:
