@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 3.1.2 - TBD
+## 3.1.2 - 2021-03-31
 ### Added
 - Failed file operations now increment the status bar file counter
 - Data verification is now killable
