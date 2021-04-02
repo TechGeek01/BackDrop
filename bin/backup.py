@@ -906,20 +906,12 @@ class Backup:
         """
 
         self.backup_running = True
-        if not self.config['cliMode']:
-            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_BACKUP_RUNNING)
 
         if not self.analysis_valid or not self.sanity_check():
             return
 
-        # Write config file to drives
-        self.write_config_to_disks()
-
-        self.totals['running'] = 0
-        self.totals['buffer'] = 0
-        self.totals['progressBar'] = 0
-
         if not self.config['cliMode']:
+            self.update_ui_component_fn(Status.UPDATEUI_BACKUP_START)
             self.progress.set(0)
             self.progress.set_max(self.totals['master'])
 
@@ -929,7 +921,12 @@ class Backup:
                     self.cmd_info_blocks[cmd['displayIndex']]['currentFileResult'].configure(text='Pending', fg=self.uicolor.PENDING)
                 self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=self.uicolor.PENDING)
 
-            self.update_ui_component_fn(Status.UPDATEUI_STOP_BACKUP_BTN)
+        # Write config file to drives
+        self.write_config_to_disks()
+
+        self.totals['running'] = 0
+        self.totals['buffer'] = 0
+        self.totals['progressBar'] = 0
 
         timer_started = False
 
@@ -1027,9 +1024,7 @@ class Backup:
         self.thread_manager.kill('backupTimer')
 
         if not self.config['cliMode']:
-            self.update_ui_component_fn(Status.UPDATEUI_START_BACKUP_BTN)
-            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.IDLE)
-
+            self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
         self.backup_running = False
 
     def get_backup_start_time(self):

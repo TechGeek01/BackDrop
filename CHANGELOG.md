@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 3.1.3 - TBD
+### Changed
+- Backup and analysis both disabled the other button when running
+
 ## 3.1.2 - 2021-03-31
 ### Added
 - Failed file operations now increment the status bar file counter

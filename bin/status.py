@@ -29,8 +29,8 @@ class Status:
     # 0xe => Update UI
     UPDATEUI_ANALYSIS_BTN = 0xe0
     UPDATEUI_BACKUP_BTN = 0xe1
-    UPDATEUI_START_BACKUP_BTN = 0xe2
-    UPDATEUI_STOP_BACKUP_BTN = 0xe3
+    UPDATEUI_BACKUP_START = 0xe2
+    UPDATEUI_BACKUP_END = 0xe3
     UPDATEUI_STATUS_BAR = 0xef
 
     # 0xf => Update

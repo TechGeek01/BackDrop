@@ -41,7 +41,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.2'
+APP_VERSION = '3.1.3-alpha.1'
 
 # Set constants
 SOURCE_MODE_SINGLE = 'single'
@@ -2354,11 +2354,14 @@ def update_ui_component(status, data=None):
         start_analysis_btn.configure(**data)
     elif status == Status.UPDATEUI_BACKUP_BTN:
         start_backup_btn.configure(**data)
-    elif status == Status.UPDATEUI_START_BACKUP_BTN:
-        update_status_bar_action(Status.BACKUP_HALT_REQUESTED)
-        start_backup_btn.configure(text='Run Backup', command=start_backup, style='win.TButton')
-    elif status == Status.UPDATEUI_STOP_BACKUP_BTN:
+    elif status == Status.UPDATEUI_BACKUP_START:
+        update_status_bar_action(Status.BACKUP_BACKUP_RUNNING)
+        start_analysis_btn.configure(state='disabled')
         start_backup_btn.configure(text='Halt Backup', command=lambda: thread_manager.kill('Backup'), style='danger.TButton')
+    elif status == Status.UPDATEUI_BACKUP_END:
+        update_status_bar_action(Status.IDLE)
+        start_analysis_btn.configure(state='normal')
+        start_backup_btn.configure(text='Run Backup', command=start_backup, style='TButton')
     elif status == Status.UPDATEUI_STATUS_BAR:
         update_status_bar_action(data)
 
@@ -3779,11 +3782,11 @@ if not config['cliMode']:
              wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
     backup_summary_button_frame = tk.Frame(backup_summary_frame)
     backup_summary_button_frame.pack(pady=WINDOW_ELEMENT_PADDING / 2)
-    halt_verification_btn = ttk.Button(backup_summary_button_frame, text='Halt Verification', command=lambda: thread_manager.kill('Data Verification'), style='danger.TButton')
-    start_analysis_btn = ttk.Button(backup_summary_button_frame, text='Analyze', width=7, command=start_backup_analysis, state='normal' if source_drive_list_valid else 'disabled')
+    start_analysis_btn = ttk.Button(backup_summary_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
     start_analysis_btn.pack(side='left', padx=4)
-    start_backup_btn = ttk.Button(backup_summary_button_frame, text='Run Backup', command=start_backup, state='disable')
+    start_backup_btn = ttk.Button(backup_summary_button_frame, text='Run Backup', width=0, command=start_backup, state='disabled')
     start_backup_btn.pack(side='left', padx=4)
+    halt_verification_btn = ttk.Button(backup_summary_button_frame, text='Halt Verification', width=0, command=lambda: thread_manager.kill('Data Verification'), style='danger.TButton')
 
     load_source_in_background()
     # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
