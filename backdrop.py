@@ -2695,8 +2695,8 @@ def show_config_builder():
 
         # File menu
         file_menu = tk.Menu(menubar, tearoff=0)
-        file_menu.add_command(label='Open Config', underline=0, accelerator='Ctrl+O', command=builder_open_config_file)
-        file_menu.add_command(label='Save Config', underline=0, accelerator='Ctrl+S', command=builder_save_config_file)
+        file_menu.add_command(label='Open Config...', underline=0, accelerator='Ctrl+O', command=builder_open_config_file)
+        file_menu.add_command(label='Save Config As...', underline=0, accelerator='Ctrl+S', command=builder_save_config_file)
         file_menu.add_separator()
         file_menu.add_command(label='Exit', underline=1, command=on_close)
         menubar.add_cascade(label='File', underline=0, menu=file_menu)
@@ -3286,9 +3286,9 @@ if not config['cliMode']:
 
     # File menu
     file_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
-    file_menu.add_command(label='Open Backup Config', underline=0, accelerator='Ctrl+O', command=open_config_file)
+    file_menu.add_command(label='Open Backup Config...', underline=0, accelerator='Ctrl+O', command=open_config_file)
     file_menu.add_command(label='Save Backup Config', underline=0, accelerator='Ctrl+S', command=save_config_file)
-    file_menu.add_command(label='Save Backup Config As', underline=19, accelerator='Ctrl+Shift+S', command=save_config_file_as)
+    file_menu.add_command(label='Save Backup Config As...', underline=19, accelerator='Ctrl+Shift+S', command=save_config_file_as)
     file_menu.add_separator()
     file_menu.add_command(label='Exit', underline=1, command=on_close)
     menubar.add_cascade(label='File', underline=0, menu=file_menu)
