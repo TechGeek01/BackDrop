@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## 3.1.3 - TBD
+### Fixed
+- Fixed button styling
+
 ### Changed
 - Backup and analysis both disabled the other button when running
 

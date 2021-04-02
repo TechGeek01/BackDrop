@@ -2778,7 +2778,7 @@ def show_config_builder():
         builder_add_btn = ttk.Button(tree_control_frame, text=f"Add {RIGHT_ARROW}", command=builder_add_drives, style='win.TButton')
         builder_add_btn.pack()
         builder_remove_btn = ttk.Button(tree_control_frame, text=f"{LEFT_ARROW} Remove", command=builder_remove_drives, style='win.TButton')
-        builder_remove_btn.pack()
+        builder_remove_btn.pack(pady=(4, 0))
 
         # Create main control pane
         main_control_frame = tk.Frame(main_frame, bg='orange')
