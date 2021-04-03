@@ -2343,6 +2343,10 @@ def update_status_bar_update(status):
     elif status == Status.UPDATE_FAILED:
         statusbar_update.configure(text='Update failed', fg=uicolor.FAILED)
 
+def request_kill_backup():
+    statusbar_action.configure(text='Stopping backup')
+    thread_manager.kill('Backup')
+
 def update_ui_component(status, data=None):
     """Update UI elements with given data..
 
@@ -2358,7 +2362,7 @@ def update_ui_component(status, data=None):
     elif status == Status.UPDATEUI_BACKUP_START:
         update_status_bar_action(Status.BACKUP_BACKUP_RUNNING)
         start_analysis_btn.configure(state='disabled')
-        start_backup_btn.configure(text='Halt Backup', command=lambda: thread_manager.kill('Backup'), style='danger.TButton')
+        start_backup_btn.configure(text='Halt Backup', command=request_kill_backup, style='danger.TButton')
     elif status == Status.UPDATEUI_BACKUP_END:
         update_status_bar_action(Status.IDLE)
         start_analysis_btn.configure(state='normal')
