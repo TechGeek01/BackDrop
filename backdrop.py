@@ -1372,6 +1372,7 @@ def handle_drive_selection_click():
     drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
     if not drives_read_from_config_file:
         config['drives'] = selected_drive_list
+        config['missingDrives'] = {}
         config_selected_space.configure(text='None', fg=uicolor.FADED)
 
     update_status_bar_selection()
