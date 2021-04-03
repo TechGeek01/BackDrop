@@ -339,14 +339,17 @@ class Backup:
             file_info = {}
             share_path = self.get_share_source_path(share)
 
-            for entry in os.scandir(share_path):
-                if entry.is_file():
-                    new_dir_size = entry.stat().st_size
-                elif entry.is_dir():
-                    new_dir_size = get_directory_size(entry.path)
+            try:
+                for entry in os.scandir(share_path):
+                    if entry.is_file():
+                        new_dir_size = entry.stat().st_size
+                    elif entry.is_dir():
+                        new_dir_size = get_directory_size(entry.path)
 
-                filename = entry.path[len(share_path):].strip(os.path.sep)
-                file_info[filename] = new_dir_size
+                    filename = entry.path[len(share_path):].strip(os.path.sep)
+                    file_info[filename] = new_dir_size
+            except PermissionError:
+                pass
 
             # For splitting shares, sort by largest free space first
             drive_info.sort(reverse=True, key=lambda x: x['free'])
