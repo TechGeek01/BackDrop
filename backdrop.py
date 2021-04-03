@@ -44,15 +44,15 @@ if not platform.system() in ['Windows', 'Linux']:
 APP_VERSION = '3.1.3-alpha.1'
 
 # Set constants
-SOURCE_MODE_SINGLE = 'single'
-SOURCE_MODE_MULTI = 'multiple'
-SOURCE_MODE_CUSTOM_SINGLE = 'custom'
-SOURCE_MODE_CUSTOM_MULTI = 'custom_multiple'
-SOURCE_MODE_OPTIONS = [SOURCE_MODE_SINGLE, SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_SINGLE, SOURCE_MODE_CUSTOM_MULTI]
+SOURCE_MODE_SINGLE_DRIVE = 'single_drive'
+SOURCE_MODE_MULTI_DRIVE = 'multiple_drive'
+SOURCE_MODE_SINGLE_PATH = 'single_path'
+SOURCE_MODE_MULTI_PATH = 'multiple_path'
+SOURCE_MODE_OPTIONS = [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_SINGLE_PATH, SOURCE_MODE_MULTI_PATH]
 
-DEST_MODE_NORMAL = 'normal'
-DEST_MODE_CUSTOM = 'custom'
-DEST_MODE_OPTIONS = [DEST_MODE_NORMAL, DEST_MODE_CUSTOM]
+DEST_MODE_DRIVES = 'drives'
+DEST_MODE_PATHS = 'paths'
+DEST_MODE_OPTIONS = [DEST_MODE_DRIVES, DEST_MODE_PATHS]
 
 DRIVE_TYPE_LOCAL = 3
 DRIVE_TYPE_REMOTE = 4
@@ -773,15 +773,15 @@ def load_source():
     source_avail_drive_list = get_source_drive_list()
     source_drive_list_valid = len(source_avail_drive_list) > 0
 
-    if source_drive_list_valid or settings_sourceMode.get() in [SOURCE_MODE_CUSTOM_SINGLE, SOURCE_MODE_CUSTOM_MULTI]:
+    if source_drive_list_valid or settings_sourceMode.get() in [SOURCE_MODE_SINGLE_PATH, SOURCE_MODE_MULTI_PATH]:
         # Display empty selection sizes
         if not config['cliMode']:
             share_selected_space.configure(text='None', fg=uicolor.FADED)
             share_total_space.configure(text='~None', fg=uicolor.FADED)
 
-        selected_source_mode = prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
+        selected_source_mode = prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE_DRIVE, verify_data=SOURCE_MODE_OPTIONS)
 
-        if selected_source_mode == SOURCE_MODE_SINGLE:
+        if selected_source_mode == SOURCE_MODE_SINGLE_DRIVE:
             config['source_drive'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
 
             if not config['cliMode']:
@@ -797,7 +797,7 @@ def load_source():
                 # Enumerate list of shares in source
                 for directory in next(os.walk(config['source_drive']))[1]:
                     tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
-        elif selected_source_mode == SOURCE_MODE_MULTI:
+        elif selected_source_mode == SOURCE_MODE_MULTI_DRIVE:
             if not config['cliMode']:
                 source_select_single_frame.pack_forget()
                 source_select_custom_single_frame.pack_forget()
@@ -808,7 +808,7 @@ def load_source():
                 for drive in source_avail_drive_list:
                     drive_name = prefs.get('source_names', drive, default='')
                     tree_source.insert(parent='', index='end', text=drive, values=('Unknown', 0, drive_name))
-        elif selected_source_mode == SOURCE_MODE_CUSTOM_SINGLE:
+        elif selected_source_mode == SOURCE_MODE_SINGLE_PATH:
             if not config['cliMode']:
                 source_select_single_frame.pack_forget()
                 source_select_multi_frame.pack_forget()
@@ -822,7 +822,7 @@ def load_source():
                     for directory in next(os.walk(config['source_drive']))[1]:
                         # QUESTION: Should files be allowed in custom source?
                         tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
-        elif selected_source_mode == SOURCE_MODE_CUSTOM_MULTI:
+        elif selected_source_mode == SOURCE_MODE_MULTI_PATH:
             if not config['cliMode']:
                 source_select_single_frame.pack_forget()
                 source_select_multi_frame.pack_forget()
@@ -837,7 +837,7 @@ def load_source():
             tree_source_frame.grid(row=1, column=1, sticky='ns')
             source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
     elif not config['cliMode']:
-        if settings_sourceMode.get() in [SOURCE_MODE_SINGLE, SOURCE_MODE_MULTI]:
+        if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_MULTI_DRIVE]:
             source_drive_default.set('No drives available')
 
             tree_source_frame.grid_forget()
@@ -899,9 +899,9 @@ def calculate_selected_shares():
         # FIXME: This crashes if you change the source drive, and the number of items in the tree changes while it's calculating things
         share_name = tree_source.item(item, 'text')
 
-        if settings_sourceMode.get() in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
+        if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
             share_path = os.path.join(config['source_drive'], share_name)
-        elif settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+        elif settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
             share_path = share_name
 
         share_dir_size = get_directory_size(share_path)
@@ -917,7 +917,7 @@ def calculate_selected_shares():
                 'size': int(tree_source.item(item, 'values')[1])
             }
 
-            if settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+            if settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
                 share_info['path'] = tree_source.item(item, 'text')
 
                 share_vals = tree_source.item(item, 'values')
@@ -979,7 +979,7 @@ def calculate_selected_shares():
                 'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
             }
 
-            if settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+            if settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
                 share_info['path'] = tree_source.item(item, 'text')
 
                 share_vals = tree_source.item(item, 'values')
@@ -1038,7 +1038,7 @@ def load_dest():
     if not config['cliMode']:
         tree_dest.delete(*tree_dest.get_children())
 
-    if prefs.get('selection', 'dest_mode', default=DEST_MODE_NORMAL, verify_data=DEST_MODE_OPTIONS) == DEST_MODE_NORMAL:
+    if prefs.get('selection', 'dest_mode', default=DEST_MODE_DRIVES, verify_data=DEST_MODE_OPTIONS) == DEST_MODE_DRIVES:
         if not config['cliMode']:
             dest_select_custom_frame.pack_forget()
             dest_select_normal_frame.pack()
@@ -1143,7 +1143,7 @@ def load_dest():
                         'capacity': drive_size,
                         'hasConfig': drive_has_config_file
                     })
-    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+    elif settings_destMode.get() == DEST_MODE_PATHS:
         if not config['cliMode']:
             dest_select_normal_frame.pack_forget()
             dest_select_custom_frame.pack(fill='x', expand=1)
@@ -1169,7 +1169,7 @@ def gui_select_from_config():
 
     # Get list of shares in config
     config_share_name_list = [item['dest_name'] for item in config['shares']]
-    if settings_sourceMode.get() in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
+    if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
         config_shares_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in config_share_name_list]
     else:
         config_shares_source_tree_id_list = [item for item in tree_source.get_children() if len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] in config_share_name_list]
@@ -1204,7 +1204,7 @@ def gui_select_from_config():
     # Because of the <<TreeviewSelect>> handler, re-selecting the same single item
     # would get stuck into an endless loop of trying to load the config
     # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
-    if settings_destMode.get() == DEST_MODE_NORMAL:
+    if settings_destMode.get() == DEST_MODE_DRIVES:
         config_drive_tree_id_list = [item for item in tree_dest.get_children() if tree_dest.item(item, 'values')[3] in connected_vid_list]
         if len(config_drive_tree_id_list) > 0 and tree_dest.selection() != tuple(config_drive_tree_id_list):
             try:
@@ -1227,7 +1227,7 @@ def get_share_path_from_name(share):
         String: The path name for the share.
     """
 
-    if prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
+    if prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE_DRIVE, verify_data=SOURCE_MODE_OPTIONS) in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
         # Single source mode, so source is source drive
         return os.path.join(config['source_drive'], share)
     else:
@@ -1246,7 +1246,7 @@ def load_config_from_file(filename):
     new_config = {}
     config_file = Config(filename)
 
-    SELECTED_DEST_MODE = prefs.get('selection', 'dest_mode', default=DEST_MODE_NORMAL, verify_data=DEST_MODE_OPTIONS)
+    SELECTED_DEST_MODE = prefs.get('selection', 'dest_mode', default=DEST_MODE_DRIVES, verify_data=DEST_MODE_OPTIONS)
 
     # Get shares
     shares = config_file.get('selection', 'shares')
@@ -1264,7 +1264,7 @@ def load_config_from_file(filename):
                 'dest_name': share
             } for share in shares.split(',')]
 
-    if SELECTED_DEST_MODE == DEST_MODE_NORMAL:
+    if SELECTED_DEST_MODE == DEST_MODE_DRIVES:
         # Get VID list
         vids = config_file.get('selection', 'vids').split(',')
 
@@ -1283,7 +1283,7 @@ def load_config_from_file(filename):
                 reported_drive_capacity = config_file.get(drive, 'capacity', 0, data_type=Config.INTEGER)
                 new_config['missingDrives'][drive] = reported_drive_capacity
                 config_drive_total += reported_drive_capacity
-    elif SELECTED_DEST_MODE == DEST_MODE_CUSTOM:
+    elif SELECTED_DEST_MODE == DEST_MODE_PATHS:
         # Get drive info
         config_drive_total = 0
         new_config['missingDrives'] = {}
@@ -1340,14 +1340,14 @@ def handle_drive_selection_click():
     selected_total = 0
     selected_drive_list = []
 
-    if settings_destMode.get() == DEST_MODE_NORMAL:
+    if settings_destMode.get() == DEST_MODE_DRIVES:
         drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
         for item in dest_selection:
             # Write drive IDs to config
             selected_drive = drive_lookup_list[tree_dest.item(item, 'values')[3]]
             selected_drive_list.append(selected_drive)
             selected_total += selected_drive['capacity']
-    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+    elif settings_destMode.get() == DEST_MODE_PATHS:
         for item in dest_selection:
             drive_path = tree_dest.item(item, 'text')
             drive_vals = tree_dest.item(item, 'values')
@@ -1873,9 +1873,9 @@ else:
 prefs = Config(CONFIG_FILE_PATH)
 last_selected_custom_source = prefs.get('selection', 'last_selected_custom_source', default=None)
 config = {
-    'source_drive': last_selected_custom_source if prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_CUSTOM_SINGLE else None,
-    'source_mode': prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS),
-    'dest_mode': prefs.get('selection', 'dest_mode', default=DEST_MODE_NORMAL, verify_data=DEST_MODE_OPTIONS),
+    'source_drive': last_selected_custom_source if prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE_DRIVE, verify_data=SOURCE_MODE_OPTIONS) == SOURCE_MODE_SINGLE_PATH else None,
+    'source_mode': prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE_DRIVE, verify_data=SOURCE_MODE_OPTIONS),
+    'dest_mode': prefs.get('selection', 'dest_mode', default=DEST_MODE_DRIVES, verify_data=DEST_MODE_OPTIONS),
     'splitMode': False,
     'shares': [],
     'drives': [],
@@ -1973,15 +1973,15 @@ if config['cliMode']:
             exit()
         dest_drive_name_list = [drive['name'] for drive in dest_drive_master_list]
 
-        SELECTED_SOURCE_MODE = prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS)
-        SELECTED_DEST_MODE = prefs.get('selection', 'dest_mode', default=DEST_MODE_NORMAL, verify_data=DEST_MODE_OPTIONS)
+        SELECTED_SOURCE_MODE = prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE_DRIVE, verify_data=SOURCE_MODE_OPTIONS)
+        SELECTED_DEST_MODE = prefs.get('selection', 'dest_mode', default=DEST_MODE_DRIVES, verify_data=DEST_MODE_OPTIONS)
 
         # Warn and exit with unsupported source and destination modes
-        if SELECTED_SOURCE_MODE in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+        if SELECTED_SOURCE_MODE in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
             # FIXME: Get multi source modes working in CLI mode
             print('CLI mode does not currently work in multi-source mode')
             exit()
-        elif SELECTED_DEST_MODE == DEST_MODE_CUSTOM:
+        elif SELECTED_DEST_MODE == DEST_MODE_PATHS:
             # FIXME: Get cutom destination mode working in CLI mode
             print('CLI mode currently only works with normal destination mode')
 
@@ -1989,7 +1989,7 @@ if config['cliMode']:
         LOAD_CONFIG_LOCATION = command_line.get_param('load-config')
         LOAD_CONFIG_LOCATION = LOAD_CONFIG_LOCATION[0] if LOAD_CONFIG_LOCATION else ''
         if LOAD_CONFIG_LOCATION:
-            if platform.system() == 'Windows' and SELECTED_DEST_MODE == DEST_MODE_NORMAL:
+            if platform.system() == 'Windows' and SELECTED_DEST_MODE == DEST_MODE_DRIVES:
                 LOAD_CONFIG_LOCATION = LOAD_CONFIG_LOCATION[0].upper() + ':'
 
             if not os.path.isdir(LOAD_CONFIG_LOCATION):
@@ -2001,13 +2001,13 @@ if config['cliMode']:
             data_loaded_from_config = True
         else:  # Config not loaded from destination, so gather data
             # Source drive
-            if SELECTED_SOURCE_MODE in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
+            if SELECTED_SOURCE_MODE in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
                 # Load source from preferences, or user input
                 if command_line.has_param('interactive'):
-                    if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE:
+                    if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE_DRIVE:
                         # Single source is loaded from preferences, or defaulted to first drive in source list
                         source_drive = prefs.get('selection', 'source_drive', default=source_avail_drive_list[0], verify_data=source_avail_drive_list)
-                    elif SELECTED_SOURCE_MODE == SOURCE_MODE_CUSTOM_SINGLE:
+                    elif SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE_PATH:
                         # Custom single source is loaded from preferences if it's a valid path
                         source_drive = prefs.get('selection', 'last_selected_custom_source', default='')
 
@@ -2016,7 +2016,7 @@ if config['cliMode']:
 
                     # Validate source
                     if not source_drive or not command_line.validate_yes_no(f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
-                        if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE:
+                        if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE_DRIVE:
                             print(f"Available drives: {', '.join(source_avail_drive_list)}\n")
                             config['source_drive'] = command_line.validate_choice(
                                 message='Which source drive would you like to use?',
@@ -2024,18 +2024,18 @@ if config['cliMode']:
                                 default=source_drive,
                                 chars_required=1
                             )
-                        elif SELECTED_SOURCE_MODE == SOURCE_MODE_CUSTOM_SINGLE:
+                        elif SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE_PATH:
                             source_drive = ''
 
                             while not os.path.isdir(source_drive):
                                 source_drive = input(f"{bcolor.OKCYAN}Which source path would you like to use?{bcolor.ENDC} ")
                 else:
-                    if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE:
+                    if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE_DRIVE:
                         if platform.system() == 'Windows':
                             source_drive = command_line.get_param('source')[0][0].upper() + ':' if command_line.has_param('source') and command_line.get_param('source')[0][0].upper() + ':' in source_avail_drive_list else ''
                         elif platform.system() == 'Linux':
                             source_drive = command_line.get_param('source')[0] if command_line.has_param('source') and command_line.get_param('source')[0] in source_avail_drive_list else ''
-                    elif SELECTED_SOURCE_MODE == SOURCE_MODE_CUSTOM_SINGLE:
+                    elif SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE_PATH:
                         source_drive = command_line.get_param('source')[0]
 
                     if not source_drive or not os.path.isdir(source_drive):
@@ -2046,7 +2046,7 @@ if config['cliMode']:
                 data_loaded_from_config = False
 
         # Destination drives
-        if SELECTED_DEST_MODE == DEST_MODE_NORMAL:
+        if SELECTED_DEST_MODE == DEST_MODE_DRIVES:
             split_mode = False
             if command_line.has_param('interactive'):
                 print('\nAvailable destination drives are as follows:\n')
@@ -2145,7 +2145,7 @@ if config['cliMode']:
 
         # Shares
         if command_line.has_param('interactive'):
-            if SELECTED_SOURCE_MODE in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
+            if SELECTED_SOURCE_MODE in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
                 all_share_name_list = [share for share in next(os.walk(config['source_drive']))[1]]
                 share_name_to_source_map = {share: os.path.join(config['source_drive'], share) for share in all_share_name_list}
 
@@ -2197,7 +2197,7 @@ if config['cliMode']:
             else:
                 share_list = [share['dest_name'] for share in config['shares']]
 
-            if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE:
+            if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE_DRIVE:
                 source_share_list = [directory for directory in next(os.walk(config['source_drive']))[1]]
                 filtered_share_input = [share for share in share_list if share in source_share_list]
             else:
@@ -2810,7 +2810,7 @@ def browse_for_source():
     if not dir_name:
         return
 
-    if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
+    if settings_sourceMode.get() == SOURCE_MODE_SINGLE_PATH:
         source_select_custom_single_path_label.configure(text=dir_name)
         config['source_drive'] = dir_name
 
@@ -2819,7 +2819,7 @@ def browse_for_source():
         prefs.set('selection', 'last_selected_custom_source', dir_name)
 
         load_source_in_background()
-    elif settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
+    elif settings_sourceMode.get() == SOURCE_MODE_MULTI_PATH:
         # Get list of paths already in tree
         existing_path_list = []
         for item in tree_source.get_children():
@@ -2844,7 +2844,7 @@ def browse_for_dest():
     if not dir_name:
         return
 
-    if settings_destMode.get() == DEST_MODE_CUSTOM:
+    if settings_destMode.get() == DEST_MODE_PATHS:
         # Get list of paths already in tree
         existing_path_list = []
         for item in tree_dest.get_children():
@@ -2882,7 +2882,7 @@ def rename_source_item(item):
         new_name = ''
 
     # Only set name in preferences if not in custom source mode
-    if settings_sourceMode.get() == SOURCE_MODE_MULTI:
+    if settings_sourceMode.get() == SOURCE_MODE_MULTI_DRIVE:
         drive_name = tree_source.item(item, 'text')
         prefs.set('source_names', drive_name, new_name)
 
@@ -2929,19 +2929,19 @@ def delete_dest_item(item):
 def show_source_right_click_menu(event):
     """Show the right click menu in the source tree for multi-source mode."""
 
-    if settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+    if settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
         item = tree_source.identify_row(event.y)
         if item:
             tree_source.selection_set(item)
             source_right_click_menu.entryconfig('Rename', command=lambda: rename_source_item(item))
-            if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
+            if settings_sourceMode.get() == SOURCE_MODE_MULTI_PATH:
                 source_right_click_menu.entryconfig('Delete', command=lambda: delete_source_item(item))
             source_right_click_menu.post(event.x_root, event.y_root)
 
 def show_dest_right_click_menu(event):
     """Show the right click menu in the dest tree for custom dest mode."""
 
-    if settings_destMode.get() == DEST_MODE_CUSTOM:
+    if settings_destMode.get() == DEST_MODE_PATHS:
         item = tree_dest.identify_row(event.y)
         if item:
             tree_dest.selection_set(item)
@@ -2960,7 +2960,7 @@ def change_source_mode():
     POS_X = int(root_geom[1])
     POS_Y = int(root_geom[2])
 
-    if settings_sourceMode.get() in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
+    if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
         tree_source.column('#0', width=SINGLE_SOURCE_TEXT_COL_WIDTH)
         tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
         tree_source['displaycolumns'] = ('size')
@@ -2978,9 +2978,9 @@ def change_source_mode():
 
         config['source_mode'] == settings_sourceMode.get()
 
-        if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_SINGLE:
+        if settings_sourceMode.get() == SOURCE_MODE_SINGLE_PATH:
             config['source_drive'] = last_selected_custom_source
-    elif settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+    elif settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
         WINDOW_WIDTH = WINDOW_BASE_WIDTH + WINDOW_MULTI_SOURCE_EXTRA_WIDTH
         if bool(backup_file_details_frame.grid_info()):
             WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
@@ -2991,7 +2991,7 @@ def change_source_mode():
         tree_source['displaycolumns'] = ('name', 'size')
 
         # Bind right click menu
-        if settings_sourceMode.get() == SOURCE_MODE_MULTI:  # Delete option should only show in custom mode
+        if settings_sourceMode.get() == SOURCE_MODE_MULTI_DRIVE:  # Delete option should only show in custom mode
             source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
 
         config['source_mode'] == settings_sourceMode.get()
@@ -3005,7 +3005,7 @@ def change_dest_mode():
 
     prefs.set('selection', 'dest_mode', settings_destMode.get())
 
-    if settings_destMode.get() == DEST_MODE_NORMAL:
+    if settings_destMode.get() == DEST_MODE_DRIVES:
         tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
         tree_dest.heading('vid', text='Volume ID')
         tree_dest.column('vid', width=90)
@@ -3014,7 +3014,7 @@ def change_dest_mode():
         tree_dest.unbind('<Button-3>', dest_right_click_bind)
 
         config['dest_mode'] = settings_destMode.get()
-    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+    elif settings_destMode.get() == DEST_MODE_PATHS:
         tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
         tree_dest.column('vid', width=140)
         tree_dest.heading('vid', text='Name')
@@ -3080,6 +3080,25 @@ def start_verify_data_from_hash_list():
         drive_list = [drive['name'] for drive in config['drives']]
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
+def toggle_file_details_pane():
+    """Toggle the file details pane."""
+
+    global WINDOW_WIDTH
+
+    root_geom = root.geometry().split('+')
+    POS_X = int(root_geom[1])
+    POS_Y = int(root_geom[2])
+
+    # FIXME: Is fixing the flicker effect here possible?
+    if bool(backup_file_details_frame.grid_info()):
+        backup_file_details_frame.grid_remove()
+        WINDOW_WIDTH -= WINDOW_FILE_DETAILS_EXTRA_WIDTH
+        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X + WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
+    else:
+        WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
+        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X - WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
+        backup_file_details_frame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+
 ############
 # GUI Mode #
 ############
@@ -3123,7 +3142,7 @@ if not config['cliMode']:
     root.title('BackDrop - Data Backup Tool')
     root.resizable(False, False)
     WINDOW_WIDTH = WINDOW_BASE_WIDTH
-    if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE, verify_data=SOURCE_MODE_OPTIONS) in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+    if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE_DRIVE, verify_data=SOURCE_MODE_OPTIONS) in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
         WINDOW_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
     WINDOW_HEIGHT = 720
     root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}')
@@ -3302,39 +3321,46 @@ if not config['cliMode']:
     settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN))
     selection_source_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=lambda: change_source_type(DRIVE_TYPE_REMOTE))
     selection_source_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=lambda: change_source_type(DRIVE_TYPE_LOCAL))
-    selection_menu.add_cascade(label='Source Type', menu=selection_source_select_menu)
+    selection_menu.add_cascade(label='Source Drive Type', menu=selection_source_select_menu)
     selection_dest_select_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     settings_showDrives_dest_network = tk.BooleanVar(value=prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
     settings_showDrives_dest_local = tk.BooleanVar(value=prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
     selection_dest_select_menu.add_checkbutton(label='Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE))
     selection_dest_select_menu.add_checkbutton(label='Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL))
-    selection_menu.add_cascade(label='Destination Type', menu=selection_dest_select_menu)
+    selection_menu.add_cascade(label='Destination Drive Type', menu=selection_dest_select_menu)
     selection_menu.add_separator()
     selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
-    settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE))
-    selection_source_mode_menu.add_checkbutton(label='Single source, select folders', onvalue=SOURCE_MODE_SINGLE, offvalue=SOURCE_MODE_SINGLE, variable=settings_sourceMode, command=change_source_mode)
-    selection_source_mode_menu.add_checkbutton(label='Multi source, select sources', onvalue=SOURCE_MODE_MULTI, offvalue=SOURCE_MODE_MULTI, variable=settings_sourceMode, command=change_source_mode)
-    selection_source_mode_menu.add_checkbutton(label='Custom location', onvalue=SOURCE_MODE_CUSTOM_SINGLE, offvalue=SOURCE_MODE_CUSTOM_SINGLE, variable=settings_sourceMode, command=change_source_mode)
-    selection_source_mode_menu.add_checkbutton(label='Custom location, multi source', onvalue=SOURCE_MODE_CUSTOM_MULTI, offvalue=SOURCE_MODE_CUSTOM_MULTI, variable=settings_sourceMode, command=change_source_mode)
+    settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE_DRIVE))
+    selection_source_mode_menu.add_checkbutton(label='Single drive, select subfolders', onvalue=SOURCE_MODE_SINGLE_DRIVE, offvalue=SOURCE_MODE_SINGLE_DRIVE, variable=settings_sourceMode, command=change_source_mode)
+    selection_source_mode_menu.add_checkbutton(label='Multi drive, select drives', onvalue=SOURCE_MODE_MULTI_DRIVE, offvalue=SOURCE_MODE_MULTI_DRIVE, variable=settings_sourceMode, command=change_source_mode)
+    selection_source_mode_menu.add_separator()
+    selection_source_mode_menu.add_checkbutton(label='Single path, select subfolders', onvalue=SOURCE_MODE_SINGLE_PATH, offvalue=SOURCE_MODE_SINGLE_PATH, variable=settings_sourceMode, command=change_source_mode)
+    selection_source_mode_menu.add_checkbutton(label='Multi path, select paths', onvalue=SOURCE_MODE_MULTI_PATH, offvalue=SOURCE_MODE_MULTI_PATH, variable=settings_sourceMode, command=change_source_mode)
     selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
     selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
-    settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=DEST_MODE_OPTIONS, default=DEST_MODE_NORMAL))
-    selection_dest_mode_menu.add_checkbutton(label='Normal, select drives', onvalue=DEST_MODE_NORMAL, offvalue=DEST_MODE_NORMAL, variable=settings_destMode, command=change_dest_mode)
-    selection_dest_mode_menu.add_checkbutton(label='Custom location', onvalue=DEST_MODE_CUSTOM, offvalue=DEST_MODE_CUSTOM, variable=settings_destMode, command=change_dest_mode)
+    settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=DEST_MODE_OPTIONS, default=DEST_MODE_DRIVES))
+    selection_dest_mode_menu.add_checkbutton(label='Drives', onvalue=DEST_MODE_DRIVES, offvalue=DEST_MODE_DRIVES, variable=settings_destMode, command=change_dest_mode)
+    selection_dest_mode_menu.add_checkbutton(label='Paths', onvalue=DEST_MODE_PATHS, offvalue=DEST_MODE_PATHS, variable=settings_destMode, command=change_dest_mode)
     selection_menu.add_cascade(label='Destination Mode', underline=0, menu=selection_dest_mode_menu)
-    selection_menu.add_separator()
-    selection_menu.add_command(label='Delete Config from Selected Drives', command=delete_config_file_from_selected_drives)
     menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
 
     # View menu
     view_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     view_menu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=load_source_in_background)
     view_menu.add_command(label='Refresh Destination', underline=0, accelerator='F5', command=load_dest_in_background)
+    show_file_details_pane = tk.BooleanVar()
+    view_menu.add_separator()
+    view_menu.add_checkbutton(label='File Details Pane', onvalue=1, offvalue=0, variable=show_file_details_pane, accelerator='Ctrl+D', command=toggle_file_details_pane, selectcolor=uicolor.FG)
     menubar.add_cascade(label='View', underline=0, menu=view_menu)
+
+    # Actions menu
+    actions_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+    actions_menu.add_command(label='Verify Data Integrity on Selected Drives', underline=0, command=start_verify_data_from_hash_list)
+    actions_menu.add_command(label='Delete Config from Selected Drives', command=delete_config_file_from_selected_drives)
+    menubar.add_cascade(label='Actions', underline=0, menu=actions_menu)
 
     # Tools menu
     tools_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
-    tools_menu.add_command(label='Verify Data Integrity on Selected Drives', underline=0, command=start_verify_data_from_hash_list)
     tools_menu.add_command(label='Config Builder...', underline=7, accelerator='Ctrl+B', command=show_config_builder)
     menubar.add_cascade(label='Tools', underline=0, menu=tools_menu)
 
@@ -3342,7 +3368,8 @@ if not config['cliMode']:
     preferences_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     settings_verifyAllFiles = tk.BooleanVar(value=prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN))
-    preferences_verification_menu.add_checkbutton(label='Verify All Drives', onvalue=True, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
+    preferences_verification_menu.add_checkbutton(label='Verify Known Files', onvalue=False, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
+    preferences_verification_menu.add_checkbutton(label='Verify All Files', onvalue=True, offvalue=True, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
     preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
     settings_darkModeEnabled = tk.BooleanVar(value=uicolor.is_dark_mode())
     preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()))
@@ -3396,12 +3423,12 @@ if not config['cliMode']:
     tree_source_frame = tk.Frame(main_frame)
 
     tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize', 'name'), style='custom.Treeview')
-    if settings_sourceMode.get() in [SOURCE_MODE_SINGLE, SOURCE_MODE_CUSTOM_SINGLE]:
+    if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
         tree_source_display_cols = ('size')
-    elif settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+    elif settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
         tree_source_display_cols = ('name', 'size')
 
-    if settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+    if settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
         SOURCE_TEXT_COL_WIDTH = 200  # Windows 120
         SOURCE_NAME_COL_WIDTH = 140  # Windows 220
     else:
@@ -3467,11 +3494,11 @@ if not config['cliMode']:
     # Source tree right click menu
     source_right_click_menu = tk.Menu(tree_source, tearoff=0)
     source_right_click_menu.add_command(label='Rename', underline=0)
-    if settings_sourceMode.get() == SOURCE_MODE_CUSTOM_MULTI:
+    if settings_sourceMode.get() == SOURCE_MODE_MULTI_PATH:
         source_right_click_menu.add_command(label='Delete')
 
     tree_source.bind("<<TreeviewSelect>>", calculate_source_size_in_background)
-    if settings_sourceMode.get() in [SOURCE_MODE_MULTI, SOURCE_MODE_CUSTOM_MULTI]:
+    if settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
         source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
     else:
         source_right_click_bind = None
@@ -3516,12 +3543,12 @@ if not config['cliMode']:
     dest_select_custom_browse_button.grid(row=0, column=1)
 
     DEST_TREE_COLWIDTH_DRIVE = 50 if platform.system() == 'Windows' else 150
-    DEST_TREE_COLWIDTH_VID = 140 if settings_destMode.get() == DEST_MODE_CUSTOM else 90
+    DEST_TREE_COLWIDTH_VID = 140 if settings_destMode.get() == DEST_MODE_PATHS else 90
     DEST_TREE_COLWIDTH_SERIAL = 150 if platform.system() == 'Windows' else 50
 
     tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
     tree_dest.heading('#0', text='Drive')
-    if settings_destMode.get() == DEST_MODE_CUSTOM:
+    if settings_destMode.get() == DEST_MODE_PATHS:
         tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
     else:
         tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
@@ -3529,17 +3556,17 @@ if not config['cliMode']:
     tree_dest.column('size', width=80)
     tree_dest.heading('configfile', text='Config')
     tree_dest.column('configfile', width=50)
-    if settings_destMode.get() == DEST_MODE_NORMAL:
+    if settings_destMode.get() == DEST_MODE_DRIVES:
         tree_dest.heading('vid', text='Volume ID')
-    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+    elif settings_destMode.get() == DEST_MODE_PATHS:
         tree_dest.heading('vid', text='Name')
     tree_dest.column('vid', width=DEST_TREE_COLWIDTH_VID)
     tree_dest.heading('serial', text='Serial')
     tree_dest.column('serial', width=DEST_TREE_COLWIDTH_SERIAL)
 
-    if settings_destMode.get() == DEST_MODE_NORMAL:
+    if settings_destMode.get() == DEST_MODE_DRIVES:
         tree_dest_display_cols = ('size', 'configfile', 'vid', 'serial')
-    elif settings_destMode.get() == DEST_MODE_CUSTOM:
+    elif settings_destMode.get() == DEST_MODE_PATHS:
         tree_dest_display_cols = ('vid', 'size', 'configfile')
     tree_dest['displaycolumns'] = tree_dest_display_cols
 
@@ -3555,7 +3582,7 @@ if not config['cliMode']:
     dest_right_click_menu.add_command(label='Rename', underline=0)
     dest_right_click_menu.add_command(label='Delete')
 
-    if settings_destMode.get() == DEST_MODE_CUSTOM:
+    if settings_destMode.get() == DEST_MODE_PATHS:
         dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
     else:
         dest_right_click_bind = None
@@ -3734,27 +3761,6 @@ if not config['cliMode']:
     file_details_failed_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
     file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
     file_details_failed_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
-
-    def toggle_file_details_pane():
-        global WINDOW_WIDTH
-
-        root_geom = root.geometry().split('+')
-        POS_X = int(root_geom[1])
-        POS_Y = int(root_geom[2])
-
-        # FIXME: Is fixing the flicker effect here possible?
-        if bool(backup_file_details_frame.grid_info()):
-            backup_file_details_frame.grid_remove()
-            WINDOW_WIDTH -= WINDOW_FILE_DETAILS_EXTRA_WIDTH
-            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X + WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
-        else:
-            WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-            root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X - WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
-            backup_file_details_frame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
-
-    show_file_details_pane = tk.BooleanVar()
-    view_menu.add_separator()
-    view_menu.add_checkbutton(label='File details pane', onvalue=1, offvalue=0, variable=show_file_details_pane, accelerator='Ctrl+D', command=toggle_file_details_pane, selectcolor=uicolor.FG)
 
     tk.Grid.columnconfigure(main_frame, 3, weight=1)
 
