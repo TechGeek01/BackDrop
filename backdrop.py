@@ -1736,7 +1736,7 @@ def display_update_screen(update_info):
         update_header = tk.Label(main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=uicolor.INFOTEXTDARK)
         update_header.pack()
 
-        update_text = tk.Label(main_frame, text='An update to BackDrop is avaiable. Please update to get the latest features and fixes.', font=(None, 10))
+        update_text = tk.Label(main_frame, text='An update to BackDrop is available. Please update to get the latest features and fixes.', font=(None, 10))
         update_text.pack(pady=16)
 
         current_version_frame = tk.Frame(main_frame)
