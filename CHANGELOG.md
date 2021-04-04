@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Fixed button styling
 - Fixed typo in update notification
 - Fixed drive selection not emptying missing drive list when selecting extra drives after a config load
+- CLI mode updater works on Linux
 
 ### Changed
 - Backup and analysis both disabled the other button when running

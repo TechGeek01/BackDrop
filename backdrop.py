@@ -1811,9 +1811,13 @@ def check_for_updates(info):
             display_update_screen(info)
         else:
             download_url = None
+            sys_name = platform.system()
             for item in info['download']:
-                # TODO: For cross platform, make sure the right filetype is selected
-                if item[-4:].lower() == '.exe':
+                # TODO: Make download selection filename-independent
+                if sys_name == 'Windows' and item.split('/')[-1] == 'backdrop.exe':
+                    download_url = item
+                    break
+                elif sys_name == 'Linux' and item.split('/')[-1] == 'backdrop-debian':
                     download_url = item
                     break
 
