@@ -849,7 +849,7 @@ class Backup:
             payload=[(self.DRIVE_VID_INFO[drive]['name'], '\n'.join(shares), drive in connected_vid_list) for drive, shares in drive_share_list.items()]
         )
 
-        self.display_backup_command_info_fn(self, display_command_list)
+        self.display_backup_command_info_fn(display_command_list)
 
         self.analysis_valid = True
 

@@ -317,7 +317,6 @@ def display_backup_progress(copied, total, gui_options):
         percent_copied = 100
 
     # If display index has been specified, write progress to GUI
-    # URGENT: Refactor display_backup_progress so calculations are done separate from progress displaying
     if 'displayIndex' in gui_options.keys():
         display_index = gui_options['displayIndex']
 
@@ -329,21 +328,18 @@ def display_backup_progress(copied, total, gui_options):
         if gui_options['mode'] == 'delete':
             if not config['cliMode']:
                 progress.set(backup_totals['progressBar'])
-
                 cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"Deleted {gui_options['filename']}", fg=uicolor.NORMAL)
             else:
                 print(f"Deleted {gui_options['filename']}")
         elif gui_options['mode'] == 'copy':
             if not config['cliMode']:
                 progress.set(backup_totals['progressBar'])
-
                 cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.NORMAL)
             else:
                 print(f"{percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
         elif gui_options['mode'] == 'verify':
             if not config['cliMode']:
                 progress.set(backup_totals['progressBar'])
-
                 cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.BLUE)
             else:
                 print(f"{bcolor.OKCYAN}Verifying => {percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
@@ -492,9 +488,12 @@ def update_backup_eta_timer():
         else:
             print(f"{bcolor.OKGREEN}Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
 
-# FIXME: There's definitely a better way to handle working with items in the Backup instance than passing self into this function
-def display_backup_command_info(self, display_command_list):
-    """Enumerate the display widget with command info after a backup analysis."""
+def display_backup_command_info(display_command_list):
+    """Enumerate the display widget with command info after a backup analysis.
+    
+    Args:
+        display_command_list (dict): The command list to pull data from.
+    """
 
     CMD_INFO_HEADER_FONT = (None, 9, 'bold')
     CMD_INFO_STATUS_FONT = (None, 9)
@@ -507,21 +506,16 @@ def display_backup_command_info(self, display_command_list):
         """
 
         # Expand only if analysis is not running and the list isn't still being built
-        if not self.analysis_running:
+        if not backup.analysis_running:
             # Check if arrow needs to be expanded
-            if not self.cmd_info_blocks[index]['is_expanded']:
+            if not backup.cmd_info_blocks[index]['infoFrame'].grid_info():
                 # Collapsed turns into expanded
-                self.cmd_info_blocks[index]['is_expanded'] = True
-                self.cmd_info_blocks[index]['arrow'].configure(image=down_nav_arrow)
-                self.cmd_info_blocks[index]['infoFrame'].grid(row=1, column=1, sticky='w')
+                backup.cmd_info_blocks[index]['arrow'].configure(image=down_nav_arrow)
+                backup.cmd_info_blocks[index]['infoFrame'].grid(row=1, column=1, sticky='w')
             else:
                 # Expanded turns into collapsed
-                self.cmd_info_blocks[index]['is_expanded'] = False
-                self.cmd_info_blocks[index]['arrow'].configure(image=right_nav_arrow)
-                self.cmd_info_blocks[index]['infoFrame'].grid_forget()
-
-        # For some reason, .configure() loses the function bind, so we need to re-set this
-        self.cmd_info_blocks[index]['arrow'].bind('<Button-1>', lambda event, index=index: handle_expand_toggle_click(index))
+                backup.cmd_info_blocks[index]['arrow'].configure(image=right_nav_arrow)
+                backup.cmd_info_blocks[index]['infoFrame'].grid_forget()
 
     def copy_chunk_list_to_clipboard(index, item):
         """Copy a given indexed command to the clipboard.
@@ -531,7 +525,7 @@ def display_backup_command_info(self, display_command_list):
             item (String): The name of the list to copy
         """
 
-        clipboard.copy('\n'.join(self.cmd_info_blocks[index][item]))
+        clipboard.copy('\n'.join(backup.cmd_info_blocks[index][item]))
 
     if not config['cliMode']:
         for widget in backup_activity_scrollable_frame.winfo_children():
@@ -539,7 +533,7 @@ def display_backup_command_info(self, display_command_list):
     else:
         print('')
 
-    self.cmd_info_blocks = []
+    backup.cmd_info_blocks = []
     for i, item in enumerate(display_command_list):
         if item['type'] == 'fileList':
             if item['mode'] == 'delete':
@@ -559,7 +553,6 @@ def display_backup_command_info(self, display_command_list):
             backup_summary_block['mainFrame'].grid_columnconfigure(1, weight=1)
 
             # Set up header arrow, trimmed command, and status
-            backup_summary_block['is_expanded'] = False
             backup_summary_block['arrow'] = tk.Label(backup_summary_block['mainFrame'], image=right_nav_arrow)
             backup_summary_block['arrow'].grid(row=0, column=0)
             backup_summary_block['headLine'] = tk.Frame(backup_summary_block['mainFrame'])
@@ -623,7 +616,7 @@ def display_backup_command_info(self, display_command_list):
                 backup_summary_block['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copy_chunk_list_to_clipboard(index, 'fullFileList'))
                 backup_summary_block['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copy_chunk_list_to_clipboard(index, 'fullFileList'))
 
-            self.cmd_info_blocks.append(backup_summary_block)
+            backup.cmd_info_blocks.append(backup_summary_block)
 
             # Header toggle action click
             backup_summary_block['arrow'].bind('<Button-1>', lambda event, index=i: handle_expand_toggle_click(index))
@@ -848,7 +841,6 @@ def load_source():
     if not config['cliMode']:
         progress.stop_indeterminate()
 
-# FIXME: Should load_source_in_background be a separate function?
 def load_source_in_background():
     """Start a source refresh in a new thread."""
 
@@ -1920,8 +1912,6 @@ if config['cliMode']:
         ]
     )
 
-    # FIXME: Allow destination and config to be specified with drive letter or volume ID
-
     if command_line.has_param('help'):
         command_line.show_help()
     elif command_line.has_param('version'):
@@ -1978,11 +1968,11 @@ if config['cliMode']:
 
         # Warn and exit with unsupported source and destination modes
         if SELECTED_SOURCE_MODE in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
-            # FIXME: Get multi source modes working in CLI mode
+            # TODO: Get multi source modes working in CLI mode
             print('CLI mode does not currently work in multi-source mode')
             exit()
         elif SELECTED_DEST_MODE == DEST_MODE_PATHS:
-            # FIXME: Get cutom destination mode working in CLI mode
+            # TODO: Get cutom destination mode working in CLI mode
             print('CLI mode currently only works with normal destination mode')
 
         # Load config from destination if specified
