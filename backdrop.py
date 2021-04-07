@@ -671,7 +671,7 @@ def start_backup_analysis():
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    if (not backup or not backup.is_running()) and not verification_running and (config['cliMode'] or source_drive_list_valid):
+    if (not backup or not backup.is_running()) and not verification_running and (config['cliMode'] or source_avail_drive_list):
         reset_ui()
         statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
         statusbar_details.configure(text='')
@@ -714,6 +714,8 @@ def get_source_drive_list():
         list: The list of source drives.
     """
 
+    source_avail_drive_list = []
+
     if platform.system() == 'Windows':
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
         drive_type_list = []
@@ -755,7 +757,6 @@ def load_source():
     """Load the source drive and share lists, and display shares in the tree."""
 
     global source_avail_drive_list
-    global source_drive_list_valid
 
     if not config['cliMode']:
         progress.start_indeterminate()
@@ -763,14 +764,21 @@ def load_source():
         # Empty tree in case this is being refreshed
         tree_source.delete(*tree_source.get_children())
 
-    source_avail_drive_list = get_source_drive_list()
-    source_drive_list_valid = len(source_avail_drive_list) > 0
+        if not source_warning.grid_info() and not tree_source_frame.grid_info():
+            tree_source_frame.grid(row=1, column=1, sticky='ns')
+            source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
-    if source_drive_list_valid or settings_sourceMode.get() in [SOURCE_MODE_SINGLE_PATH, SOURCE_MODE_MULTI_PATH]:
-        # Display empty selection sizes
+    source_avail_drive_list = get_source_drive_list()
+
+    if source_avail_drive_list or settings_sourceMode.get() in [SOURCE_MODE_SINGLE_PATH, SOURCE_MODE_MULTI_PATH]:
         if not config['cliMode']:
+            # Display empty selection sizes
             share_selected_space.configure(text='None', fg=uicolor.FADED)
             share_total_space.configure(text='~None', fg=uicolor.FADED)
+
+            source_warning.grid_forget()
+            tree_source_frame.grid(row=1, column=1, sticky='ns')
+            source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
         selected_source_mode = prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE_DRIVE, verify_data=SOURCE_MODE_OPTIONS)
 
@@ -825,10 +833,6 @@ def load_source():
                 if not source_select_frame.grid_info():
                     source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
-        if not config['cliMode']:
-            source_warning.grid_forget()
-            tree_source_frame.grid(row=1, column=1, sticky='ns')
-            source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
     elif not config['cliMode']:
         if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_MULTI_DRIVE]:
             source_drive_default.set('No drives available')
@@ -3410,7 +3414,7 @@ if not config['cliMode']:
         thread_manager=thread_manager
     )
 
-    source_drive_list_valid = False
+    source_avail_drive_list = []
     source_drive_default = tk.StringVar()
 
     # Tree frames for tree and scrollbar

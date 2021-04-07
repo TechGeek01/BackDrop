@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Backup and analysis both disabled the other button when running
+- Sped up loading of GUI
 
 ## 3.1.2 - 2021-03-31
 ### Added
