@@ -3157,9 +3157,10 @@ if not config['cliMode']:
 
         return os.path.join(base_path, relative_path)
 
-    WINDOW_BASE_WIDTH = 1150
+    WINDOW_BASE_WIDTH = 1150  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
     WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
     WINDOW_FILE_DETAILS_EXTRA_WIDTH = 400 + WINDOW_ELEMENT_PADDING
+    WINDOW_MIN_HEIGHT = 680  # FIXME: Fix height lower than 680 cutting off status bar at bottom of window
     MULTI_SOURCE_TEXT_COL_WIDTH = 120 if platform.system() == 'Windows' else 200
     MULTI_SOURCE_NAME_COL_WIDTH = 220 if platform.system() == 'Windows' else 140
     SINGLE_SOURCE_TEXT_COL_WIDTH = 170
@@ -3171,7 +3172,6 @@ if not config['cliMode']:
     WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
     if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE_DRIVE, verify_data=SOURCE_MODE_OPTIONS) in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
         WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-    WINDOW_MIN_HEIGHT = 720
     root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
     root.geometry(f'{WINDOW_MIN_WIDTH}x{WINDOW_MIN_HEIGHT}')
 
