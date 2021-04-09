@@ -2961,22 +2961,31 @@ def change_source_mode():
     """Change the mode for source selection."""
 
     global source_right_click_bind
-    global WINDOW_WIDTH
+    global WINDOW_MIN_WIDTH
 
     prefs.set('selection', 'source_mode', settings_sourceMode.get())
     root_geom = root.geometry().split('+')
+    root_size_geom = root_geom[0].split('x')
+    CUR_WIN_WIDTH = int(root_size_geom[0])
+    CUR_WIN_HEIGHT = int(root_size_geom[1])
     POS_X = int(root_geom[1])
     POS_Y = int(root_geom[2])
+
+    print(WINDOW_MIN_WIDTH)
+    print(CUR_WIN_WIDTH)
 
     if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
         tree_source.column('#0', width=SINGLE_SOURCE_TEXT_COL_WIDTH)
         tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
         tree_source['displaycolumns'] = ('size')
 
-        WINDOW_WIDTH = WINDOW_BASE_WIDTH
+        WINDOW_MIN_WIDTH -= WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+        CUR_WIN_WIDTH -= WINDOW_MULTI_SOURCE_EXTRA_WIDTH
         if bool(backup_file_details_frame.grid_info()):
-            WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
+            WINDOW_MIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
+            CUR_WIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
+        root.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
+        root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
 
         # Unbind right click menu
         try:
@@ -2989,10 +2998,13 @@ def change_source_mode():
         if settings_sourceMode.get() == SOURCE_MODE_SINGLE_PATH:
             config['source_drive'] = last_selected_custom_source
     elif settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
-        WINDOW_WIDTH = WINDOW_BASE_WIDTH + WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+        WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+        CUR_WIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
         if bool(backup_file_details_frame.grid_info()):
-            WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X}+{POS_Y}')
+            WINDOW_MIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
+            CUR_WIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
+        root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+        root.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
 
         tree_source.column('#0', width=MULTI_SOURCE_TEXT_COL_WIDTH)
         tree_source.column('name', width=MULTI_SOURCE_NAME_COL_WIDTH)
@@ -3091,20 +3103,27 @@ def start_verify_data_from_hash_list():
 def toggle_file_details_pane():
     """Toggle the file details pane."""
 
-    global WINDOW_WIDTH
+    global WINDOW_MIN_WIDTH
 
     root_geom = root.geometry().split('+')
+    root_size_geom = root_geom[0].split('x')
+    CUR_WIN_WIDTH = int(root_size_geom[0])
+    CUR_WIN_HEIGHT = int(root_size_geom[1])
     POS_X = int(root_geom[1])
     POS_Y = int(root_geom[2])
 
     # FIXME: Is fixing the flicker effect here possible?
     if bool(backup_file_details_frame.grid_info()):
         backup_file_details_frame.grid_remove()
-        WINDOW_WIDTH -= WINDOW_FILE_DETAILS_EXTRA_WIDTH
-        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X + WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
+        WINDOW_MIN_WIDTH -= WINDOW_FILE_DETAILS_EXTRA_WIDTH
+        CUR_WIN_WIDTH -= WINDOW_FILE_DETAILS_EXTRA_WIDTH
+        root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+        root.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X + WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
     else:
-        WINDOW_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-        root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{POS_X - WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
+        WINDOW_MIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
+        CUR_WIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
+        root.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X - WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
+        root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
         backup_file_details_frame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
 ############
@@ -3148,12 +3167,13 @@ if not config['cliMode']:
 
     root = tk.Tk()
     root.title('BackDrop - Data Backup Tool')
-    root.resizable(False, False)
-    WINDOW_WIDTH = WINDOW_BASE_WIDTH
+    # root.resizable(False, False)
+    WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
     if prefs.get('selection', 'source_mode', SOURCE_MODE_SINGLE_DRIVE, verify_data=SOURCE_MODE_OPTIONS) in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
-        WINDOW_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-    WINDOW_HEIGHT = 720
-    root.geometry(f'{WINDOW_WIDTH}x{WINDOW_HEIGHT}')
+        WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+    WINDOW_MIN_HEIGHT = 720
+    root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+    root.geometry(f'{WINDOW_MIN_WIDTH}x{WINDOW_MIN_HEIGHT}')
 
     appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
 

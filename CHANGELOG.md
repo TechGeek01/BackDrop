@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## 3.1.3 - TBD
 ### Added
 - Added status bar backup halt indicator if verification doesn't allow an immediate halt
+- Made main window resizable
 
 ### Fixed
 - Fixed button styling
