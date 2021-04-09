@@ -94,8 +94,11 @@ class Config:
         self.config.set(section_name, pref_name, str(pref_val))
 
         # Write changes to file
-        with open(self.filename, 'w') as config_file:
-            self.config.write(config_file)
+        try:
+            with open(self.filename, 'w') as config_file:
+                self.config.write(config_file)
+        except PermissionError:
+            print('Insufficient permissions to save')
 
     def show(self):
         """Show config."""
