@@ -1154,7 +1154,8 @@ def load_dest():
 def load_dest_in_background():
     """Start the loading of the destination drive info in a new thread."""
 
-    # URGENT: Make load_dest replaceable or, queueable
+    # URGENT: Make load_dest and load_source replaceable, and in theor own class
+    # URGENT: Invalidate load_source or load_dest if tree gets refreshed via some class def call
     if not thread_manager.is_alive('Refresh destination'):
         thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh destination', daemon=True)
 
@@ -1173,6 +1174,11 @@ def gui_select_from_config():
     if config_shares_source_tree_id_list:
         tree_source.focus(config_shares_source_tree_id_list[-1])
         tree_source.selection_set(tuple(config_shares_source_tree_id_list))
+
+        # Recalculate selected totals for display
+        # QUESTION: Should source total be recalculated when selecting, or should it continue to use the existing total?
+        known_path_sizes = [int(tree_source.item(item, 'values')[1]) for item in config_shares_source_tree_id_list if tree_source.item(item, 'values')[1] != 'Unknown']
+        share_selected_space.configure(text=human_filesize(sum(known_path_sizes)))
 
     # Get list of drives where volume ID is in config
     connected_vid_list = [drive['vid'] for drive in config['drives']]

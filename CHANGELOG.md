@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Fixed typo in update notification
 - Fixed drive selection not emptying missing drive list when selecting extra drives after a config load
 - CLI mode updater works on Linux
+- Fixed selected source total not updating when auto selecting from config if source paths are already of known size
 
 ### Changed
 - Backup and analysis both disabled the other button when running
