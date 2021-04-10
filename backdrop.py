@@ -959,7 +959,6 @@ def calculate_selected_shares():
         # If everything's calculated, enable analysis button to be clicked
         all_shares_known = True
         for item in tree_source.selection():
-            print(f"{tree_source.item(item, 'text')} => {tree_source.item(item, 'values')[0]}")
             if tree_source.item(item, 'values')[0] == 'Unknown':
                 all_shares_known = False
         if all_shares_known:
@@ -3827,9 +3826,9 @@ if not config['cliMode']:
     backup_summary_text_canvas.create_window((0, 0), window=backup_summary_text_scrollable_frame, anchor='nw')
     backup_summary_text_canvas.configure(yscrollcommand=backup_summary_text_scrollbar.set)
     # backup_summary_text_frame.pack(fill='both', expand=1)
-    tk.Label(backup_summary_text_canvas, text='This area will summarize the backup that\'s been configured.',
+    tk.Label(backup_summary_text_scrollable_frame, text='This area will summarize the backup that\'s been configured.',
              wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
-    tk.Label(backup_summary_text_canvas, text='Please start a backup analysis to generate a summary.',
+    tk.Label(backup_summary_text_scrollable_frame, text='Please start a backup analysis to generate a summary.',
              wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
     backup_summary_button_frame = tk.Frame(backup_summary_frame)
     backup_summary_button_frame.pack(pady=WINDOW_ELEMENT_PADDING / 2)
