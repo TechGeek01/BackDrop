@@ -1005,7 +1005,8 @@ def calculate_selected_shares():
 
     # If selection is different than last time, invalidate the analysis
     selection_unchanged_items = [share for share in selected if share in prev_share_selection]
-    if len(selected) != len(prev_share_selection) or len(selection_unchanged_items) != len(prev_share_selection):
+    if ((not backup or not backup.is_running())  # Make sure backup isn't already running
+            and len(selected) != len(prev_share_selection) or len(selection_unchanged_items) != len(prev_share_selection)):  # Selection has changed from last time
         start_backup_btn.configure(state='disable')
 
     prev_share_selection = [share for share in selected]
