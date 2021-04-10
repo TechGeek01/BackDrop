@@ -2969,6 +2969,7 @@ def change_source_mode():
 
     global source_right_click_bind
     global WINDOW_MIN_WIDTH
+    global PREV_SOURCE_MODE
 
     prefs.set('selection', 'source_mode', settings_sourceMode.get())
     root_geom = root.geometry().split('+')
@@ -2978,10 +2979,7 @@ def change_source_mode():
     POS_X = int(root_geom[1])
     POS_Y = int(root_geom[2])
 
-    print(WINDOW_MIN_WIDTH)
-    print(CUR_WIN_WIDTH)
-
-    if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
+    if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH] and PREV_SOURCE_MODE not in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
         tree_source.column('#0', width=SINGLE_SOURCE_TEXT_COL_WIDTH)
         tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
         tree_source['displaycolumns'] = ('size')
@@ -3001,10 +2999,11 @@ def change_source_mode():
             pass
 
         config['source_mode'] == settings_sourceMode.get()
+        PREV_SOURCE_MODE = settings_sourceMode.get()
 
         if settings_sourceMode.get() == SOURCE_MODE_SINGLE_PATH:
             config['source_drive'] = last_selected_custom_source
-    elif settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
+    elif settings_sourceMode.get() in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH] and PREV_SOURCE_MODE not in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH]:
         WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
         CUR_WIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
         if bool(backup_file_details_frame.grid_info()):
@@ -3022,6 +3021,7 @@ def change_source_mode():
             source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
 
         config['source_mode'] == settings_sourceMode.get()
+        PREV_SOURCE_MODE = settings_sourceMode.get()
 
     load_source_in_background()
 
@@ -3362,6 +3362,7 @@ if not config['cliMode']:
     selection_menu.add_separator()
     selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=SOURCE_MODE_OPTIONS, default=SOURCE_MODE_SINGLE_DRIVE))
+    PREV_SOURCE_MODE = settings_sourceMode.get()
     selection_source_mode_menu.add_checkbutton(label='Single drive, select subfolders', onvalue=SOURCE_MODE_SINGLE_DRIVE, offvalue=SOURCE_MODE_SINGLE_DRIVE, variable=settings_sourceMode, command=change_source_mode)
     selection_source_mode_menu.add_checkbutton(label='Multi drive, select drives', onvalue=SOURCE_MODE_MULTI_DRIVE, offvalue=SOURCE_MODE_MULTI_DRIVE, variable=settings_sourceMode, command=change_source_mode)
     selection_source_mode_menu.add_separator()
