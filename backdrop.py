@@ -411,12 +411,12 @@ def display_backup_summary_chunk(title, payload, reset=False):
 
     if not config['cliMode']:
         if reset:
-            for widget in backup_summary_text_frame.winfo_children():
+            for widget in backup_summary_text_scrollable_frame.winfo_children():
                 widget.destroy()
 
-        tk.Label(backup_summary_text_frame, text=title, font=(None, 14),
+        tk.Label(backup_summary_text_scrollable_frame, text=title, font=(None, 14),
                  wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
-        summary_frame = tk.Frame(backup_summary_text_frame)
+        summary_frame = tk.Frame(backup_summary_text_scrollable_frame)
         summary_frame.pack(fill='x', expand=True)
         summary_frame.columnconfigure(2, weight=1)
 
@@ -632,7 +632,7 @@ def reset_ui():
 
     if not config['cliMode']:
         # Empty backup summary pane
-        for child in backup_summary_text_frame.winfo_children():
+        for child in backup_summary_text_scrollable_frame.winfo_children():
             child.destroy()
 
         # Reset ETA counter
@@ -661,6 +661,7 @@ def reset_ui():
 
         # Scroll back to top of scrollable canvas
         time.sleep(0.01)
+        backup_summary_text_canvas.yview_moveto(0)
         file_details_copied_info_canvas.yview_moveto(0)
         file_details_failed_info_canvas.yview_moveto(0)
 
@@ -3806,10 +3807,21 @@ if not config['cliMode']:
 
     # Add placeholder to backup analysis
     backup_summary_text_frame = tk.Frame(backup_summary_frame)
-    backup_summary_text_frame.pack(fill='x')
-    tk.Label(backup_summary_text_frame, text='This area will summarize the backup that\'s been configured.',
+    backup_summary_text_frame.pack(fill='both', expand=1)
+    backup_summary_text_canvas = tk.Canvas(backup_summary_text_frame)
+    backup_summary_text_canvas.pack(side='left', fill='both', expand=1)
+    backup_summary_text_scrollbar = ttk.Scrollbar(backup_summary_text_frame, orient='vertical', command=backup_summary_text_canvas.yview)
+    backup_summary_text_scrollbar.pack(side='left', fill='y')
+    backup_summary_text_scrollable_frame = ttk.Frame(backup_summary_text_canvas)
+    backup_summary_text_scrollable_frame.bind('<Configure>', lambda e: backup_summary_text_canvas.configure(
+        scrollregion=backup_summary_text_canvas.bbox('all')
+    ))
+    backup_summary_text_canvas.create_window((0, 0), window=backup_summary_text_scrollable_frame, anchor='nw')
+    backup_summary_text_canvas.configure(yscrollcommand=backup_summary_text_scrollbar.set)
+    # backup_summary_text_frame.pack(fill='both', expand=1)
+    tk.Label(backup_summary_text_canvas, text='This area will summarize the backup that\'s been configured.',
              wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
-    tk.Label(backup_summary_text_frame, text='Please start a backup analysis to generate a summary.',
+    tk.Label(backup_summary_text_canvas, text='Please start a backup analysis to generate a summary.',
              wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
     backup_summary_button_frame = tk.Frame(backup_summary_frame)
     backup_summary_button_frame.pack(pady=WINDOW_ELEMENT_PADDING / 2)
