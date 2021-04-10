@@ -41,7 +41,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.3-alpha.1'
+APP_VERSION = '3.1.3-beta.1'
 
 # Set constants
 SOURCE_MODE_SINGLE_DRIVE = 'single_drive'
@@ -959,6 +959,7 @@ def calculate_selected_shares():
         # If everything's calculated, enable analysis button to be clicked
         all_shares_known = True
         for item in tree_source.selection():
+            print(f"{tree_source.item(item, 'text')} => {tree_source.item(item, 'values')[0]}")
             if tree_source.item(item, 'values')[0] == 'Unknown':
                 all_shares_known = False
         if all_shares_known:
@@ -970,7 +971,7 @@ def calculate_selected_shares():
     selected = tree_source.selection()
 
     new_shares = []
-    if len(selected) > 0:
+    if selected:
         for item in selected:
             share_info = {
                 'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
@@ -1010,13 +1011,18 @@ def calculate_selected_shares():
     prev_share_selection = [share for share in selected]
 
     # Check if items in selection need to be calculated
+    all_shares_known = True
     for item in selected:
         # If new selected item hasn't been calculated, calculate it on the fly
         if tree_source.item(item, 'values')[0] == 'Unknown':
+            all_shares_known = False
             update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
             start_analysis_btn.configure(state='disable')
             share_name = tree_source.item(item, 'text')
             thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
+
+    if all_shares_known:
+        progress.stop_indeterminate()
 
 def calculate_source_size_in_background(event):
     """Start a calculation of source filesize in a new thread."""

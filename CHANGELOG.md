@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - Fixed selected source total not updating when auto selecting from config if source paths are already of known size
 - Fixed PermissionError when saving config file if it can't be written to
 - Made backup summary scrollable to prevent long summaries from pushing controls outside of the visible window
+- Fixed indeterminate progress bar not stopping if all sources are of known size
 
 ### Changed
 - Backup and analysis both disabled the other button when running
