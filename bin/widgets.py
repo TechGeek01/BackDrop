@@ -4,9 +4,9 @@ import time
 
 class ScrollableFrame(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
-        self.parent = parent
+        tk.Frame.__init__(self, parent, bg='orange')
+        self.pack_propagate(0)
 
-        tk.Frame.__init__(self, parent)
         self.canvas = tk.Canvas(self, *args, **kwargs)
         self.vsb = tk.Scrollbar(self, orient='vertical', command=self.canvas.yview)
 
