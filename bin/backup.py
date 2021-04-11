@@ -164,8 +164,6 @@ class Backup:
         If sanity_check() returns False, the analysis isn't run.
         """
 
-        global backup_summary_text_frame
-
         # Sanity check for space requirements
         if not self.sanity_check():
             return
