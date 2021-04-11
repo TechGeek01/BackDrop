@@ -33,6 +33,7 @@ from bin.progress import Progress
 from bin.commandline import CommandLine
 from bin.backup import Backup
 from bin.update import UpdateHandler
+from bin.widgets import ScrollableFrame
 from bin.status import Status
 
 # Platform sanity check
@@ -126,20 +127,13 @@ def update_file_detail_lists(list_name, filename):
 
             # Update copy list scrollable
             if list_name in ['success', 'deleteSuccess']:
-                tk.Label(file_details_copied_scrollable_frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+                tk.Label(file_details_copied.frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
                 file_details_copied_counter.configure(text=len(file_detail_list[list_name]))
 
                 # Remove all but the most recent 250 items
-                for item in file_details_copied_scrollable_frame.winfo_children()[:-250]:
-                    item.destroy()
-
-                # HACK: The scroll yview won't see the label instantly after it's packed.
-                # Sleeping for a brief time fixes that. This is acceptable as long as it's
-                # not run in the main thread, else the UI will hang.
-                time.sleep(0.01)
-                file_details_copied_info_canvas.yview_moveto(1)
+                file_details_copied.show_items(250)
             else:
-                tk.Label(file_details_failed_scrollable_frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+                tk.Label(file_details_failed.frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
                 file_details_failed_counter.configure(text=len(file_detail_list[list_name]))
 
                 # Update counter in status bar
@@ -149,8 +143,7 @@ def update_file_detail_lists(list_name, filename):
                 # HACK: The scroll yview won't see the label instantly after it's packed.
                 # Sleeping for a brief time fixes that. This is acceptable as long as it's
                 # not run in the main thread, else the UI will hang.
-                time.sleep(0.01)
-                file_details_failed_info_canvas.yview_moveto(1)
+                file_details_failed.show_items()
 
 def do_delete(filename, size, gui_options={}):
     """Delete a file or directory.
@@ -411,12 +404,11 @@ def display_backup_summary_chunk(title, payload, reset=False):
 
     if not config['cliMode']:
         if reset:
-            for widget in backup_summary_text_scrollable_frame.winfo_children():
-                widget.destroy()
+            backup_summary_text.empty()
 
-        tk.Label(backup_summary_text_scrollable_frame, text=title, font=(None, 14),
+        tk.Label(backup_summary_text.frame, text=title, font=(None, 14),
                  wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
-        summary_frame = tk.Frame(backup_summary_text_scrollable_frame)
+        summary_frame = tk.Frame(backup_summary_text.frame)
         summary_frame.pack(fill='x', expand=True)
         summary_frame.columnconfigure(2, weight=1)
 
@@ -490,7 +482,7 @@ def update_backup_eta_timer():
 
 def display_backup_command_info(display_command_list):
     """Enumerate the display widget with command info after a backup analysis.
-    
+
     Args:
         display_command_list (dict): The command list to pull data from.
     """
@@ -528,8 +520,7 @@ def display_backup_command_info(display_command_list):
         clipboard.copy('\n'.join(backup.cmd_info_blocks[index][item]))
 
     if not config['cliMode']:
-        for widget in backup_activity_scrollable_frame.winfo_children():
-            widget.destroy()
+        backup_activity_frame.empty()
     else:
         print('')
 
@@ -548,7 +539,7 @@ def display_backup_command_info(display_command_list):
         if not config['cliMode']:
             backup_summary_block = {}
 
-            backup_summary_block['mainFrame'] = tk.Frame(backup_activity_scrollable_frame)
+            backup_summary_block['mainFrame'] = tk.Frame(backup_activity_frame.frame)
             backup_summary_block['mainFrame'].pack(anchor='w', expand=1)
             backup_summary_block['mainFrame'].grid_columnconfigure(1, weight=1)
 
@@ -599,7 +590,7 @@ def display_backup_command_info(display_command_list):
                 # Handle list trimming
                 list_font = tkfont.Font(family=None, size=10, weight='normal')
                 trimmed_file_list = ', '.join(item['fileList'])[:500]
-                MAX_WIDTH = backup_activity_info_canvas.winfo_width() * 0.8
+                MAX_WIDTH = backup_activity_frame.canvas.winfo_width() * 0.8
                 actual_file_witdth = list_font.measure(trimmed_file_list)
 
                 if actual_file_witdth > MAX_WIDTH:
@@ -632,15 +623,13 @@ def reset_ui():
 
     if not config['cliMode']:
         # Empty backup summary pane
-        for child in backup_summary_text_scrollable_frame.winfo_children():
-            child.destroy()
+        backup_summary_text.empty()
 
         # Reset ETA counter
         backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=uicolor.NORMAL)
 
         # Empty backup operation list pane
-        for child in backup_activity_scrollable_frame.winfo_children():
-            child.destroy()
+        backup_activity_frame.empty()
 
         # Clear file lists for file details pane
         [file_detail_list[list_name].clear() for list_name in file_detail_list.keys()]
@@ -654,16 +643,8 @@ def reset_ui():
         file_details_failed_counter.configure(text='0')
 
         # Empty file details list panes
-        for child in file_details_copied_scrollable_frame.winfo_children():
-            child.destroy()
-        for child in file_details_failed_scrollable_frame.winfo_children():
-            child.destroy()
-
-        # Scroll back to top of scrollable canvas
-        time.sleep(0.01)
-        backup_summary_text_canvas.yview_moveto(0)
-        file_details_copied_info_canvas.yview_moveto(0)
-        file_details_failed_info_canvas.yview_moveto(0)
+        file_details_copied.empty()
+        file_details_failed.empty()
 
 def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
@@ -1417,15 +1398,8 @@ def start_backup():
             file_details_failed_counter.configure(text='0')
 
             # Empty file details list panes
-            for child in file_details_copied_scrollable_frame.winfo_children():
-                child.destroy()
-            for child in file_details_failed_scrollable_frame.winfo_children():
-                child.destroy()
-
-            # Scroll back to top of scrollable canvas
-            time.sleep(0.01)
-            file_details_copied_info_canvas.yview_moveto(0)
-            file_details_failed_info_canvas.yview_moveto(0)
+            file_details_copied.empty()
+            file_details_failed.empty()
 
         thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
@@ -1596,15 +1570,8 @@ def verify_data_integrity(drive_list):
             file_details_failed_counter.configure(text='0')
 
             # Empty file details list panes
-            for child in file_details_copied_scrollable_frame.winfo_children():
-                child.destroy()
-            for child in file_details_failed_scrollable_frame.winfo_children():
-                child.destroy()
-
-            # Scroll back to top of scrollable canvas
-            time.sleep(0.01)
-            file_details_copied_info_canvas.yview_moveto(0)
-            file_details_failed_info_canvas.yview_moveto(0)
+            file_details_copied.empty()
+            file_details_failed.empty()
         else:
             print('==== DATA VERIFICATION STARTED ====')
         verification_running = True
@@ -3683,20 +3650,8 @@ if not config['cliMode']:
 
     # Add activity frame for backup status output
     tk.Grid.rowconfigure(main_frame, 5, weight=1)
-    backup_activity_frame = tk.Frame(main_frame)
+    backup_activity_frame = ScrollableFrame(main_frame)
     backup_activity_frame.grid(row=5, column=1, columnspan=2, sticky='nsew')
-
-    backup_activity_info_canvas = tk.Canvas(backup_activity_frame)
-    backup_activity_info_canvas.pack(side='left', fill='both', expand=1)
-    backup_activity_scrollbar = ttk.Scrollbar(backup_activity_frame, orient='vertical', command=backup_activity_info_canvas.yview)
-    backup_activity_scrollbar.pack(side='left', fill='y')
-    backup_activity_scrollable_frame = ttk.Frame(backup_activity_info_canvas)
-    backup_activity_scrollable_frame.bind('<Configure>', lambda e: backup_activity_info_canvas.configure(
-        scrollregion=backup_activity_info_canvas.bbox('all')
-    ))
-
-    backup_activity_info_canvas.create_window((0, 0), window=backup_activity_scrollable_frame, anchor='nw')
-    backup_activity_info_canvas.configure(yscrollcommand=backup_activity_scrollbar.set)
 
     backup_file_details_frame = tk.Frame(main_frame, width=400)
     backup_file_details_frame.grid_propagate(0)
@@ -3738,20 +3693,8 @@ if not config['cliMode']:
     file_details_copied_tooltip.grid(row=0, column=1, sticky='w')
     file_details_copied_counter = tk.Label(file_details_copied_header_line, text='0', font=(None, 11, 'bold'))
     file_details_copied_counter.grid(row=0, column=2)
-    file_details_copied_frame = tk.Frame(backup_file_details_frame)
-    file_details_copied_frame.grid(row=3, column=0, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='nsew')
-    file_details_copied_frame.pack_propagate(0)
-    file_details_copied_info_canvas = tk.Canvas(file_details_copied_frame)
-    file_details_copied_info_canvas.pack(side='left', fill='both', expand=1)
-    file_details_copied_scrollbar = ttk.Scrollbar(file_details_copied_frame, orient='vertical', command=file_details_copied_info_canvas.yview)
-    file_details_copied_scrollbar.pack(side='left', fill='y')
-    file_details_copied_scrollable_frame = ttk.Frame(file_details_copied_info_canvas)
-    file_details_copied_scrollable_frame.bind('<Configure>', lambda e: file_details_copied_info_canvas.configure(
-        scrollregion=file_details_copied_info_canvas.bbox('all')
-    ))
-
-    file_details_copied_info_canvas.create_window((0, 0), window=file_details_copied_scrollable_frame, anchor='nw')
-    file_details_copied_info_canvas.configure(yscrollcommand=file_details_copied_scrollbar.set)
+    file_details_copied = ScrollableFrame(backup_file_details_frame)
+    file_details_copied.grid(row=3, column=0, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='nsew')
 
     file_details_failed_header_line = tk.Frame(backup_file_details_frame)
     file_details_failed_header_line.grid(row=4, column=0, columnspan=2, sticky='ew')
@@ -3762,20 +3705,8 @@ if not config['cliMode']:
     file_details_failed_tooltip.grid(row=0, column=1, sticky='w')
     file_details_failed_counter = tk.Label(file_details_failed_header_line, text='0', font=(None, 11, 'bold'))
     file_details_failed_counter.grid(row=0, column=2)
-    file_details_failed_frame = tk.Frame(backup_file_details_frame)
-    file_details_failed_frame.grid(row=5, column=0, columnspan=2, sticky='nsew')
-    file_details_failed_frame.pack_propagate(0)
-    file_details_failed_info_canvas = tk.Canvas(file_details_failed_frame)
-    file_details_failed_info_canvas.pack(side='left', fill='both', expand=1)
-    file_details_failed_scrollbar = ttk.Scrollbar(file_details_failed_frame, orient='vertical', command=file_details_failed_info_canvas.yview)
-    file_details_failed_scrollbar.pack(side='left', fill='y')
-    file_details_failed_scrollable_frame = ttk.Frame(file_details_failed_info_canvas)
-    file_details_failed_scrollable_frame.bind('<Configure>', lambda e: file_details_failed_info_canvas.configure(
-        scrollregion=file_details_failed_info_canvas.bbox('all')
-    ))
-
-    file_details_failed_info_canvas.create_window((0, 0), window=file_details_failed_scrollable_frame, anchor='nw')
-    file_details_failed_info_canvas.configure(yscrollcommand=file_details_failed_scrollbar.set)
+    file_details_failed = ScrollableFrame(backup_file_details_frame)
+    file_details_failed.grid(row=5, column=0, columnspan=2, sticky='nsew')
 
     # Set grid weights
     tk.Grid.rowconfigure(backup_file_details_frame, 3, weight=2)
@@ -3813,23 +3744,12 @@ if not config['cliMode']:
     tk.Label(backup_summary_frame, text='Analysis Summary', font=(None, 20)).pack()
 
     # Add placeholder to backup analysis
-    backup_summary_text_frame = tk.Frame(backup_summary_frame)
-    backup_summary_text_frame.pack(fill='both', expand=1)
-    backup_summary_text_canvas = tk.Canvas(backup_summary_text_frame)
-    backup_summary_text_canvas.pack(side='left', fill='both', expand=1)
-    backup_summary_text_scrollbar = ttk.Scrollbar(backup_summary_text_frame, orient='vertical', command=backup_summary_text_canvas.yview)
-    backup_summary_text_scrollbar.pack(side='left', fill='y')
-    backup_summary_text_scrollable_frame = ttk.Frame(backup_summary_text_canvas)
-    backup_summary_text_scrollable_frame.bind('<Configure>', lambda e: backup_summary_text_canvas.configure(
-        scrollregion=backup_summary_text_canvas.bbox('all')
-    ))
-    backup_summary_text_canvas.create_window((0, 0), window=backup_summary_text_scrollable_frame, anchor='nw')
-    backup_summary_text_canvas.configure(yscrollcommand=backup_summary_text_scrollbar.set)
-    # backup_summary_text_frame.pack(fill='both', expand=1)
-    tk.Label(backup_summary_text_scrollable_frame, text='This area will summarize the backup that\'s been configured.',
-             wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
-    tk.Label(backup_summary_text_scrollable_frame, text='Please start a backup analysis to generate a summary.',
-             wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
+    backup_summary_text = ScrollableFrame(backup_summary_frame)
+    backup_summary_text.pack(fill='both', expand=1)
+    tk.Label(backup_summary_text.frame, text='This area will summarize the backup that\'s been configured.',
+             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+    tk.Label(backup_summary_text.frame, text='Please start a backup analysis to generate a summary.',
+             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
     backup_summary_button_frame = tk.Frame(backup_summary_frame)
     backup_summary_button_frame.pack(pady=WINDOW_ELEMENT_PADDING / 2)
     start_analysis_btn = ttk.Button(backup_summary_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
