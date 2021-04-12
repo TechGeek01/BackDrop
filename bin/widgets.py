@@ -4,7 +4,7 @@ import time
 
 class ScrollableFrame(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
-        tk.Frame.__init__(self, parent, bg='orange')
+        tk.Frame.__init__(self, parent)
         self.pack_propagate(0)
 
         self.canvas = tk.Canvas(self, *args, **kwargs)
