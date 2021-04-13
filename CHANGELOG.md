@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - Made backup summary scrollable to prevent long summaries from pushing controls outside of the visible window
 - Fixed indeterminate progress bar not stopping if all sources are of known size
 - Fixed source selection disabling backup button if backup is running
+- Fixed completed file detail counters in success and fail lists not including both copy and delete lists
 
 ### Changed
 - Backup and analysis both disabled the other button when running

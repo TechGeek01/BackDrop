@@ -128,13 +128,13 @@ def update_file_detail_lists(list_name, filename):
             # Update copy list scrollable
             if list_name in ['success', 'deleteSuccess']:
                 tk.Label(file_details_copied.frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
-                file_details_copied_counter.configure(text=len(file_detail_list[list_name]))
+                file_details_copied_counter.configure(text=len(file_detail_list['success']) + len(file_detail_list['deleteSuccess']))
 
                 # Remove all but the most recent 250 items
                 file_details_copied.show_items(250)
             else:
                 tk.Label(file_details_failed.frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
-                file_details_failed_counter.configure(text=len(file_detail_list[list_name]))
+                file_details_failed_counter.configure(text=len(file_detail_list['fail']) + len(file_detail_list['deleteFail']))
 
                 # Update counter in status bar
                 FAILED_FILE_COUNT = len(file_detail_list['fail']) + len(file_detail_list['deleteFail'])
