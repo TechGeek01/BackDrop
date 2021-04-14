@@ -100,7 +100,7 @@ def update_file_detail_lists(list_name, filename):
         filename (String): The file path to add to the list.
     """
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         file_detail_list[list_name].append({
             'displayName': filename.split(os.path.sep)[-1],
             'filename': filename
@@ -194,7 +194,7 @@ def copy_file(source_filename, dest_filename, drive_path, callback, gui_options=
 
     global file_detail_list
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         cmd_info_blocks = backup.cmd_info_blocks
         cmd_info_blocks[gui_options['displayIndex']]['currentFileResult'].configure(text=dest_filename, fg=uicolor.NORMAL)
     else:
@@ -261,7 +261,7 @@ def copy_file(source_filename, dest_filename, drive_path, callback, gui_options=
         if h.hexdigest() == dest_hash.hexdigest():
             update_file_detail_lists('success', dest_filename)
 
-            if config['cliMode']:
+            if CLI_MODE:
                 print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
         else:
             # If file wasn't copied successfully, delete it
@@ -272,7 +272,7 @@ def copy_file(source_filename, dest_filename, drive_path, callback, gui_options=
 
             update_file_detail_lists('fail', dest_filename)
 
-            if config['cliMode']:
+            if CLI_MODE:
                 print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
                 print(f"    Source: {h.hexdigest()}")
                 print(F"    Dest:   {dest_hash.hexdigest()}")
@@ -319,19 +319,19 @@ def display_backup_progress(copied, total, gui_options):
         backup_totals['progressBar'] = backup_totals['running'] + copied
 
         if gui_options['mode'] == 'delete':
-            if not config['cliMode']:
+            if not CLI_MODE:
                 progress.set(backup_totals['progressBar'])
                 cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"Deleted {gui_options['filename']}", fg=uicolor.NORMAL)
             else:
                 print(f"Deleted {gui_options['filename']}")
         elif gui_options['mode'] == 'copy':
-            if not config['cliMode']:
+            if not CLI_MODE:
                 progress.set(backup_totals['progressBar'])
                 cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.NORMAL)
             else:
                 print(f"{percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
         elif gui_options['mode'] == 'verify':
-            if not config['cliMode']:
+            if not CLI_MODE:
                 progress.set(backup_totals['progressBar'])
                 cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.BLUE)
             else:
@@ -402,7 +402,7 @@ def display_backup_summary_chunk(title, payload, reset=False):
         reset (bool): Whether to clear the summary frame first (default: False).
     """
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         if reset:
             backup_summary_text.empty()
 
@@ -437,7 +437,7 @@ def display_backup_summary_chunk(title, payload, reset=False):
 def update_backup_eta_timer():
     """Update the backup timer to show ETA."""
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         backup_eta_label.configure(fg=uicolor.NORMAL)
 
     # Total is copy source, verify dest, so total data is 2 * copy
@@ -457,9 +457,9 @@ def update_backup_eta_timer():
             remaining_time = running_time / percent_copied - running_time
         else:
             # Show infinity symbol if no calculated ETA
-            remaining_time = '\u221e' if not config['cliMode'] else 'infinite'
+            remaining_time = '\u221e' if not CLI_MODE else 'infinite'
 
-        if not config['cliMode']:
+        if not CLI_MODE:
             backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
         else:
             print(f"{str(running_time).split('.')[0]} elapsed => {str(remaining_time).split('.')[0]} remaining")
@@ -467,13 +467,13 @@ def update_backup_eta_timer():
 
     if thread_manager.threadlist['Backup']['killFlag'] and backup.totals['running'] < backup.totals['master']:
         # Backup aborted
-        if not config['cliMode']:
+        if not CLI_MODE:
             backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=uicolor.STOPPED)
         else:
             print(f"{bcolor.FAIL}Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
     else:
         # Backup not killed, so completed successfully
-        if not config['cliMode']:
+        if not CLI_MODE:
             backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=uicolor.FINISHED)
         else:
             print(f"{bcolor.OKGREEN}Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
@@ -517,7 +517,7 @@ def display_backup_command_info(display_command_list):
 
         clipboard.copy('\n'.join(backup.cmd_info_blocks[index][item]))
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         backup_activity_frame.empty()
     else:
         print('')
@@ -534,7 +534,7 @@ def display_backup_command_info(display_command_list):
             else:
                 cmd_header_text = f"Work with {len(item['fileList'])} files on {item['drive']}"
 
-        if not config['cliMode']:
+        if not CLI_MODE:
             backup_summary_block = {}
 
             backup_summary_block['mainFrame'] = tk.Frame(backup_activity_frame.frame)
@@ -613,13 +613,13 @@ def display_backup_command_info(display_command_list):
         else:
             print(cmd_header_text)
 
-    if config['cliMode']:
+    if CLI_MODE:
         print('')
 
 def reset_ui():
     """Reset the UI when we run a backup analysis."""
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         # Empty backup summary pane
         backup_summary_text.empty()
 
@@ -651,12 +651,12 @@ def start_backup_analysis():
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    if (not backup or not backup.is_running()) and not verification_running and (config['cliMode'] or source_avail_drive_list):
+    if (not backup or not backup.is_running()) and not verification_running and (CLI_MODE or source_avail_drive_list):
         reset_ui()
         statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
         statusbar_details.configure(text='')
 
-        if not config['cliMode']:
+        if not CLI_MODE:
             backup = Backup(
                 config=config,
                 backup_config_dir=BACKUP_CONFIG_DIR,
@@ -696,7 +696,7 @@ def get_source_drive_list():
 
     source_avail_drive_list = []
 
-    if platform.system() == 'Windows':
+    if SYS_PLATFORM == 'Windows':
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
         drive_type_list = []
         if prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN):
@@ -704,7 +704,7 @@ def get_source_drive_list():
         if prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN):
             drive_type_list.append(DRIVE_TYPE_LOCAL)
         source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
-    elif platform.system() == 'Linux':
+    elif SYS_PLATFORM == 'Linux':
         local_selected = prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN)
         network_selected = prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN)
 
@@ -738,7 +738,7 @@ def load_source():
 
     global source_avail_drive_list
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         progress.start_indeterminate()
 
         # Empty tree in case this is being refreshed
@@ -751,7 +751,7 @@ def load_source():
     source_avail_drive_list = get_source_drive_list()
 
     if source_avail_drive_list or settings_sourceMode.get() in [SOURCE_MODE_SINGLE_PATH, SOURCE_MODE_MULTI_PATH]:
-        if not config['cliMode']:
+        if not CLI_MODE:
             # Display empty selection sizes
             share_selected_space.configure(text='None', fg=uicolor.FADED)
             share_total_space.configure(text='~None', fg=uicolor.FADED)
@@ -765,7 +765,7 @@ def load_source():
         if selected_source_mode == SOURCE_MODE_SINGLE_DRIVE:
             config['source_drive'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
 
-            if not config['cliMode']:
+            if not CLI_MODE:
                 source_select_custom_single_frame.pack_forget()
                 source_select_custom_multi_frame.pack_forget()
                 source_select_multi_frame.pack_forget()
@@ -779,7 +779,7 @@ def load_source():
                 for directory in next(os.walk(config['source_drive']))[1]:
                     tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
         elif selected_source_mode == SOURCE_MODE_MULTI_DRIVE:
-            if not config['cliMode']:
+            if not CLI_MODE:
                 source_select_single_frame.pack_forget()
                 source_select_custom_single_frame.pack_forget()
                 source_select_custom_multi_frame.pack_forget()
@@ -790,7 +790,7 @@ def load_source():
                     drive_name = prefs.get('source_names', drive, default='')
                     tree_source.insert(parent='', index='end', text=drive, values=('Unknown', 0, drive_name))
         elif selected_source_mode == SOURCE_MODE_SINGLE_PATH:
-            if not config['cliMode']:
+            if not CLI_MODE:
                 source_select_single_frame.pack_forget()
                 source_select_multi_frame.pack_forget()
                 source_select_custom_multi_frame.pack_forget()
@@ -804,7 +804,7 @@ def load_source():
                         # QUESTION: Should files be allowed in custom source?
                         tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
         elif selected_source_mode == SOURCE_MODE_MULTI_PATH:
-            if not config['cliMode']:
+            if not CLI_MODE:
                 source_select_single_frame.pack_forget()
                 source_select_multi_frame.pack_forget()
                 source_select_custom_single_frame.pack_forget()
@@ -813,7 +813,7 @@ def load_source():
                 if not source_select_frame.grid_info():
                     source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
-    elif not config['cliMode']:
+    elif not CLI_MODE:
         if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_MULTI_DRIVE]:
             source_drive_default.set('No drives available')
 
@@ -822,7 +822,7 @@ def load_source():
             source_select_frame.grid_forget()
             source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         progress.stop_indeterminate()
 
 def load_source_in_background():
@@ -898,10 +898,10 @@ def calculate_selected_shares():
 
                 share_vals = tree_source.item(item, 'values')
 
-                if platform.system() == 'Windows':
+                if SYS_PLATFORM == 'Windows':
                     # Windows uses drive letters, so default name is letter
                     default_name = tree_source.item(item, 'text')[0]
-                elif platform.system() == 'Linux':
+                elif SYS_PLATFORM == 'Linux':
                     # Linux uses mount points, so get last dir name
                     default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
 
@@ -960,10 +960,10 @@ def calculate_selected_shares():
 
                 share_vals = tree_source.item(item, 'values')
 
-                if platform.system() == 'Windows':
+                if SYS_PLATFORM == 'Windows':
                     # Windows uses drive letters, so default name is letter
                     default_name = tree_source.item(item, 'text')[0]
-                elif platform.system() == 'Linux':
+                elif SYS_PLATFORM == 'Linux':
                     # Linux uses mount points, so get last dir name
                     default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
 
@@ -1013,32 +1013,31 @@ def load_dest():
 
     global dest_drive_master_list
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         progress.start_indeterminate()
 
-    # Empty tree in case this is being refreshed
-    if not config['cliMode']:
+        # Empty tree in case this is being refreshed
         tree_dest.delete(*tree_dest.get_children())
 
     if prefs.get('selection', 'dest_mode', default=DEST_MODE_DRIVES, verify_data=DEST_MODE_OPTIONS) == DEST_MODE_DRIVES:
-        if not config['cliMode']:
+        if not CLI_MODE:
             dest_select_custom_frame.pack_forget()
             dest_select_normal_frame.pack()
 
-        if platform.system() == 'Windows':
+        if SYS_PLATFORM == 'Windows':
             logical_drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
             logical_drive_list = [drive[:2] for drive in logical_drive_list]
 
             # Associate logical drives with physical drives, and map them to physical serial numbers
             logical_to_physical_map = {}
-            if not config['cliMode']:
+            if not CLI_MODE:
                 pythoncom.CoInitialize()
             try:
                 for physical_disk in wmi.WMI().Win32_DiskDrive():
                     for partition in physical_disk.associators("Win32_DiskDriveToDiskPartition"):
                         logical_to_physical_map.update({logical_disk.DeviceID[0]: physical_disk.SerialNumber.strip() for logical_disk in partition.associators("Win32_LogicalDiskToPartition")})
             finally:
-                if not config['cliMode']:
+                if not CLI_MODE:
                     pythoncom.CoUninitialize()
 
             # Enumerate drive list to find info about all non-source drives
@@ -1061,7 +1060,7 @@ def load_dest():
                             drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                             total_drive_space_available = total_drive_space_available + drive_size
-                            if not config['cliMode']:
+                            if not CLI_MODE:
                                 tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
 
                             dest_drive_master_list.append({
@@ -1073,7 +1072,7 @@ def load_dest():
                             })
                         except FileNotFoundError:
                             pass
-        elif platform.system() == 'Linux':
+        elif SYS_PLATFORM == 'Linux':
             local_selected = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
             network_selected = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
 
@@ -1115,7 +1114,7 @@ def load_dest():
                     drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                     total_drive_space_available += drive_size
-                    if not config['cliMode']:
+                    if not CLI_MODE:
                         tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
 
                     dest_drive_master_list.append({
@@ -1126,13 +1125,13 @@ def load_dest():
                         'hasConfig': drive_has_config_file
                     })
     elif settings_destMode.get() == DEST_MODE_PATHS:
-        if not config['cliMode']:
+        if not CLI_MODE:
             dest_select_normal_frame.pack_forget()
             dest_select_custom_frame.pack(fill='x', expand=1)
 
         total_drive_space_available = 0
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=uicolor.NORMAL if total_drive_space_available > 0 else uicolor.FADED)
 
         progress.stop_indeterminate()
@@ -1170,9 +1169,9 @@ def gui_select_from_config():
     connected_vid_list = [drive['vid'] for drive in config['drives']]
 
     # If drives aren't mounted that should be, display the warning
-    MISSING_DRIVE_COUNT = len(config['missingDrives'])
+    MISSING_DRIVE_COUNT = len(config['missing_drives'])
     if MISSING_DRIVE_COUNT > 0:
-        config_missing_drive_vid_list = [vid for vid in config['missingDrives'].keys()]
+        config_missing_drive_vid_list = [vid for vid in config['missing_drives'].keys()]
 
         MISSING_VID_READABLE_LIST = ', '.join(config_missing_drive_vid_list[:-2] + [' and '.join(config_missing_drive_vid_list[-2:])])
         MISSING_VID_ALERT_MESSAGE = f"The drive{'s' if len(config_missing_drive_vid_list) > 1 else ''} with volume ID{'s' if len(config_missing_drive_vid_list) > 1 else ''} {MISSING_VID_READABLE_LIST} {'are' if len(config_missing_drive_vid_list) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
@@ -1239,7 +1238,7 @@ def load_config_from_file(filename):
     # Get shares
     shares = config_file.get('selection', 'shares')
     if shares is not None and len(shares) > 0:
-        if not config['cliMode']:
+        if not CLI_MODE:
             new_config['shares'] = [{
                 'path': [tree_source.item(item, 'text') if (len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] == share) else tree_source.item(item, 'text') for item in tree_source.get_children()][0],
                 'size': None,
@@ -1259,7 +1258,7 @@ def load_config_from_file(filename):
         # Get drive info
         config_drive_total = 0
         new_config['drives'] = []
-        new_config['missingDrives'] = {}
+        new_config['missing_drives'] = {}
         drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
         for drive in vids:
             if drive in drive_lookup_list.keys():
@@ -1269,16 +1268,16 @@ def load_config_from_file(filename):
             else:
                 # Add drive capacity info to missing drive list
                 reported_drive_capacity = config_file.get(drive, 'capacity', 0, data_type=Config.INTEGER)
-                new_config['missingDrives'][drive] = reported_drive_capacity
+                new_config['missing_drives'][drive] = reported_drive_capacity
                 config_drive_total += reported_drive_capacity
     elif SELECTED_DEST_MODE == DEST_MODE_PATHS:
         # Get drive info
         config_drive_total = 0
-        new_config['missingDrives'] = {}
+        new_config['missing_drives'] = {}
 
     config.update(new_config)
 
-    if not config['cliMode']:
+    if not CLI_MODE:
         config_selected_space.configure(text=human_filesize(config_drive_total), fg=uicolor.NORMAL)
         gui_select_from_config()
 
@@ -1360,7 +1359,7 @@ def handle_drive_selection_click():
     drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
     if not drives_read_from_config_file:
         config['drives'] = selected_drive_list
-        config['missingDrives'] = {}
+        config['missing_drives'] = {}
         config_selected_space.configure(text='None', fg=uicolor.FADED)
 
     update_status_bar_selection()
@@ -1380,7 +1379,7 @@ def start_backup():
         statusbar_details.configure(text='')
 
         # Reset UI
-        if not config['cliMode']:
+        if not CLI_MODE:
             # Reset file detail success and fail lists
             for list_name in ['deleteSuccess', 'deleteFail', 'success', 'fail']:
                 file_detail_list[list_name].clear()
@@ -1424,6 +1423,8 @@ def cleanup_handler(signal_received, frame):
 
             while thread_manager.is_alive('Backup'):
                 pass
+
+            print(f"{bcolor.FAIL}Exiting...{bcolor.ENDC}")
 
         if thread_manager.is_alive('backupTimer'):
             thread_manager.kill('backupTimer')
@@ -1490,7 +1491,7 @@ def verify_data_integrity(drive_list):
                 path_stub = entry.path.split(drive)[1].strip(os.path.sep)
                 if entry.is_file():
                     # If entry is a file, hash it, and check for a computed hash
-                    if not config['cliMode']:
+                    if not CLI_MODE:
                         statusbar_details.configure(text=entry.path)
                     else:
                         print(entry.path)
@@ -1514,7 +1515,7 @@ def verify_data_integrity(drive_list):
 
                             # Update UI counter
                             verification_failed_list.append(entry.path)
-                            if not config['cliMode']:
+                            if not CLI_MODE:
                                 statusbar_counter.configure(text=f"{len(verification_failed_list)} failed", fg=uicolor.DANGER)
                             else:
                                 print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
@@ -1526,7 +1527,7 @@ def verify_data_integrity(drive_list):
                                 pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
 
                         # Update file detail lists
-                        if not config['cliMode']:
+                        if not CLI_MODE:
                             if file_hash == saved_hash:
                                 update_file_detail_lists('success', entry.path)
                             else:
@@ -1547,7 +1548,7 @@ def verify_data_integrity(drive_list):
             pass
 
     if not backup or not backup.is_running():
-        if not config['cliMode']:
+        if not CLI_MODE:
             update_status_bar_action(Status.VERIFICATION_RUNNING)
             progress.start_indeterminate()
             statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
@@ -1622,7 +1623,7 @@ def verify_data_integrity(drive_list):
                 drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
                 for file, saved_hash in hash_list[drive].items():
                     filename = os.path.join(drive, file)
-                    if not config['cliMode']:
+                    if not CLI_MODE:
                         statusbar_details.configure(text=filename)
                     else:
                         print(filename)
@@ -1640,7 +1641,7 @@ def verify_data_integrity(drive_list):
 
                         # Update UI counter
                         verification_failed_list.append(filename)
-                        if not config['cliMode']:
+                        if not CLI_MODE:
                             statusbar_counter.configure(text=f"{len(verification_failed_list)} failed", fg=uicolor.DANGER)
                         else:
                             print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
@@ -1652,7 +1653,7 @@ def verify_data_integrity(drive_list):
                             pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
 
                     # Update file detail lists
-                    if not config['cliMode']:
+                    if not CLI_MODE:
                         if saved_hash == computed_hash:
                             update_file_detail_lists('success', filename)
                         else:
@@ -1665,7 +1666,7 @@ def verify_data_integrity(drive_list):
                     break
 
         verification_running = False
-        if not config['cliMode']:
+        if not CLI_MODE:
             halt_verification_btn.pack_forget()
 
             progress.stop_indeterminate()
@@ -1691,7 +1692,7 @@ def display_update_screen(update_info):
         update_window.resizable(False, False)
         update_window.geometry('600x300')
 
-        if platform.system() == 'Windows':
+        if SYS_PLATFORM == 'Windows':
             update_window.iconbitmap(resource_path('media/icon.ico'))
 
         def on_close():
@@ -1789,17 +1790,16 @@ def check_for_updates(info):
     update_info = info
 
     if info['updateAvailable']:
-        if not config['cliMode']:
+        if not CLI_MODE:
             display_update_screen(info)
         else:
             download_url = None
-            sys_name = platform.system()
             for item in info['download']:
                 # TODO: Make download selection filename-independent
-                if sys_name == 'Windows' and item.split('/')[-1] == 'backdrop.exe':
+                if SYS_PLATFORM == 'Windows' and item.split('/')[-1] == 'backdrop.exe':
                     download_url = item
                     break
-                elif sys_name == 'Linux' and item.split('/')[-1] == 'backdrop-debian':
+                elif SYS_PLATFORM == 'Linux' and item.split('/')[-1] == 'backdrop-debian':
                     download_url = item
                     break
 
@@ -1814,20 +1814,21 @@ def check_for_updates(info):
                 print('Unable to find suitable download. Please try again, or update manually.')
 
 # Set constants
-if platform.system() == 'Windows':
+SYS_PLATFORM = platform.system()
+
+if SYS_PLATFORM == 'Windows':
     SYSTEM_DRIVE = f"{os.getenv('SystemDrive')[0]}:"
     APPDATA_FOLDER = os.getenv('LocalAppData') + '/BackDrop'
-elif platform.system() == 'Linux':
+elif SYS_PLATFORM == 'Linux':
     # Get system drive by querying mount points
     out = subprocess.run('mount | grep "on / type"' + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
     SYSTEM_DRIVE = out.stdout.decode('utf-8').split('\n')[0].strip()
 
     # If user runs as sudo, username has to be grabbed through sudo to get the
     # appropriate home dir, since ~ with sudo resolves to /root
+    USER_HOME_VAR = '~'
     if os.getenv('SUDO_USER') is not None:
-        USER_HOME_VAR = '~' + os.getenv('SUDO_USER')
-    else:
-        USER_HOME_VAR = '~'
+        USER_HOME_VAR += os.getenv('SUDO_USER')
     APPDATA_FOLDER = f"{os.path.expanduser(USER_HOME_VAR)}/.config/BackDrop"
 
 # Set app defaults
@@ -1841,6 +1842,7 @@ WINDOW_ELEMENT_PADDING = 16
 PORTABLE_CONFIG_FILE_PATH = os.path.join(os.getcwd(), PORTABLE_PREFERENCES_CONFIG_FILE)
 
 PORTABLE_MODE = os.path.isfile(PORTABLE_CONFIG_FILE_PATH)
+CLI_MODE = len(sys.argv) > 1  # TODO: Find a way to define CLI mode besides just having args passed in
 
 if not PORTABLE_MODE:
     CONFIG_FILE_PATH = os.path.join(APPDATA_FOLDER, PREFERENCES_CONFIG_FILE)
@@ -1857,8 +1859,8 @@ config = {
     'splitMode': False,
     'shares': [],
     'drives': [],
-    'missingDrives': {},
-    'cliMode': len(sys.argv) > 1
+    'missing_drives': {},
+    'cli_mode': CLI_MODE
 }
 dest_drive_master_list = []
 
@@ -1878,7 +1880,7 @@ if os.name == 'nt':
 # CLI Mode #
 ############
 
-if config['cliMode']:
+if CLI_MODE:
     command_line = CommandLine(
         [
             'Usage: backdrop [options]\n',
@@ -1922,7 +1924,7 @@ if config['cliMode']:
         dest_drive_name_list = [drive['name'] for drive in dest_drive_master_list]
 
         # If we're on Windows, normalize drive letter inputs
-        if platform.system() == 'Windows':
+        if SYS_PLATFORM == 'Windows':
             drive_list = [f"{drive[0].upper()}:" for drive in drive_list]
 
         if [drive for drive in drive_list if drive not in dest_drive_name_list]:
@@ -1965,7 +1967,7 @@ if config['cliMode']:
         LOAD_CONFIG_LOCATION = command_line.get_param('load-config')
         LOAD_CONFIG_LOCATION = LOAD_CONFIG_LOCATION[0] if LOAD_CONFIG_LOCATION else ''
         if LOAD_CONFIG_LOCATION:
-            if platform.system() == 'Windows' and SELECTED_DEST_MODE == DEST_MODE_DRIVES:
+            if SYS_PLATFORM == 'Windows' and SELECTED_DEST_MODE == DEST_MODE_DRIVES:
                 LOAD_CONFIG_LOCATION = LOAD_CONFIG_LOCATION[0].upper() + ':'
 
             if not os.path.isdir(LOAD_CONFIG_LOCATION):
@@ -2007,9 +2009,9 @@ if config['cliMode']:
                                 source_drive = input(f"{bcolor.OKCYAN}Which source path would you like to use?{bcolor.ENDC} ")
                 else:
                     if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE_DRIVE:
-                        if platform.system() == 'Windows':
+                        if SYS_PLATFORM == 'Windows':
                             source_drive = command_line.get_param('source')[0][0].upper() + ':' if command_line.has_param('source') and command_line.get_param('source')[0][0].upper() + ':' in source_avail_drive_list else ''
-                        elif platform.system() == 'Linux':
+                        elif SYS_PLATFORM == 'Linux':
                             source_drive = command_line.get_param('source')[0] if command_line.has_param('source') and command_line.get_param('source')[0] in source_avail_drive_list else ''
                     elif SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE_PATH:
                         source_drive = command_line.get_param('source')[0]
@@ -2065,9 +2067,9 @@ if config['cliMode']:
                     dest_list = [drive['name'] for drive in config['drives']]
 
                     # If drives aren't mounted that should be, display the warning
-                    missing_drive_count = len(config['missingDrives'])
+                    missing_drive_count = len(config['missing_drives'])
                     if missing_drive_count > 0 and not split_mode:
-                        config_missing_vids = [vid for vid in config['missingDrives'].keys()]
+                        config_missing_vids = [vid for vid in config['missing_drives'].keys()]
 
                         missing_vid_string = ', '.join(config_missing_vids[:-2] + [' and '.join(config_missing_vids[-2:])])
                         warning_message = f"The drive{'s' if len(config_missing_vids) > 1 else ''} with volume ID{'s' if len(config_missing_vids) > 1 else ''} {missing_vid_string} {'are' if len(config_missing_vids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
@@ -2192,7 +2194,7 @@ if config['cliMode']:
         # ## Show summary ## #
 
         header_list = ['Source', 'Destination', 'Shares']
-        if len(config['missingDrives']) > 0:
+        if len(config['missing_drives']) > 0:
             header_list.extend(['Missing drives', 'Split mode'])
         header_spacing = len(max(header_list, key=len)) + 1
 
@@ -2200,13 +2202,13 @@ if config['cliMode']:
         print(f"{'Source:': <{header_spacing}} {config['source_drive']}")
         print(f"{'Destination:': <{header_spacing}} {', '.join([drive['name'] for drive in config['drives']])}")
 
-        if len(config['missingDrives']) > 0:
-            print(f"{'Missing drives:': <{header_spacing}} {', '.join([drive for drive in config['missingDrives'].keys()])}")
+        if len(config['missing_drives']) > 0:
+            print(f"{'Missing drives:': <{header_spacing}} {', '.join([drive for drive in config['missing_drives'].keys()])}")
             print(f"{'Split mode:': <{header_spacing}} {bcolor.OKGREEN + 'Enabled' + bcolor.ENDC if split_mode else bcolor.FAIL + 'Disabled' + bcolor.ENDC}")
 
         print(f"{'Shares:': <{header_spacing}} {', '.join([share['dest_name'] for share in config['shares']])}\n")
 
-        if len(config['missingDrives']) > 0 and not split_mode:
+        if len(config['missing_drives']) > 0 and not split_mode:
             print(f"{bcolor.FAIL}Missing drives; split mode disabled{bcolor.ENDC}")
             exit()
 
@@ -2248,18 +2250,18 @@ def update_status_bar_selection(status=None):
     if [share for share in config['shares'] if share['size'] is None]:
         # Not all shares calculated
         status = Status.BACKUPSELECT_CALCULATING_SOURCE
-    elif not config['shares'] and not config['drives'] and len(config['missingDrives']) == 0:
+    elif not config['shares'] and not config['drives'] and len(config['missing_drives']) == 0:
         # No selection in config
         status = Status.BACKUPSELECT_NO_SELECTION
     elif not config['shares']:
         # No shares selected
         status = Status.BACKUPSELECT_MISSING_SOURCE
-    elif not config['drives'] and len(config['missingDrives']) == 0:
+    elif not config['drives'] and len(config['missing_drives']) == 0:
         # No drives selected
         status = Status.BACKUPSELECT_MISSING_DEST
     else:
         SHARE_SELECTED_SPACE = sum([share['size'] for share in config['shares']])
-        DRIVE_SELECTED_SPACE = sum([drive['capacity'] for drive in config['drives']]) + sum(config['missingDrives'].values())
+        DRIVE_SELECTED_SPACE = sum([drive['capacity'] for drive in config['drives']]) + sum(config['missing_drives'].values())
 
         if SHARE_SELECTED_SPACE < DRIVE_SELECTED_SPACE:
             # Selected enough drive space
@@ -2359,7 +2361,7 @@ def save_config_file():
     if config['shares'] and config['drives']:
         share_list = ','.join([item['dest_name'] for item in config['shares']])
         raw_vid_list = [drive['vid'] for drive in config['drives']]
-        raw_vid_list.extend(config['missingDrives'].keys())
+        raw_vid_list.extend(config['missing_drives'].keys())
         vid_list = ','.join(raw_vid_list)
 
         # For each drive letter that's connected, get drive info, and write file
@@ -2381,7 +2383,7 @@ def save_config_file():
                 new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
 
             # Write info for missing drives
-            for drive_vid, capacity in config['missingDrives'].items():
+            for drive_vid, capacity in config['missing_drives'].items():
                 new_config_file.set(drive_vid, 'vid', drive_vid)
                 new_config_file.set(drive_vid, 'serial', 'Unknown')
                 new_config_file.set(drive_vid, 'capacity', capacity)
@@ -2399,7 +2401,7 @@ def save_config_file_as():
     if config['shares'] and config['drives']:
         share_list = ','.join([item['dest_name'] for item in config['shares']])
         raw_vid_list = [drive['vid'] for drive in config['drives']]
-        raw_vid_list.extend(config['missingDrives'].keys())
+        raw_vid_list.extend(config['missing_drives'].keys())
         vid_list = ','.join(raw_vid_list)
 
         # Get drive info, and write file
@@ -2416,7 +2418,7 @@ def save_config_file_as():
             new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
 
         # Write info for missing drives
-        for drive_vid, capacity in config['missingDrives'].items():
+        for drive_vid, capacity in config['missing_drives'].items():
             new_config_file.set(drive_vid, 'vid', drive_vid)
             new_config_file.set(drive_vid, 'serial', 'Unknown')
             new_config_file.set(drive_vid, 'capacity', capacity)
@@ -2464,7 +2466,7 @@ def show_config_builder():
         # Empty tree in case this is being refreshed
         tree_current_connected.delete(*tree_current_connected.get_children())
 
-        if platform.system() == 'Windows':
+        if SYS_PLATFORM == 'Windows':
             drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
             drive_list = [drive[:2] for drive in drive_list]
 
@@ -2516,7 +2518,7 @@ def show_config_builder():
                             })
                         except FileNotFoundError:
                             pass
-        elif platform.system() == 'Linux':
+        elif SYS_PLATFORM == 'Linux':
             out = subprocess.run('df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target', stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             drive_list = out.stdout.decode('utf-8').split('\n')[1:]
             drive_list = [mount for mount in drive_list if mount]
@@ -2658,7 +2660,7 @@ def show_config_builder():
         window_config_builder.resizable(False, False)
         window_config_builder.geometry('960x380')
 
-        if platform.system() == 'Windows':
+        if SYS_PLATFORM == 'Windows':
             window_config_builder.iconbitmap(resource_path('media/icon.ico'))
 
         center(window_config_builder, root)
@@ -2717,7 +2719,7 @@ def show_config_builder():
 
         tree_current_connected = ttk.Treeview(tree_current_connected_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
         tree_current_connected.heading('#0', text='Drive')
-        tree_current_connected.column('#0', width=50 if platform.system() == 'Windows' else 150)
+        tree_current_connected.column('#0', width=50 if SYS_PLATFORM == 'Windows' else 150)
         tree_current_connected.heading('size', text='Size')
         tree_current_connected.column('size', width=80)
         tree_current_connected.heading('configfile', text='Config')
@@ -2725,7 +2727,7 @@ def show_config_builder():
         tree_current_connected.heading('vid', text='Volume ID')
         tree_current_connected.column('vid', width=90)
         tree_current_connected.heading('serial', text='Serial')
-        tree_current_connected.column('serial', width=150 if platform.system() == 'Windows' else 100)
+        tree_current_connected.column('serial', width=150 if SYS_PLATFORM == 'Windows' else 100)
         tree_current_connected['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
 
         tree_current_connected.pack(side='left')
@@ -2742,7 +2744,7 @@ def show_config_builder():
         tree_builder_configured.heading('size', text='Size')
         tree_builder_configured.column('size', width=80)
         tree_builder_configured.heading('serial', text='Serial')
-        tree_builder_configured.column('serial', width=150 if platform.system() == 'Windows' else 100)
+        tree_builder_configured.column('serial', width=150 if SYS_PLATFORM == 'Windows' else 100)
         tree_builder_configured['displaycolumns'] = ('size', 'serial')
 
         tree_builder_configured.pack(side='left')
@@ -3111,7 +3113,7 @@ file_detail_list = {
     'fail': []
 }
 
-if not config['cliMode']:
+if not CLI_MODE:
     update_handler = UpdateHandler(
         current_version=APP_VERSION,
         status_change_fn=update_status_bar_update,
@@ -3133,8 +3135,8 @@ if not config['cliMode']:
     WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
     WINDOW_FILE_DETAILS_EXTRA_WIDTH = 400 + WINDOW_ELEMENT_PADDING
     WINDOW_MIN_HEIGHT = 680  # FIXME: Fix height lower than 680 cutting off status bar at bottom of window
-    MULTI_SOURCE_TEXT_COL_WIDTH = 120 if platform.system() == 'Windows' else 200
-    MULTI_SOURCE_NAME_COL_WIDTH = 220 if platform.system() == 'Windows' else 140
+    MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == 'Windows' else 200
+    MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == 'Windows' else 140
     SINGLE_SOURCE_TEXT_COL_WIDTH = 170
     SINGLE_SOURCE_NAME_COL_WIDTH = 170
 
@@ -3149,9 +3151,9 @@ if not config['cliMode']:
 
     appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
 
-    if platform.system() == 'Windows':
+    if SYS_PLATFORM == 'Windows':
         root.iconbitmap(resource_path('media/icon.ico'))
-    elif platform.system() == 'Linux':
+    elif SYS_PLATFORM == 'Linux':
         root.iconphoto(True, appicon_image)
 
     center(root)
@@ -3202,9 +3204,9 @@ if not config['cliMode']:
 
     # Set some default styling
     tk_style = ttk.Style()
-    if platform.system() == 'Windows':
+    if SYS_PLATFORM == 'Windows':
         tk_style.theme_use('vista')
-    elif platform.system() == 'Linux':
+    elif SYS_PLATFORM == 'Linux':
         tk_style.theme_use('clam')
 
     tk_style.element_create('TButton', 'from', 'clam')
@@ -3539,9 +3541,9 @@ if not config['cliMode']:
     dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest, style='slim.TButton')
     dest_select_custom_browse_button.grid(row=0, column=1)
 
-    DEST_TREE_COLWIDTH_DRIVE = 50 if platform.system() == 'Windows' else 150
+    DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == 'Windows' else 150
     DEST_TREE_COLWIDTH_VID = 140 if settings_destMode.get() == DEST_MODE_PATHS else 90
-    DEST_TREE_COLWIDTH_SERIAL = 150 if platform.system() == 'Windows' else 50
+    DEST_TREE_COLWIDTH_SERIAL = 150 if SYS_PLATFORM == 'Windows' else 50
 
     tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
     tree_dest.heading('#0', text='Drive')

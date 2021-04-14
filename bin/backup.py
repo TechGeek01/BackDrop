@@ -70,6 +70,8 @@ class Backup:
         self.BACKUP_CONFIG_FILE = backup_config_file
         self.BACKUP_HASH_FILE = 'hashes.pkl'
 
+        self.CLI_MODE = self.config['cli_mode']
+
         self.file_hashes = {drive['name']: {} for drive in self.config['drives']}
 
         self.uicolor = uicolor
@@ -114,9 +116,9 @@ class Backup:
                 share_total += share['size']
 
             drive_total = sum([drive['capacity'] for drive in self.config['drives']])
-            config_total = drive_total + sum([size for drive, size in self.config['missingDrives'].items()])
+            config_total = drive_total + sum([size for drive, size in self.config['missing_drives'].items()])
 
-            if shares_known and ((len(self.config['missingDrives']) == 0 and share_total < drive_total) or (share_total < config_total and self.config['splitMode'])):
+            if shares_known and ((len(self.config['missing_drives']) == 0 and share_total < drive_total) or (share_total < config_total and self.config['splitMode'])):
                 # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
 
                 selected_new_drives = [drive['name'] for drive in self.config['drives'] if drive['hasConfig'] is False]
@@ -171,7 +173,7 @@ class Backup:
         self.analysis_running = True
         self.analysis_started = True
 
-        if not self.config['cliMode']:
+        if not self.CLI_MODE:
             self.progress.start_indeterminate()
             self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
@@ -231,7 +233,7 @@ class Backup:
         drive_info = []
         drive_share_list = {}
         master_drive_list = [drive for drive in self.config['drives']]
-        master_drive_list.extend([{'vid': vid, 'capacity': capacity} for vid, capacity in self.config['missingDrives'].items()])
+        master_drive_list.extend([{'vid': vid, 'capacity': capacity} for vid, capacity in self.config['missing_drives'].items()])
         connected_vid_list = [drive['vid'] for drive in self.config['drives']]
         show_drive_info = []
         for i, drive in enumerate(master_drive_list):
@@ -851,7 +853,7 @@ class Backup:
 
         self.analysis_valid = True
 
-        if not self.config['cliMode']:
+        if not self.CLI_MODE:
             self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
             self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'normal'})
@@ -872,7 +874,7 @@ class Backup:
         if self.config['shares'] and self.config['drives']:
             share_list = ','.join([item['dest_name'] for item in self.config['shares']])
             raw_vid_list = [drive['vid'] for drive in self.config['drives']]
-            raw_vid_list.extend(self.config['missingDrives'].keys())
+            raw_vid_list.extend(self.config['missing_drives'].keys())
             vid_list = ','.join(raw_vid_list)
 
             # For each drive letter connected, get drive info, and write file
@@ -894,7 +896,7 @@ class Backup:
                     drive_config_file.set(cur_drive['vid'], 'capacity', cur_drive['capacity'])
 
                 # Write info for missing drives
-                for drive_vid, capacity in self.config['missingDrives'].items():
+                for drive_vid, capacity in self.config['missing_drives'].items():
                     drive_config_file.set(drive_vid, 'vid', drive_vid)
                     drive_config_file.set(drive_vid, 'serial', 'Unknown')
                     drive_config_file.set(drive_vid, 'capacity', capacity)
@@ -911,7 +913,7 @@ class Backup:
         if not self.analysis_valid or not self.sanity_check():
             return
 
-        if not self.config['cliMode']:
+        if not self.CLI_MODE:
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_START)
             self.progress.set(0)
             self.progress.set_max(self.totals['master'])
@@ -933,7 +935,7 @@ class Backup:
 
         for cmd in self.command_list:
             if cmd['type'] == 'fileList':
-                if not self.config['cliMode']:
+                if not self.CLI_MODE:
                     self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uicolor.RUNNING)
 
                 if not timer_started:
@@ -1009,14 +1011,14 @@ class Backup:
                             pickle.dump(hash_list, f)
 
             if self.thread_manager.threadlist['Backup']['killFlag'] and self.totals['running'] < self.totals['master']:
-                if not self.config['cliMode']:
+                if not self.CLI_MODE:
                     self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=self.uicolor.STOPPED)
                     self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=self.uicolor.STOPPED)
                 else:
                     print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 break
             else:
-                if not self.config['cliMode']:
+                if not self.CLI_MODE:
                     self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Done', fg=self.uicolor.FINISHED)
                     self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=self.uicolor.FINISHED)
                 else:
@@ -1024,7 +1026,7 @@ class Backup:
 
         self.thread_manager.kill('backupTimer')
 
-        if not self.config['cliMode']:
+        if not self.CLI_MODE:
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
         self.backup_running = False
 
