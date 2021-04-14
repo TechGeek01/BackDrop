@@ -920,7 +920,7 @@ def calculate_selected_shares():
                 selected_total = selected_total + int(share_size)
 
         share_selected_space.configure(text=human_filesize(selected_total), fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
-        config['shares'] = selected_share_list
+        config['sources'] = selected_share_list
 
         share_total = 0
         is_total_approximate = False
@@ -978,7 +978,7 @@ def calculate_selected_shares():
         # Nothing selected, so empty the meta counter
         share_selected_space.configure(text='None', fg=uicolor.FADED)
 
-    config['shares'] = new_shares
+    config['sources'] = new_shares
     update_status_bar_selection()
 
     # If selection is different than last time, invalidate the analysis
@@ -1150,7 +1150,7 @@ def gui_select_from_config():
     global drive_select_bind
 
     # Get list of shares in config
-    config_share_name_list = [item['dest_name'] for item in config['shares']]
+    config_share_name_list = [item['dest_name'] for item in config['sources']]
     if settings_sourceMode.get() in [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_SINGLE_PATH]:
         config_shares_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in config_share_name_list]
     else:
@@ -1166,7 +1166,7 @@ def gui_select_from_config():
         share_selected_space.configure(text=human_filesize(sum(known_path_sizes)))
 
     # Get list of drives where volume ID is in config
-    connected_vid_list = [drive['vid'] for drive in config['drives']]
+    connected_vid_list = [drive['vid'] for drive in config['destinations']]
 
     # If drives aren't mounted that should be, display the warning
     MISSING_DRIVE_COUNT = len(config['missing_drives'])
@@ -1179,7 +1179,7 @@ def gui_select_from_config():
 
         split_warning_prefix.configure(text=f"There {'is' if MISSING_DRIVE_COUNT == 1 else 'are'}")
         MISSING_DRIVE_CONTRACTION = 'isn\'t' if MISSING_DRIVE_COUNT == 1 else 'aren\'t'
-        split_warning_suffix.configure(text=f"{'drive' if MISSING_DRIVE_COUNT == 1 else 'drives'} in the config that {MISSING_DRIVE_CONTRACTION} connected. Please connect {'it' if MISSING_DRIVE_COUNT == 1 else 'them'}, or enable split mode.")
+        split_warning_suffix.configure(text=f"{'drive' if MISSING_DRIVE_COUNT == 1 else 'destinations'} in the config that {MISSING_DRIVE_CONTRACTION} connected. Please connect {'it' if MISSING_DRIVE_COUNT == 1 else 'them'}, or enable split mode.")
         split_warning_missing_drive_count.configure(text=str(MISSING_DRIVE_COUNT))
         dest_split_warning_frame.grid(row=3, column=0, columnspan=3, sticky='nsew', pady=(0, WINDOW_ELEMENT_PADDING), ipady=WINDOW_ELEMENT_PADDING / 4)
 
@@ -1236,16 +1236,16 @@ def load_config_from_file(filename):
     SELECTED_DEST_MODE = prefs.get('selection', 'dest_mode', default=DEST_MODE_DRIVES, verify_data=DEST_MODE_OPTIONS)
 
     # Get shares
-    shares = config_file.get('selection', 'shares')
+    shares = config_file.get('selection', 'sources')
     if shares is not None and len(shares) > 0:
         if not CLI_MODE:
-            new_config['shares'] = [{
+            new_config['sources'] = [{
                 'path': [tree_source.item(item, 'text') if (len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] == share) else tree_source.item(item, 'text') for item in tree_source.get_children()][0],
                 'size': None,
                 'dest_name': share
             } for share in shares.split(',')]
         else:
-            new_config['shares'] = [{
+            new_config['sources'] = [{
                 'path': get_share_path_from_name(share),
                 'size': None,
                 'dest_name': share
@@ -1257,13 +1257,13 @@ def load_config_from_file(filename):
 
         # Get drive info
         config_drive_total = 0
-        new_config['drives'] = []
+        new_config['destinations'] = []
         new_config['missing_drives'] = {}
         drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
         for drive in vids:
             if drive in drive_lookup_list.keys():
                 # If drive connected, add to drive list
-                new_config['drives'].append(drive_lookup_list[drive])
+                new_config['destinations'].append(drive_lookup_list[drive])
                 config_drive_total += drive_lookup_list[drive]['capacity']
             else:
                 # Add drive capacity info to missing drive list
@@ -1354,11 +1354,11 @@ def handle_drive_selection_click():
             selected_drive_list.append(drive_data)
             selected_total += drive_capacity
 
-        config['drives'] = selected_drive_list
+        config['destinations'] = selected_drive_list
 
     drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
     if not drives_read_from_config_file:
-        config['drives'] = selected_drive_list
+        config['destinations'] = selected_drive_list
         config['missing_drives'] = {}
         config_selected_space.configure(text='None', fg=uicolor.FADED)
 
@@ -1857,8 +1857,8 @@ config = {
     'source_mode': prefs.get('selection', 'source_mode', default=SOURCE_MODE_SINGLE_DRIVE, verify_data=SOURCE_MODE_OPTIONS),
     'dest_mode': prefs.get('selection', 'dest_mode', default=DEST_MODE_DRIVES, verify_data=DEST_MODE_OPTIONS),
     'splitMode': False,
-    'shares': [],
-    'drives': [],
+    'sources': [],
+    'destinations': [],
     'missing_drives': {},
     'cli_mode': CLI_MODE
 }
@@ -1881,6 +1881,7 @@ if os.name == 'nt':
 ############
 
 if CLI_MODE:
+    # URGENT: Rewrite CLI mode to work without depending on source and share names
     command_line = CommandLine(
         [
             'Usage: backdrop [options]\n',
@@ -2059,12 +2060,12 @@ if CLI_MODE:
                     chars_required=1
                 )
 
-                config['drives'] = [drive for drive in dest_drive_master_list if drive['name'] in drive_list]
+                config['destinations'] = [drive for drive in dest_drive_master_list if drive['name'] in drive_list]
             else:
                 # Load from config
                 split_mode = command_line.has_param('split-mode')
                 if data_loaded_from_config:
-                    dest_list = [drive['name'] for drive in config['drives']]
+                    dest_list = [drive['name'] for drive in config['destinations']]
 
                     # If drives aren't mounted that should be, display the warning
                     missing_drive_count = len(config['missing_drives'])
@@ -2077,13 +2078,13 @@ if CLI_MODE:
 
                         drive_parts = [
                             'is' if missing_drive_count == 1 else 'are',
-                            'drive' if missing_drive_count == 1 else 'drives',
+                            'drive' if missing_drive_count == 1 else 'destinations',
                             'isn\'t' if missing_drive_count == 1 else 'aren\'t',
                             'it' if missing_drive_count == 1 else 'them'
                         ]
                         print(f"{bcolor.WARNING}There {drive_parts[0]} {missing_drive_count} {drive_parts[1]} in the config that {drive_parts[2]} connected. Please connect {drive_parts[3]}, or enable split mode.{bcolor.ENDC}\n")
                 else:
-                    if not config['drives'] and (not command_line.has_param('destination') or not command_line.get_param('destination')):
+                    if not config['destinations'] and (not command_line.has_param('destination') or not command_line.get_param('destination')):
                         print('Please specify at least one destination drive')
                         exit()
 
@@ -2116,7 +2117,7 @@ if CLI_MODE:
 
                             exit()
 
-                config['drives'] = [drive for drive in dest_drive_master_list if drive['name'] in dest_list]
+                config['destinations'] = [drive for drive in dest_drive_master_list if drive['name'] in dest_list]
                 config['splitMode'] = split_mode
         else:
             exit()
@@ -2154,7 +2155,7 @@ if CLI_MODE:
                     print(f"{cur_share: <{share_display_length['path']}}  {share_name_list[i]: <{share_display_length['name']}}")
                 print('')
 
-            config['shares'] = [{
+            config['sources'] = [{
                 'path': share_name_to_source_map[share],
                 'dest_name': share,
                 'size': get_directory_size(share_name_to_source_map[share])
@@ -2166,14 +2167,14 @@ if CLI_MODE:
             )]
         else:
             # TODO: Can has_param and get_param be merged?
-            if not config['shares'] and (not command_line.has_param('share') or not command_line.get_param('share')):
+            if not config['sources'] and (not command_line.has_param('share') or not command_line.get_param('share')):
                 print('Please specify at least one share to back up')
                 exit()
 
             if not data_loaded_from_config:
                 share_list = sorted(command_line.get_param('share'))
             else:
-                share_list = [share['dest_name'] for share in config['shares']]
+                share_list = [share['dest_name'] for share in config['sources']]
 
             if SELECTED_SOURCE_MODE == SOURCE_MODE_SINGLE_DRIVE:
                 source_share_list = [directory for directory in next(os.walk(config['source_drive']))[1]]
@@ -2185,7 +2186,7 @@ if CLI_MODE:
                 print(f"{bcolor.FAIL}One or more shares are not valid for selection{bcolor.ENDC}")
                 exit()
 
-            config['shares'] = [{
+            config['sources'] = [{
                 'path': get_share_path_from_name(share),
                 'dest_name': share,
                 'size': get_directory_size(get_share_path_from_name(share))
@@ -2200,13 +2201,13 @@ if CLI_MODE:
 
         print('')
         print(f"{'Source:': <{header_spacing}} {config['source_drive']}")
-        print(f"{'Destination:': <{header_spacing}} {', '.join([drive['name'] for drive in config['drives']])}")
+        print(f"{'Destination:': <{header_spacing}} {', '.join([drive['name'] for drive in config['destinations']])}")
 
         if len(config['missing_drives']) > 0:
             print(f"{'Missing drives:': <{header_spacing}} {', '.join([drive for drive in config['missing_drives'].keys()])}")
             print(f"{'Split mode:': <{header_spacing}} {bcolor.OKGREEN + 'Enabled' + bcolor.ENDC if split_mode else bcolor.FAIL + 'Disabled' + bcolor.ENDC}")
 
-        print(f"{'Shares:': <{header_spacing}} {', '.join([share['dest_name'] for share in config['shares']])}\n")
+        print(f"{'Shares:': <{header_spacing}} {', '.join([share['dest_name'] for share in config['sources']])}\n")
 
         if len(config['missing_drives']) > 0 and not split_mode:
             print(f"{bcolor.FAIL}Missing drives; split mode disabled{bcolor.ENDC}")
@@ -2247,21 +2248,21 @@ def update_status_bar_selection(status=None):
         status (int): The status code to use.
     """
 
-    if [share for share in config['shares'] if share['size'] is None]:
+    if [share for share in config['sources'] if share['size'] is None]:
         # Not all shares calculated
         status = Status.BACKUPSELECT_CALCULATING_SOURCE
-    elif not config['shares'] and not config['drives'] and len(config['missing_drives']) == 0:
+    elif not config['sources'] and not config['destinations'] and len(config['missing_drives']) == 0:
         # No selection in config
         status = Status.BACKUPSELECT_NO_SELECTION
-    elif not config['shares']:
+    elif not config['sources']:
         # No shares selected
         status = Status.BACKUPSELECT_MISSING_SOURCE
-    elif not config['drives'] and len(config['missing_drives']) == 0:
+    elif not config['destinations'] and len(config['missing_drives']) == 0:
         # No drives selected
         status = Status.BACKUPSELECT_MISSING_DEST
     else:
-        SHARE_SELECTED_SPACE = sum([share['size'] for share in config['shares']])
-        DRIVE_SELECTED_SPACE = sum([drive['capacity'] for drive in config['drives']]) + sum(config['missing_drives'].values())
+        SHARE_SELECTED_SPACE = sum([share['size'] for share in config['sources']])
+        DRIVE_SELECTED_SPACE = sum([drive['capacity'] for drive in config['destinations']]) + sum(config['missing_drives'].values())
 
         if SHARE_SELECTED_SPACE < DRIVE_SELECTED_SPACE:
             # Selected enough drive space
@@ -2358,14 +2359,14 @@ def open_config_file():
 def save_config_file():
     """Save the config to selected drives."""
 
-    if config['shares'] and config['drives']:
-        share_list = ','.join([item['dest_name'] for item in config['shares']])
-        raw_vid_list = [drive['vid'] for drive in config['drives']]
+    if config['sources'] and config['destinations']:
+        share_list = ','.join([item['dest_name'] for item in config['sources']])
+        raw_vid_list = [drive['vid'] for drive in config['destinations']]
         raw_vid_list.extend(config['missing_drives'].keys())
         vid_list = ','.join(raw_vid_list)
 
         # For each drive letter that's connected, get drive info, and write file
-        for drive in config['drives']:
+        for drive in config['destinations']:
             # If config exists on drives, back it up first
             if os.path.isfile(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)):
                 shutil.move(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE), os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE + '.old'))
@@ -2373,11 +2374,11 @@ def save_config_file():
             new_config_file = Config(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
             # Write shares and VIDs to config file
-            new_config_file.set('selection', 'shares', share_list)
+            new_config_file.set('selection', 'sources', share_list)
             new_config_file.set('selection', 'vids', vid_list)
 
             # Write info for each drive to its own section
-            for current_drive in config['drives']:
+            for current_drive in config['destinations']:
                 new_config_file.set(current_drive['vid'], 'vid', current_drive['vid'])
                 new_config_file.set(current_drive['vid'], 'serial', current_drive['serial'])
                 new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
@@ -2398,9 +2399,9 @@ def save_config_file_as():
 
     filename = filedialog.asksaveasfilename(initialdir='', initialfile='backup.ini', title='Save drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
 
-    if config['shares'] and config['drives']:
-        share_list = ','.join([item['dest_name'] for item in config['shares']])
-        raw_vid_list = [drive['vid'] for drive in config['drives']]
+    if config['sources'] and config['destinations']:
+        share_list = ','.join([item['dest_name'] for item in config['sources']])
+        raw_vid_list = [drive['vid'] for drive in config['destinations']]
         raw_vid_list.extend(config['missing_drives'].keys())
         vid_list = ','.join(raw_vid_list)
 
@@ -2408,11 +2409,11 @@ def save_config_file_as():
         new_config_file = Config(filename)
 
         # Write shares and VIDs to config file
-        new_config_file.set('selection', 'shares', share_list)
+        new_config_file.set('selection', 'sources', share_list)
         new_config_file.set('selection', 'vids', vid_list)
 
         # Write info for each drive to its own section
-        for current_drive in config['drives']:
+        for current_drive in config['destinations']:
             new_config_file.set(current_drive['vid'], 'vid', current_drive['vid'])
             new_config_file.set(current_drive['vid'], 'serial', current_drive['serial'])
             new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
@@ -2603,7 +2604,7 @@ def show_config_builder():
             new_config_file = Config(filename)
 
             # Write shares and VIDs to config file
-            new_config_file.set('selection', 'shares', '')
+            new_config_file.set('selection', 'sources', '')
             new_config_file.set('selection', 'vids', ','.join(existing_drive_vids))
 
             # Write info for each drive to its own section
@@ -3071,7 +3072,7 @@ def start_verify_data_from_hash_list():
     """Start data verification in a new thread"""
 
     if not backup or not backup.is_running():
-        drive_list = [drive['name'] for drive in config['drives']]
+        drive_list = [drive['name'] for drive in config['destinations']]
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
 def toggle_file_details_pane():

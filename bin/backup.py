@@ -63,8 +63,8 @@ class Backup:
         self.new_file_list = {}
 
         self.config = config
-        self.DRIVE_VID_INFO = {drive['vid']: drive for drive in config['drives']}
-        self.SHARE_NAME_PATH_INFO = {share['dest_name']: share['path'] for share in config['shares']}
+        self.DRIVE_VID_INFO = {drive['vid']: drive for drive in config['destinations']}
+        self.SHARE_NAME_PATH_INFO = {share['dest_name']: share['path'] for share in config['sources']}
 
         self.BACKUP_CONFIG_DIR = backup_config_dir
         self.BACKUP_CONFIG_FILE = backup_config_file
@@ -72,7 +72,7 @@ class Backup:
 
         self.CLI_MODE = self.config['cli_mode']
 
-        self.file_hashes = {drive['name']: {} for drive in self.config['drives']}
+        self.file_hashes = {drive['name']: {} for drive in self.config['destinations']}
 
         self.uicolor = uicolor
         self.do_copy_fn = do_copy_fn
@@ -96,18 +96,18 @@ class Backup:
             bool: True if conditions are good, False otherwise.
         """
 
-        if len(self.config['drives']) > 0 and len(self.config['shares']) > 0:
+        if len(self.config['destinations']) > 0 and len(self.config['sources']) > 0:
             share_total = 0
             drive_total = 0
 
             # Shares and destinations need identifiers
-            if self.config['source_mode'] in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH] and [share for share in self.config['shares'] if not share['dest_name']]:
+            if self.config['source_mode'] in [SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_MULTI_PATH] and [share for share in self.config['sources'] if not share['dest_name']]:
                 return False
-            if self.config['dest_mode'] == DEST_MODE_PATHS and [drive for drive in self.config['drives'] if not drive['vid']]:
+            if self.config['dest_mode'] == DEST_MODE_PATHS and [drive for drive in self.config['destinations'] if not drive['vid']]:
                 return False
 
             shares_known = True
-            for share in self.config['shares']:
+            for share in self.config['sources']:
                 if share['size'] is None:
                     shares_known = False
                     break
@@ -115,13 +115,13 @@ class Backup:
                 # Add total space of selection
                 share_total += share['size']
 
-            drive_total = sum([drive['capacity'] for drive in self.config['drives']])
+            drive_total = sum([drive['capacity'] for drive in self.config['destinations']])
             config_total = drive_total + sum([size for drive, size in self.config['missing_drives'].items()])
 
             if shares_known and ((len(self.config['missing_drives']) == 0 and share_total < drive_total) or (share_total < config_total and self.config['splitMode'])):
                 # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
 
-                selected_new_drives = [drive['name'] for drive in self.config['drives'] if drive['hasConfig'] is False]
+                selected_new_drives = [drive['name'] for drive in self.config['destinations'] if drive['hasConfig'] is False]
                 if not self.confirm_wipe_existing_drives and len(selected_new_drives) > 0:
                     drive_string = ', '.join(selected_new_drives[:-2] + [' and '.join(selected_new_drives[-2:])])
 
@@ -179,20 +179,20 @@ class Backup:
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
             self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'disable'})
 
-        share_info = {share['dest_name']: share['size'] for share in self.config['shares']}
-        all_share_info = {share['dest_name']: share['size'] for share in self.config['shares']}
+        share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
+        all_share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
 
         self.analysis_summary_display_fn(
-            title='Shares',
-            payload=[(share['dest_name'], human_filesize(share['size'])) for share in self.config['shares']],
+            title='Source',
+            payload=[(share['dest_name'], human_filesize(share['size'])) for share in self.config['sources']],
             reset=True
         )
 
         # Get hash list for all drives
         bad_hash_files = []
-        self.file_hashes = {drive['name']: {} for drive in self.config['drives']}
+        self.file_hashes = {drive['name']: {} for drive in self.config['destinations']}
         special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
-        for drive in self.config['drives']:
+        for drive in self.config['destinations']:
             drive_hash_file_path = os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
 
             if os.path.isfile(drive_hash_file_path):
@@ -232,9 +232,9 @@ class Backup:
 
         drive_info = []
         drive_share_list = {}
-        master_drive_list = [drive for drive in self.config['drives']]
+        master_drive_list = [drive for drive in self.config['destinations']]
         master_drive_list.extend([{'vid': vid, 'capacity': capacity} for vid, capacity in self.config['missing_drives'].items()])
-        connected_vid_list = [drive['vid'] for drive in self.config['drives']]
+        connected_vid_list = [drive['vid'] for drive in self.config['destinations']]
         show_drive_info = []
         for i, drive in enumerate(master_drive_list):
             drive_connected = drive['vid'] in connected_vid_list
@@ -259,7 +259,7 @@ class Backup:
             show_drive_info.append((current_drive_info['name'], human_filesize(drive['capacity']), drive_connected))
 
         self.analysis_summary_display_fn(
-            title='Drives',
+            title='Destination',
             payload=show_drive_info
         )
 
@@ -871,14 +871,14 @@ class Backup:
     def write_config_to_disks(self):
         """Write the current running backup config to config files on the drives."""
 
-        if self.config['shares'] and self.config['drives']:
-            share_list = ','.join([item['dest_name'] for item in self.config['shares']])
-            raw_vid_list = [drive['vid'] for drive in self.config['drives']]
+        if self.config['sources'] and self.config['destinations']:
+            share_list = ','.join([item['dest_name'] for item in self.config['sources']])
+            raw_vid_list = [drive['vid'] for drive in self.config['destinations']]
             raw_vid_list.extend(self.config['missing_drives'].keys())
             vid_list = ','.join(raw_vid_list)
 
             # For each drive letter connected, get drive info, and write file
-            for drive in self.config['drives']:
+            for drive in self.config['destinations']:
                 # If config exists on drives, back it up first
                 if os.path.isfile(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE)):
                     shutil.move(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE), os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE + '.old'))
@@ -886,11 +886,11 @@ class Backup:
                 drive_config_file = Config(os.path.join(self.DRIVE_VID_INFO[drive['vid']]['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE))
 
                 # Write shares and VIDs to config file
-                drive_config_file.set('selection', 'shares', share_list)
+                drive_config_file.set('selection', 'sources', share_list)
                 drive_config_file.set('selection', 'vids', vid_list)
 
                 # Write info for each drive to its own section
-                for cur_drive in self.config['drives']:
+                for cur_drive in self.config['destinations']:
                     drive_config_file.set(cur_drive['vid'], 'vid', cur_drive['vid'])
                     drive_config_file.set(cur_drive['vid'], 'serial', cur_drive['serial'])
                     drive_config_file.set(cur_drive['vid'], 'capacity', cur_drive['capacity'])
