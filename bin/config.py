@@ -11,6 +11,16 @@ class Config:
 
     TYPES = [BOOLEAN, INTEGER, FLOAT, HEXADECIMAL, STRING]
 
+    SOURCE_MODE_SINGLE_DRIVE = 'single_drive'
+    SOURCE_MODE_MULTI_DRIVE = 'multiple_drive'
+    SOURCE_MODE_SINGLE_PATH = 'single_path'
+    SOURCE_MODE_MULTI_PATH = 'multiple_path'
+    SOURCE_MODE_OPTIONS = [SOURCE_MODE_SINGLE_DRIVE, SOURCE_MODE_MULTI_DRIVE, SOURCE_MODE_SINGLE_PATH, SOURCE_MODE_MULTI_PATH]
+
+    DEST_MODE_DRIVES = 'drives'
+    DEST_MODE_PATHS = 'paths'
+    DEST_MODE_OPTIONS = [DEST_MODE_DRIVES, DEST_MODE_PATHS]
+
     def __init__(self, filename):
         """Initialize a preference object.
 
