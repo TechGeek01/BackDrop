@@ -11,9 +11,11 @@
   <br /><br />
 </p>
 
-BackDrop is a tool to copy files from a NAS onto one, or many, external drives for cold storage.
+At it's core, BackDrop is a tool to copy data from one place to another for backup.
 
-Online storage of data can get expensive. Obviously, the cheap way to back up important data from a file server is to load copies of it onto spare drives, and cart them to a friend's house. If you're like me, not all of the data you want to back up will always fit on one drive, and I wanted a way to automate the backup without having to manually figure out the best way to split directories.
+Online storage of data can get expensive. Obviously, the cheap way to back up important data is to load copies of it onto spare drives, and cart them to a friend's house. If you're like me, not all of the data you want to back up will always fit on one drive, and I wanted a way to automate the backup without having to manually figure out the best way to split directories.
+
+BackDrop can copy from multiple sources, and will automatically split them among one or more destinations.
 
 ![BackDrop UI](https://raw.githubusercontent.com/TechGeek01/BackDrop/master/docs/img/showcase.png)
 
@@ -23,9 +25,9 @@ If you're not running a pre-compiled version of the source code, you can run the
 *BackDrop uses tkinter for the GUI frontend. If you're on Linux, this isn't included with Python and will need to be installed separately.*
 
 ## Usage
-BackDrop was intended for use with Unraid, or another NAS solution. My setup involves network shares, since I don't have room to just pop extra drives into the server, they're docked with a USB adapter in Windows, and encrypted so that data is inaccessible without my encryption key. My setup involves a "root share" where all of the shares I have in Unraid are accessible as subfolders on one network drive.
+For both source and destination, you can select whole drives, or arbitrary paths (your desktop for the source, or a subfolder on an external drive for the destination, for example), and more than one can be selected.
 
-When you open BackDrop for the first time, you'll want to select the drive letter of your source. From there, select the drives you want to back up to, select the shares to back up, and let it rip. The backup itself is two parts.
+BackDrop will automatically check the free space on destinations, and the size of sources, and make sure that you have enough room for everything you selected. When you run a backup, the config is saved to each destination, so when you open the destination in BackDrop later, it'll select everything for you so you don't have to remember what you were backing up. The backup itself is in two parts.
 
 ### Portable Mode
 By default, BackDrop stores the config inside of the user's AppData folder. If you want to run in portable mode, you can create a `backdrop.ini` file in the same directory as the executable (or Python) file, and it will use that instead. A sample file can be found in the repo, named `backdrop-example.ini`
