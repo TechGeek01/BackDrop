@@ -2231,6 +2231,9 @@ if CLI_MODE:
 
         exit()
 
+    # Exit CLI mode once everything is done
+    exit()
+
 def update_status_bar_selection(status=None):
     """Update the status bar selection status.
 
