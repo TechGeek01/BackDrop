@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - Fixed indeterminate progress bar not stopping if all sources are of known size
 - Fixed source selection disabling backup button if backup is running
 - Fixed completed file detail counters in success and fail lists not including both copy and delete lists
+- Fixed PermissionError exception when deleting protected files
 
 ### Changed
 - Backup and analysis both disabled the other button when running

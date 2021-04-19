@@ -148,10 +148,13 @@ def do_delete(filename, size, gui_options={}):
         gui_options['mode'] = 'delete'
         gui_options['filename'] = filename.split(os.path.sep)[-1]
 
-        if os.path.isfile(filename):
-            os.remove(filename)
-        elif os.path.isdir(filename):
-            shutil.rmtree(filename)
+        try:
+            if os.path.isfile(filename):
+                os.remove(filename)
+            elif os.path.isdir(filename):
+                shutil.rmtree(filename)
+        except PermissionError:
+            pass
 
         # If file deleted successfully, remove it from the list
         if not os.path.exists(filename):
