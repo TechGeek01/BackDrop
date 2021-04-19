@@ -42,7 +42,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.3-beta.1'
+APP_VERSION = '3.1.3-beta.2'
 
 # Set constants
 DRIVE_TYPE_LOCAL = 3
@@ -397,11 +397,13 @@ def display_backup_summary_chunk(title, payload, reset=False):
 
     if not CLI_MODE:
         if reset:
-            backup_summary_text.empty()
+            backup_summary_text_canvas.yview_moveto(0)
+            for widget in backup_summary_text_frame.winfo_children():
+                widget.destroy()
 
-        tk.Label(backup_summary_text.frame, text=title, font=(None, 14),
+        tk.Label(backup_summary_text_frame, text=title, font=(None, 14),
                  wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
-        summary_frame = tk.Frame(backup_summary_text.frame)
+        summary_frame = tk.Frame(backup_summary_text_frame)
         summary_frame.pack(fill='x', expand=True)
         summary_frame.columnconfigure(2, weight=1)
 
@@ -614,7 +616,9 @@ def reset_ui():
 
     if not CLI_MODE:
         # Empty backup summary pane
-        backup_summary_text.empty()
+        backup_summary_text_canvas.yview_moveto(0)
+        for widget in backup_summary_text_frame.winfo_children():
+            widget.destroy()
 
         # Reset ETA counter
         backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=uicolor.NORMAL)
@@ -3131,7 +3135,7 @@ if not CLI_MODE:
     WINDOW_BASE_WIDTH = 1150  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
     WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
     WINDOW_FILE_DETAILS_EXTRA_WIDTH = 400 + WINDOW_ELEMENT_PADDING
-    WINDOW_MIN_HEIGHT = 680  # FIXME: Fix height lower than 680 cutting off status bar at bottom of window
+    WINDOW_MIN_HEIGHT = 660
     MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == 'Windows' else 200
     MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == 'Windows' else 140
     SINGLE_SOURCE_TEXT_COL_WIDTH = 170
@@ -3743,12 +3747,20 @@ if not CLI_MODE:
     tk.Label(backup_summary_frame, text='Analysis Summary', font=(None, 20)).pack()
 
     # Add placeholder to backup analysis
-    backup_summary_text = ScrollableFrame(backup_summary_frame)
-    backup_summary_text.pack(fill='both', expand=1)
-    tk.Label(backup_summary_text.frame, text='This area will summarize the backup that\'s been configured.',
-             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
-    tk.Label(backup_summary_text.frame, text='Please start a backup analysis to generate a summary.',
-             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+    backup_summary_text_canvas = tk.Canvas(backup_summary_frame)
+    backup_summary_scrollbar = tk.Scrollbar(root, orient='vertical', command=backup_summary_text_canvas.yview)
+    backup_summary_text_frame = ttk.Frame(backup_summary_text_canvas)
+    backup_summary_text_frame.bind('<Configure>', lambda e: backup_summary_text_canvas.configure(
+        scrollregion=backup_summary_text_canvas.bbox('all')
+    ))
+    backup_summary_text_canvas.create_window((0, 0), window=backup_summary_text_frame, anchor='nw')
+    backup_summary_text_canvas.configure(yscrollcommand=backup_summary_scrollbar.set)
+    backup_summary_text_canvas.pack(fill='both', expand=1)
+    backup_summary_scrollbar.grid(row=0, column=1, sticky='ns')
+    tk.Label(backup_summary_text_frame, text='This area will summarize the backup that\'s been configured.',
+             wraplength=backup_summary_text_canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+    tk.Label(backup_summary_text_frame, text='Please start a backup analysis to generate a summary.',
+             wraplength=backup_summary_text_canvas.winfo_width() - 2, justify='left').pack(anchor='w')
     backup_summary_button_frame = tk.Frame(backup_summary_frame)
     backup_summary_button_frame.pack(pady=WINDOW_ELEMENT_PADDING / 2)
     start_analysis_btn = ttk.Button(backup_summary_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
