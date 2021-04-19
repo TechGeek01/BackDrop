@@ -2765,7 +2765,7 @@ def show_config_builder():
         builder_remove_btn.pack(pady=(4, 0))
 
         # Create main control pane
-        main_control_frame = tk.Frame(main_frame, bg='orange')
+        main_control_frame = tk.Frame(main_frame)
         main_control_frame.grid(row=2, column=0, columnspan=3, pady=(WINDOW_ELEMENT_PADDING, 0))
 
         save_config_btn = ttk.Button(main_control_frame, text='Save config', command=builder_save_config_file, style='win.TButton')
