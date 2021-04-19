@@ -3172,11 +3172,13 @@ if not CLI_MODE:
     right_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if uicolor.is_dark_mode() else ''}.png")))
     down_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if uicolor.is_dark_mode() else ''}.png")))
 
-    main_frame = tk.Frame(root)
-    main_frame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_columnconfigure(0, weight=1)
+    main_frame = tk.Frame(root, bg='orange')
+    main_frame.grid(row=0, column=0, sticky='nsew', padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
 
     statusbar_frame = tk.Frame(root, bg=uicolor.STATUS_BAR)
-    statusbar_frame.pack(fill='x', pady=0)
+    statusbar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
     statusbar_frame.columnconfigure(50, weight=1)
 
     # Selection and backup status, left side
