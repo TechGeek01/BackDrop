@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Fixed source selection disabling backup button if backup is running
 - Fixed completed file detail counters in success and fail lists not including both copy and delete lists
 - Fixed PermissionError exception when deleting protected files
+- Broke analysis source distributing into chunks to prevent extremely long wait times when checking permutations of sources
 
 ### Changed
 - Backup and analysis both disabled the other button when running

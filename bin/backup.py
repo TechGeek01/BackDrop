@@ -261,28 +261,45 @@ class Backup:
         all_drive_files_buffer = {drive['name']: [] for drive in master_drive_list}
 
         for i, drive in enumerate(drive_info):
-            # Get list of shares small enough to fit on drive
-            small_shares = {share: size for share, size in share_info.items() if size <= drive['free']}
+            # Get list of sources small enough to fit on drive
+            total_small_sources = {source: size for source, size in share_info.items() if size <= drive['free']}
 
-            # Try every combination of shares that fit to find result that uses most of that drive
-            largest_sum = 0
-            largest_set = []
-            for n in range(1, len(small_shares) + 1):
-                for subset in itertools.combinations(small_shares.keys(), n):
-                    combination_total = sum(small_shares[share] for share in subset)
+            # Since the list of files is truncated to prevent an unreasonably large
+            # number of combinations to check, we need to keep processing the file list
+            # in chunks to make sure we check if all files can be fit on one drive
+            sources_that_fit_on_dest = []
+            processed_small_sources = []
+            processed_source_size = 0
+            while len(processed_small_sources) < len(total_small_sources):
+                # Trim the list of small files to those that aren't already processed
+                small_source_list = {source: size for (source, size) in total_small_sources.items() if source not in processed_small_sources}
+                small_source_list = sorted(small_source_list.items(), key=lambda x: x[1], reverse=True)
 
-                    if (combination_total > largest_sum and combination_total <= drive['free']):
-                        largest_sum = combination_total
-                        largest_set = subset
+                trimmed_small_source_list = {source[0]: source[1] for source in small_source_list[:15]}
 
-            shares_that_fit = [share for share in largest_set]
-            remaining_small_shares = {share: size for (share, size) in small_shares.items() if share not in shares_that_fit}
-            share_info = {share: size for (share, size) in share_info.items() if share not in shares_that_fit}
+                # Try every combination of sources that fit to find result that uses most of that drive
+                largest_sum = 0
+                largest_set = []
+                for n in range(1, len(trimmed_small_source_list) + 1):
+                    for subset in itertools.combinations(trimmed_small_source_list.keys(), n):
+                        combination_total = sum(trimmed_small_source_list[share] for share in subset)
+
+                        if (combination_total > largest_sum and combination_total <= drive['free']):
+                            largest_sum = combination_total
+                            largest_set = subset
+
+                sources_that_fit_on_dest.extend([source for source in largest_set])
+                remaining_small_sources = {source[0]: source[1] for source in small_source_list if source not in sources_that_fit_on_dest}
+                processed_small_sources.extend([source for source in trimmed_small_source_list.keys()])
+                share_info = {share: size for (share, size) in share_info.items() if share not in sources_that_fit_on_dest}
+
+                # Subtract file size of each batch of files from the free space on the drive so the next batch sorts properly
+                processed_source_size += sum([source[1] for source in small_source_list if source[0] in largest_set])
 
             # If not all shares fit on smallest drive at once (at least one share has to be put
             # on the next largest drive), check free space on next largest drive
-            if len(remaining_small_shares) > 0 and i < (len(drive_info) - 1):
-                not_fit_total = sum(size for size in remaining_small_shares.values())
+            if len(sources_that_fit_on_dest) < len(small_source_list) and i < (len(drive_info) - 1):
+                not_fit_total = sum(size for size in remaining_small_sources.values())
                 next_drive = drive_info[i + 1]
                 next_drive_free_space = next_drive['free'] - not_fit_total
 
@@ -294,25 +311,25 @@ class Backup:
                 # easier to fit what we can on the small drive, to leave the larger drives
                 # available for larger shares
                 if not_fit_total <= next_drive['free']:
-                    total_small_share_space = sum(size for size in small_shares.values())
+                    total_small_share_space = sum(size for size in small_source_list.values())
                     if next_drive_free_space < drive['free'] and total_small_share_space <= next_drive['free']:
                         # Next drive free space less than total on current, so it's optimal to store on next drive instead
-                        drive_share_list[next_drive['vid']].extend([share for share in small_shares.keys()])  # All small shares on next drive
+                        drive_share_list[next_drive['vid']].extend([share for share in small_source_list.keys()])  # All small shares on next drive
                     else:
                         # Better to leave on current, but overflow to next drive
-                        drive_share_list[drive['vid']].extend(shares_that_fit)  # Shares that fit on current drive
-                        drive_share_list[next_drive['vid']].extend([share for share in small_shares.keys() if share not in shares_that_fit])  # Remaining small shares on next drive
+                        drive_share_list[drive['vid']].extend(sources_that_fit_on_dest)  # Shares that fit on current drive
+                        drive_share_list[next_drive['vid']].extend([share for share in small_source_list.keys() if share not in sources_that_fit_on_dest])  # Remaining small shares on next drive
                 else:
                     # If overflow for next drive is more than can fit on that drive, ignore it, put overflow
                     # back in pool of shares to sort, and put small drive shares only in current drive
-                    drive_share_list[drive['vid']].extend(shares_that_fit)  # Shares that fit on current drive
-                    all_drive_files_buffer[drive['name']].extend([f"{drive['name']}{share}" for share in shares_that_fit])
+                    drive_share_list[drive['vid']].extend(sources_that_fit_on_dest)  # Shares that fit on current drive
+                    all_drive_files_buffer[drive['name']].extend([f"{drive['name']}{share}" for share in sources_that_fit_on_dest])
 
                     # Put remaining small shares back into pool to work with for next drive
-                    share_info.update({share: size for share, size in remaining_small_shares.items()})
+                    share_info.update({share: size for share, size in remaining_small_sources.items()})
             else:
                 # Fit all small shares onto drive
-                drive_share_list[drive['vid']].extend(shares_that_fit)
+                drive_share_list[drive['vid']].extend(sources_that_fit_on_dest)
 
             # Calculate space used by shares, and subtract it from capacity to get free space
             used_space = sum(all_share_info[share] for share in drive_share_list[drive['vid']])
@@ -353,7 +370,6 @@ class Backup:
                 # Since the list of files is truncated to prevent an unreasonably large
                 # number of combinations to check, we need to keep processing the file list
                 # in chunks to make sure we check if all files can be fit on one drive
-                # TODO: This @analysis loop logic may need to be copied to the main @share portion, though this is only necessary if the user selects a large number of shares
                 files_that_fit_on_drive = []
                 processed_small_files = []
                 processed_file_size = 0
