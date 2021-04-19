@@ -3178,7 +3178,7 @@ if not CLI_MODE:
 
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
-    main_frame = tk.Frame(root, bg='orange')
+    main_frame = tk.Frame(root)
     main_frame.grid(row=0, column=0, sticky='nsew', padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
 
     statusbar_frame = tk.Frame(root, bg=uicolor.STATUS_BAR)
