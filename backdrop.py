@@ -806,8 +806,8 @@ def load_source():
                 if not source_select_frame.grid_info():
                     source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
-    elif not CLI_MODE:
-        if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_MULTI_DRIVE]:
+    elif settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_MULTI_DRIVE]:
+        if not CLI_MODE:
             source_drive_default.set('No drives available')
 
             tree_source_frame.grid_forget()
