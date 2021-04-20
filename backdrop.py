@@ -641,6 +641,7 @@ def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
 
     global backup
+    global TREE_SELECTION_LOCKED
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
@@ -844,8 +845,8 @@ def change_source_drive(selection):
         load_dest_in_background()
 
 # IDEA: @Calculate total space of all @shares in background
-prev_share_selection = []
-def calculate_selected_shares():
+prev_source_selection = []
+def select_source():
     """Calculate and display the filesize of a selected share, if it hasn't been calculated.
 
     This gets the selection in the source tree, and then calculates the filesize for
@@ -853,10 +854,9 @@ def calculate_selected_shares():
     selection, and total share space is also shown below the tree.
     """
 
-    global prev_share_selection
+    global prev_source_selection
+    global source_select_bind
     global backup
-
-    progress.start_indeterminate()
 
     def update_share_size(item):
         """Update share info for a given share.
@@ -939,67 +939,82 @@ def calculate_selected_shares():
 
         progress.stop_indeterminate()
 
-    selected = tree_source.selection()
+    if not TREE_SELECTION_LOCKED:
+        progress.start_indeterminate()
 
-    new_shares = []
-    if selected:
+        selected = tree_source.selection()
+
+        new_shares = []
+        if selected:
+            for item in selected:
+                share_info = {
+                    'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
+                }
+
+                if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+                    share_info['path'] = tree_source.item(item, 'text')
+
+                    share_vals = tree_source.item(item, 'values')
+
+                    if SYS_PLATFORM == 'Windows':
+                        # Windows uses drive letters, so default name is letter
+                        default_name = tree_source.item(item, 'text')[0]
+                    elif SYS_PLATFORM == 'Linux':
+                        # Linux uses mount points, so get last dir name
+                        default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
+
+                    share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
+                else:
+                    # If single drive mode, use share name as dest name
+                    share_info['path'] = os.path.join(config['source_drive'], tree_source.item(item, 'text'))
+                    share_info['dest_name'] = tree_source.item(item, 'text')
+
+                new_shares.append(share_info)
+        else:
+            # Nothing selected, so empty the meta counter
+            share_selected_space.configure(text='None', fg=uicolor.FADED)
+
+        config['sources'] = new_shares
+        update_status_bar_selection()
+
+        # If selection is different than last time, invalidate the analysis
+        selection_unchanged_items = [share for share in selected if share in prev_source_selection]
+        if ((not backup or not backup.is_running())  # Make sure backup isn't already running
+                and len(selected) != len(prev_source_selection) or len(selection_unchanged_items) != len(prev_source_selection)):  # Selection has changed from last time
+            start_backup_btn.configure(state='disable')
+
+        prev_source_selection = [share for share in selected]
+
+        # Check if items in selection need to be calculated
+        all_shares_known = True
         for item in selected:
-            share_info = {
-                'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
-            }
+            # If new selected item hasn't been calculated, calculate it on the fly
+            if tree_source.item(item, 'values')[0] == 'Unknown':
+                all_shares_known = False
+                update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
+                start_analysis_btn.configure(state='disable')
+                share_name = tree_source.item(item, 'text')
+                thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
 
-            if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-                share_info['path'] = tree_source.item(item, 'text')
-
-                share_vals = tree_source.item(item, 'values')
-
-                if SYS_PLATFORM == 'Windows':
-                    # Windows uses drive letters, so default name is letter
-                    default_name = tree_source.item(item, 'text')[0]
-                elif SYS_PLATFORM == 'Linux':
-                    # Linux uses mount points, so get last dir name
-                    default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
-
-                share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
-            else:
-                # If single drive mode, use share name as dest name
-                share_info['path'] = os.path.join(config['source_drive'], tree_source.item(item, 'text'))
-                share_info['dest_name'] = tree_source.item(item, 'text')
-
-            new_shares.append(share_info)
+        if all_shares_known:
+            progress.stop_indeterminate()
     else:
-        # Nothing selected, so empty the meta counter
-        share_selected_space.configure(text='None', fg=uicolor.FADED)
+        # Tree selection locked, so keep selection the same
+        try:
+            tree_source.unbind('<<TreeviewSelect>>', source_select_bind)
+        except tk._tkinter.TclError:
+            pass
 
-    config['sources'] = new_shares
-    update_status_bar_selection()
+        if prev_source_selection:
+            tree_source.focus(prev_source_selection[-1])
+        tree_source.selection_set(tuple(prev_source_selection))
 
-    # If selection is different than last time, invalidate the analysis
-    selection_unchanged_items = [share for share in selected if share in prev_share_selection]
-    if ((not backup or not backup.is_running())  # Make sure backup isn't already running
-            and len(selected) != len(prev_share_selection) or len(selection_unchanged_items) != len(prev_share_selection)):  # Selection has changed from last time
-        start_backup_btn.configure(state='disable')
+        source_select_bind = tree_source.bind("<<TreeviewSelect>>", select_source_in_background)
 
-    prev_share_selection = [share for share in selected]
-
-    # Check if items in selection need to be calculated
-    all_shares_known = True
-    for item in selected:
-        # If new selected item hasn't been calculated, calculate it on the fly
-        if tree_source.item(item, 'values')[0] == 'Unknown':
-            all_shares_known = False
-            update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
-            start_analysis_btn.configure(state='disable')
-            share_name = tree_source.item(item, 'text')
-            thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
-
-    if all_shares_known:
-        progress.stop_indeterminate()
-
-def calculate_source_size_in_background(event):
+def select_source_in_background(event):
     """Start a calculation of source filesize in a new thread."""
 
-    thread_manager.start(thread_manager.MULTIPLE, is_progress_thread=True, target=calculate_selected_shares, name='Load Source Selection', daemon=True)
+    thread_manager.start(thread_manager.MULTIPLE, is_progress_thread=True, target=select_source, name='Load Source Selection', daemon=True)
 
 def load_dest():
     """Load the destination drive info, and display it in the tree."""
@@ -1140,22 +1155,25 @@ def load_dest_in_background():
 def gui_select_from_config():
     """From the current config, select the appropriate shares and drives in the GUI."""
 
-    global drive_select_bind
+    global dest_select_bind
+    global prev_source_selection
+    global prev_dest_selection
 
     # Get list of shares in config
     config_share_name_list = [item['dest_name'] for item in config['sources']]
     if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-        config_shares_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in config_share_name_list]
+        config_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in config_share_name_list]
     else:
-        config_shares_source_tree_id_list = [item for item in tree_source.get_children() if len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] in config_share_name_list]
+        config_source_tree_id_list = [item for item in tree_source.get_children() if len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] in config_share_name_list]
 
-    if config_shares_source_tree_id_list:
-        tree_source.focus(config_shares_source_tree_id_list[-1])
-        tree_source.selection_set(tuple(config_shares_source_tree_id_list))
+    if config_source_tree_id_list:
+        tree_source.focus(config_source_tree_id_list[-1])
+        prev_source_selection = config_source_tree_id_list
+        tree_source.selection_set(tuple(config_source_tree_id_list))
 
         # Recalculate selected totals for display
         # QUESTION: Should source total be recalculated when selecting, or should it continue to use the existing total?
-        known_path_sizes = [int(tree_source.item(item, 'values')[1]) for item in config_shares_source_tree_id_list if tree_source.item(item, 'values')[1] != 'Unknown']
+        known_path_sizes = [int(tree_source.item(item, 'values')[1]) for item in config_source_tree_id_list if tree_source.item(item, 'values')[1] != 'Unknown']
         share_selected_space.configure(text=human_filesize(sum(known_path_sizes)))
 
     # Get list of drives where volume ID is in config
@@ -1185,17 +1203,19 @@ def gui_select_from_config():
     # would get stuck into an endless loop of trying to load the config
     # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
     if settings_destMode.get() == Config.DEST_MODE_DRIVES:
-        config_drive_tree_id_list = [item for item in tree_dest.get_children() if tree_dest.item(item, 'values')[3] in connected_vid_list]
-        if len(config_drive_tree_id_list) > 0 and tree_dest.selection() != tuple(config_drive_tree_id_list):
+        config_dest_tree_id_list = [item for item in tree_dest.get_children() if tree_dest.item(item, 'values')[3] in connected_vid_list]
+        if len(config_dest_tree_id_list) > 0 and tree_dest.selection() != tuple(config_dest_tree_id_list):
             try:
-                tree_dest.unbind('<<TreeviewSelect>>', drive_select_bind)
+                tree_dest.unbind('<<TreeviewSelect>>', dest_select_bind)
             except tk._tkinter.TclError:
                 pass
 
-            tree_dest.focus(config_drive_tree_id_list[-1])
-            tree_dest.selection_set(tuple(config_drive_tree_id_list))
+            if config_dest_tree_id_list:
+                tree_dest.focus(config_dest_tree_id_list[-1])
+            prev_dest_selection = config_dest_tree_id_list
+            tree_dest.selection_set(tuple(config_dest_tree_id_list))
 
-            drive_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_drive_in_background)
+            dest_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_dest_in_background)
 
 def get_share_path_from_name(share):
     """Get a share path from a share name.
@@ -1275,11 +1295,11 @@ def load_config_from_file(filename):
         gui_select_from_config()
 
 prev_selection = 0
-prev_drive_selection = []
+prev_dest_selection = []
 
 # BUG: keyboard module seems to be returning false for keypress on first try. No idea how to fix this
 keyboard.is_pressed('alt')
-def handle_drive_selection_click():
+def select_dest():
     """Parse the current drive selection, read config data, and select other drives and shares if needed.
 
     If the selection involves a single drive that the user specifically clicked on,
@@ -1288,84 +1308,100 @@ def handle_drive_selection_click():
     """
 
     global prev_selection
-    global prev_drive_selection
+    global prev_dest_selection
+    global dest_select_bind
 
-    progress.start_indeterminate()
+    if not TREE_SELECTION_LOCKED:
+        progress.start_indeterminate()
 
-    dest_selection = tree_dest.selection()
+        dest_selection = tree_dest.selection()
 
-    # If selection is different than last time, invalidate the analysis
-    selection_selected_last_time = [drive for drive in dest_selection if drive in prev_drive_selection]
-    if len(dest_selection) != len(prev_drive_selection) or len(selection_selected_last_time) != len(prev_drive_selection):
-        start_backup_btn.configure(state='disable')
+        # If selection is different than last time, invalidate the analysis
+        selection_selected_last_time = [drive for drive in dest_selection if drive in prev_dest_selection]
+        if len(dest_selection) != len(prev_dest_selection) or len(selection_selected_last_time) != len(prev_dest_selection):
+            start_backup_btn.configure(state='disable')
 
-    prev_drive_selection = [share for share in dest_selection]
+        prev_dest_selection = [share for share in dest_selection]
 
-    # Check if newly selected drive has a config file
-    # We only want to do this if the click is the first selection (that is, there
-    # are no other drives selected except the one we clicked).
-    drives_read_from_config_file = False
-    if len(dest_selection) > 0:
-        selected_drive = tree_dest.item(dest_selection[0], 'text')
-        SELECTED_PATH_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
-        if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
-            # Found config file, so read it
-            load_config_from_file(SELECTED_PATH_CONFIG_FILE)
-            dest_selection = tree_dest.selection()
-            drives_read_from_config_file = True
-        else:
-            dest_split_warning_frame.grid_remove()
-            prev_selection = len(dest_selection)
+        # Check if newly selected drive has a config file
+        # We only want to do this if the click is the first selection (that is, there
+        # are no other drives selected except the one we clicked).
+        drives_read_from_config_file = False
+        if len(dest_selection) > 0:
+            selected_drive = tree_dest.item(dest_selection[0], 'text')
+            SELECTED_PATH_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
+            if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
+                # Found config file, so read it
+                load_config_from_file(SELECTED_PATH_CONFIG_FILE)
+                dest_selection = tree_dest.selection()
+                drives_read_from_config_file = True
+            else:
+                dest_split_warning_frame.grid_remove()
+                prev_selection = len(dest_selection)
 
-    selected_total = 0
-    selected_drive_list = []
+        selected_total = 0
+        selected_drive_list = []
 
-    if settings_destMode.get() == Config.DEST_MODE_DRIVES:
-        drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
-        for item in dest_selection:
-            # Write drive IDs to config
-            selected_drive = drive_lookup_list[tree_dest.item(item, 'values')[3]]
-            selected_drive_list.append(selected_drive)
-            selected_total += selected_drive['capacity']
-    elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-        for item in dest_selection:
-            drive_path = tree_dest.item(item, 'text')
-            drive_vals = tree_dest.item(item, 'values')
+        if settings_destMode.get() == Config.DEST_MODE_DRIVES:
+            drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
+            for item in dest_selection:
+                # Write drive IDs to config
+                selected_drive = drive_lookup_list[tree_dest.item(item, 'values')[3]]
+                selected_drive_list.append(selected_drive)
+                selected_total += selected_drive['capacity']
+        elif settings_destMode.get() == Config.DEST_MODE_PATHS:
+            for item in dest_selection:
+                drive_path = tree_dest.item(item, 'text')
+                drive_vals = tree_dest.item(item, 'values')
 
-            drive_name = drive_vals[3] if len(drive_vals) >= 4 else ''
-            drive_capacity = int(drive_vals[1])
-            drive_has_config = True if drive_vals[2] == 'Yes' else False
+                drive_name = drive_vals[3] if len(drive_vals) >= 4 else ''
+                drive_capacity = int(drive_vals[1])
+                drive_has_config = True if drive_vals[2] == 'Yes' else False
 
-            drive_data = {
-                'name': drive_path,
-                'vid': drive_name,
-                'serial': None,
-                'capacity': drive_capacity,
-                'hasConfig': drive_has_config
-            }
+                drive_data = {
+                    'name': drive_path,
+                    'vid': drive_name,
+                    'serial': None,
+                    'capacity': drive_capacity,
+                    'hasConfig': drive_has_config
+                }
 
-            selected_drive_list.append(drive_data)
-            selected_total += drive_capacity
+                selected_drive_list.append(drive_data)
+                selected_total += drive_capacity
 
-        config['destinations'] = selected_drive_list
+            config['destinations'] = selected_drive_list
 
-    drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
-    if not drives_read_from_config_file:
-        config['destinations'] = selected_drive_list
-        config['missing_drives'] = {}
-        config_selected_space.configure(text='None', fg=uicolor.FADED)
+        drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
+        if not drives_read_from_config_file:
+            config['destinations'] = selected_drive_list
+            config['missing_drives'] = {}
+            config_selected_space.configure(text='None', fg=uicolor.FADED)
 
-    update_status_bar_selection()
+        update_status_bar_selection()
 
-    progress.stop_indeterminate()
+        progress.stop_indeterminate()
+    else:
+        # Tree selection locked, so keep selection the same
+        try:
+            tree_dest.unbind('<<TreeviewSelect>>', dest_select_bind)
+        except tk._tkinter.TclError:
+            pass
 
-def select_drive_in_background(event):
+        if prev_dest_selection:
+            tree_dest.focus(prev_dest_selection[-1])
+        tree_dest.selection_set(tuple(prev_dest_selection))
+
+        dest_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_dest_in_background)
+
+def select_dest_in_background(event):
     """Start the drive selection handling in a new thread."""
 
-    thread_manager.start(thread_manager.MULTIPLE, is_progress_thread=True, target=handle_drive_selection_click, name='Drive Select', daemon=True)
+    thread_manager.start(thread_manager.MULTIPLE, is_progress_thread=True, target=select_dest, name='Drive Select', daemon=True)
 
 def start_backup():
     """Start the backup in a new thread."""
+
+    global TREE_SELECTION_LOCKED
 
     if backup and not verification_running:
         statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
@@ -2321,6 +2357,8 @@ def update_status_bar_update(status):
         statusbar_update.configure(text='Update failed', fg=uicolor.FAILED)
 
 def request_kill_backup():
+    """Kill a running backup."""
+
     statusbar_action.configure(text='Stopping backup')
     thread_manager.kill('Backup')
 
@@ -2331,6 +2369,8 @@ def update_ui_component(status, data=None):
         status (int): The status code to use.
         data (*): The data to update (optional).
     """
+
+    global TREE_SELECTION_LOCKED
 
     if status == Status.UPDATEUI_ANALYSIS_BTN:
         start_analysis_btn.configure(**data)
@@ -2346,6 +2386,10 @@ def update_ui_component(status, data=None):
         start_backup_btn.configure(text='Run Backup', command=start_backup, style='TButton')
     elif status == Status.UPDATEUI_STATUS_BAR:
         update_status_bar_action(data)
+    elif status == Status.UNLOCK_TREE_SELECTION:
+        TREE_SELECTION_LOCKED = False
+    elif status == Status.LOCK_TREE_SELECTION:
+        TREE_SELECTION_LOCKED = True
 
 def open_config_file():
     """Open a config file and load it."""
@@ -3112,6 +3156,8 @@ file_detail_list = {
     'fail': []
 }
 
+TREE_SELECTION_LOCKED = False
+
 if not CLI_MODE:
     update_handler = UpdateHandler(
         current_version=APP_VERSION,
@@ -3500,7 +3546,7 @@ if not CLI_MODE:
     if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_PATH:
         source_right_click_menu.add_command(label='Delete')
 
-    tree_source.bind("<<TreeviewSelect>>", calculate_source_size_in_background)
+    source_select_bind = tree_source.bind("<<TreeviewSelect>>", select_source_in_background)
     if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
         source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
     else:
@@ -3639,7 +3685,7 @@ if not CLI_MODE:
     split_mode_frame.bind('<Button-1>', toggle_split_mode)
     split_mode_status.bind('<Button-1>', toggle_split_mode)
 
-    drive_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_drive_in_background)
+    dest_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_dest_in_background)
 
     backup_middle_control_frame = tk.Frame(main_frame)
     backup_middle_control_frame.grid(row=4, column=1, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')

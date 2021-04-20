@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Fixed UI alignment
 
+### Changed
+- Locked tree selection when backup or analysis is running to allow for easier viewing of configured selection
+
 ## 3.1.3-rc.1 - 2021-04-20
 ### Added
 - Added status bar backup halt indicator if verification doesn't allow an immediate halt

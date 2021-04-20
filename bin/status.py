@@ -38,3 +38,7 @@ class Status:
     UPDATE_AVAILABLE = 0xf1
     UPDATE_UP_TO_DATE = 0xf2
     UPDATE_FAILED = 0xf3
+
+    # 0x10 => Lock states
+    UNLOCK_TREE_SELECTION = 0x100
+    LOCK_TREE_SELECTION = 0x1011
