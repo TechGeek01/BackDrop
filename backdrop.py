@@ -3412,7 +3412,7 @@ if not CLI_MODE:
 
     # Progress/status values
     progress_bar = ttk.Progressbar(main_frame, maximum=100, style='custom.Progressbar')
-    progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', pady=(WINDOW_ELEMENT_PADDING, 0))
+    progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING, 0))
 
     progress = Progress(
         progress_bar=progress_bar,
