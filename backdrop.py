@@ -42,7 +42,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.3-rc.1'
+APP_VERSION = '3.1.3-rc.2'
 
 # Set constants
 DRIVE_TYPE_LOCAL = 3
@@ -3178,7 +3178,7 @@ if not CLI_MODE:
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     main_frame = tk.Frame(root)
-    main_frame.grid(row=0, column=0, sticky='nsew', padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
+    main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
 
     statusbar_frame = tk.Frame(root, bg=uicolor.STATUS_BAR)
     statusbar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
@@ -3735,11 +3735,11 @@ if not CLI_MODE:
     right_side_frame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
     backup_summary_frame = tk.Frame(right_side_frame)
-    backup_summary_frame.pack(fill='both', expand=1, padx=(WINDOW_ELEMENT_PADDING, 0))
+    backup_summary_frame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING)
     backup_summary_frame.update()
 
     branding_frame = tk.Frame(right_side_frame)
-    branding_frame.pack()
+    branding_frame.pack(padx=WINDOW_ELEMENT_PADDING / 2)
 
     image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if uicolor.is_dark_mode() else ''}.png")))
     tk.Label(branding_frame, image=image_logo).pack(side='left')

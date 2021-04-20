@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 3.1.3-rc.2 - TBD
+### Fixed
+- Fixed UI alignment
+
 ## 3.1.3-rc.1 - 2021-04-20
 ### Added
 - Added status bar backup halt indicator if verification doesn't allow an immediate halt
