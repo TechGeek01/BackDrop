@@ -856,6 +856,7 @@ def select_source():
 
     global prev_source_selection
     global source_select_bind
+    global TREE_SELECTION_LOCKED
     global backup
 
     def update_share_size(item):
@@ -939,8 +940,12 @@ def select_source():
 
         progress.stop_indeterminate()
 
-    if not TREE_SELECTION_LOCKED:
+    if not TREE_SELECTION_LOCKED or not backup or not backup.is_running():
         progress.start_indeterminate()
+
+        # If analysis was run, and selection locked, unlock it
+        if TREE_SELECTION_LOCKED:
+            TREE_SELECTION_LOCKED = False
 
         selected = tree_source.selection()
 
@@ -1310,9 +1315,14 @@ def select_dest():
     global prev_selection
     global prev_dest_selection
     global dest_select_bind
+    global TREE_SELECTION_LOCKED
 
-    if not TREE_SELECTION_LOCKED:
+    if not TREE_SELECTION_LOCKED or not backup or not backup.is_running():
         progress.start_indeterminate()
+
+        # If analysis was run, and selection locked, unlock it
+        if TREE_SELECTION_LOCKED:
+            TREE_SELECTION_LOCKED = False
 
         dest_selection = tree_dest.selection()
 

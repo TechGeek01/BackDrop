@@ -856,9 +856,10 @@ class Backup:
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
             self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'normal'})
 
-            # URGENT: Add halt flag check for unlocking tree selection
-            if False:
+            # If thread halted, mark analysis as invalid
+            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                 self.update_ui_component_fn(Status.UNLOCK_TREE_SELECTION)
+                self.analysis_valid = False
 
             self.progress.stop_indeterminate()
 
