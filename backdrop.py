@@ -42,7 +42,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.3-beta.2'
+APP_VERSION = '3.1.3-rc.1'
 
 # Set constants
 DRIVE_TYPE_LOCAL = 3
@@ -1853,7 +1853,8 @@ config = {
     'sources': [],
     'destinations': [],
     'missing_drives': {},
-    'cli_mode': CLI_MODE
+    'cli_mode': CLI_MODE,
+    'allow_prereleases': prefs.get('ui', 'allow_prereleases', default=False, data_type=Config.BOOLEAN)
 }
 dest_drive_master_list = []
 
@@ -1901,6 +1902,7 @@ if CLI_MODE:
     elif command_line.has_param('update'):
         update_handler = UpdateHandler(
             current_version=APP_VERSION,
+            allow_prereleases=config['allow_prereleases'],
             update_callback=check_for_updates
         )
         update_handler.check()
@@ -3113,6 +3115,7 @@ file_detail_list = {
 if not CLI_MODE:
     update_handler = UpdateHandler(
         current_version=APP_VERSION,
+        allow_prereleases=config['allow_prereleases'],
         status_change_fn=update_status_bar_update,
         update_callback=check_for_updates
     )
@@ -3353,8 +3356,8 @@ if not CLI_MODE:
 
     # Actions menu
     actions_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
-    actions_menu.add_command(label='Verify Data Integrity on Selected Drives', underline=0, command=start_verify_data_from_hash_list)
-    actions_menu.add_command(label='Delete Config from Selected Drives', command=delete_config_file_from_selected_drives)
+    actions_menu.add_command(label='Verify Data Integrity on Selected Destinations', underline=0, command=start_verify_data_from_hash_list)
+    actions_menu.add_command(label='Delete Config from Selected Destinations', command=delete_config_file_from_selected_drives)
     menubar.add_cascade(label='Actions', underline=0, menu=actions_menu)
 
     # Tools menu
@@ -3381,6 +3384,8 @@ if not CLI_MODE:
         name='Update Check',
         daemon=True
     ))
+    settings_allow_prerelease_updates = tk.BooleanVar(value=config['allow_prereleases'])
+    help_menu.add_checkbutton(label='Allow Prereleases', onvalue=True, offvalue=False, variable=settings_allow_prerelease_updates, command=lambda: prefs.set('ui', 'allow_prereleases', settings_allow_prerelease_updates.get()))
     menubar.add_cascade(label='Help', underline=0, menu=help_menu)
 
     def toggle_file_details_with_hotkey():

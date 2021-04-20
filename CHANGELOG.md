@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Added status bar backup halt indicator if verification doesn't allow an immediate halt
 - Made main window resizable
+- Added option to update to prerelease versions
 
 ### Fixed
 - Fixed button styling

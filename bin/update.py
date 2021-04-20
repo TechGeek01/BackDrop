@@ -4,15 +4,17 @@ import re
 from bin.status import Status
 
 class UpdateHandler:
-    def __init__(self, current_version, update_callback, status_change_fn=None):
+    def __init__(self, current_version, update_callback, allow_prereleases=False, status_change_fn=None):
         """
         Args:
             current_version (String): The current version of the program.
             update_callback (def): The function to call with update results.
+            allow_prereleases (bool): Whether to included prerelease versions (default: False).
             status_change_fn (def): The function to call when changing status.
         """
 
         self.current_version = current_version
+        self.allow_prereleases = bool(allow_prereleases)
 
         if status_change_fn is not None:
             self.status_change_fn = status_change_fn
@@ -30,8 +32,12 @@ class UpdateHandler:
             dict.download (String[]): A list of URLs for all assets.
         """
 
-        response = requests.get('https://api.github.com/repos/TechGeek01/BackDrop/releases/latest')
-        json_response = response.json()
+        if self.allow_prereleases:
+            response = requests.get('https://api.github.com/repos/TechGeek01/BackDrop/releases')
+            json_response = response.json()[0]
+        else:
+            response = requests.get('https://api.github.com/repos/TechGeek01/BackDrop/releases/latest')
+            json_response = response.json()
 
         return {
             'latest': json_response['tag_name'],
