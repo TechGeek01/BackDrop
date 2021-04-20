@@ -175,12 +175,6 @@ class Backup:
         share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
         all_share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
 
-        self.analysis_summary_display_fn(
-            title='Source',
-            payload=[(share['dest_name'], human_filesize(share['size'])) for share in self.config['sources']],
-            reset=True
-        )
-
         # Get hash list for all drives
         bad_hash_files = []
         self.file_hashes = {drive['name']: {} for drive in self.config['destinations']}
@@ -250,11 +244,6 @@ class Backup:
             drive_share_list[drive['vid']] = []
 
             show_drive_info.append((current_drive_info['name'], human_filesize(drive['capacity']), drive_connected))
-
-        self.analysis_summary_display_fn(
-            title='Destination',
-            payload=show_drive_info
-        )
 
         # For each drive, smallest first, filter list of shares to those that fit
         drive_info.sort(key=lambda x: x['free'])
