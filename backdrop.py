@@ -397,13 +397,11 @@ def display_backup_summary_chunk(title, payload, reset=False):
 
     if not CLI_MODE:
         if reset:
-            backup_summary_text_canvas.yview_moveto(0)
-            for widget in backup_summary_text_frame.winfo_children():
-                widget.destroy()
+            backup_summary_text.empty()
 
-        tk.Label(backup_summary_text_frame, text=title, font=(None, 14),
+        tk.Label(backup_summary_text.frame, text=title, font=(None, 14),
                  wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
-        summary_frame = tk.Frame(backup_summary_text_frame)
+        summary_frame = tk.Frame(backup_summary_text.frame)
         summary_frame.pack(fill='x', expand=True)
         summary_frame.columnconfigure(2, weight=1)
 
@@ -616,9 +614,7 @@ def reset_ui():
 
     if not CLI_MODE:
         # Empty backup summary pane
-        backup_summary_text_canvas.yview_moveto(0)
-        for widget in backup_summary_text_frame.winfo_children():
-            widget.destroy()
+        backup_summary_text.empty()
 
         # Reset ETA counter
         backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=uicolor.NORMAL)
@@ -3747,20 +3743,14 @@ if not CLI_MODE:
     tk.Label(backup_summary_frame, text='Analysis Summary', font=(None, 20)).pack()
 
     # Add placeholder to backup analysis
-    backup_summary_text_canvas = tk.Canvas(backup_summary_frame)
-    backup_summary_scrollbar = tk.Scrollbar(root, orient='vertical', command=backup_summary_text_canvas.yview)
-    backup_summary_text_frame = ttk.Frame(backup_summary_text_canvas)
-    backup_summary_text_frame.bind('<Configure>', lambda e: backup_summary_text_canvas.configure(
-        scrollregion=backup_summary_text_canvas.bbox('all')
-    ))
-    backup_summary_text_canvas.create_window((0, 0), window=backup_summary_text_frame, anchor='nw')
-    backup_summary_text_canvas.configure(yscrollcommand=backup_summary_scrollbar.set)
-    backup_summary_text_canvas.pack(fill='both', expand=1)
+    backup_summary_scrollbar = tk.Scrollbar(root, orient='vertical')
     backup_summary_scrollbar.grid(row=0, column=1, sticky='ns')
-    tk.Label(backup_summary_text_frame, text='This area will summarize the backup that\'s been configured.',
-             wraplength=backup_summary_text_canvas.winfo_width() - 2, justify='left').pack(anchor='w')
-    tk.Label(backup_summary_text_frame, text='Please start a backup analysis to generate a summary.',
-             wraplength=backup_summary_text_canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+    backup_summary_text = ScrollableFrame(backup_summary_frame, scrollbar=backup_summary_scrollbar)
+    backup_summary_text.pack(fill='both', expand=1)
+    tk.Label(backup_summary_text.frame, text='This area will summarize the backup that\'s been configured.',
+             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+    tk.Label(backup_summary_text.frame, text='Please start a backup analysis to generate a summary.',
+             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
     backup_summary_button_frame = tk.Frame(backup_summary_frame)
     backup_summary_button_frame.pack(pady=WINDOW_ELEMENT_PADDING / 2)
     start_analysis_btn = ttk.Button(backup_summary_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
