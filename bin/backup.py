@@ -169,7 +169,7 @@ class Backup:
             self.progress.start_indeterminate()
             self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
-            self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'disable'})
+            self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_START)
             self.update_ui_component_fn(Status.LOCK_TREE_SELECTION)
 
         share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
@@ -224,6 +224,9 @@ class Backup:
         connected_vid_list = [drive['vid'] for drive in self.config['destinations']]
         show_drive_info = []
         for i, drive in enumerate(master_drive_list):
+            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                break
+
             drive_connected = drive['vid'] in connected_vid_list
 
             current_drive_info = drive
@@ -261,6 +264,9 @@ class Backup:
             processed_small_sources = []
             processed_source_size = 0
             while len(processed_small_sources) < len(total_small_sources):
+                if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                    break
+
                 # Trim the list of small files to those that aren't already processed
                 small_source_list = {source: size for (source, size) in total_small_sources.items() if source not in processed_small_sources}
                 small_source_list = sorted(small_source_list.items(), key=lambda x: x[1], reverse=True)
@@ -285,6 +291,9 @@ class Backup:
 
                 # Subtract file size of each batch of files from the free space on the drive so the next batch sorts properly
                 processed_source_size += sum([source[1] for source in small_source_list if source[0] in largest_set])
+
+            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                break
 
             # If not all shares fit on smallest drive at once (at least one share has to be put
             # on the next largest drive), check free space on next largest drive
@@ -340,6 +349,8 @@ class Backup:
 
             try:
                 for entry in os.scandir(share_path):
+                    if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                        break
                     if entry.is_file():
                         new_dir_size = entry.stat().st_size
                     elif entry.is_dir():
@@ -364,6 +375,9 @@ class Backup:
                 processed_small_files = []
                 processed_file_size = 0
                 while len(processed_small_files) < len(total_small_files):
+                    if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                        break
+
                     # Trim the list of small files to those that aren't already processed
                     small_file_list = {file: size for (file, size) in total_small_files.items() if file not in processed_small_files}
 
@@ -402,6 +416,12 @@ class Backup:
                     # Subtract file size of each batch of files from the free space on the drive so the next batch sorts properly
                     processed_file_size += sum([size for (file, size) in small_file_list.items() if file in largest_set])
 
+                if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                    break
+
+            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                return
+
                 # Assign files to drive, and subtract filesize from free space
                 # Since we're sorting by largest free space first, there's no cases to move
                 # to a larger drive. This means all files that can fit should be put on the
@@ -430,9 +450,15 @@ class Backup:
             if os.path.exists(share_path) and os.path.isdir(share_path):
                 summary = split_share(share)
 
+                if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                    break
+
                 # Build exclusion list for other drives\
                 # This is done by "inverting" the file list for each drive into a list of exclusions for other drives
                 for directory in summary:
+                    if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                        break
+
                     file_list = directory['files']
 
                     for drive, files in file_list.items():
@@ -442,6 +468,9 @@ class Backup:
                 # Each summary contains a split share, and any split subfolders, starting with
                 # the share and recursing into the directories
                 for directory in summary:
+                    if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                        break
+
                     share_name = directory['share']
                     share_files = directory['files']
                     share_exclusions = directory['exclusions']
@@ -467,6 +496,9 @@ class Backup:
                             drive_exclusions[self.DRIVE_VID_INFO[drive]['name']].extend([os.path.join(share_name, file) for file in master_exclusions])
                             drive_share_list[drive].append(share_name)
 
+            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                break
+
         def recurse_file_list(directory):
             """Get a complete list of files in a directory.
 
@@ -476,6 +508,9 @@ class Backup:
             Returns:
                 String[]: The file list.
             """
+
+            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                return []
 
             file_list = []
             try:
@@ -530,6 +565,9 @@ class Backup:
                 shares_to_process = [share for share in shares if share == path or path.find(share + os.path.sep) == 0]
 
                 for entry in os.scandir(os.path.join(drive, path)):
+                    if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                        return file_list
+
                     stub_path = entry.path[len(drive):].strip(os.path.sep)
 
                     # For each entry, either add filesize to the total, or recurse into the directory
@@ -642,6 +680,9 @@ class Backup:
                     # Check if directory has files
                     if len(os.listdir(source_path)) > 0:
                         for entry in os.scandir(source_path):
+                            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                                return file_list
+
                             stub_path = entry.path[len(share_path):].strip(os.path.sep)
                             exclusion_stub_path = os.path.join(share, stub_path)
                             target_path = os.path.join(drive, share, stub_path)
@@ -690,6 +731,9 @@ class Backup:
             }
 
             for share in shares:
+                if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                    break
+
                 file_list['new'].extend(scan_share_source_for_new_files(drive, share, path, exclusions, shares)['new'])
 
             return file_list
@@ -703,6 +747,8 @@ class Backup:
         display_purge_command_list = []
         display_copy_command_list = []
         for drive, shares in drive_share_list.items():
+            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                break
             modified_file_list = build_delta_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])
 
             delete_items = modified_file_list['delete']
@@ -780,6 +826,8 @@ class Backup:
         # Gather and summarize totals for analysis summary
         show_file_info = []
         for i, drive in enumerate(drive_share_list.keys()):
+            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                break
             file_summary = []
             drive_total = {
                 'running': 0,
@@ -825,42 +873,46 @@ class Backup:
             if len(file_summary) > 0:
                 show_file_info.append((self.DRIVE_VID_INFO[drive]['name'], '\n'.join(file_summary)))
 
-        self.analysis_summary_display_fn(
-            title='Files',
-            payload=show_file_info
-        )
+        if not self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+            self.analysis_summary_display_fn(
+                title='Files',
+                payload=show_file_info
+            )
 
-        # Concat both lists into command list
-        self.command_list = [cmd for cmd in purge_command_list]
-        self.command_list.extend([cmd for cmd in copy_command_list])
+            # Concat both lists into command list
+            self.command_list = [cmd for cmd in purge_command_list]
+            self.command_list.extend([cmd for cmd in copy_command_list])
 
-        # Concat lists into display command list
-        display_command_list = [cmd for cmd in display_purge_command_list]
-        display_command_list.extend([cmd for cmd in display_copy_command_list])
+            # Concat lists into display command list
+            display_command_list = [cmd for cmd in display_purge_command_list]
+            display_command_list.extend([cmd for cmd in display_copy_command_list])
 
-        # Fix display index on command list
-        for i, cmd in enumerate(self.command_list):
-            self.command_list[i]['displayIndex'] = i
+            # Fix display index on command list
+            for i, cmd in enumerate(self.command_list):
+                self.command_list[i]['displayIndex'] = i
 
-        self.analysis_summary_display_fn(
-            title='Summary',
-            payload=[(self.DRIVE_VID_INFO[drive]['name'], '\n'.join(shares), drive in connected_vid_list) for drive, shares in drive_share_list.items()]
-        )
+            self.analysis_summary_display_fn(
+                title='Summary',
+                payload=[(self.DRIVE_VID_INFO[drive]['name'], '\n'.join(shares), drive in connected_vid_list) for drive, shares in drive_share_list.items()]
+            )
 
-        self.display_backup_command_info_fn(display_command_list)
+            self.display_backup_command_info_fn(display_command_list)
 
-        self.analysis_valid = True
+            self.analysis_valid = True
+
+            if not self.CLI_MODE:
+                self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
+                self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
+                self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
+        else:
+            # If thread halted, mark analysis as invalid
+            if not self.CLI_MODE:
+                self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
+                self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
+                self.update_ui_component_fn(Status.RESET_ANALYSIS_OUTPUT)
+                self.update_ui_component_fn(Status.UNLOCK_TREE_SELECTION)
 
         if not self.CLI_MODE:
-            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
-            self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
-            self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_BTN, {'state': 'normal'})
-
-            # If thread halted, mark analysis as invalid
-            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
-                self.update_ui_component_fn(Status.UNLOCK_TREE_SELECTION)
-                self.analysis_valid = False
-
             self.progress.stop_indeterminate()
 
         self.analysis_running = False

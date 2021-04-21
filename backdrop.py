@@ -637,6 +637,12 @@ def reset_ui():
         file_details_copied.empty()
         file_details_failed.empty()
 
+def request_kill_analysis():
+    """Kill a running analysis."""
+
+    statusbar_action.configure(text='Stopping analysis')
+    thread_manager.kill('Backup Analysis')
+
 def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
 
@@ -844,6 +850,15 @@ def change_source_drive(selection):
             or (settings_showDrives_source_network.get() and settings_showDrives_dest_network.get())):  # Network selected
         load_dest_in_background()
 
+def reset_analysis_output():
+    backup_summary_text.empty()
+    backup_activity_frame.empty()
+
+    tk.Label(backup_summary_text.frame, text='This area will summarize the backup that\'s been configured.',
+             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+    tk.Label(backup_summary_text.frame, text='Please start a backup analysis to generate a summary.',
+             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+
 # IDEA: @Calculate total space of all @shares in background
 prev_source_selection = []
 def select_source():
@@ -946,6 +961,7 @@ def select_source():
         # If analysis was run, and selection locked, unlock it
         if TREE_SELECTION_LOCKED:
             TREE_SELECTION_LOCKED = False
+            reset_analysis_output()
 
         selected = tree_source.selection()
 
@@ -1323,6 +1339,7 @@ def select_dest():
         # If analysis was run, and selection locked, unlock it
         if TREE_SELECTION_LOCKED:
             TREE_SELECTION_LOCKED = False
+            reset_analysis_output()
 
         dest_selection = tree_dest.selection()
 
@@ -2341,8 +2358,9 @@ def update_status_bar_action(status):
     elif status == Status.BACKUP_ANALYSIS_RUNNING:
         statusbar_action.configure(text='Analysis running')
     elif status == Status.BACKUP_READY_FOR_BACKUP:
-        statusbar_action.configure(text='Analysis finished, ready for backup')
         backup_eta_label.configure(text='Analysis finished, ready for backup', fg=uicolor.NORMAL)
+    elif status == Status.BACKUP_READY_FOR_ANALYSIS:
+        backup_eta_label.configure(text='Please start a backup to show ETA', fg=uicolor.NORMAL)
     elif status == Status.BACKUP_BACKUP_RUNNING:
         statusbar_action.configure(text='Backup running')
     elif status == Status.BACKUP_HALT_REQUESTED:
@@ -2386,6 +2404,12 @@ def update_ui_component(status, data=None):
         start_analysis_btn.configure(**data)
     elif status == Status.UPDATEUI_BACKUP_BTN:
         start_backup_btn.configure(**data)
+    elif status == Status.UPDATEUI_ANALYSIS_START:
+        update_status_bar_action(Status.BACKUP_BACKUP_RUNNING)
+        start_analysis_btn.configure(text='Halt Analysis', command=request_kill_analysis, style='danger.TButton')
+    elif status == Status.UPDATEUI_ANALYSIS_END:
+        update_status_bar_action(Status.IDLE)
+        start_analysis_btn.configure(text='Analyze', command=start_backup_analysis, style='TButton')
     elif status == Status.UPDATEUI_BACKUP_START:
         update_status_bar_action(Status.BACKUP_BACKUP_RUNNING)
         start_analysis_btn.configure(state='disabled')
@@ -2396,6 +2420,8 @@ def update_ui_component(status, data=None):
         start_backup_btn.configure(text='Run Backup', command=start_backup, style='TButton')
     elif status == Status.UPDATEUI_STATUS_BAR:
         update_status_bar_action(data)
+    elif status == Status.RESET_ANALYSIS_OUTPUT:
+        reset_analysis_output()
     elif status == Status.UNLOCK_TREE_SELECTION:
         TREE_SELECTION_LOCKED = False
     elif status == Status.LOCK_TREE_SELECTION:
@@ -3808,10 +3834,7 @@ if not CLI_MODE:
     backup_summary_scrollbar.grid(row=0, column=1, sticky='ns')
     backup_summary_text = ScrollableFrame(backup_summary_frame, scrollbar=backup_summary_scrollbar)
     backup_summary_text.pack(fill='both', expand=1)
-    tk.Label(backup_summary_text.frame, text='This area will summarize the backup that\'s been configured.',
-             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
-    tk.Label(backup_summary_text.frame, text='Please start a backup analysis to generate a summary.',
-             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+    reset_analysis_output()
     backup_summary_button_frame = tk.Frame(backup_summary_frame)
     backup_summary_button_frame.pack(pady=WINDOW_ELEMENT_PADDING / 2)
     start_analysis_btn = ttk.Button(backup_summary_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
