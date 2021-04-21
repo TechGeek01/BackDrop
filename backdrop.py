@@ -830,7 +830,8 @@ def load_source():
 def load_source_in_background():
     """Start a source refresh in a new thread."""
 
-    thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_source, name='Load Source', daemon=True)
+    if not TREE_SELECTION_LOCKED and not thread_manager.is_alive('Refresh Source'):
+        thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
 
 def change_source_drive(selection):
     """Change the source drive to pull shares from to a new selection.
@@ -1186,8 +1187,8 @@ def load_dest_in_background():
 
     # URGENT: Make load_dest and load_source replaceable, and in theor own class
     # URGENT: Invalidate load_source or load_dest if tree gets refreshed via some class def call
-    if not thread_manager.is_alive('Refresh destination'):
-        thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh destination', daemon=True)
+    if not TREE_SELECTION_LOCKED and not thread_manager.is_alive('Refresh Destination'):
+        thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
 
 def gui_select_from_config():
     """From the current config, select the appropriate shares and drives in the GUI."""
@@ -3138,8 +3139,8 @@ def change_dest_mode():
         config['dest_mode'] = settings_destMode.get()
         PREV_DEST_MODE = settings_destMode.get()
 
-    if not thread_manager.is_alive('Refresh destination'):
-        thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh destination', daemon=True)
+    if not thread_manager.is_alive('Refresh Destination'):
+        thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
 
 def change_source_type(toggle_type):
     """Change the drive types for source selection.
