@@ -736,6 +736,7 @@ def get_source_drive_list():
 def load_source():
     """Load the source drive and share lists, and display shares in the tree."""
 
+    global PREV_SOURCE_DRIVE
     global source_avail_drive_list
 
     if not CLI_MODE:
@@ -772,6 +773,7 @@ def load_source():
                 source_select_single_frame.pack()
 
                 source_drive_default.set(config['source_drive'])
+                PREV_SOURCE_DRIVE = config['source_drive']
                 source_select_menu.config(state='normal')
                 source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
 
@@ -837,9 +839,23 @@ def change_source_drive(selection):
         selection (String): The selection to set as the default.
     """
 
+    global PREV_SOURCE_DRIVE
+    global TREE_SELECTION_LOCKED
+    global LOCK_TREE_SELECTION
     global config
 
+    # If backup is running, ignore request to change
+    if backup and backup.is_running():
+        source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
+        return
+
+    # Iff analysis is valid, invalidate it
+    if LOCK_TREE_SELECTION:
+        LOCK_TREE_SELECTION = False
+        reset_analysis_output()
+
     config['source_drive'] = selection
+    PREV_SOURCE_DRIVE = selection
     prefs.set('selection', 'source_drive', selection)
 
     load_source_in_background()
@@ -3016,6 +3032,17 @@ def change_source_mode():
     global source_right_click_bind
     global WINDOW_MIN_WIDTH
     global PREV_SOURCE_MODE
+    global LOCK_TREE_SELECTION
+
+    # If backup is running, ignore request to change
+    if backup and backup.is_running():
+        settings_sourceMode.set(PREV_SOURCE_MODE)
+        return
+
+    # If analysis is valid, invalidate it
+    if LOCK_TREE_SELECTION:
+        LOCK_TREE_SELECTION = False
+        reset_analysis_output()
 
     prefs.set('selection', 'source_mode', settings_sourceMode.get())
     root_geom = root.geometry().split('+')
@@ -3075,6 +3102,18 @@ def change_dest_mode():
     """Change the mode for destination selection."""
 
     global dest_right_click_bind
+    global PREV_DEST_MODE
+    global LOCK_TREE_SELECTION
+
+    # If backup is running, ignore request to change
+    if backup and backup.is_running():
+        settings_destMode.set(PREV_DEST_MODE)
+        return
+
+    # If analysis is valid, invalidate it
+    if LOCK_TREE_SELECTION:
+        LOCK_TREE_SELECTION = False
+        reset_analysis_output()
 
     prefs.set('selection', 'dest_mode', settings_destMode.get())
 
@@ -3087,6 +3126,7 @@ def change_dest_mode():
         tree_dest.unbind('<Button-3>', dest_right_click_bind)
 
         config['dest_mode'] = settings_destMode.get()
+        PREV_DEST_MODE = settings_destMode.get()
     elif settings_destMode.get() == Config.DEST_MODE_PATHS:
         tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
         tree_dest.column('vid', width=140)
@@ -3096,6 +3136,7 @@ def change_dest_mode():
         dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
 
         config['dest_mode'] = settings_destMode.get()
+        PREV_DEST_MODE = settings_destMode.get()
 
     if not thread_manager.is_alive('Refresh destination'):
         thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh destination', daemon=True)
@@ -3106,6 +3147,21 @@ def change_source_type(toggle_type):
     Args:
         toggle_type (int): The drive type to toggle.
     """
+
+    global PREV_LOCAL_SOURCE_DRIVE
+    global PREV_NETWORK_SOURCE_DRIVE
+    global LOCK_TREE_SELECTION
+
+    # If backup is running, ignore request to change
+    if backup and backup.is_running():
+        settings_showDrives_source_local.set(PREV_LOCAL_SOURCE_DRIVE)
+        settings_showDrives_source_network.set(PREV_NETWORK_SOURCE_DRIVE)
+        return
+
+    # If analysis is valid, invalidate it
+    if LOCK_TREE_SELECTION:
+        LOCK_TREE_SELECTION = False
+        reset_analysis_output()
 
     selected_local = settings_showDrives_source_local.get()
     selected_network = settings_showDrives_source_network.get()
@@ -3118,6 +3174,8 @@ def change_source_type(toggle_type):
         elif toggle_type == DRIVE_TYPE_REMOTE:
             settings_showDrives_source_network.set(True)
 
+    PREV_LOCAL_SOURCE_DRIVE = settings_showDrives_source_local.get()
+    PREV_NETWORK_SOURCE_DRIVE = settings_showDrives_source_network.get()
     prefs.set('selection', 'source_network_drives', settings_showDrives_source_network.get())
     prefs.set('selection', 'source_local_drives', settings_showDrives_source_local.get())
 
@@ -3130,6 +3188,21 @@ def change_destination_type(toggle_type):
         toggle_type (int): The drive type to toggle.
     """
 
+    global PREV_LOCAL_DEST_DRIVE
+    global PREV_NETWORK_DEST_DRIVE
+    global LOCK_TREE_SELECTION
+
+    # If backup is running, ignore request to change
+    if backup and backup.is_running():
+        settings_showDrives_dest_local.set(PREV_LOCAL_DEST_DRIVE)
+        settings_showDrives_dest_network.set(PREV_NETWORK_DEST_DRIVE)
+        return
+
+    # If analysis is valid, invalidate it
+    if LOCK_TREE_SELECTION:
+        LOCK_TREE_SELECTION = False
+        reset_analysis_output()
+
     selected_local = settings_showDrives_dest_local.get()
     selected_network = settings_showDrives_dest_network.get()
 
@@ -3141,6 +3214,8 @@ def change_destination_type(toggle_type):
         elif toggle_type == DRIVE_TYPE_REMOTE:
             settings_showDrives_dest_network.set(True)
 
+    PREV_LOCAL_DEST_DRIVE = settings_showDrives_dest_local.get()
+    PREV_NETWORK_DEST_DRIVE = settings_showDrives_dest_network.get()
     prefs.set('selection', 'destination_network_drives', settings_showDrives_dest_network.get())
     prefs.set('selection', 'destination_local_drives', settings_showDrives_dest_local.get())
 
@@ -3404,10 +3479,14 @@ if not CLI_MODE:
     selection_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN))
     settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN))
+    PREV_NETWORK_SOURCE_DRIVE = settings_showDrives_source_network.get()
+    PREV_LOCAL_SOURCE_DRIVE = settings_showDrives_source_local.get()
     selection_menu.add_checkbutton(label='Source Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=lambda: change_source_type(DRIVE_TYPE_REMOTE))
     selection_menu.add_checkbutton(label='Source Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=lambda: change_source_type(DRIVE_TYPE_LOCAL))
     settings_showDrives_dest_network = tk.BooleanVar(value=prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
     settings_showDrives_dest_local = tk.BooleanVar(value=prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
+    PREV_NETWORK_DEST_DRIVE = settings_showDrives_dest_network.get()
+    PREV_LOCAL_DEST_DRIVE = settings_showDrives_dest_local.get()
     selection_menu.add_checkbutton(label='Destination Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE))
     selection_menu.add_checkbutton(label='Destination Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL))
     selection_menu.add_separator()
@@ -3422,6 +3501,7 @@ if not CLI_MODE:
     selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
     selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
     settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=Config.DEST_MODE_OPTIONS, default=Config.DEST_MODE_DRIVES))
+    PREV_DEST_MODE = settings_destMode.get()
     selection_dest_mode_menu.add_checkbutton(label='Drives', onvalue=Config.DEST_MODE_DRIVES, offvalue=Config.DEST_MODE_DRIVES, variable=settings_destMode, command=change_dest_mode)
     selection_dest_mode_menu.add_checkbutton(label='Paths', onvalue=Config.DEST_MODE_PATHS, offvalue=Config.DEST_MODE_PATHS, variable=settings_destMode, command=change_dest_mode)
     selection_menu.add_cascade(label='Destination Mode', underline=0, menu=selection_dest_mode_menu)
@@ -3554,6 +3634,7 @@ if not CLI_MODE:
 
     source_select_single_frame = tk.Frame(source_select_frame)
     tk.Label(source_select_single_frame, text='Source:').pack(side='left')
+    PREV_SOURCE_DRIVE = source_drive_default
     source_select_menu = ttk.OptionMenu(source_select_single_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
     source_select_menu['menu'].config(selectcolor=uicolor.FG)
     source_select_menu.pack(side='left', padx=(12, 0))
