@@ -411,11 +411,11 @@ def display_backup_summary_chunk(title, payload, reset=False):
             else:
                 text_color = uicolor.NORMAL
 
-            tk.Label(summary_frame, text=item[0], fg=text_color).grid(row=i, column=0, sticky='w')
-            tk.Label(summary_frame, text='\u27f6', fg=text_color).grid(row=i, column=1, sticky='w')
+            tk.Label(summary_frame, text=item[0], fg=text_color, justify='left').grid(row=i, column=0, sticky='w')
+            tk.Label(summary_frame, text='\u27f6', fg=text_color, justify='left').grid(row=i, column=1, sticky='w')
             wrap_frame = tk.Frame(summary_frame)
             wrap_frame.grid(row=i, column=2, sticky='ew')
-            tk.Label(summary_frame, text=item[1], fg=text_color).grid(row=i, column=2, sticky='w')
+            tk.Label(summary_frame, text=item[1], fg=text_color, justify='left').grid(row=i, column=2, sticky='w')
     else:
         print(f"\n{title}")
 
