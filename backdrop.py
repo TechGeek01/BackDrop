@@ -2422,7 +2422,7 @@ def update_ui_component(status, data=None):
     elif status == Status.UPDATEUI_BACKUP_BTN:
         start_backup_btn.configure(**data)
     elif status == Status.UPDATEUI_ANALYSIS_START:
-        update_status_bar_action(Status.BACKUP_BACKUP_RUNNING)
+        update_status_bar_action(Status.BACKUP_ANALYSIS_RUNNING)
         start_analysis_btn.configure(text='Halt Analysis', command=request_kill_analysis, style='danger.TButton')
     elif status == Status.UPDATEUI_ANALYSIS_END:
         update_status_bar_action(Status.IDLE)
