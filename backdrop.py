@@ -842,7 +842,7 @@ def change_source_drive(selection):
 
     global PREV_SOURCE_DRIVE
     global TREE_SELECTION_LOCKED
-    global LOCK_TREE_SELECTION
+    global TREE_SELECTION_LOCKED
     global config
 
     # If backup is running, ignore request to change
@@ -851,8 +851,8 @@ def change_source_drive(selection):
         return
 
     # Iff analysis is valid, invalidate it
-    if LOCK_TREE_SELECTION:
-        LOCK_TREE_SELECTION = False
+    if TREE_SELECTION_LOCKED:
+        TREE_SELECTION_LOCKED = False
         reset_analysis_output()
 
     config['source_drive'] = selection
@@ -2439,9 +2439,9 @@ def update_ui_component(status, data=None):
         update_status_bar_action(data)
     elif status == Status.RESET_ANALYSIS_OUTPUT:
         reset_analysis_output()
-    elif status == Status.UNLOCK_TREE_SELECTION:
+    elif status == Status.UNTREE_SELECTION_LOCKED:
         TREE_SELECTION_LOCKED = False
-    elif status == Status.LOCK_TREE_SELECTION:
+    elif status == Status.TREE_SELECTION_LOCKED:
         TREE_SELECTION_LOCKED = True
 
 def open_config_file():
@@ -3033,7 +3033,7 @@ def change_source_mode():
     global source_right_click_bind
     global WINDOW_MIN_WIDTH
     global PREV_SOURCE_MODE
-    global LOCK_TREE_SELECTION
+    global TREE_SELECTION_LOCKED
 
     # If backup is running, ignore request to change
     if backup and backup.is_running():
@@ -3041,8 +3041,8 @@ def change_source_mode():
         return
 
     # If analysis is valid, invalidate it
-    if LOCK_TREE_SELECTION:
-        LOCK_TREE_SELECTION = False
+    if TREE_SELECTION_LOCKED:
+        TREE_SELECTION_LOCKED = False
         reset_analysis_output()
 
     prefs.set('selection', 'source_mode', settings_sourceMode.get())
@@ -3104,7 +3104,7 @@ def change_dest_mode():
 
     global dest_right_click_bind
     global PREV_DEST_MODE
-    global LOCK_TREE_SELECTION
+    global TREE_SELECTION_LOCKED
 
     # If backup is running, ignore request to change
     if backup and backup.is_running():
@@ -3112,8 +3112,8 @@ def change_dest_mode():
         return
 
     # If analysis is valid, invalidate it
-    if LOCK_TREE_SELECTION:
-        LOCK_TREE_SELECTION = False
+    if TREE_SELECTION_LOCKED:
+        TREE_SELECTION_LOCKED = False
         reset_analysis_output()
 
     prefs.set('selection', 'dest_mode', settings_destMode.get())
@@ -3151,7 +3151,7 @@ def change_source_type(toggle_type):
 
     global PREV_LOCAL_SOURCE_DRIVE
     global PREV_NETWORK_SOURCE_DRIVE
-    global LOCK_TREE_SELECTION
+    global TREE_SELECTION_LOCKED
 
     # If backup is running, ignore request to change
     if backup and backup.is_running():
@@ -3160,8 +3160,8 @@ def change_source_type(toggle_type):
         return
 
     # If analysis is valid, invalidate it
-    if LOCK_TREE_SELECTION:
-        LOCK_TREE_SELECTION = False
+    if TREE_SELECTION_LOCKED:
+        TREE_SELECTION_LOCKED = False
         reset_analysis_output()
 
     selected_local = settings_showDrives_source_local.get()
@@ -3191,7 +3191,7 @@ def change_destination_type(toggle_type):
 
     global PREV_LOCAL_DEST_DRIVE
     global PREV_NETWORK_DEST_DRIVE
-    global LOCK_TREE_SELECTION
+    global TREE_SELECTION_LOCKED
 
     # If backup is running, ignore request to change
     if backup and backup.is_running():
@@ -3200,8 +3200,8 @@ def change_destination_type(toggle_type):
         return
 
     # If analysis is valid, invalidate it
-    if LOCK_TREE_SELECTION:
-        LOCK_TREE_SELECTION = False
+    if TREE_SELECTION_LOCKED:
+        TREE_SELECTION_LOCKED = False
         reset_analysis_output()
 
     selected_local = settings_showDrives_dest_local.get()
