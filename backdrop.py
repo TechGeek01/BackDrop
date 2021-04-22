@@ -2439,9 +2439,9 @@ def update_ui_component(status, data=None):
         update_status_bar_action(data)
     elif status == Status.RESET_ANALYSIS_OUTPUT:
         reset_analysis_output()
-    elif status == Status.UNTREE_SELECTION_LOCKED:
+    elif status == Status.UNLOCK_TREE_SELECTION:
         TREE_SELECTION_LOCKED = False
-    elif status == Status.TREE_SELECTION_LOCKED:
+    elif status == Status.LOCK_TREE_SELECTION:
         TREE_SELECTION_LOCKED = True
 
 def open_config_file():
