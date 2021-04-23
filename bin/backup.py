@@ -976,10 +976,10 @@ class Backup:
             self.progress.set_max(self.totals['master'])
 
             for cmd in self.command_list:
-                self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Pending', fg=self.uicolor.PENDING)
+                self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=self.uicolor.PENDING)
                 if cmd['type'] == 'fileList':
-                    self.cmd_info_blocks[cmd['displayIndex']]['currentFileResult'].configure(text='Pending', fg=self.uicolor.PENDING)
-                self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Pending', fg=self.uicolor.PENDING)
+                    self.cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=self.uicolor.PENDING)
+                self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=self.uicolor.PENDING)
 
         # Write config file to drives
         self.write_config_to_disks()
@@ -993,7 +993,7 @@ class Backup:
         for cmd in self.command_list:
             if cmd['type'] == 'fileList':
                 if not self.CLI_MODE:
-                    self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Running', fg=self.uicolor.RUNNING)
+                    self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Running', fg=self.uicolor.RUNNING)
 
                 if not timer_started:
                     timer_started = True
@@ -1069,15 +1069,15 @@ class Backup:
 
             if self.thread_manager.threadlist['Backup']['killFlag'] and self.totals['running'] < self.totals['master']:
                 if not self.CLI_MODE:
-                    self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Aborted', fg=self.uicolor.STOPPED)
-                    self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Aborted', fg=self.uicolor.STOPPED)
+                    self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Aborted', fg=self.uicolor.STOPPED)
+                    self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Aborted', fg=self.uicolor.STOPPED)
                 else:
                     print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 break
             else:
                 if not self.CLI_MODE:
-                    self.cmd_info_blocks[cmd['displayIndex']]['state'].configure(text='Done', fg=self.uicolor.FINISHED)
-                    self.cmd_info_blocks[cmd['displayIndex']]['lastOutResult'].configure(text='Done', fg=self.uicolor.FINISHED)
+                    self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Done', fg=self.uicolor.FINISHED)
+                    self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Done', fg=self.uicolor.FINISHED)
                 else:
                     print(f"{bcolor.OKGREEN}Backup finished{bcolor.ENDC}")
 

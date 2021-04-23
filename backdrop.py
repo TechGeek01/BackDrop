@@ -33,7 +33,7 @@ from bin.progress import Progress
 from bin.commandline import CommandLine
 from bin.backup import Backup
 from bin.update import UpdateHandler
-from bin.widgets import ScrollableFrame
+from bin.widgets import DetailBlock, ScrollableFrame
 from bin.status import Status
 
 # Platform sanity check
@@ -189,7 +189,7 @@ def copy_file(source_filename, dest_filename, drive_path, callback, gui_options=
 
     if not CLI_MODE:
         cmd_info_blocks = backup.cmd_info_blocks
-        cmd_info_blocks[gui_options['displayIndex']]['currentFileResult'].configure(text=dest_filename, fg=uicolor.NORMAL)
+        cmd_info_blocks[gui_options['displayIndex']].configure('current_file', text=dest_filename, fg=uicolor.NORMAL)
     else:
         print(f"Copying {dest_filename}")
     gui_options['mode'] = 'copy'
@@ -314,19 +314,19 @@ def display_backup_progress(copied, total, gui_options):
         if gui_options['mode'] == 'delete':
             if not CLI_MODE:
                 progress.set(backup_totals['progressBar'])
-                cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"Deleted {gui_options['filename']}", fg=uicolor.NORMAL)
+                cmd_info_blocks[display_index].configure('progress', text=f"Deleted {gui_options['filename']}", fg=uicolor.NORMAL)
             else:
                 print(f"Deleted {gui_options['filename']}")
         elif gui_options['mode'] == 'copy':
             if not CLI_MODE:
                 progress.set(backup_totals['progressBar'])
-                cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.NORMAL)
+                cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.NORMAL)
             else:
                 print(f"{percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
         elif gui_options['mode'] == 'verify':
             if not CLI_MODE:
                 progress.set(backup_totals['progressBar'])
-                cmd_info_blocks[display_index]['lastOutResult'].configure(text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.BLUE)
+                cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.BLUE)
             else:
                 print(f"{bcolor.OKCYAN}Verifying => {percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
 
@@ -478,38 +478,6 @@ def display_backup_command_info(display_command_list):
         display_command_list (dict): The command list to pull data from.
     """
 
-    CMD_INFO_HEADER_FONT = (None, 9, 'bold')
-    CMD_INFO_STATUS_FONT = (None, 9)
-
-    def handle_expand_toggle_click(index):
-        """Toggle the command info for a given indexed command.
-
-        Args:
-            index (int): The index of the command to expand or hide.
-        """
-
-        # Expand only if analysis is not running and the list isn't still being built
-        if not backup.analysis_running:
-            # Check if arrow needs to be expanded
-            if not backup.cmd_info_blocks[index]['infoFrame'].grid_info():
-                # Collapsed turns into expanded
-                backup.cmd_info_blocks[index]['arrow'].configure(image=down_nav_arrow)
-                backup.cmd_info_blocks[index]['infoFrame'].grid(row=1, column=1, sticky='w')
-            else:
-                # Expanded turns into collapsed
-                backup.cmd_info_blocks[index]['arrow'].configure(image=right_nav_arrow)
-                backup.cmd_info_blocks[index]['infoFrame'].grid_forget()
-
-    def copy_chunk_list_to_clipboard(index, item):
-        """Copy a given indexed command to the clipboard.
-
-        Args:
-            index (int): The index of the command to copy.
-            item (String): The name of the list to copy
-        """
-
-        clipboard.copy('\n'.join(backup.cmd_info_blocks[index][item]))
-
     if not CLI_MODE:
         backup_activity_frame.empty()
     else:
@@ -530,54 +498,17 @@ def display_backup_command_info(display_command_list):
         if not CLI_MODE:
             backup_summary_block = {}
 
-            backup_summary_block['mainFrame'] = tk.Frame(backup_activity_frame.frame)
-            backup_summary_block['mainFrame'].pack(anchor='w', expand=1)
-            backup_summary_block['mainFrame'].grid_columnconfigure(1, weight=1)
-
-            # Set up header arrow, trimmed command, and status
-            backup_summary_block['arrow'] = tk.Label(backup_summary_block['mainFrame'], image=right_nav_arrow)
-            backup_summary_block['arrow'].grid(row=0, column=0)
-            backup_summary_block['headLine'] = tk.Frame(backup_summary_block['mainFrame'])
-            backup_summary_block['headLine'].grid(row=0, column=1, sticky='w')
-
-            backup_summary_block['header'] = tk.Label(backup_summary_block['headLine'], text=cmd_header_text, font=CMD_INFO_HEADER_FONT, fg=uicolor.NORMAL if item['enabled'] else uicolor.FADED)
-            backup_summary_block['header'].pack(side='left')
-            backup_summary_block['state'] = tk.Label(backup_summary_block['headLine'], text='Pending' if item['enabled'] else 'Skipped', font=CMD_INFO_STATUS_FONT, fg=uicolor.PENDING if item['enabled'] else uicolor.FADED)
-            backup_summary_block['state'].pack(side='left')
-
-            # Set up info frame
-            backup_summary_block['infoFrame'] = tk.Frame(backup_summary_block['mainFrame'])
+            backup_summary_block = DetailBlock(
+                parent=backup_activity_frame.frame,
+                title=cmd_header_text,
+                right_arrow=right_nav_arrow,
+                down_arrow=down_nav_arrow,
+                backup=backup,
+                uicolor=uicolor
+            )
+            backup_summary_block.pack(anchor='w', expand=1)
 
             if item['type'] == 'fileList':
-                backup_summary_block['fileSizeLine'] = tk.Frame(backup_summary_block['infoFrame'])
-                backup_summary_block['fileSizeLine'].pack(anchor='w')
-                backup_summary_block['fileSizeLineHeader'] = tk.Label(backup_summary_block['fileSizeLine'], text='Total size:', font=CMD_INFO_HEADER_FONT)
-                backup_summary_block['fileSizeLineHeader'].pack(side='left')
-                backup_summary_block['fileSizeLineTotal'] = tk.Label(backup_summary_block['fileSizeLine'], text=human_filesize(item['size']), font=CMD_INFO_STATUS_FONT)
-                backup_summary_block['fileSizeLineTotal'].pack(side='left')
-
-                backup_summary_block['fileListLine'] = tk.Frame(backup_summary_block['infoFrame'])
-                backup_summary_block['fileListLine'].pack(anchor='w')
-                backup_summary_block['fileListLineHeader'] = tk.Label(backup_summary_block['fileListLine'], text='File list:', font=CMD_INFO_HEADER_FONT)
-                backup_summary_block['fileListLineHeader'].pack(side='left')
-                backup_summary_block['fileListLineTooltip'] = tk.Label(backup_summary_block['fileListLine'], text='(Click to copy)', font=CMD_INFO_STATUS_FONT, fg=uicolor.FADED)
-                backup_summary_block['fileListLineTooltip'].pack(side='left')
-                backup_summary_block['fullFileList'] = item['fileList']
-
-                backup_summary_block['currentFileLine'] = tk.Frame(backup_summary_block['infoFrame'])
-                backup_summary_block['currentFileLine'].pack(anchor='w')
-                backup_summary_block['currentFileHeader'] = tk.Label(backup_summary_block['currentFileLine'], text='Current file:', font=CMD_INFO_HEADER_FONT)
-                backup_summary_block['currentFileHeader'].pack(side='left')
-                backup_summary_block['currentFileResult'] = tk.Label(backup_summary_block['currentFileLine'], text='Pending' if item['enabled'] else 'Skipped', font=CMD_INFO_STATUS_FONT, fg=uicolor.PENDING if item['enabled'] else uicolor.FADED)
-                backup_summary_block['currentFileResult'].pack(side='left')
-
-                backup_summary_block['lastOutLine'] = tk.Frame(backup_summary_block['infoFrame'])
-                backup_summary_block['lastOutLine'].pack(anchor='w')
-                backup_summary_block['lastOutHeader'] = tk.Label(backup_summary_block['lastOutLine'], text='Progress:', font=CMD_INFO_HEADER_FONT)
-                backup_summary_block['lastOutHeader'].pack(side='left')
-                backup_summary_block['lastOutResult'] = tk.Label(backup_summary_block['lastOutLine'], text='Pending' if item['enabled'] else 'Skipped', font=CMD_INFO_STATUS_FONT, fg=uicolor.PENDING if item['enabled'] else uicolor.FADED)
-                backup_summary_block['lastOutResult'].pack(side='left')
-
                 # Handle list trimming
                 list_font = tkfont.Font(family=None, size=10, weight='normal')
                 trimmed_file_list = ', '.join(item['fileList'])[:500]
@@ -590,19 +521,12 @@ def display_backup_command_info(display_command_list):
                         actual_file_witdth = list_font.measure(trimmed_file_list + '...')
                     trimmed_file_list = trimmed_file_list + '...'
 
-                backup_summary_block['fileListLineTrimmed'] = tk.Label(backup_summary_block['fileListLine'], text=trimmed_file_list, font=CMD_INFO_STATUS_FONT)
-                backup_summary_block['fileListLineTrimmed'].pack(side='left')
-
-                # Command copy action click
-                backup_summary_block['fileListLineHeader'].bind('<Button-1>', lambda event, index=i: copy_chunk_list_to_clipboard(index, 'fullFileList'))
-                backup_summary_block['fileListLineTooltip'].bind('<Button-1>', lambda event, index=i: copy_chunk_list_to_clipboard(index, 'fullFileList'))
-                backup_summary_block['fileListLineTrimmed'].bind('<Button-1>', lambda event, index=i: copy_chunk_list_to_clipboard(index, 'fullFileList'))
+                backup_summary_block.add_line('file_size', 'Total size', human_filesize(item['size']))
+                backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['fileList']))
+                backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=uicolor.PENDING if item['enabled'] else uicolor.FADED)
+                backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=uicolor.PENDING if item['enabled'] else uicolor.FADED)
 
             backup.cmd_info_blocks.append(backup_summary_block)
-
-            # Header toggle action click
-            backup_summary_block['arrow'].bind('<Button-1>', lambda event, index=i: handle_expand_toggle_click(index))
-            backup_summary_block['header'].bind('<Button-1>', lambda event, index=i: handle_expand_toggle_click(index))
         else:
             print(cmd_header_text)
 
@@ -3909,7 +3833,7 @@ if not CLI_MODE:
     tk.Label(branding_frame, image=image_logo).pack(side='left')
     tk.Label(branding_frame, text=f"v{APP_VERSION}", font=(None, 10), fg=uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
-    tk.Label(backup_summary_frame, text='Analysis Summary', font=(None, 20)).pack()
+    tk.Label(backup_summary_frame, text='Backup Summary', font=(None, 20)).pack()
 
     # Add placeholder to backup analysis
     backup_summary_scrollbar = tk.Scrollbar(root, orient='vertical')
