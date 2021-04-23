@@ -419,15 +419,15 @@ class Backup:
                 if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                     break
 
-            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
-                return
-
                 # Assign files to drive, and subtract filesize from free space
                 # Since we're sorting by largest free space first, there's no cases to move
                 # to a larger drive. This means all files that can fit should be put on the
                 # drive they fit on.
                 drive_file_list[drive['vid']].extend(files_that_fit_on_drive)
                 drive_info[i]['free'] -= processed_file_size
+
+            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                return
 
             share_split_summary = [{
                 'share': share,
