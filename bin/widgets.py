@@ -19,10 +19,10 @@ class ScrollableFrame(tk.Frame):
 
         self.canvas = tk.Canvas(self, *args, **kwargs)
         if scrollbar is None:
-            self.vsb = tk.Scrollbar(self, orient='vertical', command=self.canvas.yview)
+            self.vsb = tk.Scrollbar(self, orient='vertical', command=self.yview)
         else:
             self.vsb = scrollbar
-            self.vsb.configure(command=self.canvas.yview)
+            self.vsb.configure(command=self.yview)
 
         self.frame = ttk.Frame(self.canvas)
         self.frame.bind('<Configure>', lambda e: self.canvas.configure(
@@ -39,7 +39,14 @@ class ScrollableFrame(tk.Frame):
         self.canvas.bind('<Enter>', self._bind_on_enter)
         self.canvas.bind('<Leave>', self._unbind_on_leave)
 
+    def yview(self, *args):
+        if self.canvas.yview() == (0.0, 1.0):
+            return
+        self.canvas.yview(*args)
+
     def _on_mousewheel(self, event):
+        if self.canvas.yview() == (0.0, 1.0):
+            return
         self.canvas.yview_scroll(int(-1 * event.delta / 120), 'units')
 
     def _bind_on_enter(self, event):
