@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 - Backup analysis is now killable
 
 ### Fixed
+- Fixed partially copied files not showing as failed in the GUI
 - Fixed UI alignment
 
 ### Changed

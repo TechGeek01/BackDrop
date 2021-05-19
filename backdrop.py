@@ -281,6 +281,8 @@ def copy_file(source_filename, dest_filename, drive_path, callback, gui_options=
         elif os.path.isdir(dest_filename):
             shutil.rmtree(dest_filename)
 
+        update_file_detail_lists('fail', dest_filename)
+
         return None
 
 def display_backup_progress(copied, total, gui_options):

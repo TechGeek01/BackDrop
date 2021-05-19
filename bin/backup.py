@@ -261,6 +261,7 @@ class Backup:
             # number of combinations to check, we need to keep processing the file list
             # in chunks to make sure we check if all files can be fit on one drive
             sources_that_fit_on_dest = []
+            small_source_list = {}
             processed_small_sources = []
             processed_source_size = 0
             while len(processed_small_sources) < len(total_small_sources):
