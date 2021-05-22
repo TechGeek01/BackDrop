@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 3.1.3-rc.2 - TBD
+## 3.1.3 - 2021-05-21
 ### Added
 - Backup analysis is now killable
 

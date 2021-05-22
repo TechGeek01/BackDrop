@@ -42,7 +42,7 @@ if not platform.system() in ['Windows', 'Linux']:
     exit()
 
 # Set meta info
-APP_VERSION = '3.1.3-rc.2'
+APP_VERSION = '3.1.3'
 
 # Set constants
 DRIVE_TYPE_LOCAL = 3
@@ -332,6 +332,7 @@ def display_backup_progress(copied, total, gui_options):
             else:
                 print(f"{bcolor.OKCYAN}Verifying => {percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
 
+    # FIXME: Make all failed file copies add the relevant progress chunk to the progress bar
     if copied >= total:
         backup_totals['running'] += backup_totals['buffer']
 
