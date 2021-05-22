@@ -340,6 +340,14 @@ class Backup:
 
             Args:
                 share (String): The share to split.
+
+            Returns:
+                dict[]: A list of shares to be split
+                dict.share (String): The share to split
+                dict.files (dict): The list of drive splits.
+                    Key (String) is a drive volume ID,
+                    Value (String[]) is a list of filenames for a given drive.
+                dict.exclusions (String[]): The list of files to exclude from the split.
             """
 
             # Enumerate list for tracking what shares go where
@@ -362,6 +370,9 @@ class Backup:
             except PermissionError:
                 pass
 
+            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                return
+
             # For splitting shares, sort by largest free space first
             drive_info.sort(reverse=True, key=lambda x: x['free'])
 
@@ -373,6 +384,7 @@ class Backup:
                 # number of combinations to check, we need to keep processing the file list
                 # in chunks to make sure we check if all files can be fit on one drive
                 files_that_fit_on_drive = []
+                small_file_list = {}
                 processed_small_files = []
                 processed_file_size = 0
                 while len(processed_small_files) < len(total_small_files):
@@ -468,34 +480,34 @@ class Backup:
 
                 # Each summary contains a split share, and any split subfolders, starting with
                 # the share and recursing into the directories
-                for directory in summary:
+                for split in summary:
                     if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                         break
 
-                    share_name = directory['share']
-                    share_files = directory['files']
-                    share_exclusions = directory['exclusions']
+                    share_name = split['share']
+                    share_files = split['files']
+                    share_exclusions = split['exclusions']
 
                     all_files = share_files.copy()
                     all_files['exclusions'] = share_exclusions
 
                     # For each drive, gather list of files to be written to other drives, and
                     # use that as exclusions
-                    for drive, files in share_files.items():
+                    for drive_vid, files in share_files.items():
                         if len(files) > 0:
                             raw_exclusions = all_files.copy()
-                            raw_exclusions.pop(drive, None)
+                            raw_exclusions.pop(drive_vid, None)
 
                             # Build master full exclusion list
                             master_exclusions = [file for file_list in raw_exclusions.values() for file in file_list]
 
                             # Remove share if excluded in parent splitting
-                            if share_name in drive_exclusions[self.DRIVE_VID_INFO[drive]['name']]:
-                                drive_exclusions[self.DRIVE_VID_INFO[drive]['name']].remove(share_name)
+                            if share_name in drive_exclusions[self.DRIVE_VID_INFO[drive_vid]['name']]:
+                                drive_exclusions[self.DRIVE_VID_INFO[drive_vid]['name']].remove(share_name)
 
                             # Add new exclusions to list
-                            drive_exclusions[self.DRIVE_VID_INFO[drive]['name']].extend([os.path.join(share_name, file) for file in master_exclusions])
-                            drive_share_list[drive].append(share_name)
+                            drive_exclusions[self.DRIVE_VID_INFO[drive_vid]['name']].extend([os.path.join(share_name, file) for file in master_exclusions])
+                            drive_share_list[drive_vid].append(share_name)
 
             if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                 break
@@ -517,7 +529,7 @@ class Backup:
             try:
                 if len(os.scandir(directory)) > 0:
                     for entry in os.scandir(directory):
-                        # For each entry, either add filesize to the total, or recurse into the directory
+                        # For each entry, either add file to list, or recurse into directory
                         if entry.is_file():
                             file_list.append(entry.path)
                         elif entry.is_dir():
