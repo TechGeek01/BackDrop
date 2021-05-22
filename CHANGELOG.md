@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Fixed partially copied files not showing as failed in the GUI
+- Fixed split shares calculating incorrect file exclusions
 - Fixed UI alignment
 
 ### Changed

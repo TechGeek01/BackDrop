@@ -456,15 +456,15 @@ class Backup:
 
                 # Build exclusion list for other drives\
                 # This is done by "inverting" the file list for each drive into a list of exclusions for other drives
-                for directory in summary:
+                for split in summary:
                     if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                         break
 
-                    file_list = directory['files']
+                    file_list = split['files']
 
-                    for drive, files in file_list.items():
+                    for drive_vid, files in file_list.items():
                         # Add files to file list
-                        all_drive_files_buffer[self.DRIVE_VID_INFO[drive]['name']].extend(files)
+                        all_drive_files_buffer[self.DRIVE_VID_INFO[drive_vid]['name']].extend(os.path.join(split['share'], file) for file in files)
 
                 # Each summary contains a split share, and any split subfolders, starting with
                 # the share and recursing into the directories
@@ -615,7 +615,7 @@ class Backup:
                                 found_share = True
                                 break
 
-                        if not found_share and stub_path not in special_ignore_list and stub_path not in exclusions:
+                        if (not found_share or stub_path in exclusions) and stub_path not in special_ignore_list:
                             # Directory isn't share, or part of one, and isn't a special folder or
                             # exclusion, so delete it
                             file_list['delete'].append((drive, stub_path, get_directory_size(entry.path)))
