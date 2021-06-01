@@ -544,6 +544,8 @@ class Backup:
                 return []
             except OSError:
                 return []
+            except TypeError:
+                return []
             return file_list
 
         # For each drive in file list buffer, recurse into each directory and build a complete file list
