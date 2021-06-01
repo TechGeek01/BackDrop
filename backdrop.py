@@ -77,50 +77,52 @@ def update_file_detail_lists(list_name, filename):
         filename (String): The file path to add to the list.
     """
 
-    if not CLI_MODE:
-        file_detail_list[list_name].append({
-            'displayName': filename.split(os.path.sep)[-1],
-            'filename': filename
-        })
+    if CLI_MODE:
+        return
 
-        if list_name == 'delete':
-            file_details_pending_delete_counter.configure(text=str(len(file_detail_list['delete'])))
-            file_details_pending_delete_counter_total.configure(text=str(len(file_detail_list['delete'])))
-        elif list_name == 'copy':
-            file_details_pending_copy_counter.configure(text=str(len(file_detail_list['copy'])))
-            file_details_pending_copy_counter_total.configure(text=str(len(file_detail_list['copy'])))
-        elif list_name in ['deleteSuccess', 'deleteFail', 'success', 'fail']:
-            # Remove file from delete list
-            file_detail_list_name = 'copy' if list_name in ['success', 'fail'] else 'delete'
-            filename_list = [file['filename'] for file in file_detail_list[file_detail_list_name]]
-            if filename in filename_list:
-                del file_detail_list[file_detail_list_name][filename_list.index(filename)]
+    file_detail_list[list_name].append({
+        'displayName': filename.split(os.path.sep)[-1],
+        'filename': filename
+    })
 
-            # Update file counter
-            if list_name in ['success', 'fail']:
-                file_details_pending_copy_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
-            else:
-                file_details_pending_delete_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
+    if list_name == 'delete':
+        file_details_pending_delete_counter.configure(text=str(len(file_detail_list['delete'])))
+        file_details_pending_delete_counter_total.configure(text=str(len(file_detail_list['delete'])))
+    elif list_name == 'copy':
+        file_details_pending_copy_counter.configure(text=str(len(file_detail_list['copy'])))
+        file_details_pending_copy_counter_total.configure(text=str(len(file_detail_list['copy'])))
+    elif list_name in ['deleteSuccess', 'deleteFail', 'success', 'fail']:
+        # Remove file from delete list
+        file_detail_list_name = 'copy' if list_name in ['success', 'fail'] else 'delete'
+        filename_list = [file['filename'] for file in file_detail_list[file_detail_list_name]]
+        if filename in filename_list:
+            del file_detail_list[file_detail_list_name][filename_list.index(filename)]
 
-            # Update copy list scrollable
-            if list_name in ['success', 'deleteSuccess']:
-                tk.Label(file_details_copied.frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
-                file_details_copied_counter.configure(text=len(file_detail_list['success']) + len(file_detail_list['deleteSuccess']))
+        # Update file counter
+        if list_name in ['success', 'fail']:
+            file_details_pending_copy_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
+        else:
+            file_details_pending_delete_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
 
-                # Remove all but the most recent 250 items
-                file_details_copied.show_items(250)
-            else:
-                tk.Label(file_details_failed.frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
-                file_details_failed_counter.configure(text=len(file_detail_list['fail']) + len(file_detail_list['deleteFail']))
+        # Update copy list scrollable
+        if list_name in ['success', 'deleteSuccess']:
+            tk.Label(file_details_copied.frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+            file_details_copied_counter.configure(text=len(file_detail_list['success']) + len(file_detail_list['deleteSuccess']))
 
-                # Update counter in status bar
-                FAILED_FILE_COUNT = len(file_detail_list['fail']) + len(file_detail_list['deleteFail'])
-                statusbar_counter.configure(text=f"{FAILED_FILE_COUNT} failed", fg=uicolor.DANGER if FAILED_FILE_COUNT > 0 else uicolor.FADED)
+            # Remove all but the most recent 250 items
+            file_details_copied.show_items(250)
+        else:
+            tk.Label(file_details_failed.frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+            file_details_failed_counter.configure(text=len(file_detail_list['fail']) + len(file_detail_list['deleteFail']))
 
-                # HACK: The scroll yview won't see the label instantly after it's packed.
-                # Sleeping for a brief time fixes that. This is acceptable as long as it's
-                # not run in the main thread, else the UI will hang.
-                file_details_failed.show_items()
+            # Update counter in status bar
+            FAILED_FILE_COUNT = len(file_detail_list['fail']) + len(file_detail_list['deleteFail'])
+            statusbar_counter.configure(text=f"{FAILED_FILE_COUNT} failed", fg=uicolor.DANGER if FAILED_FILE_COUNT > 0 else uicolor.FADED)
+
+            # HACK: The scroll yview won't see the label instantly after it's packed.
+            # Sleeping for a brief time fixes that. This is acceptable as long as it's
+            # not run in the main thread, else the UI will hang.
+            file_details_failed.show_items()
 
 def do_delete(filename, size, gui_options=None):
     """Delete a file or directory.
@@ -134,25 +136,27 @@ def do_delete(filename, size, gui_options=None):
     if isinstance(gui_options, type(None)):
         gui_options = {}
 
-    if not thread_manager.threadlist['Backup']['killFlag'] and os.path.exists(filename):
-        gui_options['mode'] = 'delete'
-        gui_options['filename'] = filename.split(os.path.sep)[-1]
+    if thread_manager.threadlist['Backup']['killFlag'] or not os.path.exists(filename):
+        return
 
-        try:
-            if os.path.isfile(filename):
-                os.remove(filename)
-            elif os.path.isdir(filename):
-                shutil.rmtree(filename)
-        except PermissionError:
-            pass
+    gui_options['mode'] = 'delete'
+    gui_options['filename'] = filename.split(os.path.sep)[-1]
 
-        # If file deleted successfully, remove it from the list
-        if not os.path.exists(filename):
-            display_backup_progress(size, size, gui_options)
-            update_file_detail_lists('deleteSuccess', filename)
-        else:
-            display_backup_progress(size, size, gui_options)
-            update_file_detail_lists('deleteFail', filename)
+    try:
+        if os.path.isfile(filename):
+            os.remove(filename)
+        elif os.path.isdir(filename):
+            shutil.rmtree(filename)
+    except PermissionError:
+        pass
+
+    # If file deleted successfully, remove it from the list
+    if not os.path.exists(filename):
+        display_backup_progress(size, size, gui_options)
+        update_file_detail_lists('deleteSuccess', filename)
+    else:
+        display_backup_progress(size, size, gui_options)
+        update_file_detail_lists('deleteFail', filename)
 
 def copy_file(source_filename, dest_filename, drive_path, callback, gui_options=):
     """Copy a source binary file to a destination.
