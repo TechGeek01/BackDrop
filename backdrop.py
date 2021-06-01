@@ -122,7 +122,7 @@ def update_file_detail_lists(list_name, filename):
                 # not run in the main thread, else the UI will hang.
                 file_details_failed.show_items()
 
-def do_delete(filename, size, gui_options={}):
+def do_delete(filename, size, gui_options=None):
     """Delete a file or directory.
 
     Args:
@@ -130,6 +130,9 @@ def do_delete(filename, size, gui_options={}):
         size (int): The size in bytes of the file or folder.
         gui_options (obj): Options to handle GUI interaction (optional).
     """
+
+    if isinstance(gui_options, type(None)):
+        gui_options = {}
 
     if not thread_manager.threadlist['Backup']['killFlag'] and os.path.exists(filename):
         gui_options['mode'] = 'delete'
@@ -151,7 +154,7 @@ def do_delete(filename, size, gui_options={}):
             display_backup_progress(size, size, gui_options)
             update_file_detail_lists('deleteFail', filename)
 
-def copy_file(source_filename, dest_filename, drive_path, callback, gui_options={}):
+def copy_file(source_filename, dest_filename, drive_path, callback, gui_options=):
     """Copy a source binary file to a destination.
 
     Args:
@@ -170,6 +173,9 @@ def copy_file(source_filename, dest_filename, drive_path, callback, gui_options=
     """
 
     global file_detail_list
+
+    if isinstance(gui_options, type(None)):
+        gui_options = {}
 
     if not CLI_MODE:
         cmd_info_blocks = backup.cmd_info_blocks
@@ -320,7 +326,7 @@ def display_backup_progress(copied, total, gui_options):
     if copied >= total:
         backup_totals['running'] += backup_totals['buffer']
 
-def do_copy(src, dest, drive_path, gui_options={}):
+def do_copy(src, dest, drive_path, gui_options=):
     """Copy a source to a destination.
 
     Args:
@@ -332,6 +338,9 @@ def do_copy(src, dest, drive_path, gui_options={}):
     Returns:
         dict: A list of file hashes for each file copied
     """
+
+    if isinstance(gui_options, type(None)):
+        gui_options = {}
 
     new_hash_list = {}
 
@@ -2463,6 +2472,7 @@ if __name__ == '__main__':
                 load_dest_in_background()
 
     window_config_builder = None
+
     def show_config_builder():
         """Show the config builder."""
 
