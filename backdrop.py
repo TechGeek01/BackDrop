@@ -158,7 +158,7 @@ def do_delete(filename, size, gui_options=None):
         display_backup_progress(size, size, gui_options)
         update_file_detail_lists('deleteFail', filename)
 
-def copy_file(source_filename, dest_filename, drive_path, callback, gui_options=):
+def copy_file(source_filename, dest_filename, drive_path, callback, gui_options={}):
     """Copy a source binary file to a destination.
 
     Args:
@@ -330,7 +330,7 @@ def display_backup_progress(copied, total, gui_options):
     if copied >= total:
         backup_totals['running'] += backup_totals['buffer']
 
-def do_copy(src, dest, drive_path, gui_options=):
+def do_copy(src, dest, drive_path, gui_options={}):
     """Copy a source to a destination.
 
     Args:
