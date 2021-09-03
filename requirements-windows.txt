@@ -5,7 +5,7 @@ idna==2.10
 keyboard==0.13.5
 Pillow==8.2.0
 pyperclip==1.8.2
-pywin32==300
+pywin32==301
 requests==2.25.1
 urllib3==1.26.5
 WMI==1.5.1
