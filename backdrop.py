@@ -1015,7 +1015,7 @@ def load_dest():
             for drive in logical_drive_list:
                 if drive != config['source_drive'] and drive != SYSTEM_DRIVE:
                     drive_type = win32file.GetDriveType(drive)
-                    if ((prefs.get('selection', 'destination_local_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
+                    if ((prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
                             or (prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
                         try:
                             drive_size = shutil.disk_usage(drive).total
