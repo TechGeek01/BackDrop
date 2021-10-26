@@ -2293,15 +2293,15 @@ if __name__ == '__main__':
         if status == Status.BACKUPSELECT_NO_SELECTION:
             statusbar_selection.configure(text='No selection')
         elif status == Status.BACKUPSELECT_MISSING_SOURCE:
-            statusbar_selection.configure(text='No shares selected')
+            statusbar_selection.configure(text='No sources selected')
         elif status == Status.BACKUPSELECT_MISSING_DEST:
-            statusbar_selection.configure(text='No drives selected')
+            statusbar_selection.configure(text='No destinations selected')
         elif status == Status.BACKUPSELECT_CALCULATING_SOURCE:
-            statusbar_selection.configure(text='Calculating share size')
+            statusbar_selection.configure(text='Calculating source size')
         elif status == Status.BACKUPSELECT_INSUFFICIENT_SPACE:
-            statusbar_selection.configure(text='Destination too small for shares')
+            statusbar_selection.configure(text='Not enough space on destination')
         elif status == Status.BACKUPSELECT_ANALYSIS_WAITING:
-            statusbar_selection.configure(text='Selection OK, ready for analysis')
+            statusbar_selection.configure(text='Selection OK')
 
     def update_status_bar_action(status):
         """Update the status bar action status.
