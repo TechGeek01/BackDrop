@@ -1041,6 +1041,8 @@ def load_dest():
                             })
                         except FileNotFoundError:
                             pass
+                        except OSError:
+                            pass
         elif SYS_PLATFORM == 'Linux':
             local_selected = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
             network_selected = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
@@ -2552,6 +2554,8 @@ if __name__ == '__main__':
                                     'hasConfig': drive_has_config_file
                                 })
                             except FileNotFoundError:
+                                pass
+                            except OSError:
                                 pass
             elif SYS_PLATFORM == 'Linux':
                 out = subprocess.run('df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target', stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
