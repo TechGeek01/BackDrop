@@ -25,7 +25,7 @@ class Config:
         """Initialize a preference object.
 
         Args:
-            filename: The filename and location of the preference file.
+            filename (String): The filename and location of the preference file.
         """
 
         self.filename = re.sub(r'\\', '/', filename)
@@ -44,7 +44,7 @@ class Config:
 
         self.config.read(filename)
 
-    def get(self, section_name, pref_name, default=None, verify_data=None, data_type=None):
+    def get(self, section_name, pref_name, default=None, verify_data: list = None, data_type=None):
         """Get a preference value from the dict.
 
         Args:

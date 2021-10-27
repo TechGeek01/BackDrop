@@ -20,7 +20,7 @@ class Color:
 
     COLORACCENT = GREEN
 
-    def combine_hex_color(self, rgb1, rgb2, ratio2):
+    def combine_hex_color(self, rgb1, rgb2, ratio2: float):
         """Combine two hex colors with a ratio of the second.
 
         Args:
@@ -47,7 +47,7 @@ class Color:
         # Convert back to hex
         return '#' + hex(int(red))[-2:] + hex(int(green))[-2:] + hex(int(blue))[-2:]
 
-    def __init__(self, root, dark_mode=False):
+    def __init__(self, root, dark_mode: bool = False):
         """Set the UI colors for the GUI.
 
         Args:

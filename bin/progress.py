@@ -10,7 +10,7 @@ class Progress:
         self.progress_bar = progress_bar
         self._thread_manager = thread_manager
 
-    def set_max(self, max_val):
+    def set_max(self, max_val: int):
         """Set the max value of the progress bar.
 
         Args:
@@ -20,7 +20,7 @@ class Progress:
         self.progress_bar.stop()
         self.progress_bar.configure(mode='determinate', value=0, maximum=max_val)
 
-    def set(self, cur_val):
+    def set(self, cur_val: int):
         """Set the current value of the progress bar.
 
         Args:

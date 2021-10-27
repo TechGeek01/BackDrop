@@ -4,7 +4,7 @@ import re
 from bin.status import Status
 
 class UpdateHandler:
-    def __init__(self, current_version, update_callback, allow_prereleases=False, status_change_fn=None):
+    def __init__(self, current_version, update_callback, allow_prereleases: bool = False, status_change_fn=None):
         """
         Args:
             current_version (String): The current version of the program.
@@ -44,7 +44,7 @@ class UpdateHandler:
             'download': [asset['browser_download_url'] for asset in json_response['assets']]
         }
 
-    def __parse_version(self, version_string):
+    def __parse_version(self, version_string) -> dict:
         """Parse a version string into it's appropriate parts.
 
         Args:
@@ -78,7 +78,7 @@ class UpdateHandler:
             'dev': dev_version
         }
 
-    def __current_is_latest_version(self, current_version, latest_version):
+    def __current_is_latest_version(self, current_version, latest_version) -> bool:
         """Check if the current version is the latest version or newer.
 
         Args:

@@ -85,7 +85,7 @@ class DetailBlock(tk.Frame):
     TITLE = 'title'
     CONTENT = 'content'
 
-    def __init__(self, parent, title, right_arrow, down_arrow, uicolor, backup, enabled=True):
+    def __init__(self, parent, title, right_arrow, down_arrow, uicolor, backup, enabled: bool = True):
         """Create an expandable detail block to display info.
 
         Args:

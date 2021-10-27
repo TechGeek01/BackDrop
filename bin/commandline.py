@@ -4,7 +4,7 @@ import sys
 from bin.color import bcolor
 
 class CommandLine:
-    def __init__(self, option_info_list):
+    def __init__(self, option_info_list: tuple):
         """Configure and parse the command line options.
 
         Args:
@@ -43,7 +43,7 @@ class CommandLine:
         length_long = len(max([item[1] for item in self.option_list], key=len))
         length_short = 3
 
-        def parse_string(help_string, indent_size):
+        def parse_string(help_string, indent_size: int):
             """Convert a help string into a line-broken message for console output.
 
             Args:
@@ -86,7 +86,7 @@ class CommandLine:
             else:
                 print(param)
 
-    def validate_yes_no(self, message, default):
+    def validate_yes_no(self, message, default: bool) -> bool:
         """Validate a yes/no answer input.
 
         Args:
@@ -112,7 +112,7 @@ class CommandLine:
         else:
             return default
 
-    def validate_choice(self, message, choices, default, case_sensitive=False, chars_required=None):
+    def validate_choice(self, message, choices: list, default, case_sensitive: bool = False, chars_required: int = None):
         """Validate a yes/no answer input.
 
         Args:
@@ -154,7 +154,7 @@ class CommandLine:
         else:
             return default
 
-    def validate_choice_list(self, message, choices, default, case_sensitive=False, chars_required=None):
+    def validate_choice_list(self, message, choices: list, default, case_sensitive: bool = False, chars_required: int = None):
         """Validate a yes/no answer input.
 
         Args:
@@ -195,7 +195,7 @@ class CommandLine:
 
         return [choices[full_choices.index(option)] for option in user_input]
 
-    def has_param(self, param):
+    def has_param(self, param) -> bool:
         """Check if a param is specified in the command line.
 
         Args:
@@ -207,7 +207,7 @@ class CommandLine:
 
         return param in self.user_params.keys()
 
-    def get_param(self, param):
+    def get_param(self, param) -> list:
         """Get the value of a specific parameter.
 
         Args:

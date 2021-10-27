@@ -1,6 +1,6 @@
 import os
 
-def human_filesize(num, suffix='B'):
+def human_filesize(num: int, suffix='B'):
     """Convert a number of bytes to a human readable format.
 
     Args:
@@ -17,7 +17,7 @@ def human_filesize(num, suffix='B'):
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)
 
-def get_directory_size(directory):
+def get_directory_size(directory) -> int:
     """Get the filesize of a directory and its contents.
 
     Args:

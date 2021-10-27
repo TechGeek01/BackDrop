@@ -384,7 +384,7 @@ def do_copy(src, dest, drive_path, gui_options={}):
 
     return new_hash_list
 
-def display_backup_summary_chunk(title, payload, reset=False):
+def display_backup_summary_chunk(title, payload: tuple, reset: bool = False):
     """Display a chunk of a backup analysis summary to the user.
 
     Args:
@@ -471,7 +471,7 @@ def update_backup_eta_timer():
         else:
             print(f"{bcolor.OKGREEN}Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
 
-def display_backup_command_info(display_command_list):
+def display_backup_command_info(display_command_list: dict):
     """Enumerate the display widget with command info after a backup analysis.
 
     Args:
@@ -1665,7 +1665,7 @@ def verify_data_integrity(drive_list):
         else:
             print('==== DATA VERIFICATION COMPLETE ====')
 
-def display_update_screen(update_info):
+def display_update_screen(update_info: dict):
     """Display information about updates.
 
     Args:
@@ -1766,7 +1766,7 @@ def display_update_screen(update_info):
         update_window.grab_set()
         root.wm_attributes('-disabled', True)
 
-def check_for_updates(info):
+def check_for_updates(info: dict):
     """Process the update information provided by the UpdateHandler class.
 
     Args:
@@ -2259,7 +2259,7 @@ if __name__ == '__main__':
         # Exit CLI mode once everything is done
         exit()
 
-    def update_status_bar_selection(status=None):
+    def update_status_bar_selection(status: int = None):
         """Update the status bar selection status.
 
         Args:
@@ -2279,8 +2279,8 @@ if __name__ == '__main__':
             # No drives selected
             status = Status.BACKUPSELECT_MISSING_DEST
         else:
-            SHARE_SELECTED_SPACE = sum([share['size'] for share in config['sources']])
-            DRIVE_SELECTED_SPACE = sum([drive['capacity'] for drive in config['destinations']]) + sum(config['missing_drives'].values())
+            SHARE_SELECTED_SPACE = sum((share['size'] for share in config['sources']))
+            DRIVE_SELECTED_SPACE = sum((drive['capacity'] for drive in config['destinations'])) + sum(config['missing_drives'].values())
 
             if SHARE_SELECTED_SPACE < DRIVE_SELECTED_SPACE:
                 # Selected enough drive space
@@ -2303,7 +2303,7 @@ if __name__ == '__main__':
         elif status == Status.BACKUPSELECT_ANALYSIS_WAITING:
             statusbar_selection.configure(text='Selection OK')
 
-    def update_status_bar_action(status):
+    def update_status_bar_action(status: int):
         """Update the status bar action status.
 
         Args:
@@ -2325,7 +2325,7 @@ if __name__ == '__main__':
         elif status == Status.VERIFICATION_RUNNING:
             statusbar_action.configure(text='Data verification running')
 
-    def update_status_bar_update(status):
+    def update_status_bar_update(status: int):
         """Update the status bar update message.
 
         Args:
@@ -2347,7 +2347,7 @@ if __name__ == '__main__':
         statusbar_action.configure(text='Stopping backup')
         thread_manager.kill('Backup')
 
-    def update_ui_component(status, data=None):
+    def update_ui_component(status: int, data=None):
         """Update UI elements with given data..
 
         Args:
@@ -2485,7 +2485,7 @@ if __name__ == '__main__':
         global window_config_builder
         global builder_has_pending_changes
 
-        def builder_update_status_bar_save(status):
+        def builder_update_status_bar_save(status: int):
             """Update the builder status bar save status.
 
             Args:
@@ -3085,7 +3085,7 @@ if __name__ == '__main__':
         if not thread_manager.is_alive('Refresh Destination'):
             thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
 
-    def change_source_type(toggle_type):
+    def change_source_type(toggle_type: int):
         """Change the drive types for source selection.
 
         Args:
@@ -3125,7 +3125,7 @@ if __name__ == '__main__':
 
         load_source_in_background()
 
-    def change_destination_type(toggle_type):
+    def change_destination_type(toggle_type: int):
         """Change the drive types for source selection.
 
         Args:

@@ -12,7 +12,7 @@ from bin.config import Config
 from bin.status import Status
 
 class Backup:
-    def __init__(self, config, backup_config_dir, backup_config_file, do_copy_fn, do_del_fn, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager, update_ui_component_fn=None, uicolor=None, progress=None):
+    def __init__(self, config: dict, backup_config_dir, backup_config_file, do_copy_fn, do_del_fn, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager: ThreadManager, update_ui_component_fn=None, uicolor=None, progress=None):
         """Configure a backup to be run on a set of drives.
 
         Args:
@@ -107,8 +107,8 @@ class Backup:
                 # Add total space of selection
                 share_total += share['size']
 
-            drive_total = sum([drive['capacity'] for drive in self.config['destinations']])
-            config_total = drive_total + sum([size for drive, size in self.config['missing_drives'].items()])
+            drive_total = sum((drive['capacity'] for drive in self.config['destinations']))
+            config_total = drive_total + sum((size for drive, size in self.config['missing_drives'].items()))
 
             if shares_known and ((len(self.config['missing_drives']) == 0 and share_total < drive_total) or (share_total < config_total and self.config['splitMode'])):
                 # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
@@ -291,7 +291,7 @@ class Backup:
                 share_info = {share: size for (share, size) in share_info.items() if share not in sources_that_fit_on_dest}
 
                 # Subtract file size of each batch of files from the free space on the drive so the next batch sorts properly
-                processed_source_size += sum([source[1] for source in small_source_list if source[0] in largest_set])
+                processed_source_size += sum((source[1] for source in small_source_list if source[0] in largest_set))
 
             if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                 break
@@ -416,7 +416,7 @@ class Backup:
                     largest_set = []
                     for n in range(1, len(trimmed_small_file_list) + 1):
                         for subset in itertools.combinations(trimmed_small_file_list.keys(), n):
-                            combination_total = sum(trimmed_small_file_list[file] for file in subset)
+                            combination_total = sum((trimmed_small_file_list[file] for file in subset))
 
                             if (combination_total > largest_sum and combination_total <= drive['free'] - processed_file_size):
                                 largest_sum = combination_total
@@ -427,7 +427,7 @@ class Backup:
                     file_info = {file: size for (file, size) in file_info.items() if file not in largest_set}
 
                     # Subtract file size of each batch of files from the free space on the drive so the next batch sorts properly
-                    processed_file_size += sum([size for (file, size) in small_file_list.items() if file in largest_set])
+                    processed_file_size += sum((size for (file, size) in small_file_list.items() if file in largest_set))
 
                 if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                     break
@@ -527,13 +527,11 @@ class Backup:
 
             file_list = []
             try:
-                if len(os.scandir(directory)) > 0:
+                if len(os.listdir(directory)) > 0:
                     for entry in os.scandir(directory):
-                        # For each entry, either add file to list, or recurse into directory
-                        if entry.is_file():
-                            file_list.append(entry.path)
-                        elif entry.is_dir():
-                            file_list.append(entry.path)
+                        # For each entry, add file to list, and recurse into path if directory
+                        file_list.append(entry.path)
+                        if entry.is_dir():
                             file_list.extend(recurse_file_list(entry.path))
                 else:
                     # No files, so append dir to list
@@ -554,7 +552,7 @@ class Backup:
             for file in files:
                 all_drive_files[drive].extend(recurse_file_list(file))
 
-        def build_delta_file_list(drive, path, shares, exclusions):
+        def build_delta_file_list(drive, path, shares: list, exclusions: list) -> dict:
             """Get lists of files to delete and replace from the destination drive, that no longer
             exist in the source, or have changed.
 
@@ -651,7 +649,7 @@ class Backup:
                 }
             return file_list
 
-        def build_new_file_list(drive, path, shares, exclusions):
+        def build_new_file_list(drive, path, shares: list, exclusions: list) -> dict:
             """Get lists of files to copy to the destination drive, that only exist on the
             source.
 
@@ -667,7 +665,7 @@ class Backup:
                 }
             """
 
-            def scan_share_source_for_new_files(drive, share, path, exclusions, all_shares):
+            def scan_share_source_for_new_files(drive, share, path, exclusions: list, all_shares: list) -> dict:
                 """Get lists of files to copy to the destination drive from a given share.
 
                 Args:
@@ -775,7 +773,7 @@ class Backup:
                     'enabled': True,
                     'type': 'fileList',
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'size': sum([size for drive, file, size in delete_items]),
+                    'size': sum((size for drive, file, size in delete_items)),
                     'fileList': file_delete_list,
                     'mode': 'delete'
                 })
@@ -800,7 +798,7 @@ class Backup:
                     'enabled': True,
                     'type': 'fileList',
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'size': sum([source_size for drive, share, file, source_size, dest_size in replace_items]),
+                    'size': sum((source_size for drive, share, file, source_size, dest_size in replace_items)),
                     'fileList': file_replace_list,
                     'mode': 'replace'
                 })
@@ -824,7 +822,7 @@ class Backup:
                     'enabled': True,
                     'type': 'fileList',
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'size': sum([size for drive, share, file, size in new_items]),
+                    'size': sum((size for drive, share, file, size in new_items)),
                     'fileList': file_copy_list,
                     'mode': 'copy'
                 })
@@ -854,7 +852,7 @@ class Backup:
             }
 
             if self.DRIVE_VID_INFO[drive]['name'] in self.delete_file_list.keys():
-                drive_total['delete'] = sum([size for drive, file, size in self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']]])
+                drive_total['delete'] = sum((size for drive, file, size in self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']]))
 
                 drive_total['running'] -= drive_total['delete']
                 self.totals['delta'] -= drive_total['delete']
@@ -862,16 +860,16 @@ class Backup:
                 file_summary.append(f"Deleting {len(self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']])} files ({human_filesize(drive_total['delete'])})")
 
             if self.DRIVE_VID_INFO[drive]['name'] in self.replace_file_list.keys():
-                drive_total['replace'] = sum([source_size for drive, share, file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]])
+                drive_total['replace'] = sum((source_size for drive, share, file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]))
 
                 drive_total['running'] += drive_total['replace']
                 drive_total['copy'] += drive_total['replace']
-                drive_total['delta'] += sum([source_size - dest_size for drive, share, file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]])
+                drive_total['delta'] += sum((source_size - dest_size for drive, share, file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]))
 
                 file_summary.append(f"Updating {len(self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']])} files ({human_filesize(drive_total['replace'])})")
 
             if self.DRIVE_VID_INFO[drive]['name'] in self.new_file_list.keys():
-                drive_total['new'] = sum([size for drive, share, file, size in self.new_file_list[self.DRIVE_VID_INFO[drive]['name']]])
+                drive_total['new'] = sum((size for drive, share, file, size in self.new_file_list[self.DRIVE_VID_INFO[drive]['name']]))
 
                 drive_total['running'] += drive_total['new']
                 drive_total['copy'] += drive_total['new']
