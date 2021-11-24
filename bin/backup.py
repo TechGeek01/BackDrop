@@ -1021,11 +1021,7 @@ class Backup:
 
                         src = os.path.join(drive, file)
 
-                        gui_options = {
-                            'displayIndex': cmd['displayIndex']
-                        }
-
-                        self.do_del_fn(src, size, gui_options)
+                        self.do_del_fn(filename=src, size=size, display_index=cmd['displayIndex'])
 
                         # If file hash was in list, remove it, and write changes to file
                         if file in self.file_hashes[drive].keys():
@@ -1045,11 +1041,7 @@ class Backup:
                         src = os.path.join(share_path, file)
                         dest = os.path.join(drive, share, file)
 
-                        gui_options = {
-                            'displayIndex': cmd['displayIndex']
-                        }
-
-                        file_hashes = self.do_copy_fn(src, dest, drive, gui_options)
+                        file_hashes = self.do_copy_fn(src=src, dest=dest, drive_path=drive, display_index=cmd['displayIndex'])
                         self.file_hashes[drive].update(file_hashes)
 
                         # Write updated hash file to drive
@@ -1067,11 +1059,7 @@ class Backup:
                         src = os.path.join(share_path, file)
                         dest = os.path.join(drive, share, file)
 
-                        gui_options = {
-                            'displayIndex': cmd['displayIndex']
-                        }
-
-                        file_hashes = self.do_copy_fn(src, dest, drive, gui_options)
+                        file_hashes = self.do_copy_fn(src=src, dest=dest, drive_path=drive, display_index=cmd['displayIndex'])
                         self.file_hashes[drive].update(file_hashes)
 
                         # Write updated hash file to drive
