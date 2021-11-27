@@ -78,7 +78,7 @@ class ScrollableFrame(tk.Frame):
         for widget in self.frame.winfo_children():
             widget.destroy()
 
-class DetailBlock(tk.Frame):
+class BackupDetailBlock(tk.Frame):
     HEADER_FONT = (None, 9, 'bold')
     TEXT_FONT = (None, 9)
 
@@ -112,8 +112,8 @@ class DetailBlock(tk.Frame):
 
         self.arrow = tk.Label(self, image=self.right_arrow)
         self.header_frame = tk.Frame(self)
-        self.header = tk.Label(self.header_frame, text=title, font=DetailBlock.HEADER_FONT, fg=self.uicolor.NORMAL if self.enabled else self.uicolor.FADED)
-        self.state = tk.Label(self.header_frame, text='Pending' if self.enabled else 'Skipped', font=DetailBlock.TEXT_FONT, fg=self.uicolor.PENDING if self.enabled else self.uicolor.FADED)
+        self.header = tk.Label(self.header_frame, text=title, font=BackupDetailBlock.HEADER_FONT, fg=self.uicolor.NORMAL if self.enabled else self.uicolor.FADED)
+        self.state = tk.Label(self.header_frame, text='Pending' if self.enabled else 'Skipped', font=BackupDetailBlock.TEXT_FONT, fg=self.uicolor.PENDING if self.enabled else self.uicolor.FADED)
 
         self.content = tk.Frame(self)
 
@@ -139,6 +139,129 @@ class DetailBlock(tk.Frame):
                 # Expanded turns into collapsed
                 self.arrow.configure(image=self.right_arrow)
                 self.content.grid_forget()
+
+    def add_line(self, line_name, title, content, *args, **kwargs):
+        """Add a line to the block content.
+
+        Args:
+            line_name (String): The name of the line for later reference.
+            title (String): The line title.
+            content (String): The content to display.
+        """
+
+        self.lines[line_name] = self.InfoLine(self.content, title, content, self.uicolor, *args, **kwargs)
+        self.lines[line_name].pack(anchor='w')
+
+    def add_copy_line(self, line_name, title, content, clipboard_data, *args, **kwargs):
+        """Add a line to the block content.
+
+        Args:
+            line_name (String): The name of the line for later reference.
+            title (String): The line title.
+            content (String): The content to display.
+        """
+
+        self.lines[line_name] = self.InfoLine(self.content, title, content, self.uicolor, clipboard_data, *args, **kwargs)
+        self.lines[line_name].pack(anchor='w')
+
+    def configure(self, line_name, *args, **kwargs):
+        if line_name in self.lines.keys():
+            self.lines[line_name].configure(*args, **kwargs)
+
+    class InfoLine(tk.Frame):
+        def __init__(self, parent, title, content, uicolor, clipboard_data=None, *args, **kwargs):
+            """Create an info line for use in DisplayBlock classes.
+
+            Args:
+                parent (tk.*): The parent widget).
+                title (String): The line title.
+                content (String): The content to display.
+                uicolor (Color): The UI pallete instance.
+                clipboard_data (String): The data to copy to clipboard if line
+                    is a copy line (default: None).
+            """
+
+            tk.Frame.__init__(self, parent)
+
+            self.uicolor = uicolor
+
+            self.title = tk.Label(self, text=f"{title}:", font=BackupDetailBlock.HEADER_FONT)
+            if clipboard_data is not None and clipboard_data:
+                self.tooltip = tk.Label(self, text='(Click to copy)', font=BackupDetailBlock.TEXT_FONT, fg=self.uicolor.FADED)
+                self.clipboard_data = clipboard_data
+            self.content = tk.Label(self, text=content, font=BackupDetailBlock.TEXT_FONT, *args, **kwargs)
+
+            self.title.pack(side='left')
+            if clipboard_data is not None and clipboard_data:
+                self.tooltip.pack(side='left')
+            self.content.pack(side='left')
+
+            # Set up keyboard binding for copies
+            if clipboard_data is not None and clipboard_data:
+                self.title.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
+                self.tooltip.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
+                self.content.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
+
+        def configure(self, *args, **kwargs):
+            self.content.configure(*args, **kwargs)
+
+class DetailBlock(tk.Frame):
+    HEADER_FONT = (None, 9, 'bold')
+    TEXT_FONT = (None, 9)
+
+    TITLE = 'title'
+    CONTENT = 'content'
+
+    def __init__(self, parent, title, right_arrow, down_arrow, uicolor, enabled: bool = True):
+        """Create an expandable detail block to display info.
+
+        Args:
+            parent (tk.*): The parent widget.
+            title (String): The bold title to display.
+            right_arrow (ImageTk.PhotoImage): The image of the collapsed arrow.
+            down_arrow (ImageTk.PhotoImage): The image of the expanded arrow.
+            uicolor (Color): The UI pallete instance.
+            enabled (bool): Whether or not this block is enabled.
+        """
+
+        self.enabled = enabled
+        self.uicolor = uicolor
+        self.right_arrow = right_arrow
+        self.down_arrow = down_arrow
+
+        self.lines = {}
+
+        tk.Frame.__init__(self, parent)
+        self.pack_propagate(0)
+        self.grid_columnconfigure(1, weight=1)
+
+        self.arrow = tk.Label(self, image=self.right_arrow)
+        self.header_frame = tk.Frame(self)
+        self.header = tk.Label(self.header_frame, text=title, font=DetailBlock.HEADER_FONT, fg=self.uicolor.NORMAL if self.enabled else self.uicolor.FADED)
+        self.state = tk.Label(self.header_frame, text='Pending' if self.enabled else 'Skipped', font=DetailBlock.TEXT_FONT, fg=self.uicolor.PENDING if self.enabled else self.uicolor.FADED)
+
+        self.content = tk.Frame(self)
+
+        self.arrow.grid(row=0, column=0)
+        self.header_frame.grid(row=0, column=1, sticky='w')
+        self.header.pack(side='left')
+        self.state.pack(side='left')
+
+        # Bind click for expanding and collapsing
+        self.arrow.bind('<Button-1>', lambda e: self.toggle())
+        self.header.bind('<Button-1>', lambda e: self.toggle())
+
+    def toggle(self):
+        """Toggle expanding content of a block."""
+
+        if not self.content.grid_info():
+            # Collapsed turns into expanded
+            self.arrow.configure(image=self.down_arrow)
+            self.content.grid(row=1, column=1, sticky='w')
+        else:
+            # Expanded turns into collapsed
+            self.arrow.configure(image=self.right_arrow)
+            self.content.grid_forget()
 
     def add_line(self, line_name, title, content, *args, **kwargs):
         """Add a line to the block content.

@@ -33,7 +33,7 @@ from bin.progress import Progress
 from bin.commandline import CommandLine
 from bin.backup import Backup
 from bin.update import UpdateHandler
-from bin.widgets import DetailBlock, ScrollableFrame
+from bin.widgets import BackupDetailBlock, ScrollableFrame
 from bin.status import Status
 
 def center(win, center_to_window=None):
@@ -493,9 +493,8 @@ def display_backup_command_info(display_command_list: dict):
                 cmd_header_text = f"Work with {len(item['fileList'])} files on {item['drive']}"
 
         if not CLI_MODE:
-            backup_summary_block = {}
 
-            backup_summary_block = DetailBlock(
+            backup_summary_block = BackupDetailBlock(
                 parent=backup_activity_frame.frame,
                 title=cmd_header_text,
                 right_arrow=right_nav_arrow,
