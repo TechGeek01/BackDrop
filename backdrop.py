@@ -124,6 +124,8 @@ def update_file_detail_lists(list_name, filename):
             # not run in the main thread, else the UI will hang.
             file_details_failed.show_items()
 
+backup_error_log = []
+
 def do_delete(filename, size, display_filename=None, display_mode=None, display_index: int = None):
     """Delete a file or directory.
 
@@ -156,6 +158,7 @@ def do_delete(filename, size, display_filename=None, display_mode=None, display_
     else:
         display_backup_progress(copied=size, total=size, display_filename=display_filename, display_mode=display_mode, display_index=display_index)
         update_file_detail_lists('deleteFail', filename)
+        backup_error_log.append({'file': filename, 'mode': 'delete', 'error': 'File or path does not exist'})
 
 def copy_file(source_filename, dest_filename, drive_path, callback, display_filename=None, display_mode=None, display_index: int = None):
     """Copy a source binary file to a destination.
@@ -256,6 +259,7 @@ def copy_file(source_filename, dest_filename, drive_path, callback, display_file
                 shutil.rmtree(dest_filename)
 
             update_file_detail_lists('fail', dest_filename)
+            backup_error_log.append({'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination hash mismatch'})
 
             if CLI_MODE:
                 print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
@@ -274,6 +278,7 @@ def copy_file(source_filename, dest_filename, drive_path, callback, display_file
             shutil.rmtree(dest_filename)
 
         update_file_detail_lists('fail', dest_filename)
+        backup_error_log.append({'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination filesize mismatch'})
 
         return None
 
@@ -529,10 +534,13 @@ def display_backup_command_info(display_command_list: dict):
     if CLI_MODE:
         print('')
 
-def reset_ui():
+def backup_reset_ui():
     """Reset the UI when we run a backup analysis."""
 
     if not CLI_MODE:
+        # Empty backup error log
+        backup_error_log.clear()
+
         # Empty backup summary pane
         backup_summary_text.empty()
 
@@ -572,7 +580,7 @@ def start_backup_analysis():
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
     if (not backup or not backup.is_running()) and not verification_running and (CLI_MODE or source_avail_drive_list):
-        reset_ui()
+        backup_reset_ui()
         statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
         statusbar_details.configure(text='')
 
@@ -1518,6 +1526,7 @@ def verify_data_integrity(drive_list):
                                 update_file_detail_lists('success', entry.path)
                             else:
                                 update_file_detail_lists('fail', entry.path)
+                                backup_error_log.append({'file': entry.path, 'mode': 'copy', 'error': 'File hash mismatch'})
                     else:
                         # Hash not saved, so store it
                         hash_list[drive][path_stub] = file_hash
@@ -1644,6 +1653,7 @@ def verify_data_integrity(drive_list):
                             update_file_detail_lists('success', filename)
                         else:
                             update_file_detail_lists('fail', filename)
+                            backup_error_log.append({'file': filename, 'mode': 'copy', 'error': 'File hash mismatch'})
 
                     if thread_manager.threadlist['Data Verification']['killFlag']:
                         break
