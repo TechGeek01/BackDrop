@@ -6,8 +6,8 @@ class Color:
     BLUE = '#0093c4'
     GREEN = '#6db500'
     GOLD = '#ebb300'
-    RED = '#c00'
-    GRAY = '#666'
+    RED = '#cc0000'
+    GRAY = '#666666'
 
     NORMAL = BLACK
 

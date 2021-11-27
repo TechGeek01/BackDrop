@@ -1106,7 +1106,7 @@ def load_dest():
 def load_dest_in_background():
     """Start the loading of the destination drive info in a new thread."""
 
-    # URGENT: Make load_dest and load_source replaceable, and in theor own class
+    # URGENT: Make load_dest and load_source replaceable, and in their own class
     # URGENT: Invalidate load_source or load_dest if tree gets refreshed via some class def call
     if not TREE_SELECTION_LOCKED and not thread_manager.is_alive('Refresh Destination'):
         thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
@@ -3474,8 +3474,8 @@ if __name__ == '__main__':
         preferences_verification_menu.add_checkbutton(label='Verify Known Files', onvalue=False, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
         preferences_verification_menu.add_checkbutton(label='Verify All Files', onvalue=True, offvalue=True, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
         preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
-        settings_darkModeEnabled = tk.BooleanVar(value=uicolor.is_dark_mode())
-        preferences_menu.add_checkbutton(label='Enable Dark Mode', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()))
+        settings_darkModeEnabled = tk.BooleanVar(value=uicolor.is_dark_mode()) 
+        preferences_menu.add_checkbutton(label='Enable Dark Mode (requires restart)', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()))
         menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
 
         # Help menu
