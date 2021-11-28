@@ -1814,7 +1814,7 @@ if __name__ == '__main__':
         exit()
 
     # Set meta info
-    APP_VERSION = '3.1.4-alpha.1'
+    APP_VERSION = '3.2.0'
 
     # Set constants
     DRIVE_TYPE_LOCAL = 3
