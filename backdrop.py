@@ -117,7 +117,7 @@ def update_file_detail_lists(list_name, filename):
 
             # Update counter in status bar
             FAILED_FILE_COUNT = len(file_detail_list['fail']) + len(file_detail_list['deleteFail'])
-            statusbar_counter.configure(text=f"{FAILED_FILE_COUNT} failed", fg=uicolor.DANGER if FAILED_FILE_COUNT > 0 else uicolor.FADED)
+            statusbar_counter_btn.configure(text=f"{FAILED_FILE_COUNT} failed", state='normal' if FAILED_FILE_COUNT > 0 else 'disabled')
 
             # HACK: The scroll yview won't see the label instantly after it's packed.
             # Sleeping for a brief time fixes that. This is acceptable as long as it's
@@ -581,7 +581,7 @@ def start_backup_analysis():
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
     if (not backup or not backup.is_running()) and not verification_running and (CLI_MODE or source_avail_drive_list):
         backup_reset_ui()
-        statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
+        statusbar_counter_btn.configure(text='0 failed', state='disabled')
         statusbar_details.configure(text='')
 
         if not CLI_MODE:
@@ -1372,7 +1372,7 @@ def start_backup():
     global TREE_SELECTION_LOCKED
 
     if backup and not verification_running:
-        statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
+        statusbar_counter_btn.configure(text='0 failed', state='disabled')
         statusbar_details.configure(text='')
 
         # Reset UI
@@ -1510,7 +1510,7 @@ def verify_data_integrity(drive_list):
                             # Update UI counter
                             verification_failed_list.append(entry.path)
                             if not CLI_MODE:
-                                statusbar_counter.configure(text=f"{len(verification_failed_list)} failed", fg=uicolor.DANGER)
+                                statusbar_counter_btn.configure(text=f"{len(verification_failed_list)} failed", state='normal')
                             else:
                                 print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
 
@@ -1546,7 +1546,7 @@ def verify_data_integrity(drive_list):
         if not CLI_MODE:
             update_status_bar_action(Status.VERIFICATION_RUNNING)
             progress.start_indeterminate()
-            statusbar_counter.configure(text='0 failed', fg=uicolor.FADED)
+            statusbar_counter_btn.configure(text='0 failed', state='disabled')
             statusbar_details.configure(text='')
 
             halt_verification_btn.pack(side='left', padx=4)
@@ -1637,7 +1637,7 @@ def verify_data_integrity(drive_list):
                         # Update UI counter
                         verification_failed_list.append(filename)
                         if not CLI_MODE:
-                            statusbar_counter.configure(text=f"{len(verification_failed_list)} failed", fg=uicolor.DANGER)
+                            statusbar_counter_btn.configure(text=f"{len(verification_failed_list)} failed", state='normal')
                         else:
                             print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
 
@@ -3349,8 +3349,8 @@ if __name__ == '__main__':
         statusbar_action = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
         statusbar_action.grid(row=0, column=1, padx=6)
         update_status_bar_action(Status.IDLE)
-        statusbar_counter = tk.Label(statusbar_frame, text='0 failed', fg=uicolor.FADED, bg=uicolor.STATUS_BAR)
-        statusbar_counter.grid(row=0, column=2, padx=6)
+        statusbar_counter_btn = ttk.Button(statusbar_frame, text='0 failed', width=0, command=show_backup_error_log, state='disabled', style='danger.statusbar.TButton')
+        statusbar_counter_btn.grid(row=0, column=2, ipadx=3, padx=3)
         statusbar_details = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
         statusbar_details.grid(row=0, column=3, padx=6)
 
@@ -3411,9 +3411,16 @@ if __name__ == '__main__':
             background=[('pressed', '!disabled', '#900'), ('active', '!disabled', '#c00'), ('disabled', DANGER_BUTTON_DISABLED_COLOR)],
             foreground=[('disabled', DANGER_BUTTON_DISABLED_TEXT_COLOR)]
         )
+        tk_style.map(
+            'statusbar.TButton',
+            background=[('pressed', '!disabled', uicolor.STATUS_BAR), ('active', '!disabled', uicolor.STATUS_BAR), ('disabled', uicolor.STATUS_BAR)],
+            foreground=[('disabled', uicolor.FADED)]
+        )
         tk_style.configure('TButton', background=BUTTON_NORMAL_COLOR, foreground=BUTTON_TEXT_COLOR, bordercolor=BUTTON_NORMAL_COLOR, borderwidth=0, padding=(6, 4))
         tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#b00', borderwidth=0)
         tk_style.configure('slim.TButton', padding=(2, 2))
+        tk_style.configure('statusbar.TButton', padding=(3, 0), background=uicolor.STATUS_BAR, foreground=uicolor.FG)
+        tk_style.configure('danger.statusbar.TButton', foreground=uicolor.DANGER)
 
         tk_style.configure('tooltip.TLabel', background=uicolor.BG, foreground=uicolor.TOOLTIP)
         tk_style.configure('on.toggle.TLabel', background=uicolor.BG, foreground=uicolor.GREEN)
