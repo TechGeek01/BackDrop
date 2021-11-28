@@ -514,12 +514,12 @@ def display_backup_command_info(display_command_list: dict):
                 list_font = tkfont.Font(family=None, size=10, weight='normal')
                 trimmed_file_list = ', '.join(item['fileList'])[:500]
                 MAX_WIDTH = backup_activity_frame.canvas.winfo_width() * 0.8
-                actual_file_witdth = list_font.measure(trimmed_file_list)
+                actual_file_width = list_font.measure(trimmed_file_list)
 
-                if actual_file_witdth > MAX_WIDTH:
-                    while actual_file_witdth > MAX_WIDTH and len(trimmed_file_list) > 1:
+                if actual_file_width > MAX_WIDTH:
+                    while actual_file_width > MAX_WIDTH and len(trimmed_file_list) > 1:
                         trimmed_file_list = trimmed_file_list[:-1]
-                        actual_file_witdth = list_font.measure(trimmed_file_list + '...')
+                        actual_file_width = list_font.measure(trimmed_file_list + '...')
                     trimmed_file_list = trimmed_file_list + '...'
 
                 backup_summary_block.add_line('file_size', 'Total size', human_filesize(item['size']))
