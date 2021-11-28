@@ -244,7 +244,6 @@ class DetailBlock(tk.Frame):
         self.arrow.grid(row=0, column=0)
         self.header_frame.grid(row=0, column=1, sticky='w')
         self.header.pack(side='left')
-        self.state.pack(side='left')
 
         # Bind click for expanding and collapsing
         self.arrow.bind('<Button-1>', lambda e: self.toggle())
