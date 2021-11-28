@@ -238,7 +238,6 @@ class DetailBlock(tk.Frame):
         self.arrow = tk.Label(self, image=self.right_arrow)
         self.header_frame = tk.Frame(self)
         self.header = tk.Label(self.header_frame, text=title, font=DetailBlock.HEADER_FONT, fg=self.uicolor.NORMAL if self.enabled else self.uicolor.FADED)
-        self.state = tk.Label(self.header_frame, text='Pending' if self.enabled else 'Skipped', font=DetailBlock.TEXT_FONT, fg=self.uicolor.PENDING if self.enabled else self.uicolor.FADED)
 
         self.content = tk.Frame(self)
 
