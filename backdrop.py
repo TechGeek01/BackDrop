@@ -33,7 +33,7 @@ from bin.progress import Progress
 from bin.commandline import CommandLine
 from bin.backup import Backup
 from bin.update import UpdateHandler
-from bin.widgets import BackupDetailBlock, ScrollableFrame
+from bin.widgets import DetailBlock, BackupDetailBlock, ScrollableFrame
 from bin.status import Status
 
 def center(win, center_to_window=None):
@@ -2483,6 +2483,57 @@ if __name__ == '__main__':
                 # Since config files on drives changed, refresh the destination list
                 load_dest_in_background()
 
+    window_backup_error_log = None
+
+    def show_backup_error_log():
+        """Show the backup error log."""
+
+        global window_backup_error_log
+
+        if window_backup_error_log is None or not window_backup_error_log.winfo_exists():
+            # Initialize window
+            window_backup_error_log = tk.Toplevel(root)
+            window_backup_error_log.title('Backup Error Log')
+            window_backup_error_log.resizable(False, False)
+            window_backup_error_log.geometry('650x450')
+
+            if SYS_PLATFORM == 'Windows':
+                window_backup_error_log.iconbitmap(resource_path('media/icon.ico'))
+
+            center(window_backup_error_log, root)
+
+            main_frame = tk.Frame(window_backup_error_log)
+            main_frame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
+            main_frame.grid_rowconfigure(1, weight=1)
+            main_frame.grid_columnconfigure(0, weight=1)
+
+            tk.Label(main_frame, text='Error Log', font=(None, 20)).grid(row=0, column=0, sticky='ew', pady=WINDOW_ELEMENT_PADDING / 2)
+            errorlog_error_list_frame = ScrollableFrame(main_frame)
+            errorlog_error_list_frame.grid(row=1, column=0, sticky='nsew')
+
+            for error in backup_error_log:
+                error_summary_block = DetailBlock(
+                    parent=errorlog_error_list_frame.frame,
+                    title=error['file'].split(os.path.sep)[-1],
+                    right_arrow=right_nav_arrow,
+                    down_arrow=down_nav_arrow,
+                    uicolor=uicolor
+                )
+
+                error_summary_block.add_line('file_name', 'Filename', error['file'])
+                error_summary_block.add_line('operation', 'Operation', error['mode'])
+                error_summary_block.add_line('error', 'Error', error['error'])
+
+                error_summary_block.pack(anchor='w', expand=1)
+
+            errorlog_statusbar_frame = tk.Frame(window_backup_error_log, bg=uicolor.STATUS_BAR)
+            errorlog_statusbar_frame.pack(fill='x', pady=0)
+            errorlog_statusbar_frame.columnconfigure(50, weight=1)
+
+            # Save status, left side
+            errorlog_statusbar_changes = tk.Label(errorlog_statusbar_frame, bg=uicolor.STATUS_BAR)
+            errorlog_statusbar_changes.grid(row=0, column=0, padx=6)
+
     window_config_builder = None
 
     def show_config_builder():
@@ -3463,6 +3514,7 @@ if __name__ == '__main__':
         view_menu.add_command(label='Refresh Destination', underline=0, accelerator='F5', command=load_dest_in_background)
         show_file_details_pane = tk.BooleanVar()
         view_menu.add_separator()
+        view_menu.add_command(label='Backup Error Log', accelerator='Ctrl+E', command=show_backup_error_log)
         view_menu.add_checkbutton(label='File Details Pane', onvalue=1, offvalue=0, variable=show_file_details_pane, accelerator='Ctrl+D', command=toggle_file_details_pane, selectcolor=uicolor.FG)
         menubar.add_cascade(label='View', underline=0, menu=view_menu)
 
@@ -3508,6 +3560,7 @@ if __name__ == '__main__':
         root.bind('<Control-o>', lambda e: open_config_file())
         root.bind('<Control-s>', lambda e: save_config_file())
         root.bind('<Control-Shift-S>', lambda e: save_config_file_as())
+        root.bind('<Control-e>', lambda e: show_backup_error_log())
         root.bind('<Control-d>', lambda e: toggle_file_details_with_hotkey())
         root.bind('<Control-b>', lambda e: show_config_builder())
 
