@@ -4,8 +4,10 @@ import ctypes
 import clipboard
 import time
 
+from bin.color import Color
+
 class RootWindow(tk.Tk):
-    def __init__(self, title, width, height, center=False, resizable=(True, True), *args, **kwargs):
+    def __init__(self, title, width, height, center=False, resizable=(True, True), dark_mode=False, *args, **kwargs):
         # TODO: Get icons working to be passed into RootWindow class
         # TODO: Add option to give RootWindow a scrollbar
         # TODO: Add option to give RootWindow status bar
@@ -20,6 +22,7 @@ class RootWindow(tk.Tk):
                 (optional).
             resizable (tuple): Whether to let the window be resized in
                 width or height.
+            dark_mode (bool): Whether to use dark mode (optional).
         """
 
         (resize_width, resize_height) = resizable
@@ -32,6 +35,13 @@ class RootWindow(tk.Tk):
 
         if center:
             self.center()
+
+        # Create and set uicolor instance for application windows
+        self.uicolor = Color(self, dark_mode)
+        if self.uicolor.is_dark_mode():
+            self.tk_setPalette(background=self.uicolor.BG)
+
+        self.dark_mode = self.uicolor.is_dark_mode()
 
     def center(self):
         """Center the root window on a screen.

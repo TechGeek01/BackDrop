@@ -26,7 +26,7 @@ if platform.system() == 'Windows':
     import wmi
 
 from bin.fileutils import human_filesize, get_directory_size
-from bin.color import Color, bcolor
+from bin.color import bcolor
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.progress import Progress
@@ -73,13 +73,13 @@ def update_file_detail_lists(list_name, filename):
 
         # Update copy list scrollable
         if list_name in ['success', 'deleteSuccess']:
-            tk.Label(file_details_copied.frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+            tk.Label(file_details_copied.frame, text=filename.split(os.path.sep)[-1], fg=root_window.uicolor.NORMAL if list_name in ['success', 'fail'] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
             file_details_copied_counter.configure(text=len(file_detail_list['success']) + len(file_detail_list['deleteSuccess']))
 
             # Remove all but the most recent 250 items
             file_details_copied.show_items(250)
         else:
-            tk.Label(file_details_failed.frame, text=filename.split(os.path.sep)[-1], fg=uicolor.NORMAL if list_name in ['success', 'fail'] else uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+            tk.Label(file_details_failed.frame, text=filename.split(os.path.sep)[-1], fg=root_window.uicolor.NORMAL if list_name in ['success', 'fail'] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
             file_details_failed_counter.configure(text=len(file_detail_list['fail']) + len(file_detail_list['deleteFail']))
 
             # Update counter in status bar
@@ -151,7 +151,7 @@ def copy_file(source_filename, dest_filename, drive_path, callback, display_file
 
     if not CLI_MODE:
         cmd_info_blocks = backup.cmd_info_blocks
-        cmd_info_blocks[display_index].configure('current_file', text=dest_filename, fg=uicolor.NORMAL)
+        cmd_info_blocks[display_index].configure('current_file', text=dest_filename, fg=root_window.uicolor.NORMAL)
     else:
         print(f"Copying {dest_filename}")
     display_mode = 'copy'
@@ -280,19 +280,19 @@ def display_backup_progress(copied, total, display_filename=None, display_mode=N
         if display_mode == 'delete':
             if not CLI_MODE:
                 progress.set(backup_totals['progressBar'])
-                cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=uicolor.NORMAL)
+                cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=root_window.uicolor.NORMAL)
             else:
                 print(f"Deleted {display_filename}")
         elif display_mode == 'copy':
             if not CLI_MODE:
                 progress.set(backup_totals['progressBar'])
-                cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.NORMAL)
+                cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.NORMAL)
             else:
                 print(f"{percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
         elif display_mode == 'verify':
             if not CLI_MODE:
                 progress.set(backup_totals['progressBar'])
-                cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=uicolor.BLUE)
+                cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.BLUE)
             else:
                 print(f"{bcolor.OKCYAN}Verifying => {percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
 
@@ -376,9 +376,9 @@ def display_backup_summary_chunk(title, payload: tuple, reset: bool = False):
 
         for i, item in enumerate(payload):
             if len(item) > 2:
-                text_color = uicolor.NORMAL if item[2] else uicolor.FADED
+                text_color = root_window.uicolor.NORMAL if item[2] else root_window.uicolor.FADED
             else:
-                text_color = uicolor.NORMAL
+                text_color = root_window.uicolor.NORMAL
 
             tk.Label(summary_frame, text=item[0], fg=text_color, justify='left').grid(row=i, column=0, sticky='w')
             tk.Label(summary_frame, text='\u27f6', fg=text_color, justify='left').grid(row=i, column=1, sticky='w')
@@ -400,7 +400,7 @@ def update_backup_eta_timer():
     """Update the backup timer to show ETA."""
 
     if not CLI_MODE:
-        backup_eta_label.configure(fg=uicolor.NORMAL)
+        backup_eta_label.configure(fg=root_window.uicolor.NORMAL)
 
     # Total is copy source, verify dest, so total data is 2 * copy
     total_to_copy = backup.totals['master'] - backup.totals['delete']
@@ -430,13 +430,13 @@ def update_backup_eta_timer():
     if thread_manager.threadlist['Backup']['killFlag'] and backup.totals['running'] < backup.totals['master']:
         # Backup aborted
         if not CLI_MODE:
-            backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=uicolor.STOPPED)
+            backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
         else:
             print(f"{bcolor.FAIL}Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
     else:
         # Backup not killed, so completed successfully
         if not CLI_MODE:
-            backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=uicolor.FINISHED)
+            backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.FINISHED)
         else:
             print(f"{bcolor.OKGREEN}Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
 
@@ -472,7 +472,7 @@ def display_backup_command_info(display_command_list: dict):
                 right_arrow=right_nav_arrow,
                 down_arrow=down_nav_arrow,
                 backup=backup,
-                uicolor=uicolor
+                uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
             )
             backup_summary_block.pack(anchor='w', expand=1)
 
@@ -491,8 +491,8 @@ def display_backup_command_info(display_command_list: dict):
 
                 backup_summary_block.add_line('file_size', 'Total size', human_filesize(item['size']))
                 backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['fileList']))
-                backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=uicolor.PENDING if item['enabled'] else uicolor.FADED)
-                backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=uicolor.PENDING if item['enabled'] else uicolor.FADED)
+                backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
+                backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
 
             backup.cmd_info_blocks.append(backup_summary_block)
         else:
@@ -512,7 +512,7 @@ def backup_reset_ui():
         backup_summary_text.empty()
 
         # Reset ETA counter
-        backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=uicolor.NORMAL)
+        backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=root_window.uicolor.NORMAL)
 
         # Empty backup operation list pane
         backup_activity_frame.empty()
@@ -556,7 +556,7 @@ def start_backup_analysis():
                 config=config,
                 backup_config_dir=BACKUP_CONFIG_DIR,
                 backup_config_file=BACKUP_CONFIG_FILE,
-                uicolor=uicolor,
+                uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
                 do_copy_fn=do_copy,
                 do_del_fn=do_delete,
                 start_backup_timer_fn=update_backup_eta_timer,
@@ -649,8 +649,8 @@ def load_source():
     if source_avail_drive_list or settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH]:
         if not CLI_MODE:
             # Display empty selection sizes
-            share_selected_space.configure(text='None', fg=uicolor.FADED)
-            share_total_space.configure(text='~None', fg=uicolor.FADED)
+            share_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
+            share_total_space.configure(text='~None', fg=root_window.uicolor.FADED)
 
             source_warning.grid_forget()
             tree_source_frame.grid(row=1, column=1, sticky='ns')
@@ -839,7 +839,7 @@ def select_source():
                 share_size = tree_source.item(item, 'values')[1]
                 selected_total = selected_total + int(share_size)
 
-        share_selected_space.configure(text=human_filesize(selected_total), fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
+        share_selected_space.configure(text=human_filesize(selected_total), fg=root_window.uicolor.NORMAL if selected_total > 0 else root_window.uicolor.FADED)
         config['sources'] = selected_share_list
 
         share_total = 0
@@ -853,7 +853,7 @@ def select_source():
                 is_total_approximate = True
                 total_prefix += '~'
 
-        share_total_space.configure(text=total_prefix + human_filesize(share_total), fg=uicolor.NORMAL if share_total > 0 else uicolor.FADED)
+        share_total_space.configure(text=total_prefix + human_filesize(share_total), fg=root_window.uicolor.NORMAL if share_total > 0 else root_window.uicolor.FADED)
 
         # If everything's calculated, enable analysis button to be clicked
         all_shares_known = True
@@ -904,7 +904,7 @@ def select_source():
                 new_shares.append(share_info)
         else:
             # Nothing selected, so empty the meta counter
-            share_selected_space.configure(text='None', fg=uicolor.FADED)
+            share_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
 
         config['sources'] = new_shares
         update_status_bar_selection()
@@ -1074,7 +1074,7 @@ def load_dest():
         total_drive_space_available = 0
 
     if not CLI_MODE:
-        drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=uicolor.NORMAL if total_drive_space_available > 0 else uicolor.FADED)
+        drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=root_window.uicolor.NORMAL if total_drive_space_available > 0 else root_window.uicolor.FADED)
 
         progress.stop_indeterminate()
 
@@ -1225,7 +1225,7 @@ def load_config_from_file(filename):
     config.update(new_config)
 
     if not CLI_MODE:
-        config_selected_space.configure(text=human_filesize(config_drive_total), fg=uicolor.NORMAL)
+        config_selected_space.configure(text=human_filesize(config_drive_total), fg=root_window.uicolor.NORMAL)
         gui_select_from_config()
 
 def select_dest():
@@ -1306,11 +1306,11 @@ def select_dest():
 
             config['destinations'] = selected_drive_list
 
-        drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=uicolor.NORMAL if selected_total > 0 else uicolor.FADED)
+        drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=root_window.uicolor.NORMAL if selected_total > 0 else root_window.uicolor.FADED)
         if not drives_read_from_config_file:
             config['destinations'] = selected_drive_list
             config['missing_drives'] = {}
-            config_selected_space.configure(text='None', fg=uicolor.FADED)
+            config_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
 
         update_status_bar_selection()
 
@@ -1666,7 +1666,7 @@ def display_update_screen(update_info: dict):
         update_window.grid_rowconfigure(0, weight=1)
         update_window.grid_columnconfigure(0, weight=1)
 
-        update_header = tk.Label(main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=uicolor.INFOTEXTDARK)
+        update_header = tk.Label(main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=root_window.uicolor.INFOTEXTDARK)
         update_header.pack()
 
         update_text = tk.Label(main_frame, text='An update to BackDrop is available. Please update to get the latest features and fixes.', font=(None, 10))
@@ -1675,12 +1675,12 @@ def display_update_screen(update_info: dict):
         current_version_frame = tk.Frame(main_frame)
         current_version_frame.pack()
         tk.Label(current_version_frame, text='Current Version:', font=(None, 14)).pack(side='left')
-        tk.Label(current_version_frame, text=APP_VERSION, font=(None, 14), fg=uicolor.FADED).pack(side='left')
+        tk.Label(current_version_frame, text=APP_VERSION, font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
 
         latest_version_frame = tk.Frame(main_frame)
         latest_version_frame.pack(pady=(2, 12))
         tk.Label(latest_version_frame, text='Latest Version:', font=(None, 14)).pack(side='left')
-        tk.Label(latest_version_frame, text=update_info['latestVersion'], font=(None, 14), fg=uicolor.FADED).pack(side='left')
+        tk.Label(latest_version_frame, text=update_info['latestVersion'], font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
 
         download_frame = tk.Frame(main_frame)
         download_frame.pack()
@@ -1688,7 +1688,7 @@ def display_update_screen(update_info: dict):
         download_source_frame = tk.Frame(main_frame)
         download_source_frame.pack()
         tk.Label(download_source_frame, text='Or, check out the source on').pack(side='left')
-        github_link = tk.Label(download_source_frame, text='GitHub', fg=uicolor.INFOTEXT)
+        github_link = tk.Label(download_source_frame, text='GitHub', fg=root_window.uicolor.INFOTEXT)
         github_link.pack(side='left')
         github_link.bind('<Button-1>', lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
 
@@ -2283,9 +2283,9 @@ if __name__ == '__main__':
         elif status == Status.BACKUP_ANALYSIS_RUNNING:
             statusbar_action.configure(text='Analysis running')
         elif status == Status.BACKUP_READY_FOR_BACKUP:
-            backup_eta_label.configure(text='Analysis finished, ready for backup', fg=uicolor.NORMAL)
+            backup_eta_label.configure(text='Analysis finished, ready for backup', fg=root_window.uicolor.NORMAL)
         elif status == Status.BACKUP_READY_FOR_ANALYSIS:
-            backup_eta_label.configure(text='Please start a backup to show ETA', fg=uicolor.NORMAL)
+            backup_eta_label.configure(text='Please start a backup to show ETA', fg=root_window.uicolor.NORMAL)
         elif status == Status.BACKUP_BACKUP_RUNNING:
             statusbar_action.configure(text='Backup running')
         elif status == Status.BACKUP_HALT_REQUESTED:
@@ -2301,13 +2301,13 @@ if __name__ == '__main__':
         """
 
         if status == Status.UPDATE_CHECKING:
-            statusbar_update.configure(text='Checking for updates', fg=uicolor.NORMAL)
+            statusbar_update.configure(text='Checking for updates', fg=root_window.uicolor.NORMAL)
         elif status == Status.UPDATE_AVAILABLE:
-            statusbar_update.configure(text='Update available!', fg=uicolor.INFOTEXT)
+            statusbar_update.configure(text='Update available!', fg=root_window.uicolor.INFOTEXT)
         elif status == Status.UPDATE_UP_TO_DATE:
-            statusbar_update.configure(text='Up to date', fg=uicolor.NORMAL)
+            statusbar_update.configure(text='Up to date', fg=root_window.uicolor.NORMAL)
         elif status == Status.UPDATE_FAILED:
-            statusbar_update.configure(text='Update failed', fg=uicolor.FAILED)
+            statusbar_update.configure(text='Update failed', fg=root_window.uicolor.FAILED)
 
     def request_kill_backup():
         """Kill a running backup."""
@@ -2481,7 +2481,7 @@ if __name__ == '__main__':
                     title=error['file'].split(os.path.sep)[-1],
                     right_arrow=right_nav_arrow,
                     down_arrow=down_nav_arrow,
-                    uicolor=uicolor
+                    uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
                 )
 
                 error_summary_block.add_line('file_name', 'Filename', error['file'])
@@ -2490,12 +2490,12 @@ if __name__ == '__main__':
 
                 error_summary_block.pack(anchor='w', expand=1)
 
-            errorlog_statusbar_frame = tk.Frame(window_backup_error_log, bg=uicolor.STATUS_BAR)
+            errorlog_statusbar_frame = tk.Frame(window_backup_error_log, bg=root_window.uicolor.STATUS_BAR)
             errorlog_statusbar_frame.pack(fill='x', pady=0)
             errorlog_statusbar_frame.columnconfigure(50, weight=1)
 
             # Save status, left side
-            errorlog_statusbar_changes = tk.Label(errorlog_statusbar_frame, bg=uicolor.STATUS_BAR)
+            errorlog_statusbar_changes = tk.Label(errorlog_statusbar_frame, bg=root_window.uicolor.STATUS_BAR)
             errorlog_statusbar_changes.grid(row=0, column=0, padx=6)
 
     window_config_builder = None
@@ -2514,9 +2514,9 @@ if __name__ == '__main__':
             """
 
             if status == Status.SAVE_PENDING_CHANGES:
-                builder_statusbar_changes.configure(text='Unsaved changes', fg=uicolor.INFOTEXT)
+                builder_statusbar_changes.configure(text='Unsaved changes', fg=root_window.uicolor.INFOTEXT)
             elif status == Status.SAVE_ALL_SAVED:
-                builder_statusbar_changes.configure(text='All changes saved', fg=uicolor.NORMAL)
+                builder_statusbar_changes.configure(text='All changes saved', fg=root_window.uicolor.NORMAL)
 
         def builder_load_connected():
             """Load the connected drive info, and display it in the tree."""
@@ -2833,12 +2833,12 @@ if __name__ == '__main__':
             save_config_btn = ttk.Button(main_control_frame, text='Save config', command=builder_save_config_file, style='win.TButton')
             save_config_btn.pack()
 
-            builder_statusbar_frame = tk.Frame(window_config_builder, bg=uicolor.STATUS_BAR)
+            builder_statusbar_frame = tk.Frame(window_config_builder, bg=root_window.uicolor.STATUS_BAR)
             builder_statusbar_frame.pack(fill='x', pady=0)
             builder_statusbar_frame.columnconfigure(50, weight=1)
 
             # Save status, left side
-            builder_statusbar_changes = tk.Label(builder_statusbar_frame, bg=uicolor.STATUS_BAR)
+            builder_statusbar_changes = tk.Label(builder_statusbar_frame, bg=root_window.uicolor.STATUS_BAR)
             builder_statusbar_changes.grid(row=0, column=0, padx=6)
             builder_update_status_bar_save(Status.SAVE_ALL_SAVED)
 
@@ -3273,7 +3273,8 @@ if __name__ == '__main__':
             title='BackDrop - Data Backup Tool',
             width=WINDOW_MIN_WIDTH,
             height=WINDOW_MIN_HEIGHT,
-            center=True
+            center=True,
+            dark_mode=prefs.get('ui', 'dark_mode', False, data_type=Config.BOOLEAN)
         )
 
         appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
@@ -3290,42 +3291,36 @@ if __name__ == '__main__':
         menu_font = tkfont.nametofont("TkMenuFont")
         menu_font.configure(size=9)
 
-        # Create Color class instance for UI
-        uicolor = Color(root_window, prefs.get('ui', 'dark_mode', False, data_type=Config.BOOLEAN))
-
-        if uicolor.is_dark_mode():
-            root_window.tk_setPalette(background=uicolor.BG)
-
         # Navigation arrow glyphs
-        right_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if uicolor.is_dark_mode() else ''}.png")))
-        down_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if uicolor.is_dark_mode() else ''}.png")))
+        right_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if root_window.dark_mode else ''}.png")))
+        down_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if root_window.dark_mode else ''}.png")))
 
         root_window.grid_rowconfigure(0, weight=1)
         root_window.grid_columnconfigure(0, weight=1)
         main_frame = tk.Frame(root_window)
         main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
 
-        statusbar_frame = tk.Frame(root_window, bg=uicolor.STATUS_BAR)
+        statusbar_frame = tk.Frame(root_window, bg=root_window.uicolor.STATUS_BAR)
         statusbar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
         statusbar_frame.columnconfigure(50, weight=1)
 
         # Selection and backup status, left side
-        statusbar_selection = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
+        statusbar_selection = tk.Label(statusbar_frame, bg=root_window.uicolor.STATUS_BAR)
         statusbar_selection.grid(row=0, column=0, padx=6)
         update_status_bar_selection()
-        statusbar_action = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
+        statusbar_action = tk.Label(statusbar_frame, bg=root_window.uicolor.STATUS_BAR)
         statusbar_action.grid(row=0, column=1, padx=6)
         update_status_bar_action(Status.IDLE)
         statusbar_counter_btn = ttk.Button(statusbar_frame, text='0 failed', width=0, command=show_backup_error_log, state='disabled', style='danger.statusbar.TButton')
         statusbar_counter_btn.grid(row=0, column=2, ipadx=3, padx=3)
-        statusbar_details = tk.Label(statusbar_frame, bg=uicolor.STATUS_BAR)
+        statusbar_details = tk.Label(statusbar_frame, bg=root_window.uicolor.STATUS_BAR)
         statusbar_details.grid(row=0, column=3, padx=6)
 
         # Portable mode indicator and update status, right side
         if PORTABLE_MODE:
-            statusbar_portablemode = tk.Label(statusbar_frame, text='Portable mode', bg=uicolor.STATUS_BAR)
+            statusbar_portablemode = tk.Label(statusbar_frame, text='Portable mode', bg=root_window.uicolor.STATUS_BAR)
             statusbar_portablemode.grid(row=0, column=99, padx=6)
-        statusbar_update = tk.Label(statusbar_frame, text='', bg=uicolor.STATUS_BAR)
+        statusbar_update = tk.Label(statusbar_frame, text='', bg=root_window.uicolor.STATUS_BAR)
         statusbar_update.grid(row=0, column=100, padx=6)
         statusbar_update.bind('<Button-1>', lambda e: display_update_screen(update_info))
 
@@ -3347,7 +3342,7 @@ if __name__ == '__main__':
             ]})
         ])
 
-        if not uicolor.is_dark_mode():
+        if not root_window.dark_mode:
             BUTTON_NORMAL_COLOR = '#ccc'
             BUTTON_TEXT_COLOR = '#000'
             BUTTON_ACTIVE_COLOR = '#d7d7d7'
@@ -3380,21 +3375,21 @@ if __name__ == '__main__':
         )
         tk_style.map(
             'statusbar.TButton',
-            background=[('pressed', '!disabled', uicolor.STATUS_BAR), ('active', '!disabled', uicolor.STATUS_BAR), ('disabled', uicolor.STATUS_BAR)],
-            foreground=[('disabled', uicolor.FADED)]
+            background=[('pressed', '!disabled', root_window.uicolor.STATUS_BAR), ('active', '!disabled', root_window.uicolor.STATUS_BAR), ('disabled', root_window.uicolor.STATUS_BAR)],
+            foreground=[('disabled', root_window.uicolor.FADED)]
         )
         tk_style.configure('TButton', background=BUTTON_NORMAL_COLOR, foreground=BUTTON_TEXT_COLOR, bordercolor=BUTTON_NORMAL_COLOR, borderwidth=0, padding=(6, 4))
         tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#b00', borderwidth=0)
         tk_style.configure('slim.TButton', padding=(2, 2))
-        tk_style.configure('statusbar.TButton', padding=(3, 0), background=uicolor.STATUS_BAR, foreground=uicolor.FG)
-        tk_style.configure('danger.statusbar.TButton', foreground=uicolor.DANGER)
+        tk_style.configure('statusbar.TButton', padding=(3, 0), background=root_window.uicolor.STATUS_BAR, foreground=root_window.uicolor.FG)
+        tk_style.configure('danger.statusbar.TButton', foreground=root_window.uicolor.DANGER)
 
-        tk_style.configure('tooltip.TLabel', background=uicolor.BG, foreground=uicolor.TOOLTIP)
-        tk_style.configure('on.toggle.TLabel', background=uicolor.BG, foreground=uicolor.GREEN)
-        tk_style.configure('off.toggle.TLabel', background=uicolor.BG, foreground=uicolor.FADED)
+        tk_style.configure('tooltip.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.TOOLTIP)
+        tk_style.configure('on.toggle.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.GREEN)
+        tk_style.configure('off.toggle.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.FADED)
 
-        tk_style.configure('TCheckbutton', background=uicolor.BG, foreground=uicolor.NORMAL)
-        tk_style.configure('TFrame', background=uicolor.BG, foreground=uicolor.NORMAL)
+        tk_style.configure('TCheckbutton', background=root_window.uicolor.BG, foreground=root_window.uicolor.NORMAL)
+        tk_style.configure('TFrame', background=root_window.uicolor.BG, foreground=root_window.uicolor.NORMAL)
 
         tk_style.element_create('custom.Treeheading.border', 'from', 'default')
         tk_style.element_create('custom.Treeview.field', 'from', 'clam')
@@ -3414,9 +3409,9 @@ if __name__ == '__main__':
                 ]})
             ]})
         ])
-        tk_style.configure('custom.Treeview.Heading', background=uicolor.BGACCENT, foreground=uicolor.FG, padding=2.5)
-        tk_style.configure('custom.Treeview', background=uicolor.BGACCENT2, fieldbackground=uicolor.BGACCENT2, foreground=uicolor.FG, bordercolor=uicolor.BGACCENT3)
-        tk_style.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', uicolor.NORMAL), ('selected', uicolor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', uicolor.BGACCENT2), ('selected', uicolor.COLORACCENT)])
+        tk_style.configure('custom.Treeview.Heading', background=root_window.uicolor.BGACCENT, foreground=root_window.uicolor.FG, padding=2.5)
+        tk_style.configure('custom.Treeview', background=root_window.uicolor.BGACCENT2, fieldbackground=root_window.uicolor.BGACCENT2, foreground=root_window.uicolor.FG, bordercolor=root_window.uicolor.BGACCENT3)
+        tk_style.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', root_window.uicolor.NORMAL), ('selected', root_window.uicolor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', root_window.uicolor.BGACCENT2), ('selected', root_window.uicolor.COLORACCENT)])
 
         tk_style.element_create('custom.Progressbar.trough', 'from', 'clam')
         tk_style.element_create('custom.Progressbar.pbar', 'from', 'default')
@@ -3427,7 +3422,7 @@ if __name__ == '__main__':
                 ]})
             ]})
         ])
-        tk_style.configure('custom.Progressbar', padding=4, background=uicolor.COLORACCENT, bordercolor=uicolor.BGACCENT3, borderwidth=0, troughcolor=uicolor.BG, lightcolor=uicolor.COLORACCENT, darkcolor=uicolor.COLORACCENT)
+        tk_style.configure('custom.Progressbar', padding=4, background=root_window.uicolor.COLORACCENT, bordercolor=root_window.uicolor.BGACCENT3, borderwidth=0, troughcolor=root_window.uicolor.BG, lightcolor=root_window.uicolor.COLORACCENT, darkcolor=root_window.uicolor.COLORACCENT)
 
         def on_close():
             if thread_manager.is_alive('Backup'):
@@ -3441,7 +3436,7 @@ if __name__ == '__main__':
         menubar = tk.Menu(root_window)
 
         # File menu
-        file_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+        file_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
         file_menu.add_command(label='Open Backup Config...', underline=0, accelerator='Ctrl+O', command=open_config_file)
         file_menu.add_command(label='Save Backup Config', underline=0, accelerator='Ctrl+S', command=save_config_file)
         file_menu.add_command(label='Save Backup Config As...', underline=19, accelerator='Ctrl+Shift+S', command=save_config_file_as)
@@ -3451,7 +3446,7 @@ if __name__ == '__main__':
 
         # Selection menu
         # FIXME: Add -c configuration option for CLI mode to change preference options
-        selection_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+        selection_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
         settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN))
         settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN))
         PREV_NETWORK_SOURCE_DRIVE = settings_showDrives_source_network.get()
@@ -3465,7 +3460,7 @@ if __name__ == '__main__':
         selection_menu.add_checkbutton(label='Destination Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE))
         selection_menu.add_checkbutton(label='Destination Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL))
         selection_menu.add_separator()
-        selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+        selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
         settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=Config.SOURCE_MODE_OPTIONS, default=Config.SOURCE_MODE_SINGLE_DRIVE))
         PREV_SOURCE_MODE = settings_sourceMode.get()
         selection_source_mode_menu.add_checkbutton(label='Single drive, select subfolders', onvalue=Config.SOURCE_MODE_SINGLE_DRIVE, offvalue=Config.SOURCE_MODE_SINGLE_DRIVE, variable=settings_sourceMode, command=change_source_mode)
@@ -3474,7 +3469,7 @@ if __name__ == '__main__':
         selection_source_mode_menu.add_checkbutton(label='Single path, select subfolders', onvalue=Config.SOURCE_MODE_SINGLE_PATH, offvalue=Config.SOURCE_MODE_SINGLE_PATH, variable=settings_sourceMode, command=change_source_mode)
         selection_source_mode_menu.add_checkbutton(label='Multi path, select paths', onvalue=Config.SOURCE_MODE_MULTI_PATH, offvalue=Config.SOURCE_MODE_MULTI_PATH, variable=settings_sourceMode, command=change_source_mode)
         selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
-        selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+        selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
         settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=Config.DEST_MODE_OPTIONS, default=Config.DEST_MODE_DRIVES))
         PREV_DEST_MODE = settings_destMode.get()
         selection_dest_mode_menu.add_checkbutton(label='Drives', onvalue=Config.DEST_MODE_DRIVES, offvalue=Config.DEST_MODE_DRIVES, variable=settings_destMode, command=change_dest_mode)
@@ -3483,39 +3478,39 @@ if __name__ == '__main__':
         menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
 
         # View menu
-        view_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+        view_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
         view_menu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=load_source_in_background)
         view_menu.add_command(label='Refresh Destination', underline=0, accelerator='F5', command=load_dest_in_background)
         show_file_details_pane = tk.BooleanVar()
         view_menu.add_separator()
         view_menu.add_command(label='Backup Error Log', accelerator='Ctrl+E', command=show_backup_error_log)
-        view_menu.add_checkbutton(label='File Details Pane', onvalue=1, offvalue=0, variable=show_file_details_pane, accelerator='Ctrl+D', command=toggle_file_details_pane, selectcolor=uicolor.FG)
+        view_menu.add_checkbutton(label='File Details Pane', onvalue=1, offvalue=0, variable=show_file_details_pane, accelerator='Ctrl+D', command=toggle_file_details_pane, selectcolor=root_window.uicolor.FG)
         menubar.add_cascade(label='View', underline=0, menu=view_menu)
 
         # Actions menu
-        actions_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+        actions_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
         actions_menu.add_command(label='Verify Data Integrity on Selected Destinations', underline=0, command=start_verify_data_from_hash_list)
         actions_menu.add_command(label='Delete Config from Selected Destinations', command=delete_config_file_from_selected_drives)
         menubar.add_cascade(label='Actions', underline=0, menu=actions_menu)
 
         # Tools menu
-        tools_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+        tools_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
         tools_menu.add_command(label='Config Builder', underline=7, accelerator='Ctrl+B', command=show_config_builder)
         menubar.add_cascade(label='Tools', underline=0, menu=tools_menu)
 
         # Preferences menu
-        preferences_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
-        preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+        preferences_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
+        preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
         settings_verifyAllFiles = tk.BooleanVar(value=prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN))
         preferences_verification_menu.add_checkbutton(label='Verify Known Files', onvalue=False, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
         preferences_verification_menu.add_checkbutton(label='Verify All Files', onvalue=True, offvalue=True, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
         preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
-        settings_darkModeEnabled = tk.BooleanVar(value=uicolor.is_dark_mode()) 
+        settings_darkModeEnabled = tk.BooleanVar(value=root_window.dark_mode) 
         preferences_menu.add_checkbutton(label='Enable Dark Mode (requires restart)', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()))
         menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
 
         # Help menu
-        help_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
+        help_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
         help_menu.add_command(label='Check for Updates', command=lambda: thread_manager.start(
             thread_manager.SINGLE,
             target=update_handler.check,
@@ -3540,13 +3535,13 @@ if __name__ == '__main__':
 
         root_window.config(menu=menubar)
 
-        icon_windows = ImageTk.PhotoImage(Image.open(resource_path(f"media/windows{'_light' if uicolor.is_dark_mode() else ''}.png")))
+        icon_windows = ImageTk.PhotoImage(Image.open(resource_path(f"media/windows{'_light' if root_window.dark_mode else ''}.png")))
         icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media/windows_color.png')))
-        icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media/zip{'_light' if uicolor.is_dark_mode() else ''}.png")))
+        icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media/zip{'_light' if root_window.dark_mode else ''}.png")))
         icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media/zip_color.png')))
-        icon_debian = ImageTk.PhotoImage(Image.open(resource_path(f"media/debian{'_light' if uicolor.is_dark_mode() else ''}.png")))
+        icon_debian = ImageTk.PhotoImage(Image.open(resource_path(f"media/debian{'_light' if root_window.dark_mode else ''}.png")))
         icon_debian_color = ImageTk.PhotoImage(Image.open(resource_path('media/debian_color.png')))
-        icon_targz = ImageTk.PhotoImage(Image.open(resource_path(f"media/targz{'_light' if uicolor.is_dark_mode() else ''}.png")))
+        icon_targz = ImageTk.PhotoImage(Image.open(resource_path(f"media/targz{'_light' if root_window.dark_mode else ''}.png")))
         icon_targz_color = ImageTk.PhotoImage(Image.open(resource_path('media/targz_color.png')))
 
         # Progress/status values
@@ -3598,12 +3593,12 @@ if __name__ == '__main__':
         share_selected_space_frame = tk.Frame(share_space_frame)
         share_selected_space_frame.grid(row=0, column=0)
         share_selected_space_label = tk.Label(share_selected_space_frame, text='Selected:').pack(side='left')
-        share_selected_space = tk.Label(share_selected_space_frame, text='None', fg=uicolor.FADED)
+        share_selected_space = tk.Label(share_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
         share_selected_space.pack(side='left')
         share_total_space_frame = tk.Frame(share_space_frame)
         share_total_space_frame.grid(row=0, column=1, padx=(12, 0))
         share_total_space_label = tk.Label(share_total_space_frame, text='Total:').pack(side='left')
-        share_total_space = tk.Label(share_total_space_frame, text='~None', fg=uicolor.FADED)
+        share_total_space = tk.Label(share_total_space_frame, text='~None', fg=root_window.uicolor.FADED)
         share_total_space.pack(side='left')
 
         source_select_frame = tk.Frame(main_frame)
@@ -3613,7 +3608,7 @@ if __name__ == '__main__':
         tk.Label(source_select_single_frame, text='Source:').pack(side='left')
         PREV_SOURCE_DRIVE = source_drive_default
         source_select_menu = ttk.OptionMenu(source_select_single_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
-        source_select_menu['menu'].config(selectcolor=uicolor.FG)
+        source_select_menu['menu'].config(selectcolor=root_window.uicolor.FG)
         source_select_menu.pack(side='left', padx=(12, 0))
 
         source_select_multi_frame = tk.Frame(source_select_frame)
@@ -3646,7 +3641,7 @@ if __name__ == '__main__':
         else:
             source_right_click_bind = None
 
-        source_warning = tk.Label(main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=uicolor.ERROR, fg=uicolor.BLACK)
+        source_warning = tk.Label(main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=root_window.uicolor.ERROR, fg=root_window.uicolor.BLACK)
 
         root_window.bind('<Control-F5>', lambda x: load_source_in_background())
 
@@ -3663,15 +3658,15 @@ if __name__ == '__main__':
                 config['splitMode'] = not config['splitMode']
 
                 if config['splitMode']:
-                    split_mode_frame.configure(highlightbackground=uicolor.GREEN)
+                    split_mode_frame.configure(highlightbackground=root_window.uicolor.GREEN)
                     split_mode_status.configure(style='on.toggle.TLabel')
                 else:
-                    split_mode_frame.configure(highlightbackground=uicolor.FADED)
+                    split_mode_frame.configure(highlightbackground=root_window.uicolor.FADED)
                     split_mode_status.configure(style='off.toggle.TLabel')
 
         dest_select_normal_frame = tk.Frame(dest_mode_frame)
         dest_select_normal_frame.pack()
-        alt_tooltip_normal_frame = tk.Frame(dest_select_normal_frame, highlightbackground=uicolor.TOOLTIP, highlightthickness=1)
+        alt_tooltip_normal_frame = tk.Frame(dest_select_normal_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
         alt_tooltip_normal_frame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
         ttk.Label(alt_tooltip_normal_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
 
@@ -3679,7 +3674,7 @@ if __name__ == '__main__':
         dest_select_custom_frame.grid_columnconfigure(0, weight=1)
         # dest_select_custom_label = tk.Label(dest_select_custom_frame, text='Custom destination mode')
         # dest_select_custom_label.grid(row=0, column=0)
-        alt_tooltip_custom_frame = tk.Frame(dest_select_custom_frame, highlightbackground=uicolor.TOOLTIP, highlightthickness=1)
+        alt_tooltip_custom_frame = tk.Frame(dest_select_custom_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
         alt_tooltip_custom_frame.grid(row=0, column=0, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
         ttk.Label(alt_tooltip_custom_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
         dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest, style='slim.TButton')
@@ -3736,18 +3731,18 @@ if __name__ == '__main__':
         dest_meta_frame.grid(row=2, column=2, sticky='nsew', pady=(1, 0))
         tk.Grid.columnconfigure(dest_meta_frame, 0, weight=1)
 
-        dest_split_warning_frame = tk.Frame(main_frame, bg=uicolor.WARNING)
+        dest_split_warning_frame = tk.Frame(main_frame, bg=root_window.uicolor.WARNING)
         dest_split_warning_frame.rowconfigure(0, weight=1)
         dest_split_warning_frame.columnconfigure(0, weight=1)
         dest_split_warning_frame.columnconfigure(10, weight=1)
 
         # TODO: Can this be cleaned up?
         tk.Frame(dest_split_warning_frame).grid(row=0, column=1)
-        split_warning_prefix = tk.Label(dest_split_warning_frame, text='There are', bg=uicolor.WARNING, fg=uicolor.BLACK)
+        split_warning_prefix = tk.Label(dest_split_warning_frame, text='There are', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK)
         split_warning_prefix.grid(row=0, column=1, sticky='ns')
-        split_warning_missing_drive_count = tk.Label(dest_split_warning_frame, text='0', bg=uicolor.WARNING, fg=uicolor.BLACK, font=(None, 18, 'bold'))
+        split_warning_missing_drive_count = tk.Label(dest_split_warning_frame, text='0', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK, font=(None, 18, 'bold'))
         split_warning_missing_drive_count.grid(row=0, column=2, sticky='ns')
-        split_warning_suffix = tk.Label(dest_split_warning_frame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=uicolor.WARNING, fg=uicolor.BLACK)
+        split_warning_suffix = tk.Label(dest_split_warning_frame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK)
         split_warning_suffix.grid(row=0, column=3, sticky='ns')
         tk.Frame(dest_split_warning_frame).grid(row=0, column=10)
 
@@ -3757,21 +3752,21 @@ if __name__ == '__main__':
         config_selected_space_frame = tk.Frame(drive_space_frame)
         config_selected_space_frame.grid(row=0, column=0)
         tk.Label(config_selected_space_frame, text='Config:').pack(side='left')
-        config_selected_space = tk.Label(config_selected_space_frame, text='None', fg=uicolor.FADED)
+        config_selected_space = tk.Label(config_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
         config_selected_space.pack(side='left')
 
         drive_selected_space_frame = tk.Frame(drive_space_frame)
         drive_selected_space_frame.grid(row=0, column=1, padx=(12, 0))
         tk.Label(drive_selected_space_frame, text='Selected:').pack(side='left')
-        drive_selected_space = tk.Label(drive_selected_space_frame, text='None', fg=uicolor.FADED)
+        drive_selected_space = tk.Label(drive_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
         drive_selected_space.pack(side='left')
 
         drive_total_space_frame = tk.Frame(drive_space_frame)
         drive_total_space_frame.grid(row=0, column=2, padx=(12, 0))
         tk.Label(drive_total_space_frame, text='Avail:').pack(side='left')
-        drive_total_space = tk.Label(drive_total_space_frame, text=human_filesize(0), fg=uicolor.FADED)
+        drive_total_space = tk.Label(drive_total_space_frame, text=human_filesize(0), fg=root_window.uicolor.FADED)
         drive_total_space.pack(side='left')
-        split_mode_frame = tk.Frame(drive_space_frame, highlightbackground=uicolor.GREEN if config['splitMode'] else uicolor.FADED, highlightthickness=1)
+        split_mode_frame = tk.Frame(drive_space_frame, highlightbackground=root_window.uicolor.GREEN if config['splitMode'] else root_window.uicolor.FADED, highlightthickness=1)
         split_mode_frame.grid(row=0, column=3, padx=(12, 0), pady=4, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=3)
         split_mode_status = ttk.Label(split_mode_frame, text='Split mode', style='on.toggle.TLabel' if config['splitMode'] else 'off.toggle.TLabel')
         split_mode_status.pack(fill='y', expand=1)
@@ -3804,28 +3799,28 @@ if __name__ == '__main__':
         file_details_pending_delete_header_line.grid(row=0, column=0, sticky='w')
         file_details_pending_delete_header = tk.Label(file_details_pending_delete_header_line, text='Files to delete', font=(None, 11, 'bold'))
         file_details_pending_delete_header.pack()
-        file_details_pending_delete_tooltip = tk.Label(file_details_pending_delete_header_line, text='(Click to copy)', fg=uicolor.FADED)
+        file_details_pending_delete_tooltip = tk.Label(file_details_pending_delete_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
         file_details_pending_delete_tooltip.pack()
         file_details_pending_delete_counter_frame = tk.Frame(backup_file_details_frame)
         file_details_pending_delete_counter_frame.grid(row=1, column=0)
         file_details_pending_delete_counter = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 28))
         file_details_pending_delete_counter.pack(side='left', anchor='s')
-        tk.Label(file_details_pending_delete_counter_frame, text='of', font=(None, 11), fg=uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
-        file_details_pending_delete_counter_total = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 12), fg=uicolor.FADED)
+        tk.Label(file_details_pending_delete_counter_frame, text='of', font=(None, 11), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
+        file_details_pending_delete_counter_total = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 12), fg=root_window.uicolor.FADED)
         file_details_pending_delete_counter_total.pack(side='left', anchor='s', pady=(0, 5))
 
         file_details_pending_copy_header_line = tk.Frame(backup_file_details_frame)
         file_details_pending_copy_header_line.grid(row=0, column=1, sticky='e')
         file_details_pending_copy_header = tk.Label(file_details_pending_copy_header_line, text='Files to copy', font=(None, 11, 'bold'))
         file_details_pending_copy_header.pack()
-        file_details_pending_copy_tooltip = tk.Label(file_details_pending_copy_header_line, text='(Click to copy)', fg=uicolor.FADED)
+        file_details_pending_copy_tooltip = tk.Label(file_details_pending_copy_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
         file_details_pending_copy_tooltip.pack()
         file_details_pending_copy_counter_frame = tk.Frame(backup_file_details_frame)
         file_details_pending_copy_counter_frame.grid(row=1, column=1)
         file_details_pending_copy_counter = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 28))
         file_details_pending_copy_counter.pack(side='left', anchor='s')
-        tk.Label(file_details_pending_copy_counter_frame, text='of', font=(None, 11), fg=uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
-        file_details_pending_copy_counter_total = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 12), fg=uicolor.FADED)
+        tk.Label(file_details_pending_copy_counter_frame, text='of', font=(None, 11), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
+        file_details_pending_copy_counter_total = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 12), fg=root_window.uicolor.FADED)
         file_details_pending_copy_counter_total.pack(side='left', anchor='s', pady=(0, 5))
 
         file_details_copied_header_line = tk.Frame(backup_file_details_frame)
@@ -3833,7 +3828,7 @@ if __name__ == '__main__':
         file_details_copied_header_line.grid_columnconfigure(1, weight=1)
         file_details_copied_header = tk.Label(file_details_copied_header_line, text='Successful', font=(None, 11, 'bold'))
         file_details_copied_header.grid(row=0, column=0)
-        file_details_copied_tooltip = tk.Label(file_details_copied_header_line, text='(Click to copy)', fg=uicolor.FADED)
+        file_details_copied_tooltip = tk.Label(file_details_copied_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
         file_details_copied_tooltip.grid(row=0, column=1, sticky='w')
         file_details_copied_counter = tk.Label(file_details_copied_header_line, text='0', font=(None, 11, 'bold'))
         file_details_copied_counter.grid(row=0, column=2)
@@ -3845,7 +3840,7 @@ if __name__ == '__main__':
         file_details_failed_header_line.grid_columnconfigure(1, weight=1)
         file_details_failed_header = tk.Label(file_details_failed_header_line, text='Failed', font=(None, 11, 'bold'))
         file_details_failed_header.grid(row=0, column=0)
-        file_details_failed_tooltip = tk.Label(file_details_failed_header_line, text='(Click to copy)', fg=uicolor.FADED)
+        file_details_failed_tooltip = tk.Label(file_details_failed_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
         file_details_failed_tooltip.grid(row=0, column=1, sticky='w')
         file_details_failed_counter = tk.Label(file_details_failed_header_line, text='0', font=(None, 11, 'bold'))
         file_details_failed_counter.grid(row=0, column=2)
@@ -3881,9 +3876,9 @@ if __name__ == '__main__':
         branding_frame = tk.Frame(right_side_frame)
         branding_frame.pack(padx=WINDOW_ELEMENT_PADDING / 2)
 
-        image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if uicolor.is_dark_mode() else ''}.png")))
+        image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if root_window.dark_mode else ''}.png")))
         tk.Label(branding_frame, image=image_logo).pack(side='left')
-        tk.Label(branding_frame, text=f"v{APP_VERSION}", font=(None, 10), fg=uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
+        tk.Label(branding_frame, text=f"v{APP_VERSION}", font=(None, 10), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
         tk.Label(backup_summary_frame, text='Backup Summary', font=(None, 20)).pack()
 
