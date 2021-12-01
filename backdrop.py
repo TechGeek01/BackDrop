@@ -1654,20 +1654,12 @@ def display_update_screen(update_info: dict):
             width=600,
             height=300,
             center=True,
-            resizable=(False, False)
+            resizable=(False, False),
+            modal=True
         )
 
         if SYS_PLATFORM == 'Windows':
             update_window.iconbitmap(resource_path('media/icon.ico'))
-
-        def on_close():
-            update_window.destroy()
-            root_window.wm_attributes('-disabled', False)
-
-            ctypes.windll.user32.SetForegroundWindow(root_window.winfo_id())
-            root_window.focus_set()
-
-        update_window.protocol('WM_DELETE_WINDOW', on_close)
 
         main_frame = tk.Frame(update_window)
         main_frame.grid(row=0, column=0, sticky='')
@@ -2735,6 +2727,7 @@ if __name__ == '__main__':
             if SYS_PLATFORM == 'Windows':
                 window_config_builder.iconbitmap(resource_path('media/icon.ico'))
 
+            # TODO: Find a way to roll custom on_close defs into AppWindow class
             def on_close():
                 if not builder_has_pending_changes or messagebox.askokcancel('Discard changes?', 'You have unsaved changes. Are you sure you want to discard them?', parent=window_config_builder):
                     window_config_builder.destroy()

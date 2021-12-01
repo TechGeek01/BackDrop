@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+import ctypes
 import clipboard
 import time
 
@@ -52,7 +53,7 @@ class RootWindow(tk.Tk):
         self.deiconify()
 
 class AppWindow(tk.Toplevel):
-    def __init__(self, root, title, width, height, center=False, resizable=(True, True), *args, **kwargs):
+    def __init__(self, root, title, width, height, center=False, resizable=(True, True), modal=False, *args, **kwargs):
         # TODO: Get icons working to be passed into AppWindow class
         # TODO: Add option to give AppWindow a scrollbar
         # TODO: Add option to give AppWindow status bar
@@ -68,6 +69,7 @@ class AppWindow(tk.Toplevel):
                 (optional).
             resizable (tuple): Whether to let the window be resized in
                 width or height.
+            modal (bool): Whether or not the window is a modal window (optional).
         """
 
         (resize_width, resize_height) = resizable
@@ -80,6 +82,18 @@ class AppWindow(tk.Toplevel):
 
         if center:
             self.center(root)
+
+        # If window is a modal window, disable parent window until AppWindow
+        # is closed.
+        if modal:
+            def on_close():
+                self.destroy()
+                root.wm_attributes('-disabled', False)
+
+                ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
+                root.focus_set()
+
+            self.protocol('WM_DELETE_WINDOW', on_close)
 
     def center(self, center_to_window):
         """Center the window on the root window.
