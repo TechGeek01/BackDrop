@@ -1654,6 +1654,7 @@ def display_update_screen(update_info: dict):
             width=600,
             height=300,
             center=True,
+            center_content=True,
             resizable=(False, False),
             modal=True
         )

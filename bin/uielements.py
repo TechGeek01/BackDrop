@@ -79,7 +79,7 @@ class RootWindow(tk.Tk):
         self.deiconify()
 
 class AppWindow(tk.Toplevel):
-    def __init__(self, root, title, width, height, center=False, resizable=(True, True), status_bar=False, modal=False, *args, **kwargs):
+    def __init__(self, root, title, width, height, center=False, center_content=False, resizable=(True, True), status_bar=False, modal=False, *args, **kwargs):
         # TODO: Get icons working to be passed into AppWindow class
         # TODO: Add option to give AppWindow a scrollbar
         # TODO: Add option to give AppWindow status bar
@@ -92,6 +92,8 @@ class AppWindow(tk.Toplevel):
             width (int): The window width.
             height (int): The window height.
             center (bool): Whether to center the window on the parent
+                (optional).
+            center_content (bool): Whether to center the content in the window
                 (optional).
             resizable (tuple): Whether to let the window be resized in
                 width or height.
@@ -115,7 +117,10 @@ class AppWindow(tk.Toplevel):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.main_frame = tk.Frame(self)
-        self.main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
+        if not center_content:
+            self.main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
+        else:
+            self.main_frame.grid(row=0, column=0, sticky='')
 
         # Set up status bar
         if status_bar:
