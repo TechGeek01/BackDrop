@@ -36,7 +36,63 @@ from bin.update import UpdateHandler
 from bin.widgets import DetailBlock, BackupDetailBlock, ScrollableFrame
 from bin.status import Status
 
-def center(win, center_to_window=None):
+class RootWindow(tk.Tk):
+    def __init__(self, title, width, height, resizable=(True, True), *args, **kwargs):
+        # TODO: Get icons working to be passed into RootWindow class
+        # TODO: Add option to give RootWindow a scrollbar
+        # TODO: Add option to give RootWindow status bar
+        # TODO: Give RootWindow option to center on screen
+
+        """Create a root window.
+
+        Args:
+            title (String): The window title.
+            width (int): The window width.
+            height (int): The window height.
+            resizable (tuple): Whether to let the window be resized in
+                width or height.
+        """
+
+        (resize_width, resize_height) = resizable
+
+        tk.Tk.__init__(self, *args, **kwargs)
+        self.title(title)
+        self.minsize(width, height)
+        self.geometry(f'{width}x{height}')
+        self.resizable(resize_width, resize_height)
+
+class AppWindow(tk.Toplevel):
+    def __init__(self, root, title, width, height, center=False, resizable=(True, True), *args, **kwargs):
+        # TODO: Get icons working to be passed into AppWindow class
+        # TODO: Add option to give AppWindow a scrollbar
+        # TODO: Add option to give AppWindow status bar
+        # TODO: Add option to center AppWindow on RootWindow
+
+        """Create an app window.
+
+        Args:
+            root (tk.Tk): The root window to make AppWindow a child of.
+            title (String): The window title.
+            width (int): The window width.
+            height (int): The window height.
+            center (bool): Whether to center the window on the parent
+                (optional).
+            resizable (tuple): Whether to let the window be resized in
+                width or height.
+        """
+
+        (resize_width, resize_height) = resizable
+
+        tk.Toplevel.__init__(self, root, *args, **kwargs)
+        self.title(title)
+        self.minsize(width, height)
+        self.geometry(f'{width}x{height}')
+        self.resizable(resize_width, resize_height)
+
+        if center:
+            center_win(self, root)
+
+def center_win(win, center_to_window=None):
     """Center a tkinter window on screen.
 
     Args:
@@ -1681,20 +1737,24 @@ def display_update_screen(update_info: dict):
     global update_window
 
     if update_info['updateAvailable'] and (update_window is None or not update_window.winfo_exists()):
-        update_window = tk.Toplevel(root)
-        update_window.title('Update Available')
-        update_window.resizable(False, False)
-        update_window.geometry('600x300')
+        update_window = AppWindow(
+            root=root_window,
+            title='Update Available',
+            width=600,
+            height=300,
+            center=True,
+            resizable=(False, False)
+        )
 
         if SYS_PLATFORM == 'Windows':
             update_window.iconbitmap(resource_path('media/icon.ico'))
 
         def on_close():
             update_window.destroy()
-            root.wm_attributes('-disabled', False)
+            root_window.wm_attributes('-disabled', False)
 
-            ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
-            root.focus_set()
+            ctypes.windll.user32.SetForegroundWindow(root_window.winfo_id())
+            root_window.focus_set()
 
         update_window.protocol('WM_DELETE_WINDOW', on_close)
 
@@ -1767,10 +1827,9 @@ def display_update_screen(update_info: dict):
                     download_btn.bind('<Leave>', lambda e, icon=info['supplemental']['flat_icon']: e.widget.configure(image=icon))
                     download_btn.bind('<Button-1>', lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
 
-        center(update_window, root)
-        update_window.transient(root)
+        update_window.transient(root_window)
         update_window.grab_set()
-        root.wm_attributes('-disabled', True)
+        root_window.wm_attributes('-disabled', True)
 
 def check_for_updates(info: dict):
     """Process the update information provided by the UpdateHandler class.
@@ -2492,15 +2551,17 @@ if __name__ == '__main__':
 
         if window_backup_error_log is None or not window_backup_error_log.winfo_exists():
             # Initialize window
-            window_backup_error_log = tk.Toplevel(root)
-            window_backup_error_log.title('Backup Error Log')
-            window_backup_error_log.resizable(False, False)
-            window_backup_error_log.geometry('650x450')
+            window_backup_error_log = AppWindow(
+                root=root_window,
+                title='Backup Error Log',
+                width=650,
+                height=450,
+                center=True,
+                resizable=(False, False)
+            )
 
             if SYS_PLATFORM == 'Windows':
                 window_backup_error_log.iconbitmap(resource_path('media/icon.ico'))
-
-            center(window_backup_error_log, root)
 
             main_frame = tk.Frame(window_backup_error_log)
             main_frame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
@@ -2751,15 +2812,17 @@ if __name__ == '__main__':
 
         if window_config_builder is None or not window_config_builder.winfo_exists():
             # Initialize window
-            window_config_builder = tk.Toplevel(root)
-            window_config_builder.title('Config Builder')
-            window_config_builder.resizable(False, False)
-            window_config_builder.geometry('960x380')
+            window_config_builder = AppWindow(
+                root=root_window,
+                title='Config Builder',
+                width=960,
+                height=380,
+                center=True,
+                resizable=(False, False)
+            )
 
             if SYS_PLATFORM == 'Windows':
                 window_config_builder.iconbitmap(resource_path('media/icon.ico'))
-
-            center(window_config_builder, root)
 
             def on_close():
                 if not builder_has_pending_changes or messagebox.askokcancel('Discard changes?', 'You have unsaved changes. Are you sure you want to discard them?', parent=window_config_builder):
@@ -2770,7 +2833,7 @@ if __name__ == '__main__':
             builder_has_pending_changes = False
 
             # Add menu bar
-            menubar = tk.Menu(root)
+            menubar = tk.Menu(root_window)
 
             # File menu
             file_menu = tk.Menu(menubar, tearoff=0)
@@ -2951,7 +3014,7 @@ if __name__ == '__main__':
         current_vals = tree_source.item(item, 'values')
         current_name = current_vals[2] if len(current_vals) >= 3 else ''
 
-        new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root)
+        new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root_window)
         if new_name is not None:
             new_name = new_name.strip()
             new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
@@ -2985,7 +3048,7 @@ if __name__ == '__main__':
         current_vals = tree_dest.item(item, 'values')
         current_name = current_vals[3] if len(current_vals) >= 4 else ''
 
-        new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root)
+        new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root_window)
         if new_name is not None:
             new_name = new_name.strip()
             new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
@@ -3014,7 +3077,7 @@ if __name__ == '__main__':
                 source_right_click_menu.entryconfig('Rename', command=lambda: rename_source_item(item))
                 if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_PATH:
                     source_right_click_menu.entryconfig('Delete', command=lambda: delete_source_item(item))
-                source_right_click_menu.post(event.x_root, event.y_root)
+                source_right_click_menu.post(event.x_root_window, event.y_root)
 
     def show_dest_right_click_menu(event):
         """Show the right click menu in the dest tree for custom dest mode."""
@@ -3046,7 +3109,7 @@ if __name__ == '__main__':
             reset_analysis_output()
 
         prefs.set('selection', 'source_mode', settings_sourceMode.get())
-        root_geom = root.geometry().split('+')
+        root_geom = root_window.geometry().split('+')
         root_size_geom = root_geom[0].split('x')
         CUR_WIN_WIDTH = int(root_size_geom[0])
         CUR_WIN_HEIGHT = int(root_size_geom[1])
@@ -3063,8 +3126,8 @@ if __name__ == '__main__':
             if bool(backup_file_details_frame.grid_info()):
                 WINDOW_MIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
                 CUR_WIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-            root.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
-            root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+            root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
+            root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
 
             # Unbind right click menu
             try:
@@ -3083,8 +3146,8 @@ if __name__ == '__main__':
             if bool(backup_file_details_frame.grid_info()):
                 WINDOW_MIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
                 CUR_WIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-            root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
-            root.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
+            root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+            root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
 
             tree_source.column('#0', width=MULTI_SOURCE_TEXT_COL_WIDTH)
             tree_source.column('name', width=MULTI_SOURCE_NAME_COL_WIDTH)
@@ -3234,7 +3297,7 @@ if __name__ == '__main__':
 
         global WINDOW_MIN_WIDTH
 
-        root_geom = root.geometry().split('+')
+        root_geom = root_window.geometry().split('+')
         root_size_geom = root_geom[0].split('x')
         CUR_WIN_WIDTH = int(root_size_geom[0])
         CUR_WIN_HEIGHT = int(root_size_geom[1])
@@ -3246,13 +3309,13 @@ if __name__ == '__main__':
             backup_file_details_frame.grid_remove()
             WINDOW_MIN_WIDTH -= WINDOW_FILE_DETAILS_EXTRA_WIDTH
             CUR_WIN_WIDTH -= WINDOW_FILE_DETAILS_EXTRA_WIDTH
-            root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
-            root.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X + WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
+            root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+            root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X + WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
         else:
             WINDOW_MIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
             CUR_WIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-            root.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X - WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
-            root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+            root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X - WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
+            root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
             backup_file_details_frame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
     ############
@@ -3298,23 +3361,24 @@ if __name__ == '__main__':
         SINGLE_SOURCE_TEXT_COL_WIDTH = 170
         SINGLE_SOURCE_NAME_COL_WIDTH = 170
 
-        root = tk.Tk()
-        root.title('BackDrop - Data Backup Tool')
-        # root.resizable(False, False)
         WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
         if prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
             WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-        root.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
-        root.geometry(f'{WINDOW_MIN_WIDTH}x{WINDOW_MIN_HEIGHT}')
+
+        root_window = RootWindow(
+            title='BackDrop - Data Backup Tool',
+            width=WINDOW_MIN_WIDTH,
+            height=WINDOW_MIN_HEIGHT
+        )
 
         appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
 
         if SYS_PLATFORM == 'Windows':
-            root.iconbitmap(resource_path('media/icon.ico'))
+            root_window.iconbitmap(resource_path('media/icon.ico'))
         elif SYS_PLATFORM == 'Linux':
-            root.iconphoto(True, appicon_image)
+            root_window.iconphoto(True, appicon_image)
 
-        center(root)
+        center_win(root_window)
 
         default_font = tkfont.nametofont("TkDefaultFont")
         default_font.configure(size=9)
@@ -3324,21 +3388,21 @@ if __name__ == '__main__':
         menu_font.configure(size=9)
 
         # Create Color class instance for UI
-        uicolor = Color(root, prefs.get('ui', 'dark_mode', False, data_type=Config.BOOLEAN))
+        uicolor = Color(root_window, prefs.get('ui', 'dark_mode', False, data_type=Config.BOOLEAN))
 
         if uicolor.is_dark_mode():
-            root.tk_setPalette(background=uicolor.BG)
+            root_window.tk_setPalette(background=uicolor.BG)
 
         # Navigation arrow glyphs
         right_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if uicolor.is_dark_mode() else ''}.png")))
         down_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if uicolor.is_dark_mode() else ''}.png")))
 
-        root.grid_rowconfigure(0, weight=1)
-        root.grid_columnconfigure(0, weight=1)
-        main_frame = tk.Frame(root)
+        root_window.grid_rowconfigure(0, weight=1)
+        root_window.grid_columnconfigure(0, weight=1)
+        main_frame = tk.Frame(root_window)
         main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
 
-        statusbar_frame = tk.Frame(root, bg=uicolor.STATUS_BAR)
+        statusbar_frame = tk.Frame(root_window, bg=uicolor.STATUS_BAR)
         statusbar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
         statusbar_frame.columnconfigure(50, weight=1)
 
@@ -3464,14 +3528,14 @@ if __name__ == '__main__':
 
         def on_close():
             if thread_manager.is_alive('Backup'):
-                if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root):
+                if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
                     thread_manager.kill('Backup')
-                    root.quit()
+                    root_window.quit()
             else:
-                root.quit()
+                root_window.quit()
 
         # Add menu bar
-        menubar = tk.Menu(root)
+        menubar = tk.Menu(root_window)
 
         # File menu
         file_menu = tk.Menu(menubar, tearoff=0, bg=uicolor.DEFAULT_BG, fg=uicolor.BLACK)
@@ -3564,14 +3628,14 @@ if __name__ == '__main__':
             toggle_file_details_pane()
 
         # Key bindings
-        root.bind('<Control-o>', lambda e: open_config_file())
-        root.bind('<Control-s>', lambda e: save_config_file())
-        root.bind('<Control-Shift-S>', lambda e: save_config_file_as())
-        root.bind('<Control-e>', lambda e: show_backup_error_log())
-        root.bind('<Control-d>', lambda e: toggle_file_details_with_hotkey())
-        root.bind('<Control-b>', lambda e: show_config_builder())
+        root_window.bind('<Control-o>', lambda e: open_config_file())
+        root_window.bind('<Control-s>', lambda e: save_config_file())
+        root_window.bind('<Control-Shift-S>', lambda e: save_config_file_as())
+        root_window.bind('<Control-e>', lambda e: show_backup_error_log())
+        root_window.bind('<Control-d>', lambda e: toggle_file_details_with_hotkey())
+        root_window.bind('<Control-b>', lambda e: show_config_builder())
 
-        root.config(menu=menubar)
+        root_window.config(menu=menubar)
 
         icon_windows = ImageTk.PhotoImage(Image.open(resource_path(f"media/windows{'_light' if uicolor.is_dark_mode() else ''}.png")))
         icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media/windows_color.png')))
@@ -3681,7 +3745,7 @@ if __name__ == '__main__':
 
         source_warning = tk.Label(main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=uicolor.ERROR, fg=uicolor.BLACK)
 
-        root.bind('<Control-F5>', lambda x: load_source_in_background())
+        root_window.bind('<Control-F5>', lambda x: load_source_in_background())
 
         tree_dest_frame = tk.Frame(main_frame)
         tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
@@ -3751,7 +3815,7 @@ if __name__ == '__main__':
         tree_dest_scrollbar.pack(side='left', fill='y')
         tree_dest.configure(yscrollcommand=tree_dest_scrollbar.set)
 
-        root.bind('<F5>', lambda x: load_dest_in_background())
+        root_window.bind('<F5>', lambda x: load_dest_in_background())
 
         # Dest tree right click menu
         dest_right_click_menu = tk.Menu(tree_source, tearoff=0)
@@ -3921,7 +3985,7 @@ if __name__ == '__main__':
         tk.Label(backup_summary_frame, text='Backup Summary', font=(None, 20)).pack()
 
         # Add placeholder to backup analysis
-        backup_summary_scrollbar = tk.Scrollbar(root, orient='vertical')
+        backup_summary_scrollbar = tk.Scrollbar(root_window, orient='vertical')
         backup_summary_scrollbar.grid(row=0, column=1, sticky='ns')
         backup_summary_text = ScrollableFrame(backup_summary_frame, scrollbar=backup_summary_scrollbar)
         backup_summary_text.pack(fill='both', expand=1)
@@ -3946,5 +4010,5 @@ if __name__ == '__main__':
             daemon=True
         )
 
-        root.protocol('WM_DELETE_WINDOW', on_close)
-        root.mainloop()
+        root_window.protocol('WM_DELETE_WINDOW', on_close)
+        root_window.mainloop()
