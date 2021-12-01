@@ -23,7 +23,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 class RootWindow(tk.Tk):
-    def __init__(self, title, width, height, center=False, resizable=(True, True), status_bar=False, dark_mode=False, *args, **kwargs):
+    def __init__(self, title, width: int, height: int, center: bool = False, resizable=(True, True), status_bar: bool = False, dark_mode: bool = False, *args, **kwargs):
         # TODO: Get icons working to be passed into RootWindow class
         # TODO: Add option to give RootWindow a scrollbar
         # TODO: Add option to give RootWindow status bar
@@ -93,7 +93,7 @@ class RootWindow(tk.Tk):
         self.deiconify()
 
 class AppWindow(tk.Toplevel):
-    def __init__(self, root, title, width, height, center=False, center_content=False, resizable=(True, True), status_bar=False, modal=False, *args, **kwargs):
+    def __init__(self, root, title, width: int, height: int, center: bool = False, center_content: bool = False, resizable=(True, True), status_bar: bool = False, modal: bool = False, *args, **kwargs):
         # TODO: Get icons working to be passed into AppWindow class
         # TODO: Add option to give AppWindow a scrollbar
         # TODO: Add option to give AppWindow status bar
