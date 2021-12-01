@@ -2796,7 +2796,7 @@ if __name__ == '__main__':
 
             # Create tree control pane
             tree_control_frame = tk.Frame(window_config_builder.main_frame)
-            tree_control_frame.grid(row=1, column=1)
+            tree_control_frame.grid(row=1, column=1, padx=WINDOW_ELEMENT_PADDING / 2, pady=WINDOW_ELEMENT_PADDING / 2)
 
             builder_refresh_btn = ttk.Button(tree_control_frame, text='Refresh', command=builder_start_refresh_connected, style='win.TButton')
             builder_refresh_btn.pack(pady=(0, 50))
