@@ -33,97 +33,8 @@ from bin.progress import Progress
 from bin.commandline import CommandLine
 from bin.backup import Backup
 from bin.update import UpdateHandler
-from bin.widgets import DetailBlock, BackupDetailBlock, ScrollableFrame
+from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, ScrollableFrame
 from bin.status import Status
-
-class RootWindow(tk.Tk):
-    def __init__(self, title, width, height, resizable=(True, True), *args, **kwargs):
-        # TODO: Get icons working to be passed into RootWindow class
-        # TODO: Add option to give RootWindow a scrollbar
-        # TODO: Add option to give RootWindow status bar
-        # TODO: Give RootWindow option to center on screen
-
-        """Create a root window.
-
-        Args:
-            title (String): The window title.
-            width (int): The window width.
-            height (int): The window height.
-            resizable (tuple): Whether to let the window be resized in
-                width or height.
-        """
-
-        (resize_width, resize_height) = resizable
-
-        tk.Tk.__init__(self, *args, **kwargs)
-        self.title(title)
-        self.minsize(width, height)
-        self.geometry(f'{width}x{height}')
-        self.resizable(resize_width, resize_height)
-
-class AppWindow(tk.Toplevel):
-    def __init__(self, root, title, width, height, center=False, resizable=(True, True), *args, **kwargs):
-        # TODO: Get icons working to be passed into AppWindow class
-        # TODO: Add option to give AppWindow a scrollbar
-        # TODO: Add option to give AppWindow status bar
-        # TODO: Add option to center AppWindow on RootWindow
-
-        """Create an app window.
-
-        Args:
-            root (tk.Tk): The root window to make AppWindow a child of.
-            title (String): The window title.
-            width (int): The window width.
-            height (int): The window height.
-            center (bool): Whether to center the window on the parent
-                (optional).
-            resizable (tuple): Whether to let the window be resized in
-                width or height.
-        """
-
-        (resize_width, resize_height) = resizable
-
-        tk.Toplevel.__init__(self, root, *args, **kwargs)
-        self.title(title)
-        self.minsize(width, height)
-        self.geometry(f'{width}x{height}')
-        self.resizable(resize_width, resize_height)
-
-        if center:
-            center_win(self, root)
-
-def center_win(win, center_to_window=None):
-    """Center a tkinter window on screen.
-
-    Args:
-        win (tkinter.Tk): The tkinter Tk() object to center.
-        center_to_window (tkinter.Tk): The window to center the child window on.
-    """
-
-    win.update_idletasks()
-    WIDTH = win.winfo_width()
-    FRAME_WIDTH = win.winfo_rootx() - win.winfo_x()
-    WIN_WIDTH = WIDTH + 2 * FRAME_WIDTH
-    HEIGHT = win.winfo_height()
-    TITLEBAR_HEIGHT = win.winfo_rooty() - win.winfo_y()
-    WIN_HEIGHT = HEIGHT + TITLEBAR_HEIGHT + FRAME_WIDTH
-
-    if center_to_window is not None:
-        # Center element provided, so use its position for reference
-        ROOT_FRAME_WIDTH = center_to_window.winfo_rootx() - center_to_window.winfo_x()
-        ROOT_WIN_WIDTH = center_to_window.winfo_width() + 2 * ROOT_FRAME_WIDTH
-        ROOT_TITLEBAR_HEIGHT = center_to_window.winfo_rooty() - center_to_window.winfo_y()
-        ROOT_WIN_HEIGHT = center_to_window.winfo_height() + ROOT_TITLEBAR_HEIGHT + ROOT_FRAME_WIDTH
-
-        x = center_to_window.winfo_x() + ROOT_WIN_WIDTH // 2 - WIN_WIDTH // 2
-        y = center_to_window.winfo_y() + ROOT_WIN_HEIGHT // 2 - WIN_HEIGHT // 2
-    else:
-        # No center element, so center on screen
-        x = win.winfo_screenwidth() // 2 - WIN_WIDTH // 2
-        y = win.winfo_screenheight() // 2 - WIN_HEIGHT // 2
-
-    win.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, x, y))
-    win.deiconify()
 
 def update_file_detail_lists(list_name, filename):
     """Update the file lists for the detail file view.
@@ -3368,7 +3279,8 @@ if __name__ == '__main__':
         root_window = RootWindow(
             title='BackDrop - Data Backup Tool',
             width=WINDOW_MIN_WIDTH,
-            height=WINDOW_MIN_HEIGHT
+            height=WINDOW_MIN_HEIGHT,
+            center=True
         )
 
         appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
@@ -3377,8 +3289,6 @@ if __name__ == '__main__':
             root_window.iconbitmap(resource_path('media/icon.ico'))
         elif SYS_PLATFORM == 'Linux':
             root_window.iconphoto(True, appicon_image)
-
-        center_win(root_window)
 
         default_font = tkfont.nametofont("TkDefaultFont")
         default_font.configure(size=9)

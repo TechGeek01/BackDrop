@@ -3,6 +3,111 @@ from tkinter import ttk
 import clipboard
 import time
 
+class RootWindow(tk.Tk):
+    def __init__(self, title, width, height, center=False, resizable=(True, True), *args, **kwargs):
+        # TODO: Get icons working to be passed into RootWindow class
+        # TODO: Add option to give RootWindow a scrollbar
+        # TODO: Add option to give RootWindow status bar
+
+        """Create a root window.
+
+        Args:
+            title (String): The window title.
+            width (int): The window width.
+            height (int): The window height.
+            center (bool): Whether to center the window on the parent
+                (optional).
+            resizable (tuple): Whether to let the window be resized in
+                width or height.
+        """
+
+        (resize_width, resize_height) = resizable
+
+        tk.Tk.__init__(self, *args, **kwargs)
+        self.title(title)
+        self.minsize(width, height)
+        self.geometry(f'{width}x{height}')
+        self.resizable(resize_width, resize_height)
+
+        if center:
+            self.center()
+
+    def center(self):
+        """Center the root window on a screen.
+        """
+
+        self.update_idletasks()
+        WIDTH = self.winfo_width()
+        FRAME_WIDTH = self.winfo_rootx() - self.winfo_x()
+        WIN_WIDTH = WIDTH + 2 * FRAME_WIDTH
+        HEIGHT = self.winfo_height()
+        TITLEBAR_HEIGHT = self.winfo_rooty() - self.winfo_y()
+        WIN_HEIGHT = HEIGHT + TITLEBAR_HEIGHT + FRAME_WIDTH
+
+        # Set position and center on screen
+        x = self.winfo_screenwidth() // 2 - WIN_WIDTH // 2
+        y = self.winfo_screenheight() // 2 - WIN_HEIGHT // 2
+
+        self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, x, y))
+        self.deiconify()
+
+class AppWindow(tk.Toplevel):
+    def __init__(self, root, title, width, height, center=False, resizable=(True, True), *args, **kwargs):
+        # TODO: Get icons working to be passed into AppWindow class
+        # TODO: Add option to give AppWindow a scrollbar
+        # TODO: Add option to give AppWindow status bar
+
+        """Create an app window.
+
+        Args:
+            root (tkinter.Tk): The root window to make AppWindow a child of.
+            title (String): The window title.
+            width (int): The window width.
+            height (int): The window height.
+            center (bool): Whether to center the window on the parent
+                (optional).
+            resizable (tuple): Whether to let the window be resized in
+                width or height.
+        """
+
+        (resize_width, resize_height) = resizable
+
+        tk.Toplevel.__init__(self, root, *args, **kwargs)
+        self.title(title)
+        self.minsize(width, height)
+        self.geometry(f'{width}x{height}')
+        self.resizable(resize_width, resize_height)
+
+        if center:
+            self.center(root)
+
+    def center(self, center_to_window):
+        """Center the window on the root window.
+
+        Args:
+            center_to_window (tkinter.Tk): The window to center the child window on.
+        """
+
+        self.update_idletasks()
+        WIDTH = self.winfo_width()
+        FRAME_WIDTH = self.winfo_rootx() - self.winfo_x()
+        WIN_WIDTH = WIDTH + 2 * FRAME_WIDTH
+        HEIGHT = self.winfo_height()
+        TITLEBAR_HEIGHT = self.winfo_rooty() - self.winfo_y()
+        WIN_HEIGHT = HEIGHT + TITLEBAR_HEIGHT + FRAME_WIDTH
+
+        # Center element provided, so use its position for reference
+        ROOT_FRAME_WIDTH = center_to_window.winfo_rootx() - center_to_window.winfo_x()
+        ROOT_WIN_WIDTH = center_to_window.winfo_width() + 2 * ROOT_FRAME_WIDTH
+        ROOT_TITLEBAR_HEIGHT = center_to_window.winfo_rooty() - center_to_window.winfo_y()
+        ROOT_WIN_HEIGHT = center_to_window.winfo_height() + ROOT_TITLEBAR_HEIGHT + ROOT_FRAME_WIDTH
+
+        x = center_to_window.winfo_x() + ROOT_WIN_WIDTH // 2 - WIN_WIDTH // 2
+        y = center_to_window.winfo_y() + ROOT_WIN_HEIGHT // 2 - WIN_HEIGHT // 2
+
+        self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, x, y))
+        self.deiconify()
+
 class ScrollableFrame(tk.Frame):
     def __init__(self, parent, scrollbar=None, *args, **kwargs):
         """Create a scrollable frame widget.
