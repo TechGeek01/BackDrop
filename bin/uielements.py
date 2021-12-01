@@ -54,9 +54,10 @@ class RootWindow(tk.Tk):
         self.main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
 
         # Set up status bar
-        self.status_bar_frame = tk.Frame(self, bg=self.uicolor.STATUS_BAR)
-        self.status_bar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
-        self.status_bar_frame.columnconfigure(50, weight=1)  # Let column 51 fill width, used like a spacer to have both left- and right-aligned text
+        if status_bar:
+            self.status_bar_frame = tk.Frame(self, bg=self.uicolor.STATUS_BAR)
+            self.status_bar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
+            self.status_bar_frame.columnconfigure(50, weight=1)  # Let column 51 fill width, used like a spacer to have both left- and right-aligned text
 
     def center(self):
         """Center the root window on a screen.
