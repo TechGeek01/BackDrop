@@ -3295,32 +3295,23 @@ if __name__ == '__main__':
         right_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if root_window.dark_mode else ''}.png")))
         down_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if root_window.dark_mode else ''}.png")))
 
-        root_window.grid_rowconfigure(0, weight=1)
-        root_window.grid_columnconfigure(0, weight=1)
-        main_frame = tk.Frame(root_window)
-        main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
-
-        statusbar_frame = tk.Frame(root_window, bg=root_window.uicolor.STATUS_BAR)
-        statusbar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
-        statusbar_frame.columnconfigure(50, weight=1)
-
         # Selection and backup status, left side
-        statusbar_selection = tk.Label(statusbar_frame, bg=root_window.uicolor.STATUS_BAR)
+        statusbar_selection = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
         statusbar_selection.grid(row=0, column=0, padx=6)
         update_status_bar_selection()
-        statusbar_action = tk.Label(statusbar_frame, bg=root_window.uicolor.STATUS_BAR)
+        statusbar_action = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
         statusbar_action.grid(row=0, column=1, padx=6)
         update_status_bar_action(Status.IDLE)
-        statusbar_counter_btn = ttk.Button(statusbar_frame, text='0 failed', width=0, command=show_backup_error_log, state='disabled', style='danger.statusbar.TButton')
+        statusbar_counter_btn = ttk.Button(root_window.status_bar_frame, text='0 failed', width=0, command=show_backup_error_log, state='disabled', style='danger.statusbar.TButton')
         statusbar_counter_btn.grid(row=0, column=2, ipadx=3, padx=3)
-        statusbar_details = tk.Label(statusbar_frame, bg=root_window.uicolor.STATUS_BAR)
+        statusbar_details = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
         statusbar_details.grid(row=0, column=3, padx=6)
 
         # Portable mode indicator and update status, right side
         if PORTABLE_MODE:
-            statusbar_portablemode = tk.Label(statusbar_frame, text='Portable mode', bg=root_window.uicolor.STATUS_BAR)
+            statusbar_portablemode = tk.Label(root_window.status_bar_frame, text='Portable mode', bg=root_window.uicolor.STATUS_BAR)
             statusbar_portablemode.grid(row=0, column=99, padx=6)
-        statusbar_update = tk.Label(statusbar_frame, text='', bg=root_window.uicolor.STATUS_BAR)
+        statusbar_update = tk.Label(root_window.status_bar_frame, text='', bg=root_window.uicolor.STATUS_BAR)
         statusbar_update.grid(row=0, column=100, padx=6)
         statusbar_update.bind('<Button-1>', lambda e: display_update_screen(update_info))
 
@@ -3545,7 +3536,7 @@ if __name__ == '__main__':
         icon_targz_color = ImageTk.PhotoImage(Image.open(resource_path('media/targz_color.png')))
 
         # Progress/status values
-        progress_bar = ttk.Progressbar(main_frame, maximum=100, style='custom.Progressbar')
+        progress_bar = ttk.Progressbar(root_window.main_frame, maximum=100, style='custom.Progressbar')
         progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING, 0))
 
         progress = Progress(
@@ -3557,7 +3548,7 @@ if __name__ == '__main__':
         source_drive_default = tk.StringVar()
 
         # Tree frames for tree and scrollbar
-        tree_source_frame = tk.Frame(main_frame)
+        tree_source_frame = tk.Frame(root_window.main_frame)
 
         tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize', 'name'), style='custom.Treeview')
         if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
@@ -3585,7 +3576,7 @@ if __name__ == '__main__':
         tree_source_scrollbar.pack(side='left', fill='y')
         tree_source.configure(yscrollcommand=tree_source_scrollbar.set)
 
-        source_meta_frame = tk.Frame(main_frame)
+        source_meta_frame = tk.Frame(root_window.main_frame)
         tk.Grid.columnconfigure(source_meta_frame, 0, weight=1)
 
         share_space_frame = tk.Frame(source_meta_frame)
@@ -3601,7 +3592,7 @@ if __name__ == '__main__':
         share_total_space = tk.Label(share_total_space_frame, text='~None', fg=root_window.uicolor.FADED)
         share_total_space.pack(side='left')
 
-        source_select_frame = tk.Frame(main_frame)
+        source_select_frame = tk.Frame(root_window.main_frame)
         source_select_frame.grid(row=0, column=1, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
 
         source_select_single_frame = tk.Frame(source_select_frame)
@@ -3641,14 +3632,14 @@ if __name__ == '__main__':
         else:
             source_right_click_bind = None
 
-        source_warning = tk.Label(main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=root_window.uicolor.ERROR, fg=root_window.uicolor.BLACK)
+        source_warning = tk.Label(root_window.main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=root_window.uicolor.ERROR, fg=root_window.uicolor.BLACK)
 
         root_window.bind('<Control-F5>', lambda x: load_source_in_background())
 
-        tree_dest_frame = tk.Frame(main_frame)
+        tree_dest_frame = tk.Frame(root_window.main_frame)
         tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
 
-        dest_mode_frame = tk.Frame(main_frame)
+        dest_mode_frame = tk.Frame(root_window.main_frame)
         dest_mode_frame.grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
 
         def toggle_split_mode(event):
@@ -3727,11 +3718,11 @@ if __name__ == '__main__':
 
         # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
         # visible, so 1px needs to be added back
-        dest_meta_frame = tk.Frame(main_frame)
+        dest_meta_frame = tk.Frame(root_window.main_frame)
         dest_meta_frame.grid(row=2, column=2, sticky='nsew', pady=(1, 0))
         tk.Grid.columnconfigure(dest_meta_frame, 0, weight=1)
 
-        dest_split_warning_frame = tk.Frame(main_frame, bg=root_window.uicolor.WARNING)
+        dest_split_warning_frame = tk.Frame(root_window.main_frame, bg=root_window.uicolor.WARNING)
         dest_split_warning_frame.rowconfigure(0, weight=1)
         dest_split_warning_frame.columnconfigure(0, weight=1)
         dest_split_warning_frame.columnconfigure(10, weight=1)
@@ -3776,7 +3767,7 @@ if __name__ == '__main__':
 
         dest_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_dest_in_background)
 
-        backup_middle_control_frame = tk.Frame(main_frame)
+        backup_middle_control_frame = tk.Frame(root_window.main_frame)
         backup_middle_control_frame.grid(row=4, column=1, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
         # Add backup ETA info frame
@@ -3788,11 +3779,11 @@ if __name__ == '__main__':
         backup_eta_label.pack()
 
         # Add activity frame for backup status output
-        tk.Grid.rowconfigure(main_frame, 5, weight=1)
-        backup_activity_frame = ScrollableFrame(main_frame)
+        tk.Grid.rowconfigure(root_window.main_frame, 5, weight=1)
+        backup_activity_frame = ScrollableFrame(root_window.main_frame)
         backup_activity_frame.grid(row=5, column=1, columnspan=2, sticky='nsew')
 
-        backup_file_details_frame = tk.Frame(main_frame, width=400)
+        backup_file_details_frame = tk.Frame(root_window.main_frame, width=400)
         backup_file_details_frame.grid_propagate(0)
 
         file_details_pending_delete_header_line = tk.Frame(backup_file_details_frame)
@@ -3864,9 +3855,9 @@ if __name__ == '__main__':
         file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
         file_details_failed_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
 
-        tk.Grid.columnconfigure(main_frame, 3, weight=1)
+        tk.Grid.columnconfigure(root_window.main_frame, 3, weight=1)
 
-        right_side_frame = tk.Frame(main_frame)
+        right_side_frame = tk.Frame(root_window.main_frame)
         right_side_frame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
         backup_summary_frame = tk.Frame(right_side_frame)

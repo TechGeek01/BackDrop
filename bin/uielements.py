@@ -6,8 +6,10 @@ import time
 
 from bin.color import Color
 
+WINDOW_ELEMENT_PADDING = 16
+
 class RootWindow(tk.Tk):
-    def __init__(self, title, width, height, center=False, resizable=(True, True), dark_mode=False, *args, **kwargs):
+    def __init__(self, title, width, height, center=False, resizable=(True, True), status_bar=False, dark_mode=False, *args, **kwargs):
         # TODO: Get icons working to be passed into RootWindow class
         # TODO: Add option to give RootWindow a scrollbar
         # TODO: Add option to give RootWindow status bar
@@ -22,6 +24,8 @@ class RootWindow(tk.Tk):
                 (optional).
             resizable (tuple): Whether to let the window be resized in
                 width or height.
+            status_bar (bool): Whether to add a status bar to the window
+                (optional).
             dark_mode (bool): Whether to use dark mode (optional).
         """
 
@@ -42,6 +46,16 @@ class RootWindow(tk.Tk):
             self.tk_setPalette(background=self.uicolor.BG)
 
         self.dark_mode = self.uicolor.is_dark_mode()
+
+        # Set up window frame
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.main_frame = tk.Frame(self)
+        self.main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
+
+        self.status_bar_frame = tk.Frame(self, bg=self.uicolor.STATUS_BAR)
+        self.status_bar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
+        self.status_bar_frame.columnconfigure(50, weight=1)  # Let column 51 fill width, used like a spacer to have both left- and right-aligned text
 
     def center(self):
         """Center the root window on a screen.
