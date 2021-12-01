@@ -1661,31 +1661,26 @@ def display_update_screen(update_info: dict):
         if SYS_PLATFORM == 'Windows':
             update_window.iconbitmap(resource_path('media/icon.ico'))
 
-        main_frame = tk.Frame(update_window)
-        main_frame.grid(row=0, column=0, sticky='')
-        update_window.grid_rowconfigure(0, weight=1)
-        update_window.grid_columnconfigure(0, weight=1)
-
-        update_header = tk.Label(main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=root_window.uicolor.INFOTEXTDARK)
+        update_header = tk.Label(update_window.main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=root_window.uicolor.INFOTEXTDARK)
         update_header.pack()
 
-        update_text = tk.Label(main_frame, text='An update to BackDrop is available. Please update to get the latest features and fixes.', font=(None, 10))
+        update_text = tk.Label(update_window.main_frame, text='An update to BackDrop is available. Please update to get the latest features and fixes.', font=(None, 10))
         update_text.pack(pady=16)
 
-        current_version_frame = tk.Frame(main_frame)
+        current_version_frame = tk.Frame(update_window.main_frame)
         current_version_frame.pack()
         tk.Label(current_version_frame, text='Current Version:', font=(None, 14)).pack(side='left')
         tk.Label(current_version_frame, text=APP_VERSION, font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
 
-        latest_version_frame = tk.Frame(main_frame)
+        latest_version_frame = tk.Frame(update_window.main_frame)
         latest_version_frame.pack(pady=(2, 12))
         tk.Label(latest_version_frame, text='Latest Version:', font=(None, 14)).pack(side='left')
         tk.Label(latest_version_frame, text=update_info['latestVersion'], font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
 
-        download_frame = tk.Frame(main_frame)
+        download_frame = tk.Frame(update_window.main_frame)
         download_frame.pack()
 
-        download_source_frame = tk.Frame(main_frame)
+        download_source_frame = tk.Frame(update_window.main_frame)
         download_source_frame.pack()
         tk.Label(download_source_frame, text='Or, check out the source on').pack(side='left')
         github_link = tk.Label(download_source_frame, text='GitHub', fg=root_window.uicolor.INFOTEXT)
@@ -2466,13 +2461,8 @@ if __name__ == '__main__':
             if SYS_PLATFORM == 'Windows':
                 window_backup_error_log.iconbitmap(resource_path('media/icon.ico'))
 
-            main_frame = tk.Frame(window_backup_error_log)
-            main_frame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
-            main_frame.grid_rowconfigure(1, weight=1)
-            main_frame.grid_columnconfigure(0, weight=1)
-
-            tk.Label(main_frame, text='Error Log', font=(None, 20)).grid(row=0, column=0, sticky='ew', pady=WINDOW_ELEMENT_PADDING / 2)
-            errorlog_error_list_frame = ScrollableFrame(main_frame)
+            tk.Label(window_backup_error_log.main_frame, text='Error Log', font=(None, 20)).grid(row=0, column=0, sticky='ew', pady=WINDOW_ELEMENT_PADDING / 2)
+            errorlog_error_list_frame = ScrollableFrame(window_backup_error_log.main_frame)
             errorlog_error_list_frame.grid(row=1, column=0, sticky='nsew')
 
             for error in backup_error_log:
@@ -2489,14 +2479,6 @@ if __name__ == '__main__':
                 error_summary_block.add_line('error', 'Error', error['error'])
 
                 error_summary_block.pack(anchor='w', expand=1)
-
-            errorlog_statusbar_frame = tk.Frame(window_backup_error_log, bg=root_window.uicolor.STATUS_BAR)
-            errorlog_statusbar_frame.pack(fill='x', pady=0)
-            errorlog_statusbar_frame.columnconfigure(50, weight=1)
-
-            # Save status, left side
-            errorlog_statusbar_changes = tk.Label(errorlog_statusbar_frame, bg=root_window.uicolor.STATUS_BAR)
-            errorlog_statusbar_changes.grid(row=0, column=0, padx=6)
 
     window_config_builder = None
 
@@ -2721,7 +2703,8 @@ if __name__ == '__main__':
                 width=960,
                 height=380,
                 center=True,
-                resizable=(False, False)
+                resizable=(False, False),
+                status_bar=True
             )
 
             if SYS_PLATFORM == 'Windows':
@@ -2768,16 +2751,11 @@ if __name__ == '__main__':
             RIGHT_ARROW = '>>'
             LEFT_ARROW = '<<'
 
-            main_frame = tk.Frame(window_config_builder)
-            main_frame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
-            main_frame.grid_columnconfigure(1, weight=1)
-            main_frame.grid_rowconfigure(2, weight=1)
-
             # Headings
-            tk.Label(main_frame, text='Currently Connected').grid(row=0, column=0, pady=WINDOW_ELEMENT_PADDING / 2)
-            tk.Label(main_frame, text='Configured for Backup').grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 2)
+            tk.Label(window_config_builder.main_frame, text='Currently Connected').grid(row=0, column=0, pady=WINDOW_ELEMENT_PADDING / 2)
+            tk.Label(window_config_builder.main_frame, text='Configured for Backup').grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 2)
 
-            tree_current_connected_frame = tk.Frame(main_frame)
+            tree_current_connected_frame = tk.Frame(window_config_builder.main_frame)
             tree_current_connected_frame.grid(row=1, column=0, sticky='ns')
 
             tree_current_connected = ttk.Treeview(tree_current_connected_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
@@ -2798,7 +2776,7 @@ if __name__ == '__main__':
             current_select_scroll.pack(side='left', fill='y')
             tree_current_connected.configure(yscrollcommand=current_select_scroll.set)
 
-            tree_builder_configured_frame = tk.Frame(main_frame)
+            tree_builder_configured_frame = tk.Frame(window_config_builder.main_frame)
             tree_builder_configured_frame.grid(row=1, column=2, sticky='ns')
 
             tree_builder_configured = ttk.Treeview(tree_builder_configured_frame, columns=('size', 'rawsize', 'serial'), style='custom.Treeview')
@@ -2816,7 +2794,7 @@ if __name__ == '__main__':
             tree_builder_configured.configure(yscrollcommand=buider_configured_select_scroll.set)
 
             # Create tree control pane
-            tree_control_frame = tk.Frame(main_frame)
+            tree_control_frame = tk.Frame(window_config_builder.main_frame)
             tree_control_frame.grid(row=1, column=1)
 
             builder_refresh_btn = ttk.Button(tree_control_frame, text='Refresh', command=builder_start_refresh_connected, style='win.TButton')
@@ -2827,18 +2805,14 @@ if __name__ == '__main__':
             builder_remove_btn.pack(pady=(4, 0))
 
             # Create main control pane
-            main_control_frame = tk.Frame(main_frame)
+            main_control_frame = tk.Frame(window_config_builder.main_frame)
             main_control_frame.grid(row=2, column=0, columnspan=3, pady=(WINDOW_ELEMENT_PADDING, 0))
 
             save_config_btn = ttk.Button(main_control_frame, text='Save config', command=builder_save_config_file, style='win.TButton')
             save_config_btn.pack()
 
-            builder_statusbar_frame = tk.Frame(window_config_builder, bg=root_window.uicolor.STATUS_BAR)
-            builder_statusbar_frame.pack(fill='x', pady=0)
-            builder_statusbar_frame.columnconfigure(50, weight=1)
-
             # Save status, left side
-            builder_statusbar_changes = tk.Label(builder_statusbar_frame, bg=root_window.uicolor.STATUS_BAR)
+            builder_statusbar_changes = tk.Label(window_config_builder.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
             builder_statusbar_changes.grid(row=0, column=0, padx=6)
             builder_update_status_bar_save(Status.SAVE_ALL_SAVED)
 

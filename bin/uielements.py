@@ -53,6 +53,7 @@ class RootWindow(tk.Tk):
         self.main_frame = tk.Frame(self)
         self.main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
 
+        # Set up status bar
         self.status_bar_frame = tk.Frame(self, bg=self.uicolor.STATUS_BAR)
         self.status_bar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
         self.status_bar_frame.columnconfigure(50, weight=1)  # Let column 51 fill width, used like a spacer to have both left- and right-aligned text
@@ -77,7 +78,7 @@ class RootWindow(tk.Tk):
         self.deiconify()
 
 class AppWindow(tk.Toplevel):
-    def __init__(self, root, title, width, height, center=False, resizable=(True, True), modal=False, *args, **kwargs):
+    def __init__(self, root, title, width, height, center=False, resizable=(True, True), status_bar=False, modal=False, *args, **kwargs):
         # TODO: Get icons working to be passed into AppWindow class
         # TODO: Add option to give AppWindow a scrollbar
         # TODO: Add option to give AppWindow status bar
@@ -93,6 +94,8 @@ class AppWindow(tk.Toplevel):
                 (optional).
             resizable (tuple): Whether to let the window be resized in
                 width or height.
+            status_bar (bool): Whether to add a status bar to the window
+                (optional).
             modal (bool): Whether or not the window is a modal window (optional).
         """
 
@@ -106,6 +109,18 @@ class AppWindow(tk.Toplevel):
 
         if center:
             self.center(root)
+
+        # Set up window frame
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.main_frame = tk.Frame(self)
+        self.main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
+
+        # Set up status bar
+        if status_bar:
+            self.status_bar_frame = tk.Frame(self, bg=root.uicolor.STATUS_BAR)
+            self.status_bar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
+            self.status_bar_frame.columnconfigure(50, weight=1)  # Let column 51 fill width, used like a spacer to have both left- and right-aligned text
 
         # If window is a modal window, disable parent window until AppWindow
         # is closed.
