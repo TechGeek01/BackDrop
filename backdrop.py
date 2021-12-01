@@ -3248,6 +3248,7 @@ if __name__ == '__main__':
             width=WINDOW_MIN_WIDTH,
             height=WINDOW_MIN_HEIGHT,
             center=True,
+            status_bar=True,
             dark_mode=prefs.get('ui', 'dark_mode', False, data_type=Config.BOOLEAN)
         )
 
