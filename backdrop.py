@@ -1703,8 +1703,8 @@ def display_update_screen(update_info: dict):
                 }
             },
             'backdrop-debian': {
-                'flat_icon': icon_linux,
-                'color_icon': icon_linux_color,
+                'flat_icon': icon_debian,
+                'color_icon': icon_debian_color,
                 'supplemental': {
                     'name': 'backdrop-debian.tar.gz',
                     'flat_icon': icon_targz,
@@ -1776,7 +1776,7 @@ if __name__ == '__main__':
         exit()
 
     # Set meta info
-    APP_VERSION = '3.2.0'
+    APP_VERSION = '3.2.1-alpha.1'
 
     # Set constants
     DRIVE_TYPE_LOCAL = 3
@@ -3544,8 +3544,8 @@ if __name__ == '__main__':
         icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media/windows_color.png')))
         icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media/zip{'_light' if uicolor.is_dark_mode() else ''}.png")))
         icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media/zip_color.png')))
-        icon_linux = ImageTk.PhotoImage(Image.open(resource_path(f"media/linux{'_light' if uicolor.is_dark_mode() else ''}.png")))
-        icon_linux_color = ImageTk.PhotoImage(Image.open(resource_path('media/linux_color.png')))
+        icon_debian = ImageTk.PhotoImage(Image.open(resource_path(f"media/debian{'_light' if uicolor.is_dark_mode() else ''}.png")))
+        icon_debian_color = ImageTk.PhotoImage(Image.open(resource_path('media/debian_color.png')))
         icon_targz = ImageTk.PhotoImage(Image.open(resource_path(f"media/targz{'_light' if uicolor.is_dark_mode() else ''}.png")))
         icon_targz_color = ImageTk.PhotoImage(Image.open(resource_path('media/targz_color.png')))
 
