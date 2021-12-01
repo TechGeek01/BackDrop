@@ -118,7 +118,7 @@ class AppWindow(tk.Toplevel):
         self.grid_columnconfigure(0, weight=1)
         self.main_frame = tk.Frame(self)
         if not center_content:
-            self.main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
+            self.main_frame.grid(row=0, column=0, sticky='nsew', padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
         else:
             self.main_frame.grid(row=0, column=0, sticky='')
 
