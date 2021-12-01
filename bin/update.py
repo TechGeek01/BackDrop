@@ -39,8 +39,12 @@ class UpdateHandler:
             response = requests.get('https://api.github.com/repos/TechGeek01/BackDrop/releases/latest')
             json_response = response.json()
 
+        latest_version_tag = json_response['tag_name']
+        if latest_version_tag[0] == 'v':
+            latest_version_tag = latest_version_tag[1:]
+
         return {
-            'latest': json_response['tag_name'],
+            'latest': latest_version_tag,
             'download': [asset['browser_download_url'] for asset in json_response['assets']]
         }
 
