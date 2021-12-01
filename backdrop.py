@@ -469,8 +469,6 @@ def display_backup_command_info(display_command_list: dict):
             backup_summary_block = BackupDetailBlock(
                 parent=backup_activity_frame.frame,
                 title=cmd_header_text,
-                right_arrow=right_nav_arrow,
-                down_arrow=down_nav_arrow,
                 backup=backup,
                 uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
             )
@@ -2470,8 +2468,6 @@ if __name__ == '__main__':
                 error_summary_block = DetailBlock(
                     parent=errorlog_error_list_frame.frame,
                     title=error['file'].split(os.path.sep)[-1],
-                    right_arrow=right_nav_arrow,
-                    down_arrow=down_nav_arrow,
                     uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
                 )
 
@@ -3266,10 +3262,6 @@ if __name__ == '__main__':
         heading_font.configure(size=9, weight='normal')
         menu_font = tkfont.nametofont("TkMenuFont")
         menu_font.configure(size=9)
-
-        # Navigation arrow glyphs
-        right_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if root_window.dark_mode else ''}.png")))
-        down_nav_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if root_window.dark_mode else ''}.png")))
 
         # Selection and backup status, left side
         statusbar_selection = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)

@@ -1,5 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
+from PIL import Image, ImageTk
+import sys
+import os
 import ctypes
 import clipboard
 import time
@@ -7,6 +10,17 @@ import time
 from bin.color import Color
 
 WINDOW_ELEMENT_PADDING = 16
+
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller."""
+
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class RootWindow(tk.Tk):
     def __init__(self, title, width, height, center=False, resizable=(True, True), status_bar=False, dark_mode=False, *args, **kwargs):
@@ -249,14 +263,12 @@ class BackupDetailBlock(tk.Frame):
     TITLE = 'title'
     CONTENT = 'content'
 
-    def __init__(self, parent, title, right_arrow, down_arrow, uicolor, backup, enabled: bool = True):
+    def __init__(self, parent, title, uicolor, backup, enabled: bool = True):
         """Create an expandable detail block to display info.
 
         Args:
             parent (tk.*): The parent widget.
             title (String): The bold title to display.
-            right_arrow (ImageTk.PhotoImage): The image of the collapsed arrow.
-            down_arrow (ImageTk.PhotoImage): The image of the expanded arrow.
             uicolor (Color): The UI pallete instance.
             backup (Backup): The backup instance to reference.
             enabled (bool): Whether or not this block is enabled.
@@ -265,8 +277,9 @@ class BackupDetailBlock(tk.Frame):
         self.enabled = enabled
         self.backup = backup
         self.uicolor = uicolor
-        self.right_arrow = right_arrow
-        self.down_arrow = down_arrow
+        self.dark_mode = uicolor.is_dark_mode()
+        self.right_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if self.dark_mode else ''}.png")))
+        self.down_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if self.dark_mode else ''}.png")))
 
         self.lines = {}
 
@@ -376,22 +389,21 @@ class DetailBlock(tk.Frame):
     TITLE = 'title'
     CONTENT = 'content'
 
-    def __init__(self, parent, title, right_arrow, down_arrow, uicolor, enabled: bool = True):
+    def __init__(self, parent, title, uicolor, enabled: bool = True):
         """Create an expandable detail block to display info.
 
         Args:
             parent (tk.*): The parent widget.
             title (String): The bold title to display.
-            right_arrow (ImageTk.PhotoImage): The image of the collapsed arrow.
-            down_arrow (ImageTk.PhotoImage): The image of the expanded arrow.
             uicolor (Color): The UI pallete instance.
             enabled (bool): Whether or not this block is enabled.
         """
 
         self.enabled = enabled
         self.uicolor = uicolor
-        self.right_arrow = right_arrow
-        self.down_arrow = down_arrow
+        self.dark_mode = uicolor.is_dark_mode()
+        self.right_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if self.dark_mode else ''}.png")))
+        self.down_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if self.dark_mode else ''}.png")))
 
         self.lines = {}
 
