@@ -592,14 +592,14 @@ def get_source_drive_list():
     if SYS_PLATFORM == 'Windows':
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
         drive_type_list = []
-        if prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN):
+        if prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN):
             drive_type_list.append(DRIVE_TYPE_REMOTE)
-        if prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN):
+        if prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN):
             drive_type_list.append(DRIVE_TYPE_LOCAL)
         source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
     elif SYS_PLATFORM == 'Linux':
-        local_selected = prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN)
-        network_selected = prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN)
+        local_selected = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
+        network_selected = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
 
         if network_selected and not local_selected:
             cmd = 'df -tcifs -tnfs --output=target'
@@ -3406,8 +3406,8 @@ if __name__ == '__main__':
         # Selection menu
         # FIXME: Add -c configuration option for CLI mode to change preference options
         selection_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-        settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=True, data_type=Config.BOOLEAN))
-        settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=False, data_type=Config.BOOLEAN))
+        settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN))
+        settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN))
         PREV_NETWORK_SOURCE_DRIVE = settings_showDrives_source_network.get()
         PREV_LOCAL_SOURCE_DRIVE = settings_showDrives_source_local.get()
         selection_menu.add_checkbutton(label='Source Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=lambda: change_source_type(DRIVE_TYPE_REMOTE))
