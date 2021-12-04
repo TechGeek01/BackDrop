@@ -25,7 +25,7 @@ if platform.system() == 'Windows':
     import win32file
     import wmi
 
-from bin.fileutils import human_filesize, get_directory_size
+from bin.fileutils import human_filesize, get_directory_size, copy_file
 from bin.color import bcolor
 from bin.threadmanager import ThreadManager
 from bin.config import Config
@@ -127,127 +127,28 @@ def do_delete(filename, size, display_filename=None, display_mode=None, display_
         update_file_detail_lists('deleteFail', filename)
         backup_error_log.append({'file': filename, 'mode': 'delete', 'error': 'File or path does not exist'})
 
-def copy_file(source_filename, dest_filename, drive_path, callback, display_filename=None, display_mode=None, display_index: int = None):
-    """Copy a source binary file to a destination.
-
-    Args:
-        source_filename (String): The source to copy.
-        dest_filename (String): The destination to copy to.
-        drive_path (String): The path of the destination drive to copy to.
-        callback (def): The function to call on progress change.
-        display_filename (String): The filename to display inthe GUI (optional).
-        display_mode (String): The mode to display the progress in (optional).
-        display_index (int): The index to display the item in the GUI (optional).
-
-    Returns:
-        tuple:
-            String: The destination drive the file was copied to.
-            String: The resulting file hash if the file was copied successfully.
-        None:
-            If the file failed to copy, returns None.
-    """
-
-    global file_detail_list
+def copy_file_pre(di, dest_filename):
+    """Stub function for the pre_callback in copy_file()"""
 
     if not CLI_MODE:
         cmd_info_blocks = backup.cmd_info_blocks
-        cmd_info_blocks[display_index].configure('current_file', text=dest_filename, fg=root_window.uicolor.NORMAL)
+        cmd_info_blocks[di].configure('current_file', text=dest_filename, fg=root_window.uicolor.NORMAL)
     else:
         print(f"Copying {dest_filename}")
-    display_mode = 'copy'
 
-    buffer_size = 1024 * 1024
+def update_file_details_on_copy(status, filename, error=None, s_hex='', d_hex=''):
+    update_file_detail_lists(status, filename)
 
-    # Optimize the buffer for small files
-    buffer_size = min(buffer_size, os.path.getsize(source_filename))
-    if buffer_size == 0:
-        buffer_size = 1024
+    if CLI_MODE:
+        if status == 'success':
+            print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
+        elif status == 'fail':
+            print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
+            print(f"    Source: {s_hex}")
+            print(F"    Dest:   {d_hex}")
 
-    h = hashlib.blake2b()
-    b = bytearray(buffer_size)
-    mv = memoryview(b)
-
-    copied = 0
-    with open(source_filename, 'rb', buffering=0) as f:
-        try:
-            file_size = os.stat(f.fileno()).st_size
-        except OSError:
-            file_size = READINTO_BUFSIZE
-
-        # Make sure destination path exists before copying
-        path_stub = dest_filename[0:dest_filename.rindex(os.path.sep)]
-        if not os.path.exists(path_stub):
-            os.makedirs(path_stub)
-
-        fdst = open(dest_filename, 'wb')
-        try:
-            for n in iter(lambda: f.readinto(mv), 0):
-                if thread_manager.threadlist['Backup']['killFlag']:
-                    break
-
-                fdst.write(mv[:n])
-                h.update(mv[:n])
-
-                copied += n
-                callback(copied=copied, total=file_size, display_filename=display_filename, display_mode=display_mode, display_index=display_index)
-        except OSError:
-            pass
-        fdst.close()
-
-    # If file copied in full, copy meta, and verify
-    if copied == file_size:
-        shutil.copymode(source_filename, dest_filename)
-        shutil.copystat(source_filename, dest_filename)
-
-        dest_hash = hashlib.blake2b()
-        dest_b = bytearray(buffer_size)
-        dest_mv = memoryview(dest_b)
-
-        with open(dest_filename, 'rb', buffering=0) as f:
-            display_mode = 'verify'
-            copied = 0
-
-            for n in iter(lambda: f.readinto(dest_mv), 0):
-                dest_hash.update(dest_mv[:n])
-
-                copied += n
-                callback(copied=copied, total=file_size, display_filename=display_filename, display_mode=display_mode, display_index=display_index)
-
-        if h.hexdigest() == dest_hash.hexdigest():
-            update_file_detail_lists('success', dest_filename)
-
-            if CLI_MODE:
-                print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
-        else:
-            # If file wasn't copied successfully, delete it
-            if os.path.isfile(dest_filename):
-                os.remove(dest_filename)
-            elif os.path.isdir(dest_filename):
-                shutil.rmtree(dest_filename)
-
-            update_file_detail_lists('fail', dest_filename)
-            backup_error_log.append({'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination hash mismatch'})
-
-            if CLI_MODE:
-                print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
-                print(f"    Source: {h.hexdigest()}")
-                print(F"    Dest:   {dest_hash.hexdigest()}")
-
-        if h.hexdigest() == dest_hash.hexdigest():
-            return (drive_path, dest_hash.hexdigest())
-        else:
-            return None
-    else:
-        # If file wasn't copied successfully, delete it
-        if os.path.isfile(dest_filename):
-            os.remove(dest_filename)
-        elif os.path.isdir(dest_filename):
-            shutil.rmtree(dest_filename)
-
-        update_file_detail_lists('fail', dest_filename)
-        backup_error_log.append({'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination filesize mismatch'})
-
-        return None
+    if error is not None:
+        backup_error_log.append(error)
 
 def display_backup_progress(copied, total, display_filename=None, display_mode=None, display_index: int = None):
     """Display the copy progress of a transfer
@@ -258,7 +159,13 @@ def display_backup_progress(copied, total, display_filename=None, display_mode=N
         display_filename (String): The filename to display inthe GUI (optional).
         display_mode (String): The mode to display the progress in (optional).
         display_index (int): The index to display the item in the GUI (optional).
+
+    Return:
+        bool: True if display progress is successful, False if break flag is set.
     """
+
+    if thread_manager.threadlist['Backup']['killFlag']:
+        return False
 
     backup_totals = backup.totals
 
@@ -300,6 +207,8 @@ def display_backup_progress(copied, total, display_filename=None, display_mode=N
     if copied >= total:
         backup_totals['running'] += backup_totals['buffer']
 
+    return True
+
 def do_copy(src, dest, drive_path, display_filename=None, display_mode=None, display_index: int = None):
     """Copy a source to a destination.
 
@@ -319,7 +228,20 @@ def do_copy(src, dest, drive_path, display_filename=None, display_mode=None, dis
 
     if os.path.isfile(src):
         if not thread_manager.threadlist['Backup']['killFlag']:
-            new_hash = copy_file(source_filename=src, dest_filename=dest, drive_path=drive_path, callback=display_backup_progress, display_filename=display_filename, display_mode=display_mode, display_index=display_index)
+            new_hash = copy_file(
+                source_filename=src,
+                dest_filename=dest,
+                drive_path=drive_path,
+                pre_callback=lambda: copy_file_pre(di=display_index, dest_filename=dest),
+                prog_callback=lambda c, t, dm: display_backup_progress(
+                    c,
+                    t,
+                    display_filename=display_filename,
+                    display_mode=dm,
+                    display_index=display_index
+                ),
+                fd_callback=update_file_details_on_copy
+            )
             if new_hash is not None and dest.find(new_hash[0]) == 0:
                 file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
                 new_hash_list[file_path_stub] = new_hash[1]
@@ -338,12 +260,31 @@ def do_copy(src, dest, drive_path, display_filename=None, display_mode=None, dis
                     src_file = os.path.join(src, filename)
                     dest_file = os.path.join(dest, filename)
 
-                    new_hash = copy_file(source_filename=src_file, dest_filename=dest_file, drive_path=drive_path, callback=display_backup_progress, display_filename=display_filename, display_mode=display_mode, display_index=display_index)
+                    new_hash = copy_file(
+                        source_filename=src_file,
+                        dest_filename=dest_file,
+                        drive_path=drive_path,
+                        pre_callback=lambda: copy_file_pre(di=display_index, dest_filename=dest_file),
+                        prog_callback=lambda c, t, dm: display_backup_progress(
+                            c,
+                            t,
+                            display_filename=display_filename,
+                            display_mode=dm,
+                            display_index=display_index
+                        ),
+                        fd_callback=update_file_details_on_copy
+                    )
                     if new_hash is not None and dest.find(new_hash[0]) == 0:
                         file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
                         new_hash_list[file_path_stub] = new_hash[1]
                 elif entry.is_dir():
-                    new_hash_list.update(do_copy(os.path.join(src, filename), os.path.join(dest, filename)))
+                    new_hash_list.update(
+                        do_copy(
+                            src=os.path.join(src, filename),
+                            dest=os.path.join(dest, filename),
+                            drive_path=drive_path
+                        )
+                    )
 
             # Handle changing attributes of folders if we copy a new folder
             shutil.copymode(src, dest)
