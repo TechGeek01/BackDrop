@@ -159,13 +159,7 @@ def display_backup_progress(copied, total, display_filename=None, display_mode=N
         display_filename (String): The filename to display inthe GUI (optional).
         display_mode (String): The mode to display the progress in (optional).
         display_index (int): The index to display the item in the GUI (optional).
-
-    Return:
-        bool: True if display progress is successful, False if break flag is set.
     """
-
-    if thread_manager.threadlist['Backup']['killFlag']:
-        return False
 
     backup_totals = backup.totals
 
@@ -206,8 +200,6 @@ def display_backup_progress(copied, total, display_filename=None, display_mode=N
     # FIXME: Make all failed file copies add the relevant progress chunk to the progress bar
     if copied >= total:
         backup_totals['running'] += backup_totals['buffer']
-
-    return True
 
 def start_copy(src, dest, drive_path, display_index):
     """Start a do_copy() call and report to the GUI.

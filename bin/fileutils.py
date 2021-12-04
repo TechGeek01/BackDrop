@@ -47,7 +47,7 @@ def get_directory_size(directory) -> int:
         return 0
     return total
 
-def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_callback, fd_callback):
+def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_callback, fd_callback, get_backup_killflag):
     """Copy a source binary file to a destination.
 
     Args:
@@ -57,6 +57,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
         pre_callback (def): The function to call before copying.
         prog_callback (def): The function to call on progress change.
         fd_callback (def): The function to run after copy to update file details.
+        get_backup_killflag (def): The function to use to get the backup thread kill flag.
 
     Returns:
         tuple:
@@ -95,6 +96,9 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
         fdst = open(dest_filename, 'wb')
         try:
             for n in iter(lambda: f.readinto(mv), 0):
+                if get_backup_killflag():
+                    break
+
                 fdst.write(mv[:n])
                 h.update(mv[:n])
 
@@ -191,7 +195,8 @@ def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get
                 drive_path=drive_path,
                 pre_callback=lambda: pre_callback(di=display_index, dest_filename=dest),
                 prog_callback=prog_callback,
-                fd_callback=fd_callback
+                fd_callback=fd_callback,
+                get_backup_killflag=get_backup_killflag
             )
             if new_hash is not None and dest.find(new_hash[0]) == 0:
                 file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
@@ -217,7 +222,8 @@ def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get
                         drive_path=drive_path,
                         pre_callback=lambda: pre_callback(di=display_index, dest_filename=dest_file),
                         prog_callback=prog_callback,
-                        fd_callback=fd_callback
+                        fd_callback=fd_callback,
+                        get_backup_killflag=get_backup_killflag
                     )
                     if new_hash is not None and dest.find(new_hash[0]) == 0:
                         file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
