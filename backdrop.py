@@ -25,7 +25,7 @@ if platform.system() == 'Windows':
     import win32file
     import wmi
 
-from bin.fileutils import human_filesize, get_directory_size, copy_file
+from bin.fileutils import human_filesize, get_directory_size, do_copy
 from bin.color import bcolor
 from bin.threadmanager import ThreadManager
 from bin.config import Config
@@ -209,90 +209,34 @@ def display_backup_progress(copied, total, display_filename=None, display_mode=N
 
     return True
 
-def do_copy(src, dest, drive_path, display_filename=None, display_mode=None, display_index: int = None):
-    """Copy a source to a destination.
+def start_copy(src, dest, drive_path, display_index):
+    """Start a do_copy() call and report to the GUI.
 
     Args:
         src (String): The source to copy.
         dest (String): The destination to copy to.
         drive_path (String): The path of the destination drive to copy to.
-        display_filename (String): The filename to display inthe GUI (optional).
-        display_mode (String): The mode to display the progress in (optional).
         display_index (int): The index to display the item in the GUI (optional).
 
-    Returns:
-        dict: A list of file hashes for each file copied
+    Return:
+        dict: The hash list returned by do_copy().
     """
 
-    new_hash_list = {}
-
-    if os.path.isfile(src):
-        if not thread_manager.threadlist['Backup']['killFlag']:
-            new_hash = copy_file(
-                source_filename=src,
-                dest_filename=dest,
-                drive_path=drive_path,
-                pre_callback=lambda: copy_file_pre(di=display_index, dest_filename=dest),
-                prog_callback=lambda c, t, dm: display_backup_progress(
-                    c,
-                    t,
-                    display_filename=display_filename,
-                    display_mode=dm,
-                    display_index=display_index
-                ),
-                fd_callback=update_file_details_on_copy
-            )
-            if new_hash is not None and dest.find(new_hash[0]) == 0:
-                file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
-                new_hash_list[file_path_stub] = new_hash[1]
-    elif os.path.isdir(src):
-        # Make dir if it doesn't exist
-        if not os.path.exists(dest):
-            os.makedirs(dest)
-
-        try:
-            for entry in os.scandir(src):
-                if thread_manager.threadlist['Backup']['killFlag']:
-                    break
-
-                filename = entry.path.split(os.path.sep)[-1]
-                if entry.is_file():
-                    src_file = os.path.join(src, filename)
-                    dest_file = os.path.join(dest, filename)
-
-                    new_hash = copy_file(
-                        source_filename=src_file,
-                        dest_filename=dest_file,
-                        drive_path=drive_path,
-                        pre_callback=lambda: copy_file_pre(di=display_index, dest_filename=dest_file),
-                        prog_callback=lambda c, t, dm: display_backup_progress(
-                            c,
-                            t,
-                            display_filename=display_filename,
-                            display_mode=dm,
-                            display_index=display_index
-                        ),
-                        fd_callback=update_file_details_on_copy
-                    )
-                    if new_hash is not None and dest.find(new_hash[0]) == 0:
-                        file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
-                        new_hash_list[file_path_stub] = new_hash[1]
-                elif entry.is_dir():
-                    new_hash_list.update(
-                        do_copy(
-                            src=os.path.join(src, filename),
-                            dest=os.path.join(dest, filename),
-                            drive_path=drive_path
-                        )
-                    )
-
-            # Handle changing attributes of folders if we copy a new folder
-            shutil.copymode(src, dest)
-            shutil.copystat(src, dest)
-        except Exception:
-            return {}
-
-    return new_hash_list
+    return do_copy(
+        src=src,
+        dest=dest,
+        drive_path=drive_path,
+        pre_callback=lambda di, dest_filename: copy_file_pre(di=display_index, dest_filename=dest_filename),
+        prog_callback=lambda c, t, dm: display_backup_progress(
+            c,
+            t,
+            display_mode=dm,
+            display_index=display_index
+        ),
+        display_index=display_index,
+        fd_callback=update_file_details_on_copy,
+        get_backup_killflag=lambda: thread_manager.threadlist['Backup']['killFlag']
+    )
 
 def display_backup_summary_chunk(title, payload: tuple, reset: bool = False):
     """Display a chunk of a backup analysis summary to the user.
@@ -496,7 +440,7 @@ def start_backup_analysis():
                 backup_config_dir=BACKUP_CONFIG_DIR,
                 backup_config_file=BACKUP_CONFIG_FILE,
                 uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
-                do_copy_fn=do_copy,
+                do_copy_fn=start_copy,
                 do_del_fn=do_delete,
                 start_backup_timer_fn=update_backup_eta_timer,
                 update_ui_component_fn=update_ui_component,
@@ -511,7 +455,7 @@ def start_backup_analysis():
                 config=config,
                 backup_config_dir=BACKUP_CONFIG_DIR,
                 backup_config_file=BACKUP_CONFIG_FILE,
-                do_copy_fn=do_copy,
+                do_copy_fn=start_copy,
                 do_del_fn=do_delete,
                 start_backup_timer_fn=update_backup_eta_timer,
                 update_file_detail_list_fn=update_file_detail_lists,

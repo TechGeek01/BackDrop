@@ -163,3 +163,78 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
         )
 
         return None
+
+def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get_backup_killflag, display_index: int = None):
+    """Copy a source to a destination.
+
+    Args:
+        src (String): The source to copy.
+        dest (String): The destination to copy to.
+        drive_path (String): The path of the destination drive to copy to.
+        pre_callback (def): The function to call before copying.
+        prog_callback (def): The function to call on progress change.
+        fd_callback (def): The function to run after copy to update file details.
+        get_backup_killflag (def): The function to use to get the backup thread kill flag.
+        display_index (int): The index to display the item in the GUI (optional).
+
+    Returns:
+        dict: A list of file hashes for each file copied
+    """
+
+    new_hash_list = {}
+
+    if os.path.isfile(src):
+        if not get_backup_killflag():
+            new_hash = copy_file(
+                source_filename=src,
+                dest_filename=dest,
+                drive_path=drive_path,
+                pre_callback=lambda: pre_callback(di=display_index, dest_filename=dest),
+                prog_callback=prog_callback,
+                fd_callback=fd_callback
+            )
+            if new_hash is not None and dest.find(new_hash[0]) == 0:
+                file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
+                new_hash_list[file_path_stub] = new_hash[1]
+    elif os.path.isdir(src):
+        # Make dir if it doesn't exist
+        if not os.path.exists(dest):
+            os.makedirs(dest)
+
+        try:
+            for entry in os.scandir(src):
+                if get_backup_killflag():
+                    break
+
+                filename = entry.path.split(os.path.sep)[-1]
+                if entry.is_file():
+                    src_file = os.path.join(src, filename)
+                    dest_file = os.path.join(dest, filename)
+
+                    new_hash = copy_file(
+                        source_filename=src_file,
+                        dest_filename=dest_file,
+                        drive_path=drive_path,
+                        pre_callback=lambda: pre_callback(di=display_index, dest_filename=dest_file),
+                        prog_callback=prog_callback,
+                        fd_callback=fd_callback
+                    )
+                    if new_hash is not None and dest.find(new_hash[0]) == 0:
+                        file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
+                        new_hash_list[file_path_stub] = new_hash[1]
+                elif entry.is_dir():
+                    new_hash_list.update(
+                        do_copy(
+                            src=os.path.join(src, filename),
+                            dest=os.path.join(dest, filename),
+                            drive_path=drive_path
+                        )
+                    )
+
+            # Handle changing attributes of folders if we copy a new folder
+            shutil.copymode(src, dest)
+            shutil.copystat(src, dest)
+        except Exception:
+            return {}
+
+    return new_hash_list
