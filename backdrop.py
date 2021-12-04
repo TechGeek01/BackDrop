@@ -2334,6 +2334,9 @@ if __name__ == '__main__':
                 resizable=(False, False)
             )
 
+            window_backup_error_log.main_frame.grid_columnconfigure(0, weight=1)
+            window_backup_error_log.main_frame.grid_rowconfigure(1, weight=1)
+
             if SYS_PLATFORM == 'Windows':
                 window_backup_error_log.iconbitmap(resource_path('media/icon.ico'))
 
