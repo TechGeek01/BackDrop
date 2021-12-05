@@ -201,6 +201,10 @@ def display_backup_progress(copied, total, display_filename=None, display_mode=N
     if copied >= total:
         backup_totals['running'] += backup_totals['buffer']
 
+def get_backup_killflag():
+    """Get backup thread kill flag status."""
+    return thread_manager.threadlist['Backup']['killFlag']
+
 def start_copy(src, dest, drive_path, display_index):
     """Start a do_copy() call and report to the GUI.
 
@@ -218,7 +222,7 @@ def start_copy(src, dest, drive_path, display_index):
         src=src,
         dest=dest,
         drive_path=drive_path,
-        pre_callback=lambda di, dest_filename: copy_file_pre(di=display_index, dest_filename=dest_filename),
+        pre_callback=lambda di, dest_filename: copy_file_pre(di=di, dest_filename=dest_filename),
         prog_callback=lambda c, t, dm: display_backup_progress(
             c,
             t,
@@ -227,7 +231,7 @@ def start_copy(src, dest, drive_path, display_index):
         ),
         display_index=display_index,
         fd_callback=update_file_details_on_copy,
-        get_backup_killflag=lambda: thread_manager.threadlist['Backup']['killFlag']
+        get_backup_killflag=get_backup_killflag
     )
 
 def display_backup_summary_chunk(title, payload: tuple, reset: bool = False):

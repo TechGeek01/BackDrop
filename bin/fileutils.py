@@ -103,8 +103,9 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
                 h.update(mv[:n])
 
                 copied += n
-                # prog_callback returns false if break flag is set, so break out of the loop if that happens
-                if not prog_callback(c=copied, t=file_size, dm=display_mode):
+                prog_callback(c=copied, t=file_size, dm=display_mode)
+
+                if get_backup_killflag():
                     break
         except OSError:
             pass
@@ -198,6 +199,7 @@ def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get
                 fd_callback=fd_callback,
                 get_backup_killflag=get_backup_killflag
             )
+
             if new_hash is not None and dest.find(new_hash[0]) == 0:
                 file_path_stub = dest.split(new_hash[0])[1].strip(os.path.sep)
                 new_hash_list[file_path_stub] = new_hash[1]
@@ -233,7 +235,11 @@ def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get
                         do_copy(
                             src=os.path.join(src, filename),
                             dest=os.path.join(dest, filename),
-                            drive_path=drive_path
+                            drive_path=drive_path,
+                            pre_callback=pre_callback,
+                            prog_callback=prog_callback,
+                            fd_callback=fd_callback,
+                            get_backup_killflag=get_backup_killflag
                         )
                     )
 
