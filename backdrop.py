@@ -25,7 +25,7 @@ if platform.system() == 'Windows':
     import win32file
     import wmi
 
-from bin.fileutils import human_filesize, get_directory_size, do_copy
+from bin.fileutils import human_filesize, get_directory_size, do_copy, do_delete
 from bin.color import bcolor
 from bin.threadmanager import ThreadManager
 from bin.config import Config
@@ -93,39 +93,51 @@ def update_file_detail_lists(list_name, filename):
 
 backup_error_log = []
 
-def do_delete(filename, size, display_filename=None, display_mode=None, display_index: int = None):
-    """Delete a file or directory.
+def update_ui_on_delete(filename, size=int, display_index=None):
+    """Update file lists and progress bar on file delete.
 
     Args:
         filename (String): The file or folder to delete.
         size (int): The size in bytes of the file or folder.
-        display_filename (String): The filename to display inthe GUI (optional).
-        display_mode (String): The mode to display the progress in (optional).
         display_index (int): The index to display the item in the GUI (optional).
     """
 
-    if thread_manager.threadlist['Backup']['killFlag'] or not os.path.exists(filename):
-        return
-
-    display_mode = 'delete'
-    display_filename = filename.split(os.path.sep)[-1]
-
-    try:
-        if os.path.isfile(filename):
-            os.remove(filename)
-        elif os.path.isdir(filename):
-            shutil.rmtree(filename)
-    except PermissionError:
-        pass
-
-    # If file deleted successfully, remove it from the list
     if not os.path.exists(filename):
-        display_backup_progress(copied=size, total=size, display_filename=display_filename, display_mode=display_mode, display_index=display_index)
+        display_backup_progress(
+            copied=size,
+            total=size,
+            display_filename=filename.split(os.path.sep)[-1],
+            display_mode='delete',
+            display_index=display_index
+        )
         update_file_detail_lists('deleteSuccess', filename)
     else:
-        display_backup_progress(copied=size, total=size, display_filename=display_filename, display_mode=display_mode, display_index=display_index)
+        display_backup_progress(
+            copied=size,
+            total=size,
+            display_filename=filename.split(os.path.sep)[-1],
+            display_mode='delete',
+            display_index=display_index,
+        )
         update_file_detail_lists('deleteFail', filename)
         backup_error_log.append({'file': filename, 'mode': 'delete', 'error': 'File or path does not exist'})
+
+def start_delete(filename, size=int, display_index=None):
+    """Start a do_delete() call, and report to the GUI.
+
+    Args:
+        filename (String): The file or folder to delete.
+        size (int): The size in bytes of the file or folder.
+        display_index (int): The index to display the item in the GUI (optional).
+    """
+
+    do_delete(
+        filename=filename,
+        size=size,
+        callback=update_ui_on_delete,
+        get_backup_killflag=get_backup_killflag,
+        display_index=display_index
+    )
 
 def copy_file_pre(di, dest_filename):
     """Stub function for the pre_callback in copy_file()"""
@@ -437,7 +449,7 @@ def start_backup_analysis():
                 backup_config_file=BACKUP_CONFIG_FILE,
                 uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
                 do_copy_fn=start_copy,
-                do_del_fn=do_delete,
+                do_del_fn=start_delete,
                 start_backup_timer_fn=update_backup_eta_timer,
                 update_ui_component_fn=update_ui_component,
                 update_file_detail_list_fn=update_file_detail_lists,
@@ -452,7 +464,7 @@ def start_backup_analysis():
                 backup_config_dir=BACKUP_CONFIG_DIR,
                 backup_config_file=BACKUP_CONFIG_FILE,
                 do_copy_fn=start_copy,
-                do_del_fn=do_delete,
+                do_del_fn=start_delete,
                 start_backup_timer_fn=update_backup_eta_timer,
                 update_file_detail_list_fn=update_file_detail_lists,
                 analysis_summary_display_fn=display_backup_summary_chunk,

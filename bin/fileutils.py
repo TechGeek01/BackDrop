@@ -250,3 +250,32 @@ def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get
             return {}
 
     return new_hash_list
+
+def do_delete(filename, size, callback, get_backup_killflag, display_index: int = None):
+    """Delete a file or directory.
+
+    Args:
+        filename (String): The file or folder to delete.
+        size (int): The size in bytes of the file or folder.
+        callback (def): The function to run to update GUI after deleting the file.
+        get_backup_killflag (def): The function to use to get the backup thread kill flag.
+        display_index (int): The index to display the item in the GUI (optional).
+    """
+
+    if get_backup_killflag() or not os.path.exists(filename):
+        return
+
+    try:
+        if os.path.isfile(filename):
+            os.remove(filename)
+        elif os.path.isdir(filename):
+            shutil.rmtree(filename)
+    except PermissionError:
+        pass
+
+    # If file deleted successfully, remove it from the list
+    callback(
+        filename=filename,
+        size=size,
+        display_index=display_index
+    )
