@@ -5,13 +5,20 @@ from datetime import datetime
 import shutil
 import pickle
 
-from bin.fileutils import human_filesize, get_directory_size
+from bin.fileutils import FileUtils, human_filesize, get_directory_size
 from bin.color import bcolor
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.status import Status
 
 class Backup:
+    COMMAND_TYPE_FILE_LIST = 'file_list'
+    COMMAND_FILE_LIST = 'file_list'
+
+    COMMAND_MODE_COPY = 'copy'
+    COMMAND_MODE_REPLACE = 'replace'
+    COMMAND_MODE_DELETE = 'delete'
+
     def __init__(self, config: dict, backup_config_dir, backup_config_file, do_copy_fn, do_del_fn, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager: ThreadManager, update_ui_component_fn=None, uicolor=None, progress=None):
         """Configure a backup to be run on a set of drives.
 
@@ -19,8 +26,8 @@ class Backup:
             config (dict): The backup config to be processed.
             backup_config_dir (String): The directory to store backup configs on each drive.
             backup_config_file (String): The file to store backup configs on each drive.
-            do_copy_fn (def): The function to be used to handle file copying. TODO: Move do_copy_fn outside of Backup class.
-            do_del_fn (def): The function to be used to handle file copying. TODO: Move do_del_fn outside of Backup class.
+            do_copy_fn (def): The function to be used to handle file copying.
+            do_del_fn (def): The function to be used to handle file copying.
             start_backup_timer_fn (def): The function to be used to start the backup timer.
             update_ui_component_fn (def): The function to be used to update UI components (default None).
             update_file_detail_list_fn (def): The function to be used to update file lists.
@@ -29,7 +36,7 @@ class Backup:
             display_backup_command_info_fn (def): The function to be used to enumerate command info
                     in the UI.
             thread_manager (ThreadManager): The thread manager to check for kill flags.
-            uicolor (Color): The UI color instance to reference for styling (default None). TODO: Move uicolor outside of Backup class
+            uicolor (Color): The UI color instance to reference for styling (default None).
             progress (Progress): The progress tracker to bind to.
         """
 
@@ -592,7 +599,7 @@ class Backup:
                                 or stub_path in exclusions  # File is excluded from drive
                                 or len(shares_to_process) == 0):  # File should only count if dir is share or child, not parent
                             file_list['delete'].append((drive, stub_path, file_stat.st_size))
-                            self.update_file_detail_list_fn('delete', entry.path)
+                            self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_DELETE, entry.path)
                         else:  # File is in share on destination drive
                             target_share = max(shares_to_process, key=len)
                             path_slug = stub_path[len(target_share):].strip(os.path.sep)
@@ -605,10 +612,10 @@ class Backup:
                                         or file_stat.st_size != os.path.getsize(source_path)):  # Existing file is different size than source
                                     # If existing dest file is not same time as source, it needs to be replaced
                                     file_list['replace'].append((drive, target_share, path_slug, os.path.getsize(source_path), file_stat.st_size))
-                                    self.update_file_detail_list_fn('copy', entry.path)
+                                    self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_COPY, entry.path)
                             else:  # File doesn't exist on source, so delete it
                                 file_list['delete'].append((drive, stub_path, file_stat.st_size))
-                                self.update_file_detail_list_fn('delete', entry.path)
+                                self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_DELETE, entry.path)
                     elif entry.is_dir():
                         found_share = False
 
@@ -631,7 +638,7 @@ class Backup:
                             # Directory isn't share, or part of one, and isn't a special folder or
                             # exclusion, so delete it
                             file_list['delete'].append((drive, stub_path, get_directory_size(entry.path)))
-                            self.update_file_detail_list_fn('delete', entry.path)
+                            self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_DELETE, entry.path)
             except NotADirectoryError:
                 return {
                     'delete': [],
@@ -705,7 +712,7 @@ class Backup:
                                 if (not os.path.isfile(target_path)  # File doesn't exist in destination drive
                                         and exclusion_stub_path not in exclusions):  # File isn't part of drive exclusion
                                     file_list['new'].append((drive, share, stub_path, entry.stat().st_size))
-                                    self.update_file_detail_list_fn('copy', target_path)
+                                    self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_COPY, target_path)
                             elif entry.is_dir():
                                 # Avoid recursing into any split share directories and double counting files
                                 if exclusion_stub_path not in all_shares:
@@ -771,20 +778,20 @@ class Backup:
 
                 display_purge_command_list.append({
                     'enabled': True,
-                    'type': 'fileList',
+                    'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((size for drive, file, size in delete_items)),
-                    'fileList': file_delete_list,
-                    'mode': 'delete'
+                    Backup.COMMAND_TYPE_FILE_LIST: file_delete_list,
+                    'mode': Backup.COMMAND_MODE_DELETE
                 })
 
                 purge_command_list.append({
                     'displayIndex': len(display_purge_command_list) + 1,
-                    'type': 'fileList',
+                    'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'fileList': file_delete_list,
+                    Backup.COMMAND_TYPE_FILE_LIST: file_delete_list,
                     'payload': delete_items,
-                    'mode': 'delete'
+                    'mode': Backup.COMMAND_MODE_DELETE
                 })
 
             # Build list of files to replace
@@ -796,20 +803,20 @@ class Backup:
 
                 display_copy_command_list.append({
                     'enabled': True,
-                    'type': 'fileList',
+                    'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((source_size for drive, share, file, source_size, dest_size in replace_items)),
-                    'fileList': file_replace_list,
-                    'mode': 'replace'
+                    Backup.COMMAND_TYPE_FILE_LIST: file_replace_list,
+                    'mode': Backup.COMMAND_MODE_REPLACE
                 })
 
                 copy_command_list.append({
                     'displayIndex': len(display_purge_command_list) + 1,
-                    'type': 'fileList',
+                    'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'fileList': file_replace_list,
+                    Backup.COMMAND_TYPE_FILE_LIST: file_replace_list,
                     'payload': replace_items,
-                    'mode': 'replace'
+                    'mode': Backup.COMMAND_MODE_REPLACE
                 })
 
             # Build list of new files to copy
@@ -820,20 +827,20 @@ class Backup:
 
                 display_copy_command_list.append({
                     'enabled': True,
-                    'type': 'fileList',
+                    'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((size for drive, share, file, size in new_items)),
-                    'fileList': file_copy_list,
-                    'mode': 'copy'
+                    Backup.COMMAND_TYPE_FILE_LIST: file_copy_list,
+                    'mode': Backup.COMMAND_MODE_COPY
                 })
 
                 copy_command_list.append({
                     'displayIndex': len(display_purge_command_list) + 1,
-                    'type': 'fileList',
+                    'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'fileList': file_copy_list,
+                    Backup.COMMAND_TYPE_FILE_LIST: file_copy_list,
                     'payload': new_items,
-                    'mode': 'copy'
+                    'mode': Backup.COMMAND_MODE_COPY
                 })
 
         # Gather and summarize totals for analysis summary
@@ -990,7 +997,7 @@ class Backup:
 
             for cmd in self.command_list:
                 self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=self.uicolor.PENDING)
-                if cmd['type'] == 'fileList':
+                if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
                     self.cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=self.uicolor.PENDING)
                 self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=self.uicolor.PENDING)
 
@@ -1004,7 +1011,7 @@ class Backup:
         timer_started = False
 
         for cmd in self.command_list:
-            if cmd['type'] == 'fileList':
+            if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
                 if not self.CLI_MODE:
                     self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Running', fg=self.uicolor.RUNNING)
 
@@ -1014,7 +1021,7 @@ class Backup:
 
                     self.thread_manager.start(ThreadManager.KILLABLE, name='backupTimer', target=self.start_backup_timer_fn)
 
-                if cmd['mode'] == 'delete':
+                if cmd['mode'] == Backup.COMMAND_MODE_DELETE:
                     for drive, file, size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
@@ -1031,7 +1038,7 @@ class Backup:
                             with open(drive_hash_file_path, 'wb') as f:
                                 hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
                                 pickle.dump(hash_list, f)
-                if cmd['mode'] == 'replace':
+                if cmd['mode'] == Backup.COMMAND_MODE_REPLACE:
                     for drive, share, file, source_size, dest_size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
                             break
@@ -1049,7 +1056,7 @@ class Backup:
                         with open(drive_hash_file_path, 'wb') as f:
                             hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
                             pickle.dump(hash_list, f)
-                elif cmd['mode'] == 'copy':
+                elif cmd['mode'] == Backup.COMMAND_MODE_COPY:
                     for drive, share, file, size in cmd['payload']:
                         if self.thread_manager.threadlist['Backup']['killFlag']:
                             break

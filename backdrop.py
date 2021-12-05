@@ -25,7 +25,7 @@ if platform.system() == 'Windows':
     import win32file
     import wmi
 
-from bin.fileutils import human_filesize, get_directory_size, do_copy, do_delete
+from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_copy, do_delete
 from bin.color import bcolor
 from bin.threadmanager import ThreadManager
 from bin.config import Config
@@ -52,38 +52,38 @@ def update_file_detail_lists(list_name, filename):
         'filename': filename
     })
 
-    if list_name == 'delete':
-        file_details_pending_delete_counter.configure(text=str(len(file_detail_list['delete'])))
-        file_details_pending_delete_counter_total.configure(text=str(len(file_detail_list['delete'])))
-    elif list_name == 'copy':
-        file_details_pending_copy_counter.configure(text=str(len(file_detail_list['copy'])))
-        file_details_pending_copy_counter_total.configure(text=str(len(file_detail_list['copy'])))
-    elif list_name in ['deleteSuccess', 'deleteFail', 'success', 'fail']:
+    if list_name == FileUtils.LIST_TOTAL_DELETE:
+        file_details_pending_delete_counter.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
+        file_details_pending_delete_counter_total.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
+    elif list_name == FileUtils.LIST_TOTAL_COPY:
+        file_details_pending_copy_counter.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
+        file_details_pending_copy_counter_total.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
+    elif list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
         # Remove file from delete list
-        file_detail_list_name = 'copy' if list_name in ['success', 'fail'] else 'delete'
+        file_detail_list_name = FileUtils.LIST_TOTAL_COPY if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else FileUtils.LIST_TOTAL_DELETE
         filename_list = [file['filename'] for file in file_detail_list[file_detail_list_name]]
         if filename in filename_list:
             del file_detail_list[file_detail_list_name][filename_list.index(filename)]
 
         # Update file counter
-        if list_name in ['success', 'fail']:
+        if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
             file_details_pending_copy_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
         else:
             file_details_pending_delete_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
 
         # Update copy list scrollable
-        if list_name in ['success', 'deleteSuccess']:
-            tk.Label(file_details_copied.frame, text=filename.split(os.path.sep)[-1], fg=root_window.uicolor.NORMAL if list_name in ['success', 'fail'] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
-            file_details_copied_counter.configure(text=len(file_detail_list['success']) + len(file_detail_list['deleteSuccess']))
+        if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_DELETE_SUCCESS]:
+            tk.Label(file_details_copied.frame, text=filename.split(os.path.sep)[-1], fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+            file_details_copied_counter.configure(text=len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS]))
 
             # Remove all but the most recent 250 items
             file_details_copied.show_items(250)
         else:
-            tk.Label(file_details_failed.frame, text=filename.split(os.path.sep)[-1], fg=root_window.uicolor.NORMAL if list_name in ['success', 'fail'] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
-            file_details_failed_counter.configure(text=len(file_detail_list['fail']) + len(file_detail_list['deleteFail']))
+            tk.Label(file_details_failed.frame, text=filename.split(os.path.sep)[-1], fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+            file_details_failed_counter.configure(text=len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL]))
 
             # Update counter in status bar
-            FAILED_FILE_COUNT = len(file_detail_list['fail']) + len(file_detail_list['deleteFail'])
+            FAILED_FILE_COUNT = len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL])
             statusbar_counter_btn.configure(text=f"{FAILED_FILE_COUNT} failed", state='normal' if FAILED_FILE_COUNT > 0 else 'disabled')
 
             # HACK: The scroll yview won't see the label instantly after it's packed.
@@ -93,7 +93,7 @@ def update_file_detail_lists(list_name, filename):
 
 backup_error_log = []
 
-def update_ui_on_delete(filename, size=int, display_index=None):
+def update_ui_on_delete(filename, size: int, display_index=None):
     """Update file lists and progress bar on file delete.
 
     Args:
@@ -110,7 +110,7 @@ def update_ui_on_delete(filename, size=int, display_index=None):
             display_mode='delete',
             display_index=display_index
         )
-        update_file_detail_lists('deleteSuccess', filename)
+        update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
     else:
         display_backup_progress(
             copied=size,
@@ -119,10 +119,10 @@ def update_ui_on_delete(filename, size=int, display_index=None):
             display_mode='delete',
             display_index=display_index,
         )
-        update_file_detail_lists('deleteFail', filename)
+        update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
         backup_error_log.append({'file': filename, 'mode': 'delete', 'error': 'File or path does not exist'})
 
-def start_delete(filename, size=int, display_index=None):
+def start_delete(filename, size: int, display_index=None):
     """Start a do_delete() call, and report to the GUI.
 
     Args:
@@ -148,13 +148,22 @@ def copy_file_pre(di, dest_filename):
     else:
         print(f"Copying {dest_filename}")
 
-def update_file_details_on_copy(status, filename, error=None, s_hex='', d_hex=''):
-    update_file_detail_lists(status, filename)
+def update_file_details_on_copy(list_name, filename, error=None, s_hex='', d_hex=''):
+    """Update file detail lists in a copy operation.
+
+    Args:
+        list_name (String): The list name to update.
+        filename (String): The file path to add to the list.
+        error (String): The error to append to the error log (optional).
+        s_hex (String): The source file hex digest (optional).
+        d_hex (String): The destination file hex digest (optional).
+    """
+    update_file_detail_lists(list_name, filename)
 
     if CLI_MODE:
-        if status == 'success':
+        if list_name == FileUtils.LIST_SUCCESS:
             print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
-        elif status == 'fail':
+        elif list_name == FileUtils.LIST_FAIL:
             print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
             print(f"    Source: {s_hex}")
             print(F"    Dest:   {d_hex}")
@@ -347,15 +356,15 @@ def display_backup_command_info(display_command_list: dict):
 
     backup.cmd_info_blocks = []
     for i, item in enumerate(display_command_list):
-        if item['type'] == 'fileList':
-            if item['mode'] == 'delete':
-                cmd_header_text = f"Delete {len(item['fileList'])} files from {item['drive']}"
-            elif item['mode'] == 'replace':
-                cmd_header_text = f"Update {len(item['fileList'])} files on {item['drive']}"
-            elif item['mode'] == 'copy':
-                cmd_header_text = f"Copy {len(item['fileList'])} new files to {item['drive']}"
+        if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
+            if item['mode'] == Backup.COMMAND_MODE_DELETE:
+                cmd_header_text = f"Delete {len(item[Backup.COMMAND_TYPE_FILE_LIST])} files from {item['drive']}"
+            elif item['mode'] == Backup.COMMAND_MODE_REPLACE:
+                cmd_header_text = f"Update {len(item[Backup.COMMAND_TYPE_FILE_LIST])} files on {item['drive']}"
+            elif item['mode'] == Backup.COMMAND_MODE_COPY:
+                cmd_header_text = f"Copy {len(item[Backup.COMMAND_TYPE_FILE_LIST])} new files to {item['drive']}"
             else:
-                cmd_header_text = f"Work with {len(item['fileList'])} files on {item['drive']}"
+                cmd_header_text = f"Work with {len(item[Backup.COMMAND_TYPE_FILE_LIST])} files on {item['drive']}"
 
         if not CLI_MODE:
 
@@ -367,10 +376,10 @@ def display_backup_command_info(display_command_list: dict):
             )
             backup_summary_block.pack(anchor='w', expand=1)
 
-            if item['type'] == 'fileList':
+            if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
                 # Handle list trimming
                 list_font = tkfont.Font(family=None, size=10, weight='normal')
-                trimmed_file_list = ', '.join(item['fileList'])[:500]
+                trimmed_file_list = ', '.join(item[Backup.COMMAND_TYPE_FILE_LIST])[:500]
                 MAX_WIDTH = backup_activity_frame.canvas.winfo_width() * 0.8
                 actual_file_width = list_font.measure(trimmed_file_list)
 
@@ -381,7 +390,7 @@ def display_backup_command_info(display_command_list: dict):
                     trimmed_file_list = trimmed_file_list + '...'
 
                 backup_summary_block.add_line('file_size', 'Total size', human_filesize(item['size']))
-                backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['fileList']))
+                backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item[Backup.COMMAND_TYPE_FILE_LIST]))
                 backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
                 backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
 
@@ -433,7 +442,7 @@ def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
 
     global backup
-    global TREE_SELECTION_LOCKED
+    global TREE_SELECTION_LOCKED  # URGENT: Move this lock from variable to Backup class var?
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
@@ -1236,12 +1245,12 @@ def start_backup():
         # Reset UI
         if not CLI_MODE:
             # Reset file detail success and fail lists
-            for list_name in ['deleteSuccess', 'deleteFail', 'success', 'fail']:
+            for list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
                 file_detail_list[list_name].clear()
 
             # Reset file details counters
-            FILE_DELETE_COUNT = len(file_detail_list['delete'])
-            FILE_COPY_COUNT = len(file_detail_list['copy'])
+            FILE_DELETE_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])
+            FILE_COPY_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_COPY])
             file_details_pending_delete_counter.configure(text=str(FILE_DELETE_COUNT))
             file_details_pending_delete_counter_total.configure(text=str(FILE_DELETE_COUNT))
             file_details_pending_copy_counter.configure(text=str(FILE_COPY_COUNT))
@@ -1381,9 +1390,9 @@ def verify_data_integrity(drive_list):
                         # Update file detail lists
                         if not CLI_MODE:
                             if file_hash == saved_hash:
-                                update_file_detail_lists('success', entry.path)
+                                update_file_detail_lists(FileUtils.LIST_SUCCESS, entry.path)
                             else:
-                                update_file_detail_lists('fail', entry.path)
+                                update_file_detail_lists(FileUtils.LIST_FAIL, entry.path)
                                 backup_error_log.append({'file': entry.path, 'mode': 'copy', 'error': 'File hash mismatch'})
                     else:
                         # Hash not saved, so store it
@@ -1410,7 +1419,7 @@ def verify_data_integrity(drive_list):
             halt_verification_btn.pack(side='left', padx=4)
 
             # Empty file detail lists
-            for list_name in ['success', 'fail']:
+            for list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
                 file_detail_list[list_name].clear()
 
             # Reset file details counters
@@ -1508,9 +1517,9 @@ def verify_data_integrity(drive_list):
                     # Update file detail lists
                     if not CLI_MODE:
                         if saved_hash == computed_hash:
-                            update_file_detail_lists('success', filename)
+                            update_file_detail_lists(FileUtils.LIST_SUCCESS, filename)
                         else:
-                            update_file_detail_lists('fail', filename)
+                            update_file_detail_lists(FileUtils.LIST_FAIL, filename)
                             backup_error_log.append({'file': filename, 'mode': 'copy', 'error': 'File hash mismatch'})
 
                     if thread_manager.threadlist['Data Verification']['killFlag']:
@@ -3094,12 +3103,12 @@ if __name__ == '__main__':
     ############
 
     file_detail_list = {
-        'delete': [],
-        'copy': [],
-        'deleteSuccess': [],
-        'deleteFail': [],
-        'success': [],
-        'fail': []
+        FileUtils.LIST_TOTAL_DELETE: [],
+        FileUtils.LIST_TOTAL_COPY: [],
+        FileUtils.LIST_DELETE_SUCCESS: [],
+        FileUtils.LIST_DELETE_FAIL: [],
+        FileUtils.LIST_SUCCESS: [],
+        FileUtils.LIST_FAIL: []
     }
 
     TREE_SELECTION_LOCKED = False
@@ -3708,16 +3717,16 @@ if __name__ == '__main__':
         tk.Grid.columnconfigure(backup_file_details_frame, (0, 1), weight=1)
 
         # Set click to copy key bindings
-        file_details_pending_delete_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['delete']])))
-        file_details_pending_delete_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['delete']])))
-        file_details_pending_copy_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['copy']])))
-        file_details_pending_copy_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['copy']])))
-        file_details_copied_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['success']])))
-        file_details_copied_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['success']])))
-        file_details_copied_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['success']])))
-        file_details_failed_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
-        file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
-        file_details_failed_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list['fail']])))
+        file_details_pending_delete_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
+        file_details_pending_delete_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
+        file_details_pending_copy_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
+        file_details_pending_copy_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
+        file_details_copied_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+        file_details_copied_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+        file_details_copied_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+        file_details_failed_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+        file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+        file_details_failed_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
 
         tk.Grid.columnconfigure(root_window.main_frame, 3, weight=1)
 

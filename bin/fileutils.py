@@ -2,7 +2,18 @@ import os
 import hashlib
 import shutil
 
-READINTO_BUFSIZE = 1024 * 1024  # differs from shutil.COPY_BUFSIZE on platforms != Windows
+class FileUtils:
+    STATUS_SUCCESS = 0x00
+    STATUS_FAIL = 0x01
+
+    LIST_TOTAL_COPY = 'total_copy'
+    LIST_TOTAL_DELETE = 'total_delete'
+    LIST_SUCCESS = 'copy_success'
+    LIST_FAIL = 'copy_fail'
+    LIST_DELETE_SUCCESS = 'delete_success'
+    LIST_DELETE_FAIL = 'delete_fail'
+
+    READINTO_BUFSIZE = 1024 * 1024  # differs from shutil.COPY_BUFSIZE on platforms != Windows
 
 def human_filesize(num: int, suffix='B'):
     """Convert a number of bytes to a human readable format.
@@ -86,7 +97,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
         try:
             file_size = os.stat(f.fileno()).st_size
         except OSError:
-            file_size = READINTO_BUFSIZE
+            file_size = FileUtils.READINTO_BUFSIZE
 
         # Make sure destination path exists before copying
         path_stub = dest_filename[0:dest_filename.rindex(os.path.sep)]
@@ -132,7 +143,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
 
         if h.hexdigest() == dest_hash.hexdigest():
             fd_callback(
-                status='success',
+                list_name=FileUtils.LIST_SUCCESS,
                 filename=dest_filename
             )
         else:
@@ -143,7 +154,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
                 shutil.rmtree(dest_filename)
 
             fd_callback(
-                status='fail',
+                list_name=FileUtils.LIST_FAIL,
                 filename=dest_filename,
                 error={'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination hash mismatch'},
                 s_hex=h.hexdigest(),
@@ -162,7 +173,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
             shutil.rmtree(dest_filename)
 
         fd_callback(
-            status='fail',
+            list_name=FileUtils.LIST_FAIL,
             filename=dest_filename,
             error={'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination filesize mismatch'}
         )
