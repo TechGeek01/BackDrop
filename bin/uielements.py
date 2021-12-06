@@ -273,9 +273,9 @@ class TabbedFrame(tk.Frame):
 
         self.tab = {}
 
-        self.tab_frame = tk.Frame(self, bg='#ff0000')
-        self.gutter = tk.Frame(self, bg='#ffff00')
-        self.frame = tk.Frame(self, bg='#00ff00')
+        self.tab_frame = tk.Frame(self)
+        self.gutter = tk.Frame(self)
+        self.frame = tk.Frame(self)
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -289,7 +289,7 @@ class TabbedFrame(tk.Frame):
                 'tab': ttk.Button(self.tab_frame, text=tab_label, width=0, command=lambda tn=tab_name: self.change_tab(tn), style='tab.TButton'),
                 'content': None
             }
-            self.tab[tab_name]['tab'].pack(side='left', ipadx=3, padx=3)
+            self.tab[tab_name]['tab'].pack(side='left', ipadx=3, ipady=2, padx=2)
 
     def change_tab(self, tab_name):
         """Change to a given tab in the tab list.

@@ -33,7 +33,7 @@ from bin.progress import Progress
 from bin.commandline import CommandLine
 from bin.backup import Backup
 from bin.update import UpdateHandler
-from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, ScrollableFrame
+from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame
 from bin.status import Status
 
 def update_file_detail_lists(list_name, filename):
@@ -268,11 +268,11 @@ def display_backup_summary_chunk(title, payload: tuple, reset: bool = False):
 
     if not CLI_MODE:
         if reset:
-            backup_summary_text.empty()
+            content_tab_frame.tab['summary']['content'].empty()
 
-        tk.Label(backup_summary_text.frame, text=title, font=(None, 14),
-                 wraplength=backup_summary_frame.winfo_width() - 2, justify='left').pack(anchor='w')
-        summary_frame = tk.Frame(backup_summary_text.frame)
+        tk.Label(content_tab_frame.tab['summary']['content'].frame, text=title, font=(None, 14),
+                 wraplength=content_tab_frame.tab['summary']['content'].canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+        summary_frame = tk.Frame(content_tab_frame.tab['summary']['content'].frame)
         summary_frame.pack(fill='x', expand=True)
         summary_frame.columnconfigure(2, weight=1)
 
@@ -350,7 +350,7 @@ def display_backup_command_info(display_command_list: dict):
     """
 
     if not CLI_MODE:
-        backup_activity_frame.empty()
+        content_tab_frame.tab['details']['content'].empty()
     else:
         print('')
 
@@ -369,7 +369,7 @@ def display_backup_command_info(display_command_list: dict):
         if not CLI_MODE:
 
             backup_summary_block = BackupDetailBlock(
-                parent=backup_activity_frame.frame,
+                parent=content_tab_frame.tab['details']['content'].frame,
                 title=cmd_header_text,
                 backup=backup,
                 uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
@@ -380,7 +380,7 @@ def display_backup_command_info(display_command_list: dict):
                 # Handle list trimming
                 list_font = tkfont.Font(family=None, size=10, weight='normal')
                 trimmed_file_list = ', '.join(item[Backup.COMMAND_TYPE_FILE_LIST])[:500]
-                MAX_WIDTH = backup_activity_frame.canvas.winfo_width() * 0.8
+                MAX_WIDTH = content_tab_frame.tab['details']['content'].canvas.winfo_width() * 0.8
                 actual_file_width = list_font.measure(trimmed_file_list)
 
                 if actual_file_width > MAX_WIDTH:
@@ -409,13 +409,13 @@ def backup_reset_ui():
         backup_error_log.clear()
 
         # Empty backup summary pane
-        backup_summary_text.empty()
+        content_tab_frame.tab['summary']['content'].empty()
 
         # Reset ETA counter
         backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=root_window.uicolor.NORMAL)
 
         # Empty backup operation list pane
-        backup_activity_frame.empty()
+        content_tab_frame.tab['details']['content'].empty()
 
         # Clear file lists for file details pane
         [file_detail_list[list_name].clear() for list_name in file_detail_list.keys()]
@@ -663,13 +663,13 @@ def change_source_drive(selection):
         load_dest_in_background()
 
 def reset_analysis_output():
-    backup_summary_text.empty()
-    backup_activity_frame.empty()
+    content_tab_frame.tab['summary']['content'].empty()
+    content_tab_frame.tab['details']['content'].empty()
 
-    tk.Label(backup_summary_text.frame, text='This area will summarize the backup that\'s been configured.',
-             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
-    tk.Label(backup_summary_text.frame, text='Please start a backup analysis to generate a summary.',
-             wraplength=backup_summary_text.canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+    tk.Label(content_tab_frame.tab['summary']['content'].frame, text='This area will summarize the backup that\'s been configured.',
+             wraplength=content_tab_frame.tab['summary']['content'].canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+    tk.Label(content_tab_frame.tab['summary']['content'].frame, text='Please start a backup analysis to generate a summary.',
+             wraplength=content_tab_frame.tab['summary']['content'].canvas.winfo_width() - 2, justify='left').pack(anchor='w')
 
 # IDEA: @Calculate total space of all @shares in background
 def select_source():
@@ -3242,10 +3242,16 @@ if __name__ == '__main__':
             background=[('pressed', '!disabled', root_window.uicolor.STATUS_BAR), ('active', '!disabled', root_window.uicolor.STATUS_BAR), ('disabled', root_window.uicolor.STATUS_BAR)],
             foreground=[('disabled', root_window.uicolor.FADED)]
         )
+        tk_style.map(
+            'tab.TButton',
+            background=[('pressed', '!disabled', root_window.uicolor.BG), ('active', '!disabled', BUTTON_ACTIVE_COLOR), ('disabled', root_window.uicolor.BG)],
+            foreground=[('disabled', root_window.uicolor.FADED)]
+        )
         tk_style.configure('TButton', background=BUTTON_NORMAL_COLOR, foreground=BUTTON_TEXT_COLOR, bordercolor=BUTTON_NORMAL_COLOR, borderwidth=0, padding=(6, 4))
         tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#b00', borderwidth=0)
         tk_style.configure('slim.TButton', padding=(2, 2))
         tk_style.configure('statusbar.TButton', padding=(3, 0), background=root_window.uicolor.STATUS_BAR, foreground=root_window.uicolor.FG)
+        tk_style.configure('tab.TButton', padding=(3, 0), background=root_window.uicolor.BG, foreground=root_window.uicolor.FG)
         tk_style.configure('danger.statusbar.TButton', foreground=root_window.uicolor.DANGER)
 
         tk_style.configure('tooltip.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.TOOLTIP)
@@ -3536,8 +3542,6 @@ if __name__ == '__main__':
 
         dest_select_custom_frame = tk.Frame(dest_mode_frame)
         dest_select_custom_frame.grid_columnconfigure(0, weight=1)
-        # dest_select_custom_label = tk.Label(dest_select_custom_frame, text='Custom destination mode')
-        # dest_select_custom_label.grid(row=0, column=0)
         alt_tooltip_custom_frame = tk.Frame(dest_select_custom_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
         alt_tooltip_custom_frame.grid(row=0, column=0, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
         ttk.Label(alt_tooltip_custom_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
@@ -3640,21 +3644,27 @@ if __name__ == '__main__':
 
         dest_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_dest_in_background)
 
-        backup_middle_control_frame = tk.Frame(root_window.main_frame)
-        backup_middle_control_frame.grid(row=4, column=1, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
+        # backup_middle_control_frame.grid(row=4, column=1, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
-        # Add backup ETA info frame
-        backup_eta_frame = tk.Frame(backup_middle_control_frame)
-        backup_eta_frame.grid(row=0, column=1)
-        tk.Grid.columnconfigure(backup_middle_control_frame, 1, weight=1)
+        # Add tab frame for main detail views
+        content_tab_frame = TabbedFrame(root_window.main_frame, tabs={
+            'summary': 'Backup summary',
+            'details': 'Backup details'
+        })
+        content_tab_frame.tab['summary']['content'] = ScrollableFrame(content_tab_frame.frame)
+        content_tab_frame.tab['details']['content'] = ScrollableFrame(content_tab_frame.frame)
+        content_tab_frame.change_tab('summary')
+        content_tab_frame.grid(row=5, column=1, columnspan=2, sticky='nsew')
+        tk.Grid.rowconfigure(root_window.main_frame, 5, weight=1)
 
-        backup_eta_label = tk.Label(backup_eta_frame, text='Please start a backup to show ETA')
+        # Backup ETA (tab gutter)
+        backup_eta_label = tk.Label(content_tab_frame.gutter, text='Please start a backup to show ETA')
         backup_eta_label.pack()
 
-        # Add activity frame for backup status output
-        tk.Grid.rowconfigure(root_window.main_frame, 5, weight=1)
-        backup_activity_frame = ScrollableFrame(root_window.main_frame)
-        backup_activity_frame.grid(row=5, column=1, columnspan=2, sticky='nsew')
+        # Right side frame
+        tk.Grid.columnconfigure(root_window.main_frame, 3, weight=1)
+        right_side_frame = tk.Frame(root_window.main_frame)
+        right_side_frame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
         backup_file_details_frame = tk.Frame(root_window.main_frame, width=400)
         backup_file_details_frame.grid_propagate(0)
@@ -3728,14 +3738,15 @@ if __name__ == '__main__':
         file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
         file_details_failed_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
 
-        tk.Grid.columnconfigure(root_window.main_frame, 3, weight=1)
-
-        right_side_frame = tk.Frame(root_window.main_frame)
-        right_side_frame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
-
-        backup_summary_frame = tk.Frame(right_side_frame)
-        backup_summary_frame.pack(fill='both', expand=1, padx=WINDOW_ELEMENT_PADDING)
-        backup_summary_frame.update()
+        # Add placeholder to backup analysis
+        reset_analysis_output()
+        backup_action_button_frame = tk.Frame(right_side_frame)
+        backup_action_button_frame.pack(padx=WINDOW_ELEMENT_PADDING, pady=WINDOW_ELEMENT_PADDING / 2)
+        start_analysis_btn = ttk.Button(backup_action_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
+        start_analysis_btn.pack(side='left', padx=4)
+        start_backup_btn = ttk.Button(backup_action_button_frame, text='Run Backup', width=0, command=start_backup, state='disabled')
+        start_backup_btn.pack(side='left', padx=4)
+        halt_verification_btn = ttk.Button(backup_action_button_frame, text='Halt Verification', width=0, command=lambda: thread_manager.kill('Data Verification'), style='danger.TButton')
 
         branding_frame = tk.Frame(right_side_frame)
         branding_frame.pack(padx=WINDOW_ELEMENT_PADDING / 2)
@@ -3743,22 +3754,6 @@ if __name__ == '__main__':
         image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if root_window.dark_mode else ''}.png")))
         tk.Label(branding_frame, image=image_logo).pack(side='left')
         tk.Label(branding_frame, text=f"v{APP_VERSION}", font=(None, 10), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
-
-        tk.Label(backup_summary_frame, text='Backup Summary', font=(None, 20)).pack()
-
-        # Add placeholder to backup analysis
-        backup_summary_scrollbar = tk.Scrollbar(root_window, orient='vertical')
-        backup_summary_scrollbar.grid(row=0, column=1, sticky='ns')
-        backup_summary_text = ScrollableFrame(backup_summary_frame, scrollbar=backup_summary_scrollbar)
-        backup_summary_text.pack(fill='both', expand=1)
-        reset_analysis_output()
-        backup_summary_button_frame = tk.Frame(backup_summary_frame)
-        backup_summary_button_frame.pack(pady=WINDOW_ELEMENT_PADDING / 2)
-        start_analysis_btn = ttk.Button(backup_summary_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
-        start_analysis_btn.pack(side='left', padx=4)
-        start_backup_btn = ttk.Button(backup_summary_button_frame, text='Run Backup', width=0, command=start_backup, state='disabled')
-        start_backup_btn.pack(side='left', padx=4)
-        halt_verification_btn = ttk.Button(backup_summary_button_frame, text='Halt Verification', width=0, command=lambda: thread_manager.kill('Data Verification'), style='danger.TButton')
 
         load_source_in_background()
         # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
