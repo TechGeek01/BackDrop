@@ -256,6 +256,56 @@ class ScrollableFrame(tk.Frame):
         for widget in self.frame.winfo_children():
             widget.destroy()
 
+class TabbedFrame(tk.Frame):
+    # FIXME: Add function for adding tabs to TabbedFrame class
+    def __init__(self, parent, tabs={}, *args, **kwargs):
+        """Create a tabbed frame widget.
+
+        Args:
+            parent (tk.*): The parent widget of the resulting frame.
+            tabs (dict): A list of display names for tabs to show (optional).
+                key (String): The internal name for the tab.
+                value (String): The display name for the tab.
+        """
+
+        tk.Frame.__init__(self, parent)
+        self.pack_propagate(0)
+
+        self.tab = {}
+
+        self.tab_frame = tk.Frame(self, bg='#ff0000')
+        self.gutter = tk.Frame(self, bg='#ffff00')
+        self.frame = tk.Frame(self, bg='#00ff00')
+
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+
+        self.tab_frame.grid(row=0, column=0)
+        self.gutter.grid(row=0, column=1, sticky='ew')
+        self.frame.grid(row=1, column=0, columnspan=2, sticky='nsew')
+
+        for tab_name, tab_label in tabs.items():
+            self.tab[tab_name] = {
+                'tab': ttk.Button(self.tab_frame, text=tab_label, width=0, command=lambda tn=tab_name: self.change_tab(tn), style='tab.TButton'),
+                'content': None
+            }
+            self.tab[tab_name]['tab'].pack(side='left', ipadx=3, padx=3)
+
+    def change_tab(self, tab_name):
+        """Change to a given tab in the tab list.
+
+        Args:
+            tab_name (String): The tab to change to.
+        """
+
+        for widget in self.frame.winfo_children():
+            widget.pack_forget()
+
+        self.tab[tab_name]['content'].pack(fill='both', expand=True)
+
+    def configure(self, *args, **kwargs):
+        self.frame.configure(*args, **kwargs)
+
 class BackupDetailBlock(tk.Frame):
     HEADER_FONT = (None, 9, 'bold')
     TEXT_FONT = (None, 9)
