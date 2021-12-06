@@ -2903,9 +2903,6 @@ if __name__ == '__main__':
 
             WINDOW_MIN_WIDTH -= WINDOW_MULTI_SOURCE_EXTRA_WIDTH
             CUR_WIN_WIDTH -= WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-            if bool(backup_file_details_frame.grid_info()):
-                WINDOW_MIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-                CUR_WIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
             root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
             root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
 
@@ -2923,9 +2920,6 @@ if __name__ == '__main__':
         elif settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH] and PREV_SOURCE_MODE not in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
             WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
             CUR_WIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-            if bool(backup_file_details_frame.grid_info()):
-                WINDOW_MIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-                CUR_WIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
             root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
             root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
 
@@ -3072,32 +3066,6 @@ if __name__ == '__main__':
             drive_list = [drive['name'] for drive in config['destinations']]
             thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
-    def toggle_file_details_pane():
-        """Toggle the file details pane."""
-
-        global WINDOW_MIN_WIDTH
-
-        root_geom = root_window.geometry().split('+')
-        root_size_geom = root_geom[0].split('x')
-        CUR_WIN_WIDTH = int(root_size_geom[0])
-        CUR_WIN_HEIGHT = int(root_size_geom[1])
-        POS_X = int(root_geom[1])
-        POS_Y = int(root_geom[2])
-
-        # FIXME: Is fixing the flicker effect here possible?
-        if bool(backup_file_details_frame.grid_info()):
-            backup_file_details_frame.grid_remove()
-            WINDOW_MIN_WIDTH -= WINDOW_FILE_DETAILS_EXTRA_WIDTH
-            CUR_WIN_WIDTH -= WINDOW_FILE_DETAILS_EXTRA_WIDTH
-            root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
-            root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X + WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
-        else:
-            WINDOW_MIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-            CUR_WIN_WIDTH += WINDOW_FILE_DETAILS_EXTRA_WIDTH
-            root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X - WINDOW_FILE_DETAILS_EXTRA_WIDTH}+{POS_Y}')
-            root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
-            backup_file_details_frame.grid(row=0, column=0, rowspan=11, sticky='nsew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING / 2, 0))
-
     ############
     # GUI Mode #
     ############
@@ -3132,10 +3100,9 @@ if __name__ == '__main__':
 
             return os.path.join(base_path, relative_path)
 
-        WINDOW_BASE_WIDTH = 1150  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
+        WINDOW_BASE_WIDTH = 1200  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
         WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
-        WINDOW_FILE_DETAILS_EXTRA_WIDTH = 400 + WINDOW_ELEMENT_PADDING
-        WINDOW_MIN_HEIGHT = 660
+        WINDOW_MIN_HEIGHT = 700
         MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == 'Windows' else 200
         MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == 'Windows' else 140
         SINGLE_SOURCE_TEXT_COL_WIDTH = 170
@@ -3354,7 +3321,6 @@ if __name__ == '__main__':
         show_file_details_pane = tk.BooleanVar()
         view_menu.add_separator()
         view_menu.add_command(label='Backup Error Log', accelerator='Ctrl+E', command=show_backup_error_log)
-        view_menu.add_checkbutton(label='File Details Pane', onvalue=1, offvalue=0, variable=show_file_details_pane, accelerator='Ctrl+D', command=toggle_file_details_pane, selectcolor=root_window.uicolor.FG)
         menubar.add_cascade(label='View', underline=0, menu=view_menu)
 
         # Actions menu
@@ -3391,16 +3357,11 @@ if __name__ == '__main__':
         help_menu.add_checkbutton(label='Allow Prereleases', onvalue=True, offvalue=False, variable=settings_allow_prerelease_updates, command=lambda: prefs.set('ui', 'allow_prereleases', settings_allow_prerelease_updates.get()))
         menubar.add_cascade(label='Help', underline=0, menu=help_menu)
 
-        def toggle_file_details_with_hotkey():
-            show_file_details_pane.set(not show_file_details_pane.get())
-            toggle_file_details_pane()
-
         # Key bindings
         root_window.bind('<Control-o>', lambda e: open_config_file())
         root_window.bind('<Control-s>', lambda e: save_config_file())
         root_window.bind('<Control-Shift-S>', lambda e: save_config_file_as())
         root_window.bind('<Control-e>', lambda e: show_backup_error_log())
-        root_window.bind('<Control-d>', lambda e: toggle_file_details_with_hotkey())
         root_window.bind('<Control-b>', lambda e: show_config_builder())
 
         root_window.config(menu=menubar)
@@ -3666,17 +3627,18 @@ if __name__ == '__main__':
         right_side_frame = tk.Frame(root_window.main_frame)
         right_side_frame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
-        backup_file_details_frame = tk.Frame(root_window.main_frame, width=400)
-        backup_file_details_frame.grid_propagate(0)
+        backup_file_details_frame = tk.Frame(right_side_frame)
+        backup_file_details_frame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING)
+        backup_file_details_frame.pack_propagate(0)
 
         file_details_pending_delete_header_line = tk.Frame(backup_file_details_frame)
         file_details_pending_delete_header_line.grid(row=0, column=0, sticky='w')
         file_details_pending_delete_header = tk.Label(file_details_pending_delete_header_line, text='Files to delete', font=(None, 11, 'bold'))
-        file_details_pending_delete_header.pack()
+        file_details_pending_delete_header.pack(side='left')
         file_details_pending_delete_tooltip = tk.Label(file_details_pending_delete_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
-        file_details_pending_delete_tooltip.pack()
+        file_details_pending_delete_tooltip.pack(side='left')
         file_details_pending_delete_counter_frame = tk.Frame(backup_file_details_frame)
-        file_details_pending_delete_counter_frame.grid(row=1, column=0)
+        file_details_pending_delete_counter_frame.grid(row=1, column=0, sticky='w')
         file_details_pending_delete_counter = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 28))
         file_details_pending_delete_counter.pack(side='left', anchor='s')
         tk.Label(file_details_pending_delete_counter_frame, text='of', font=(None, 11), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
@@ -3686,11 +3648,11 @@ if __name__ == '__main__':
         file_details_pending_copy_header_line = tk.Frame(backup_file_details_frame)
         file_details_pending_copy_header_line.grid(row=0, column=1, sticky='e')
         file_details_pending_copy_header = tk.Label(file_details_pending_copy_header_line, text='Files to copy', font=(None, 11, 'bold'))
-        file_details_pending_copy_header.pack()
+        file_details_pending_copy_header.pack(side='right')
         file_details_pending_copy_tooltip = tk.Label(file_details_pending_copy_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
-        file_details_pending_copy_tooltip.pack()
+        file_details_pending_copy_tooltip.pack(side='right')
         file_details_pending_copy_counter_frame = tk.Frame(backup_file_details_frame)
-        file_details_pending_copy_counter_frame.grid(row=1, column=1)
+        file_details_pending_copy_counter_frame.grid(row=1, column=1, sticky='e')
         file_details_pending_copy_counter = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 28))
         file_details_pending_copy_counter.pack(side='left', anchor='s')
         tk.Label(file_details_pending_copy_counter_frame, text='of', font=(None, 11), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
