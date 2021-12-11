@@ -3218,7 +3218,8 @@ if __name__ == '__main__':
         tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#b00', borderwidth=0)
         tk_style.configure('slim.TButton', padding=(2, 2))
         tk_style.configure('statusbar.TButton', padding=(3, 0), background=root_window.uicolor.STATUS_BAR, foreground=root_window.uicolor.FG)
-        tk_style.configure('tab.TButton', padding=(3, 0), background=root_window.uicolor.BG, foreground=root_window.uicolor.FG)
+        tk_style.configure('tab.TButton', padding=(3, 0), background=root_window.uicolor.BG, foreground=root_window.uicolor.FADED)
+        tk_style.configure('active.tab.TButton', foreground=root_window.uicolor.FG)
         tk_style.configure('danger.statusbar.TButton', foreground=root_window.uicolor.DANGER)
 
         tk_style.configure('tooltip.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.TOOLTIP)

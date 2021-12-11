@@ -257,7 +257,6 @@ class ScrollableFrame(tk.Frame):
             widget.destroy()
 
 class TabbedFrame(tk.Frame):
-    # FIXME: Add function for adding tabs to TabbedFrame class
     def __init__(self, parent, tabs={}, *args, **kwargs):
         """Create a tabbed frame widget.
 
@@ -284,9 +283,12 @@ class TabbedFrame(tk.Frame):
         self.gutter.grid(row=0, column=1, sticky='ew')
         self.frame.grid(row=1, column=0, columnspan=2, sticky='nsew')
 
+        first_tab_name = list(tabs.keys())[0]
         for tab_name, tab_label in tabs.items():
+            tab_style = 'active.tab.TButton' if tab_name == first_tab_name else 'tab.TButton'
+
             self.tab[tab_name] = {
-                'tab': ttk.Button(self.tab_frame, text=tab_label, width=0, command=lambda tn=tab_name: self.change_tab(tn), style='tab.TButton'),
+                'tab': ttk.Button(self.tab_frame, text=tab_label, width=0, command=lambda tn=tab_name: self.change_tab(tn), style=tab_style),
                 'content': None
             }
             self.tab[tab_name]['tab'].pack(side='left', ipadx=3, ipady=2, padx=2)
@@ -298,8 +300,15 @@ class TabbedFrame(tk.Frame):
             tab_name (String): The tab to change to.
         """
 
+        self.focus_set()
+
         for widget in self.frame.winfo_children():
             widget.pack_forget()
+
+        # Change styling of tabs to show active tab
+        for tab in self.tab:
+            tab_style = 'active.tab.TButton' if tab == tab_name else 'tab.TButton'
+            self.tab[tab]['tab'].configure(style=tab_style)
 
         self.tab[tab_name]['content'].pack(fill='both', expand=True)
 
