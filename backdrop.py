@@ -3211,8 +3211,8 @@ if __name__ == '__main__':
         )
         tk_style.map(
             'tab.TButton',
-            background=[('pressed', '!disabled', root_window.uicolor.BG), ('active', '!disabled', BUTTON_ACTIVE_COLOR), ('disabled', root_window.uicolor.BG)],
-            foreground=[('disabled', root_window.uicolor.FADED)]
+            background=[('pressed', '!disabled', root_window.uicolor.BG), ('active', '!disabled', root_window.uicolor.BG), ('disabled', root_window.uicolor.BG)],
+            foreground=[('disabled', root_window.uicolor.FADED), ('active', '!disabled', root_window.uicolor.FG)]
         )
         tk_style.configure('TButton', background=BUTTON_NORMAL_COLOR, foreground=BUTTON_TEXT_COLOR, bordercolor=BUTTON_NORMAL_COLOR, borderwidth=0, padding=(6, 4))
         tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#b00', borderwidth=0)
