@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 * Converted backup details and overview to tabbed layout, and made window smaller
+* Cleaned up code
 
 ## 3.2.0 - 2021-11-28
 ### Added

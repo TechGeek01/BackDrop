@@ -342,11 +342,11 @@ def update_backup_eta_timer():
         else:
             print(f"{bcolor.OKGREEN}Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
 
-def display_backup_command_info(display_command_list: dict):
+def display_backup_command_info(display_command_list: list):
     """Enumerate the display widget with command info after a backup analysis.
 
     Args:
-        display_command_list (dict): The command list to pull data from.
+        display_command_list (list): The command list to pull data from.
     """
 
     if not CLI_MODE:
@@ -358,16 +358,15 @@ def display_backup_command_info(display_command_list: dict):
     for i, item in enumerate(display_command_list):
         if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
             if item['mode'] == Backup.COMMAND_MODE_DELETE:
-                cmd_header_text = f"Delete {len(item[Backup.COMMAND_TYPE_FILE_LIST])} files from {item['drive']}"
+                cmd_header_text = f"Delete {len(item['list'])} files from {item['drive']}"
             elif item['mode'] == Backup.COMMAND_MODE_REPLACE:
-                cmd_header_text = f"Update {len(item[Backup.COMMAND_TYPE_FILE_LIST])} files on {item['drive']}"
+                cmd_header_text = f"Update {len(item['list'])} files on {item['drive']}"
             elif item['mode'] == Backup.COMMAND_MODE_COPY:
-                cmd_header_text = f"Copy {len(item[Backup.COMMAND_TYPE_FILE_LIST])} new files to {item['drive']}"
+                cmd_header_text = f"Copy {len(item['list'])} new files to {item['drive']}"
             else:
-                cmd_header_text = f"Work with {len(item[Backup.COMMAND_TYPE_FILE_LIST])} files on {item['drive']}"
+                cmd_header_text = f"Work with {len(item['list'])} files on {item['drive']}"
 
         if not CLI_MODE:
-
             backup_summary_block = BackupDetailBlock(
                 parent=content_tab_frame.tab['details']['content'].frame,
                 title=cmd_header_text,
@@ -390,7 +389,7 @@ def display_backup_command_info(display_command_list: dict):
                     trimmed_file_list = trimmed_file_list + '...'
 
                 backup_summary_block.add_line('file_size', 'Total size', human_filesize(item['size']))
-                backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item[Backup.COMMAND_TYPE_FILE_LIST]))
+                backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['list']))
                 backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
                 backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
 
@@ -442,7 +441,6 @@ def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
 
     global backup
-    global TREE_SELECTION_LOCKED  # URGENT: Move this lock from variable to Backup class var?
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
@@ -625,7 +623,7 @@ def load_source():
 def load_source_in_background():
     """Start a source refresh in a new thread."""
 
-    if not TREE_SELECTION_LOCKED and not thread_manager.is_alive('Refresh Source'):
+    if (not backup or not backup.is_running()) and not thread_manager.is_alive('Refresh Source'):
         thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
 
 def change_source_drive(selection):
@@ -636,8 +634,6 @@ def change_source_drive(selection):
     """
 
     global PREV_SOURCE_DRIVE
-    global TREE_SELECTION_LOCKED
-    global TREE_SELECTION_LOCKED
     global config
 
     # If backup is running, ignore request to change
@@ -645,10 +641,8 @@ def change_source_drive(selection):
         source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
         return
 
-    # Iff analysis is valid, invalidate it
-    if TREE_SELECTION_LOCKED:
-        TREE_SELECTION_LOCKED = False
-        reset_analysis_output()
+    # Invalidate analysis validation
+    reset_analysis_output()
 
     config['source_drive'] = selection
     PREV_SOURCE_DRIVE = selection
@@ -682,7 +676,6 @@ def select_source():
 
     global prev_source_selection
     global source_select_bind
-    global TREE_SELECTION_LOCKED
     global backup
 
     def update_share_size(item):
@@ -766,13 +759,11 @@ def select_source():
 
         progress.stop_indeterminate()
 
-    if not TREE_SELECTION_LOCKED or not backup or not backup.is_running():
+    if not backup or not backup.is_running():
         progress.start_indeterminate()
 
-        # If analysis was run, and selection locked, unlock it
-        if TREE_SELECTION_LOCKED:
-            TREE_SELECTION_LOCKED = False
-            reset_analysis_output()
+        # If analysis was run, invalidate it
+        reset_analysis_output()
 
         selected = tree_source.selection()
 
@@ -983,7 +974,7 @@ def load_dest_in_background():
 
     # URGENT: Make load_dest and load_source replaceable, and in their own class
     # URGENT: Invalidate load_source or load_dest if tree gets refreshed via some class def call
-    if not TREE_SELECTION_LOCKED and not thread_manager.is_alive('Refresh Destination'):
+    if not (backup and backup.is_running()) and not thread_manager.is_alive('Refresh Destination'):
         thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
 
 def gui_select_from_config():
@@ -1139,15 +1130,12 @@ def select_dest():
     global prev_selection
     global prev_dest_selection
     global dest_select_bind
-    global TREE_SELECTION_LOCKED
 
-    if not TREE_SELECTION_LOCKED or not backup or not backup.is_running():
+    if not backup or not backup.is_running():
         progress.start_indeterminate()
 
-        # If analysis was run, and selection locked, unlock it
-        if TREE_SELECTION_LOCKED:
-            TREE_SELECTION_LOCKED = False
-            reset_analysis_output()
+        # If analysis was run, invalidate it
+        reset_analysis_output()
 
         dest_selection = tree_dest.selection()
 
@@ -1235,8 +1223,6 @@ def select_dest_in_background(event):
 
 def start_backup():
     """Start the backup in a new thread."""
-
-    global TREE_SELECTION_LOCKED
 
     if backup and not verification_running:
         statusbar_counter_btn.configure(text='0 failed', state='disabled')
@@ -1672,7 +1658,7 @@ if __name__ == '__main__':
         exit()
 
     # Set meta info
-    APP_VERSION = '3.2.1-alpha.1'
+    APP_VERSION = '3.3.0-rc.1'
 
     # Set constants
     DRIVE_TYPE_LOCAL = 3
@@ -2219,8 +2205,6 @@ if __name__ == '__main__':
             data (*): The data to update (optional).
         """
 
-        global TREE_SELECTION_LOCKED
-
         if status == Status.UPDATEUI_ANALYSIS_BTN:
             start_analysis_btn.configure(**data)
         elif status == Status.UPDATEUI_BACKUP_BTN:
@@ -2243,10 +2227,6 @@ if __name__ == '__main__':
             update_status_bar_action(data)
         elif status == Status.RESET_ANALYSIS_OUTPUT:
             reset_analysis_output()
-        elif status == Status.UNLOCK_TREE_SELECTION:
-            TREE_SELECTION_LOCKED = False
-        elif status == Status.LOCK_TREE_SELECTION:
-            TREE_SELECTION_LOCKED = True
 
     def open_config_file():
         """Open a config file and load it."""
@@ -2876,7 +2856,6 @@ if __name__ == '__main__':
         global source_right_click_bind
         global WINDOW_MIN_WIDTH
         global PREV_SOURCE_MODE
-        global TREE_SELECTION_LOCKED
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
@@ -2884,9 +2863,7 @@ if __name__ == '__main__':
             return
 
         # If analysis is valid, invalidate it
-        if TREE_SELECTION_LOCKED:
-            TREE_SELECTION_LOCKED = False
-            reset_analysis_output()
+        reset_analysis_output()
 
         prefs.set('selection', 'source_mode', settings_sourceMode.get())
         root_geom = root_window.geometry().split('+')
@@ -2941,7 +2918,6 @@ if __name__ == '__main__':
 
         global dest_right_click_bind
         global PREV_DEST_MODE
-        global TREE_SELECTION_LOCKED
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
@@ -2949,9 +2925,7 @@ if __name__ == '__main__':
             return
 
         # If analysis is valid, invalidate it
-        if TREE_SELECTION_LOCKED:
-            TREE_SELECTION_LOCKED = False
-            reset_analysis_output()
+        reset_analysis_output()
 
         prefs.set('selection', 'dest_mode', settings_destMode.get())
 
@@ -2988,7 +2962,6 @@ if __name__ == '__main__':
 
         global PREV_LOCAL_SOURCE_DRIVE
         global PREV_NETWORK_SOURCE_DRIVE
-        global TREE_SELECTION_LOCKED
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
@@ -2997,9 +2970,7 @@ if __name__ == '__main__':
             return
 
         # If analysis is valid, invalidate it
-        if TREE_SELECTION_LOCKED:
-            TREE_SELECTION_LOCKED = False
-            reset_analysis_output()
+        reset_analysis_output()
 
         selected_local = settings_showDrives_source_local.get()
         selected_network = settings_showDrives_source_network.get()
@@ -3028,7 +2999,6 @@ if __name__ == '__main__':
 
         global PREV_LOCAL_DEST_DRIVE
         global PREV_NETWORK_DEST_DRIVE
-        global TREE_SELECTION_LOCKED
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
@@ -3037,9 +3007,7 @@ if __name__ == '__main__':
             return
 
         # If analysis is valid, invalidate it
-        if TREE_SELECTION_LOCKED:
-            TREE_SELECTION_LOCKED = False
-            reset_analysis_output()
+        reset_analysis_output()
 
         selected_local = settings_showDrives_dest_local.get()
         selected_network = settings_showDrives_dest_network.get()
@@ -3078,8 +3046,6 @@ if __name__ == '__main__':
         FileUtils.LIST_SUCCESS: [],
         FileUtils.LIST_FAIL: []
     }
-
-    TREE_SELECTION_LOCKED = False
 
     if not CLI_MODE:
         update_handler = UpdateHandler(
@@ -3605,8 +3571,6 @@ if __name__ == '__main__':
         split_mode_status.bind('<Button-1>', toggle_split_mode)
 
         dest_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_dest_in_background)
-
-        # backup_middle_control_frame.grid(row=4, column=1, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
         # Add tab frame for main detail views
         content_tab_frame = TabbedFrame(root_window.main_frame, tabs={

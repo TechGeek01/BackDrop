@@ -780,7 +780,7 @@ class Backup:
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((size for drive, file, size in delete_items)),
-                    Backup.COMMAND_TYPE_FILE_LIST: file_delete_list,
+                    'list': file_delete_list,
                     'mode': Backup.COMMAND_MODE_DELETE
                 })
 
@@ -788,7 +788,7 @@ class Backup:
                     'displayIndex': len(display_purge_command_list) + 1,
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    Backup.COMMAND_TYPE_FILE_LIST: file_delete_list,
+                    'list': file_delete_list,
                     'payload': delete_items,
                     'mode': Backup.COMMAND_MODE_DELETE
                 })
@@ -805,7 +805,7 @@ class Backup:
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((source_size for drive, share, file, source_size, dest_size in replace_items)),
-                    Backup.COMMAND_TYPE_FILE_LIST: file_replace_list,
+                    'list': file_replace_list,
                     'mode': Backup.COMMAND_MODE_REPLACE
                 })
 
@@ -813,7 +813,7 @@ class Backup:
                     'displayIndex': len(display_purge_command_list) + 1,
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    Backup.COMMAND_TYPE_FILE_LIST: file_replace_list,
+                    'list': file_replace_list,
                     'payload': replace_items,
                     'mode': Backup.COMMAND_MODE_REPLACE
                 })
@@ -829,7 +829,7 @@ class Backup:
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((size for drive, share, file, size in new_items)),
-                    Backup.COMMAND_TYPE_FILE_LIST: file_copy_list,
+                    'list': file_copy_list,
                     'mode': Backup.COMMAND_MODE_COPY
                 })
 
@@ -837,7 +837,7 @@ class Backup:
                     'displayIndex': len(display_purge_command_list) + 1,
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    Backup.COMMAND_TYPE_FILE_LIST: file_copy_list,
+                    'list': file_copy_list,
                     'payload': new_items,
                     'mode': Backup.COMMAND_MODE_COPY
                 })
