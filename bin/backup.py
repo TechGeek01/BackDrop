@@ -177,7 +177,6 @@ class Backup:
             self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
             self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_START)
-            self.update_ui_component_fn(Status.LOCK_TREE_SELECTION)
 
         share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
         all_share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
@@ -930,7 +929,6 @@ class Backup:
                 self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
                 self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
                 self.update_ui_component_fn(Status.RESET_ANALYSIS_OUTPUT)
-                self.update_ui_component_fn(Status.UNLOCK_TREE_SELECTION)
 
         if not self.CLI_MODE:
             self.progress.stop_indeterminate()
@@ -991,7 +989,6 @@ class Backup:
 
         if not self.CLI_MODE:
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_START)
-            self.update_ui_component_fn(Status.LOCK_TREE_SELECTION)
             self.progress.set(0)
             self.progress.set_max(self.totals['master'])
 
@@ -1093,7 +1090,6 @@ class Backup:
 
         if not self.CLI_MODE:
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
-            self.update_ui_component_fn(Status.UNLOCK_TREE_SELECTION)
         self.backup_running = False
 
     def get_backup_start_time(self):

@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## 3.3.0 - TBD
+### Fixed
+* Fixed measured width of TabbedFrame tabs being 0 when tab is not active
+
 ### Changed
 * Converted backup details and overview to tabbed layout, and made window smaller
 

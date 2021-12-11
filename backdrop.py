@@ -271,7 +271,7 @@ def display_backup_summary_chunk(title, payload: tuple, reset: bool = False):
             content_tab_frame.tab['summary']['content'].empty()
 
         tk.Label(content_tab_frame.tab['summary']['content'].frame, text=title, font=(None, 14),
-                 wraplength=content_tab_frame.tab['summary']['content'].canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+                 wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
         summary_frame = tk.Frame(content_tab_frame.tab['summary']['content'].frame)
         summary_frame.pack(fill='x', expand=True)
         summary_frame.columnconfigure(2, weight=1)
@@ -379,8 +379,8 @@ def display_backup_command_info(display_command_list: dict):
             if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
                 # Handle list trimming
                 list_font = tkfont.Font(family=None, size=10, weight='normal')
-                trimmed_file_list = ', '.join(item[Backup.COMMAND_TYPE_FILE_LIST])[:500]
-                MAX_WIDTH = content_tab_frame.tab['details']['content'].canvas.winfo_width() * 0.8
+                trimmed_file_list = ', '.join(item['list'])[:250]
+                MAX_WIDTH = content_tab_frame.tab['details']['width'] * 0.8
                 actual_file_width = list_font.measure(trimmed_file_list)
 
                 if actual_file_width > MAX_WIDTH:
@@ -667,9 +667,9 @@ def reset_analysis_output():
     content_tab_frame.tab['details']['content'].empty()
 
     tk.Label(content_tab_frame.tab['summary']['content'].frame, text='This area will summarize the backup that\'s been configured.',
-             wraplength=content_tab_frame.tab['summary']['content'].canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+             wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
     tk.Label(content_tab_frame.tab['summary']['content'].frame, text='Please start a backup analysis to generate a summary.',
-             wraplength=content_tab_frame.tab['summary']['content'].canvas.winfo_width() - 2, justify='left').pack(anchor='w')
+             wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
 
 # IDEA: @Calculate total space of all @shares in background
 def select_source():
@@ -3615,9 +3615,13 @@ if __name__ == '__main__':
         })
         content_tab_frame.tab['summary']['content'] = ScrollableFrame(content_tab_frame.frame)
         content_tab_frame.tab['details']['content'] = ScrollableFrame(content_tab_frame.frame)
-        content_tab_frame.change_tab('summary')
         content_tab_frame.grid(row=5, column=1, columnspan=2, sticky='nsew')
         tk.Grid.rowconfigure(root_window.main_frame, 5, weight=1)
+        content_tab_frame.change_tab('details')
+        # FIXME: Canvas returning wrong width that's smaller than actual width of canvas
+        content_tab_frame.tab['details']['width'] = content_tab_frame.tab['details']['content'].winfo_width()
+        content_tab_frame.change_tab('summary')
+        content_tab_frame.tab['summary']['width'] = content_tab_frame.tab['summary']['content'].winfo_width()
 
         # Backup ETA (tab gutter)
         backup_eta_label = tk.Label(content_tab_frame.gutter, text='Please start a backup to show ETA')

@@ -256,6 +256,14 @@ class ScrollableFrame(tk.Frame):
         for widget in self.frame.winfo_children():
             widget.destroy()
 
+    def winfo_height(self):
+        self.canvas.update_idletasks()
+        return self.canvas.winfo_height()
+
+    def winfo_width(self):
+        self.canvas.update_idletasks()
+        return self.canvas.winfo_width()
+
 class TabbedFrame(tk.Frame):
     def __init__(self, parent, tabs={}, *args, **kwargs):
         """Create a tabbed frame widget.
