@@ -131,11 +131,15 @@ def start_delete(filename, size: int, display_index=None):
         display_index (int): The index to display the item in the GUI (optional).
     """
 
-    do_delete(
+    if get_backup_killflag() or not os.path.exists(filename):
+        return
+
+    do_delete(filename=filename)
+
+    # If file deleted successfully, remove it from the list
+    update_ui_on_delete(
         filename=filename,
         size=size,
-        callback=update_ui_on_delete,
-        get_backup_killflag=get_backup_killflag,
         display_index=display_index
     )
 
