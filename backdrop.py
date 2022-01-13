@@ -164,13 +164,15 @@ def update_file_details_on_copy(list_name, filename, error=None, s_hex='', d_hex
     """
     update_file_detail_lists(list_name, filename)
 
-    if CLI_MODE:
-        if list_name == FileUtils.LIST_SUCCESS:
-            print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
-        elif list_name == FileUtils.LIST_FAIL:
-            print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
-            print(f"    Source: {s_hex}")
-            print(F"    Dest:   {d_hex}")
+    if not CLI_MODE:
+        return
+
+    if list_name == FileUtils.LIST_SUCCESS:
+        print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
+    elif list_name == FileUtils.LIST_FAIL:
+        print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
+        print(f"    Source: {s_hex}")
+        print(F"    Dest:   {d_hex}")
 
     if error is not None:
         backup_error_log.append(error)
@@ -407,33 +409,35 @@ def display_backup_command_info(display_command_list: list):
 def backup_reset_ui():
     """Reset the UI when we run a backup analysis."""
 
-    if not CLI_MODE:
-        # Empty backup error log
-        backup_error_log.clear()
+    if CLI_MODE:
+        return
 
-        # Empty backup summary pane
-        content_tab_frame.tab['summary']['content'].empty()
+    # Empty backup error log
+    backup_error_log.clear()
 
-        # Reset ETA counter
-        backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=root_window.uicolor.NORMAL)
+    # Empty backup summary pane
+    content_tab_frame.tab['summary']['content'].empty()
 
-        # Empty backup operation list pane
-        content_tab_frame.tab['details']['content'].empty()
+    # Reset ETA counter
+    backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=root_window.uicolor.NORMAL)
 
-        # Clear file lists for file details pane
-        [file_detail_list[list_name].clear() for list_name in file_detail_list.keys()]
+    # Empty backup operation list pane
+    content_tab_frame.tab['details']['content'].empty()
 
-        # Reset file details counters
-        file_details_pending_delete_counter.configure(text='0')
-        file_details_pending_delete_counter_total.configure(text='0')
-        file_details_pending_copy_counter.configure(text='0')
-        file_details_pending_copy_counter_total.configure(text='0')
-        file_details_copied_counter.configure(text='0')
-        file_details_failed_counter.configure(text='0')
+    # Clear file lists for file details pane
+    [file_detail_list[list_name].clear() for list_name in file_detail_list.keys()]
 
-        # Empty file details list panes
-        file_details_copied.empty()
-        file_details_failed.empty()
+    # Reset file details counters
+    file_details_pending_delete_counter.configure(text='0')
+    file_details_pending_delete_counter_total.configure(text='0')
+    file_details_pending_copy_counter.configure(text='0')
+    file_details_pending_copy_counter_total.configure(text='0')
+    file_details_copied_counter.configure(text='0')
+    file_details_failed_counter.configure(text='0')
+
+    # Empty file details list panes
+    file_details_copied.empty()
+    file_details_failed.empty()
 
 def request_kill_analysis():
     """Kill a running analysis."""
@@ -448,44 +452,43 @@ def start_backup_analysis():
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    if (not backup or not backup.is_running()) and not verification_running and (CLI_MODE or source_avail_drive_list):
-    if (backup and backup.is_running()) or verification_running
+    if (backup and backup.is_running()) or verification_running or (not CLI_MODE and not source_avail_drive_list):
         return
 
-        if not CLI_MODE:
-            backup_reset_ui()
-            statusbar_counter_btn.configure(text='0 failed', state='disabled')
-            statusbar_details.configure(text='')
+    if not CLI_MODE:
+        backup_reset_ui()
+        statusbar_counter_btn.configure(text='0 failed', state='disabled')
+        statusbar_details.configure(text='')
 
-            backup = Backup(
-                config=config,
-                backup_config_dir=BACKUP_CONFIG_DIR,
-                backup_config_file=BACKUP_CONFIG_FILE,
-                uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
-                do_copy_fn=start_copy,
-                do_del_fn=start_delete,
-                start_backup_timer_fn=update_backup_eta_timer,
-                update_ui_component_fn=update_ui_component,
-                update_file_detail_list_fn=update_file_detail_lists,
-                analysis_summary_display_fn=display_backup_summary_chunk,
-                display_backup_command_info_fn=display_backup_command_info,
-                thread_manager=thread_manager,
-                progress=progress
-            )
-        else:
-            backup = Backup(
-                config=config,
-                backup_config_dir=BACKUP_CONFIG_DIR,
-                backup_config_file=BACKUP_CONFIG_FILE,
-                do_copy_fn=start_copy,
-                do_del_fn=start_delete,
-                start_backup_timer_fn=update_backup_eta_timer,
-                update_file_detail_list_fn=update_file_detail_lists,
-                analysis_summary_display_fn=display_backup_summary_chunk,
-                display_backup_command_info_fn=display_backup_command_info,
-                thread_manager=thread_manager
-            )
-        thread_manager.start(thread_manager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
+        backup = Backup(
+            config=config,
+            backup_config_dir=BACKUP_CONFIG_DIR,
+            backup_config_file=BACKUP_CONFIG_FILE,
+            uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
+            do_copy_fn=start_copy,
+            do_del_fn=start_delete,
+            start_backup_timer_fn=update_backup_eta_timer,
+            update_ui_component_fn=update_ui_component,
+            update_file_detail_list_fn=update_file_detail_lists,
+            analysis_summary_display_fn=display_backup_summary_chunk,
+            display_backup_command_info_fn=display_backup_command_info,
+            thread_manager=thread_manager,
+            progress=progress
+        )
+    else:
+        backup = Backup(
+            config=config,
+            backup_config_dir=BACKUP_CONFIG_DIR,
+            backup_config_file=BACKUP_CONFIG_FILE,
+            do_copy_fn=start_copy,
+            do_del_fn=start_delete,
+            start_backup_timer_fn=update_backup_eta_timer,
+            update_file_detail_list_fn=update_file_detail_lists,
+            analysis_summary_display_fn=display_backup_summary_chunk,
+            display_backup_command_info_fn=display_backup_command_info,
+            thread_manager=thread_manager
+        )
+    thread_manager.start(thread_manager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
 def get_source_drive_list():
     """Get the list of available source drives.
@@ -630,8 +633,10 @@ def load_source():
 def load_source_in_background():
     """Start a source refresh in a new thread."""
 
-    if (not backup or not backup.is_running()) and not thread_manager.is_alive('Refresh Source'):
-        thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
+    if (backup and backup.is_running()) or thread_manager.is_alive('Refresh Source'):
+        return
+
+    thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
 
 def change_source_drive(selection):
     """Change the source drive to pull shares from to a new selection.
@@ -981,8 +986,10 @@ def load_dest_in_background():
 
     # URGENT: Make load_dest and load_source replaceable, and in their own class
     # URGENT: Invalidate load_source or load_dest if tree gets refreshed via some class def call
-    if not (backup and backup.is_running()) and not thread_manager.is_alive('Refresh Destination'):
-        thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
+    if (backup and backup.is_running()) or thread_manager.is_alive('Refresh Destination'):
+        return
+
+    thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
 
 def gui_select_from_config():
     """From the current config, select the appropriate shares and drives in the GUI."""
@@ -1138,79 +1145,7 @@ def select_dest():
     global prev_dest_selection
     global dest_select_bind
 
-    if not backup or not backup.is_running():
-        progress.start_indeterminate()
-
-        # If analysis was run, invalidate it
-        reset_analysis_output()
-
-        dest_selection = tree_dest.selection()
-
-        # If selection is different than last time, invalidate the analysis
-        selection_selected_last_time = [drive for drive in dest_selection if drive in prev_dest_selection]
-        if len(dest_selection) != len(prev_dest_selection) or len(selection_selected_last_time) != len(prev_dest_selection):
-            start_backup_btn.configure(state='disable')
-
-        prev_dest_selection = [share for share in dest_selection]
-
-        # Check if newly selected drive has a config file
-        # We only want to do this if the click is the first selection (that is, there
-        # are no other drives selected except the one we clicked).
-        drives_read_from_config_file = False
-        if len(dest_selection) > 0:
-            selected_drive = tree_dest.item(dest_selection[0], 'text')
-            SELECTED_PATH_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
-            if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
-                # Found config file, so read it
-                load_config_from_file(SELECTED_PATH_CONFIG_FILE)
-                dest_selection = tree_dest.selection()
-                drives_read_from_config_file = True
-            else:
-                dest_split_warning_frame.grid_remove()
-                prev_selection = len(dest_selection)
-
-        selected_total = 0
-        selected_drive_list = []
-
-        if settings_destMode.get() == Config.DEST_MODE_DRIVES:
-            drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
-            for item in dest_selection:
-                # Write drive IDs to config
-                selected_drive = drive_lookup_list[tree_dest.item(item, 'values')[3]]
-                selected_drive_list.append(selected_drive)
-                selected_total += selected_drive['capacity']
-        elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-            for item in dest_selection:
-                drive_path = tree_dest.item(item, 'text')
-                drive_vals = tree_dest.item(item, 'values')
-
-                drive_name = drive_vals[3] if len(drive_vals) >= 4 else ''
-                drive_capacity = int(drive_vals[1])
-                drive_has_config = True if drive_vals[2] == 'Yes' else False
-
-                drive_data = {
-                    'name': drive_path,
-                    'vid': drive_name,
-                    'serial': None,
-                    'capacity': drive_capacity,
-                    'hasConfig': drive_has_config
-                }
-
-                selected_drive_list.append(drive_data)
-                selected_total += drive_capacity
-
-            config['destinations'] = selected_drive_list
-
-        drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=root_window.uicolor.NORMAL if selected_total > 0 else root_window.uicolor.FADED)
-        if not drives_read_from_config_file:
-            config['destinations'] = selected_drive_list
-            config['missing_drives'] = {}
-            config_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
-
-        update_status_bar_selection()
-
-        progress.stop_indeterminate()
-    else:
+    if backup and backup.is_running():
         # Tree selection locked, so keep selection the same
         try:
             tree_dest.unbind('<<TreeviewSelect>>', dest_select_bind)
@@ -1223,6 +1158,80 @@ def select_dest():
 
         dest_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_dest_in_background)
 
+        return
+
+    progress.start_indeterminate()
+
+    # If analysis was run, invalidate it
+    reset_analysis_output()
+
+    dest_selection = tree_dest.selection()
+
+    # If selection is different than last time, invalidate the analysis
+    selection_selected_last_time = [drive for drive in dest_selection if drive in prev_dest_selection]
+    if len(dest_selection) != len(prev_dest_selection) or len(selection_selected_last_time) != len(prev_dest_selection):
+        start_backup_btn.configure(state='disable')
+
+    prev_dest_selection = [share for share in dest_selection]
+
+    # Check if newly selected drive has a config file
+    # We only want to do this if the click is the first selection (that is, there
+    # are no other drives selected except the one we clicked).
+    drives_read_from_config_file = False
+    if len(dest_selection) > 0:
+        selected_drive = tree_dest.item(dest_selection[0], 'text')
+        SELECTED_PATH_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
+        if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
+            # Found config file, so read it
+            load_config_from_file(SELECTED_PATH_CONFIG_FILE)
+            dest_selection = tree_dest.selection()
+            drives_read_from_config_file = True
+        else:
+            dest_split_warning_frame.grid_remove()
+            prev_selection = len(dest_selection)
+
+    selected_total = 0
+    selected_drive_list = []
+
+    if settings_destMode.get() == Config.DEST_MODE_DRIVES:
+        drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
+        for item in dest_selection:
+            # Write drive IDs to config
+            selected_drive = drive_lookup_list[tree_dest.item(item, 'values')[3]]
+            selected_drive_list.append(selected_drive)
+            selected_total += selected_drive['capacity']
+    elif settings_destMode.get() == Config.DEST_MODE_PATHS:
+        for item in dest_selection:
+            drive_path = tree_dest.item(item, 'text')
+            drive_vals = tree_dest.item(item, 'values')
+
+            drive_name = drive_vals[3] if len(drive_vals) >= 4 else ''
+            drive_capacity = int(drive_vals[1])
+            drive_has_config = True if drive_vals[2] == 'Yes' else False
+
+            drive_data = {
+                'name': drive_path,
+                'vid': drive_name,
+                'serial': None,
+                'capacity': drive_capacity,
+                'hasConfig': drive_has_config
+            }
+
+            selected_drive_list.append(drive_data)
+            selected_total += drive_capacity
+
+        config['destinations'] = selected_drive_list
+
+    drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=root_window.uicolor.NORMAL if selected_total > 0 else root_window.uicolor.FADED)
+    if not drives_read_from_config_file:
+        config['destinations'] = selected_drive_list
+        config['missing_drives'] = {}
+        config_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
+
+    update_status_bar_selection()
+
+    progress.stop_indeterminate()
+
 def select_dest_in_background(event):
     """Start the drive selection handling in a new thread."""
 
@@ -1231,31 +1240,33 @@ def select_dest_in_background(event):
 def start_backup():
     """Start the backup in a new thread."""
 
-    if backup and not verification_running:
-        # Reset UI
-        if not CLI_MODE:
-            statusbar_counter_btn.configure(text='0 failed', state='disabled')
-            statusbar_details.configure(text='')
+    if not backup or verification_running:
+        return
 
-            # Reset file detail success and fail lists
-            for list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
-                file_detail_list[list_name].clear()
+    # Reset UI
+    if not CLI_MODE:
+        statusbar_counter_btn.configure(text='0 failed', state='disabled')
+        statusbar_details.configure(text='')
 
-            # Reset file details counters
-            FILE_DELETE_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])
-            FILE_COPY_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_COPY])
-            file_details_pending_delete_counter.configure(text=str(FILE_DELETE_COUNT))
-            file_details_pending_delete_counter_total.configure(text=str(FILE_DELETE_COUNT))
-            file_details_pending_copy_counter.configure(text=str(FILE_COPY_COUNT))
-            file_details_pending_copy_counter_total.configure(text=str(FILE_COPY_COUNT))
-            file_details_copied_counter.configure(text='0')
-            file_details_failed_counter.configure(text='0')
+        # Reset file detail success and fail lists
+        for list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
+            file_detail_list[list_name].clear()
 
-            # Empty file details list panes
-            file_details_copied.empty()
-            file_details_failed.empty()
+        # Reset file details counters
+        FILE_DELETE_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])
+        FILE_COPY_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_COPY])
+        file_details_pending_delete_counter.configure(text=str(FILE_DELETE_COUNT))
+        file_details_pending_delete_counter_total.configure(text=str(FILE_DELETE_COUNT))
+        file_details_pending_copy_counter.configure(text=str(FILE_COPY_COUNT))
+        file_details_pending_copy_counter_total.configure(text=str(FILE_COPY_COUNT))
+        file_details_copied_counter.configure(text='0')
+        file_details_failed_counter.configure(text='0')
 
-        thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
+        # Empty file details list panes
+        file_details_copied.empty()
+        file_details_failed.empty()
+
+    thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
 def cleanup_handler(signal_received, frame):
     """Handle cleanup when exiting with Ctrl-C.
@@ -1322,7 +1333,7 @@ def verify_data_integrity(drive_list):
 
         with open(filename, 'rb', buffering=0) as f:
             for n in iter(lambda: f.readinto(mv), 0):
-                if thread_manager.threadlist['Data Verification']['killFlag']:
+                if thread_manager.threadlist['Data Verification']['killFlag']:  # TODO: Refactor this into separate function
                     break
                 h.update(mv[:n])
 
@@ -1392,10 +1403,9 @@ def verify_data_integrity(drive_list):
                         hash_list[drive][path_stub] = file_hash
                         with open(drive_hash_file_path, 'wb') as f:
                             pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
-                elif entry.is_dir():
+                elif entry.is_dir() and path_stub not in special_ignore_list:
                     # If entry is path, recurse into it
-                    if path_stub not in special_ignore_list:
-                        recurse_for_hash(entry.path, drive, hash_file_path)
+                    recurse_for_hash(entry.path, drive, hash_file_path)
 
                 if thread_manager.threadlist['Data Verification']['killFlag']:
                     break
@@ -1434,7 +1444,7 @@ def verify_data_integrity(drive_list):
         # Get hash list for all drives
         bad_hash_files = []
         hash_list = {drive: {} for drive in drive_list}
-        special_ignore_list = [BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
+        special_ignore_list = [BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']  # FIXME: This ignore list should only exclude recycle bin and system volume info if Windows. They can be safely deleted in Linux
         for drive in drive_list:
             drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
 
@@ -1489,10 +1499,7 @@ def verify_data_integrity(drive_list):
 
                     # If file has hash mismatch, delete the corrupted file
                     if saved_hash != computed_hash:
-                        if os.path.isfile(filename):
-                            os.remove(filename)
-                        elif os.path.isdir(filename):
-                            shutil.rmtree(filename)
+                        do_delete(filename)
 
                         # Update UI counter
                         verification_failed_list.append(filename)
@@ -1540,88 +1547,90 @@ def display_update_screen(update_info: dict):
 
     global update_window
 
-    if update_info['updateAvailable'] and (update_window is None or not update_window.winfo_exists()):
-        update_window = AppWindow(
-            root=root_window,
-            title='Update Available',
-            width=600,
-            height=300,
-            center=True,
-            center_content=True,
-            resizable=(False, False),
-            modal=True
-        )
+    if not update_info['updateAvailable'] or (update_window and update_window.winfo_exists()):
+        return
 
-        if SYS_PLATFORM == 'Windows':
-            update_window.iconbitmap(resource_path('media/icon.ico'))
+    update_window = AppWindow(
+        root=root_window,
+        title='Update Available',
+        width=600,
+        height=300,
+        center=True,
+        center_content=True,
+        resizable=(False, False),
+        modal=True
+    )
 
-        update_header = tk.Label(update_window.main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=root_window.uicolor.INFOTEXTDARK)
-        update_header.pack()
+    if SYS_PLATFORM == 'Windows':
+        update_window.iconbitmap(resource_path('media/icon.ico'))
 
-        update_text = tk.Label(update_window.main_frame, text='An update to BackDrop is available. Please update to get the latest features and fixes.', font=(None, 10))
-        update_text.pack(pady=16)
+    update_header = tk.Label(update_window.main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=root_window.uicolor.INFOTEXTDARK)
+    update_header.pack()
 
-        current_version_frame = tk.Frame(update_window.main_frame)
-        current_version_frame.pack()
-        tk.Label(current_version_frame, text='Current Version:', font=(None, 14)).pack(side='left')
-        tk.Label(current_version_frame, text=APP_VERSION, font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
+    update_text = tk.Label(update_window.main_frame, text='An update to BackDrop is available. Please update to get the latest features and fixes.', font=(None, 10))
+    update_text.pack(pady=16)
 
-        latest_version_frame = tk.Frame(update_window.main_frame)
-        latest_version_frame.pack(pady=(2, 12))
-        tk.Label(latest_version_frame, text='Latest Version:', font=(None, 14)).pack(side='left')
-        tk.Label(latest_version_frame, text=update_info['latestVersion'], font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
+    current_version_frame = tk.Frame(update_window.main_frame)
+    current_version_frame.pack()
+    tk.Label(current_version_frame, text='Current Version:', font=(None, 14)).pack(side='left')
+    tk.Label(current_version_frame, text=APP_VERSION, font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
 
-        download_frame = tk.Frame(update_window.main_frame)
-        download_frame.pack()
+    latest_version_frame = tk.Frame(update_window.main_frame)
+    latest_version_frame.pack(pady=(2, 12))
+    tk.Label(latest_version_frame, text='Latest Version:', font=(None, 14)).pack(side='left')
+    tk.Label(latest_version_frame, text=update_info['latestVersion'], font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
 
-        download_source_frame = tk.Frame(update_window.main_frame)
-        download_source_frame.pack()
-        tk.Label(download_source_frame, text='Or, check out the source on').pack(side='left')
-        github_link = tk.Label(download_source_frame, text='GitHub', fg=root_window.uicolor.INFOTEXT)
-        github_link.pack(side='left')
-        github_link.bind('<Button-1>', lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
+    download_frame = tk.Frame(update_window.main_frame)
+    download_frame.pack()
 
-        icon_info = {
-            'backdrop.exe': {
-                'flat_icon': icon_windows,
-                'color_icon': icon_windows_color,
-                'supplemental': {
-                    'name': 'backdrop.zip',
-                    'flat_icon': icon_zip,
-                    'color_icon': icon_zip_color
-                }
-            },
-            'backdrop-debian': {
-                'flat_icon': icon_debian,
-                'color_icon': icon_debian_color,
-                'supplemental': {
-                    'name': 'backdrop-debian.tar.gz',
-                    'flat_icon': icon_targz,
-                    'color_icon': icon_targz_color
-                }
+    download_source_frame = tk.Frame(update_window.main_frame)
+    download_source_frame.pack()
+    tk.Label(download_source_frame, text='Or, check out the source on').pack(side='left')
+    github_link = tk.Label(download_source_frame, text='GitHub', fg=root_window.uicolor.INFOTEXT)
+    github_link.pack(side='left')
+    github_link.bind('<Button-1>', lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
+
+    icon_info = {
+        'backdrop.exe': {
+            'flat_icon': icon_windows,
+            'color_icon': icon_windows_color,
+            'supplemental': {
+                'name': 'backdrop.zip',
+                'flat_icon': icon_zip,
+                'color_icon': icon_zip_color
+            }
+        },
+        'backdrop-debian': {
+            'flat_icon': icon_debian,
+            'color_icon': icon_debian_color,
+            'supplemental': {
+                'name': 'backdrop-debian.tar.gz',
+                'flat_icon': icon_targz,
+                'color_icon': icon_targz_color
             }
         }
-        download_map = {url.split('/')[-1].lower(): url for url in update_info['download']}
+    }
+    download_map = {url.split('/')[-1].lower(): url for url in update_info['download']}
 
-        for file_type, info in icon_info.items():
-            if file_type in download_map.keys():
-                download_btn = tk.Label(download_frame, image=info['flat_icon'])
-                download_btn.pack(side='left', padx=(12, 4))
-                download_btn.bind('<Enter>', lambda e, icon=info['color_icon']: e.widget.configure(image=icon))
-                download_btn.bind('<Leave>', lambda e, icon=info['flat_icon']: e.widget.configure(image=icon))
-                download_btn.bind('<Button-1>', lambda e, url=download_map[file_type]: webbrowser.open_new(url))
+    for file_type, info in icon_info.items():
+        if file_type in download_map.keys():
+            download_btn = tk.Label(download_frame, image=info['flat_icon'])
+            download_btn.pack(side='left', padx=(12, 4))
+            download_btn.bind('<Enter>', lambda e, icon=info['color_icon']: e.widget.configure(image=icon))
+            download_btn.bind('<Leave>', lambda e, icon=info['flat_icon']: e.widget.configure(image=icon))
+            download_btn.bind('<Button-1>', lambda e, url=download_map[file_type]: webbrowser.open_new(url))
 
-                # Add supplemental icon if download is available
-                if 'supplemental' in icon_info[file_type].keys() or info['supplemental']['name'] in download_map.keys():
-                    download_btn = tk.Label(download_frame, image=info['supplemental']['flat_icon'])
-                    download_btn.pack(side='left', padx=(0, 4))
-                    download_btn.bind('<Enter>', lambda e, icon=info['supplemental']['color_icon']: e.widget.configure(image=icon))
-                    download_btn.bind('<Leave>', lambda e, icon=info['supplemental']['flat_icon']: e.widget.configure(image=icon))
-                    download_btn.bind('<Button-1>', lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
+            # Add supplemental icon if download is available
+            if 'supplemental' in icon_info[file_type].keys() or info['supplemental']['name'] in download_map.keys():
+                download_btn = tk.Label(download_frame, image=info['supplemental']['flat_icon'])
+                download_btn.pack(side='left', padx=(0, 4))
+                download_btn.bind('<Enter>', lambda e, icon=info['supplemental']['color_icon']: e.widget.configure(image=icon))
+                download_btn.bind('<Leave>', lambda e, icon=info['supplemental']['flat_icon']: e.widget.configure(image=icon))
+                download_btn.bind('<Button-1>', lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
 
-        update_window.transient(root_window)
-        update_window.grab_set()
-        root_window.wm_attributes('-disabled', True)
+    update_window.transient(root_window)
+    update_window.grab_set()
+    root_window.wm_attributes('-disabled', True)
 
 def check_for_updates(info: dict):
     """Process the update information provided by the UpdateHandler class.
@@ -1639,12 +1648,15 @@ def check_for_updates(info: dict):
             display_update_screen(info)
         else:
             download_url = None
+
+            UPDATE_OS_FILENAME_MAP = {
+                'Windows': 'backdrop.exe',
+                'Linux': 'backdrop-debian'
+            }
+
             for item in info['download']:
                 # TODO: Make download selection filename-independent
-                if SYS_PLATFORM == 'Windows' and item.split('/')[-1] == 'backdrop.exe':
-                    download_url = item
-                    break
-                elif SYS_PLATFORM == 'Linux' and item.split('/')[-1] == 'backdrop-debian':
+                if SYS_PLATFORM in UPDATE_OS_FILENAME_MAP.keys() and item.split('/')[-1] == UPDATE_OS_FILENAME_MAP[SYS_PLATFORM]:
                     download_url = item
                     break
 
@@ -2146,19 +2158,18 @@ if __name__ == '__main__':
                 # Shares larger than drive space
                 status = Status.BACKUPSELECT_INSUFFICIENT_SPACE
 
+        STATUS_TEXT_MAP = {
+            Status.BACKUPSELECT_NO_SELECTION: 'No selection',
+            Status.BACKUPSELECT_MISSING_SOURCE: 'No sources selected',
+            Status.BACKUPSELECT_MISSING_DEST: 'No destinations selected',
+            Status.BACKUPSELECT_CALCULATING_SOURCE: 'Calculating source size',
+            Status.BACKUPSELECT_INSUFFICIENT_SPACE: 'Not enough space on destination',
+            Status.BACKUPSELECT_ANALYSIS_WAITING: 'Selection OK'
+        }
+
         # Set status
-        if status == Status.BACKUPSELECT_NO_SELECTION:
-            statusbar_selection.configure(text='No selection')
-        elif status == Status.BACKUPSELECT_MISSING_SOURCE:
-            statusbar_selection.configure(text='No sources selected')
-        elif status == Status.BACKUPSELECT_MISSING_DEST:
-            statusbar_selection.configure(text='No destinations selected')
-        elif status == Status.BACKUPSELECT_CALCULATING_SOURCE:
-            statusbar_selection.configure(text='Calculating source size')
-        elif status == Status.BACKUPSELECT_INSUFFICIENT_SPACE:
-            statusbar_selection.configure(text='Not enough space on destination')
-        elif status == Status.BACKUPSELECT_ANALYSIS_WAITING:
-            statusbar_selection.configure(text='Selection OK')
+        if status in STATUS_TEXT_MAP.keys():
+            statusbar_selection.configure(text=STATUS_TEXT_MAP[status])
 
     def update_status_bar_action(status: int):
         """Update the status bar action status.
@@ -2189,14 +2200,16 @@ if __name__ == '__main__':
             status (int): The status code to use.
         """
 
-        if status == Status.UPDATE_CHECKING:
-            statusbar_update.configure(text='Checking for updates', fg=root_window.uicolor.NORMAL)
-        elif status == Status.UPDATE_AVAILABLE:
-            statusbar_update.configure(text='Update available!', fg=root_window.uicolor.INFOTEXT)
-        elif status == Status.UPDATE_UP_TO_DATE:
-            statusbar_update.configure(text='Up to date', fg=root_window.uicolor.NORMAL)
-        elif status == Status.UPDATE_FAILED:
-            statusbar_update.configure(text='Update failed', fg=root_window.uicolor.FAILED)
+        STATUS_TEXT_MAP = {
+            Status.UPDATE_CHECKING: ['Checking for updates', root_window.uicolor.NORMAL],
+            Status.UPDATE_AVAILABLE: ['Update available!', root_window.uicolor.INFOTEXT],
+            Status.UPDATE_UP_TO_DATE: ['Up to date', root_window.uicolor.NORMAL],
+            Status.UPDATE_FAILED: ['Update failed', root_window.uicolor.FAILED]
+        }
+
+        # Set status
+        if status in STATUS_TEXT_MAP.keys():
+            statusbar_update.configure(text=STATUS_TEXT_MAP[status][0], fg=STATUS_TEXT_MAP[status][1])
 
     def request_kill_backup():
         """Kill a running backup."""
@@ -2384,10 +2397,14 @@ if __name__ == '__main__':
                 status (int): The status code to use.
             """
 
-            if status == Status.SAVE_PENDING_CHANGES:
-                builder_statusbar_changes.configure(text='Unsaved changes', fg=root_window.uicolor.INFOTEXT)
-            elif status == Status.SAVE_ALL_SAVED:
-                builder_statusbar_changes.configure(text='All changes saved', fg=root_window.uicolor.NORMAL)
+            STATUS_TEXT_MAP = {
+                Status.SAVE_PENDING_CHANGES: ['Unsaved changes', root_window.uicolor.INFOTEXT],
+                Status.SAVE_ALL_SAVED: ['All changes saved', root_window.uicolor.NORMAL]
+            }
+
+            # Set status
+            if status in STATUS_TEXT_MAP.keys():
+                builder_statusbar_changes.configure(text=STATUS_TEXT_MAP[status][0], fg=STATUS_TEXT_MAP[status][1])
 
         def builder_load_connected():
             """Load the connected drive info, and display it in the tree."""
@@ -2526,27 +2543,29 @@ if __name__ == '__main__':
 
             filename = filedialog.asksaveasfilename(initialdir='', initialfile='backup.ini', title='Save drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')), parent=window_config_builder)
 
-            if filename and len(tree_builder_configured.get_children()) > 0:
-                # Get already added drives to prevent adding drives twice
-                existing_drive_vids = [tree_builder_configured.item(drive, 'text') for drive in tree_builder_configured.get_children()]
+            if not filename or len(tree_builder_configured.get_children()) <= 0:
+                return
 
-                # Get drive info, and write file
-                new_config_file = Config(filename)
+            # Get already added drives to prevent adding drives twice
+            existing_drive_vids = [tree_builder_configured.item(drive, 'text') for drive in tree_builder_configured.get_children()]
 
-                # Write shares and VIDs to config file
-                new_config_file.set('selection', 'sources', '')
-                new_config_file.set('selection', 'vids', ','.join(existing_drive_vids))
+            # Get drive info, and write file
+            new_config_file = Config(filename)
 
-                # Write info for each drive to its own section
-                for drive in tree_builder_configured.get_children():
-                    drive_vid = tree_builder_configured.item(drive, 'text')
-                    new_config_file.set(drive_vid, 'vid', drive_vid)
-                    new_config_file.set(drive_vid, 'serial', tree_builder_configured.item(drive, 'values')[2])
-                    new_config_file.set(drive_vid, 'capacity', tree_builder_configured.item(drive, 'values')[1])
+            # Write shares and VIDs to config file
+            new_config_file.set('selection', 'sources', '')
+            new_config_file.set('selection', 'vids', ','.join(existing_drive_vids))
 
-                builder_has_pending_changes = False
-                builder_update_status_bar_save(Status.SAVE_ALL_SAVED)
-                messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully', parent=window_config_builder)
+            # Write info for each drive to its own section
+            for drive in tree_builder_configured.get_children():
+                drive_vid = tree_builder_configured.item(drive, 'text')
+                new_config_file.set(drive_vid, 'vid', drive_vid)
+                new_config_file.set(drive_vid, 'serial', tree_builder_configured.item(drive, 'values')[2])
+                new_config_file.set(drive_vid, 'capacity', tree_builder_configured.item(drive, 'values')[1])
+
+            builder_has_pending_changes = False
+            builder_update_status_bar_save(Status.SAVE_ALL_SAVED)
+            messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully', parent=window_config_builder)
 
         def builder_start_refresh_connected():
             """Start the loading of the connected drive info in a new thread."""
@@ -2752,24 +2771,26 @@ if __name__ == '__main__':
         if not dir_name:
             return
 
-        if settings_destMode.get() == Config.DEST_MODE_PATHS:
-            # Get list of paths already in tree
-            existing_path_list = []
-            for item in tree_dest.get_children():
-                existing_path_list.append(tree_dest.item(item, 'text'))
+        if settings_destMode.get() != Config.DEST_MODE_PATHS:
+            return
 
-            # Only add item to list if it's not already there
-            if dir_name not in existing_path_list:
-                # Custom dest isn't stored in preferences, so default to
-                # dir name
-                drive_free_space = shutil.disk_usage(dir_name).free
-                path_space = get_directory_size(dir_name)
-                config_space = get_directory_size(os.path.join(dir_name, BACKUP_CONFIG_DIR))
+        # Get list of paths already in tree
+        existing_path_list = []
+        for item in tree_dest.get_children():
+            existing_path_list.append(tree_dest.item(item, 'text'))
 
-                dir_has_config_file = os.path.isfile(os.path.join(dir_name, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
-                name_stub = dir_name.split(os.path.sep)[-1].strip()
-                avail_space = drive_free_space + path_space - config_space
-                tree_dest.insert(parent='', index='end', text=dir_name, values=(human_filesize(avail_space), avail_space, 'Yes' if dir_has_config_file else '', name_stub))
+        # Only add item to list if it's not already there
+        if dir_name not in existing_path_list:
+            # Custom dest isn't stored in preferences, so default to
+            # dir name
+            drive_free_space = shutil.disk_usage(dir_name).free
+            path_space = get_directory_size(dir_name)
+            config_space = get_directory_size(os.path.join(dir_name, BACKUP_CONFIG_DIR))
+
+            dir_has_config_file = os.path.isfile(os.path.join(dir_name, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+            name_stub = dir_name.split(os.path.sep)[-1].strip()
+            avail_space = drive_free_space + path_space - config_space
+            tree_dest.insert(parent='', index='end', text=dir_name, values=(human_filesize(avail_space), avail_space, 'Yes' if dir_has_config_file else '', name_stub))
 
     def rename_source_item(item):
         """Rename an item in the source tree for multi-source mode.
@@ -2837,25 +2858,35 @@ if __name__ == '__main__':
     def show_source_right_click_menu(event):
         """Show the right click menu in the source tree for multi-source mode."""
 
-        if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-            item = tree_source.identify_row(event.y)
-            if item:
-                tree_source.selection_set(item)
-                source_right_click_menu.entryconfig('Rename', command=lambda: rename_source_item(item))
-                if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_PATH:
-                    source_right_click_menu.entryconfig('Delete', command=lambda: delete_source_item(item))
-                source_right_click_menu.post(event.x_root_window, event.y_root)
+        # Program needs to be in multi-source mode
+        if settings_sourceMode.get() not in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+            return
+
+        item = tree_source.identify_row(event.y)
+        if not item:  # Don't do anything if no item was clicked on
+            return
+
+        tree_source.selection_set(item)
+        source_right_click_menu.entryconfig('Rename', command=lambda: rename_source_item(item))
+        if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_PATH:
+            source_right_click_menu.entryconfig('Delete', command=lambda: delete_source_item(item))
+        source_right_click_menu.post(event.x_root_window, event.y_root)
 
     def show_dest_right_click_menu(event):
         """Show the right click menu in the dest tree for custom dest mode."""
 
-        if settings_destMode.get() == Config.DEST_MODE_PATHS:
-            item = tree_dest.identify_row(event.y)
-            if item:
-                tree_dest.selection_set(item)
-                dest_right_click_menu.entryconfig('Rename', command=lambda: rename_dest_item(item))
-                dest_right_click_menu.entryconfig('Delete', command=lambda: delete_dest_item(item))
-                dest_right_click_menu.post(event.x_root, event.y_root)
+        # Program needs to be in path destination mode
+        if settings_destMode.get() != Config.DEST_MODE_PATHS:
+            return
+
+        item = tree_dest.identify_row(event.y)
+        if not item:  # Don't do anything if no item was clicked on
+            return
+
+        tree_dest.selection_set(item)
+        dest_right_click_menu.entryconfig('Rename', command=lambda: rename_dest_item(item))
+        dest_right_click_menu.entryconfig('Delete', command=lambda: delete_dest_item(item))
+        dest_right_click_menu.post(event.x_root, event.y_root)
 
     def change_source_mode():
         """Change the mode for source selection."""
@@ -3037,9 +3068,11 @@ if __name__ == '__main__':
     def start_verify_data_from_hash_list():
         """Start data verification in a new thread"""
 
-        if not backup or not backup.is_running():
-            drive_list = [drive['name'] for drive in config['destinations']]
-            thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
+        if backup and backup.is_running():  # Backup can't be running while data verification takes place
+            return
+
+        drive_list = [drive['name'] for drive in config['destinations']]
+        thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
     ############
     # GUI Mode #
@@ -3236,11 +3269,11 @@ if __name__ == '__main__':
         tk_style.configure('custom.Progressbar', padding=4, background=root_window.uicolor.COLORACCENT, bordercolor=root_window.uicolor.BGACCENT3, borderwidth=0, troughcolor=root_window.uicolor.BG, lightcolor=root_window.uicolor.COLORACCENT, darkcolor=root_window.uicolor.COLORACCENT)
 
         def on_close():
-            if thread_manager.is_alive('Backup'):
-                if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
-                    thread_manager.kill('Backup')
-                    root_window.quit()
-            else:
+            if not thread_manager.is_alive('Backup'):
+                root_window.quit()
+
+            if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
+                thread_manager.kill('Backup')
                 root_window.quit()
 
         # Add menu bar
