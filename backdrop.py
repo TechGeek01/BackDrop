@@ -445,11 +445,14 @@ def start_backup_analysis():
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
     if (not backup or not backup.is_running()) and not verification_running and (CLI_MODE or source_avail_drive_list):
-        backup_reset_ui()
-        statusbar_counter_btn.configure(text='0 failed', state='disabled')
-        statusbar_details.configure(text='')
+    if (backup and backup.is_running()) or verification_running
+        return
 
         if not CLI_MODE:
+            backup_reset_ui()
+            statusbar_counter_btn.configure(text='0 failed', state='disabled')
+            statusbar_details.configure(text='')
+
             backup = Backup(
                 config=config,
                 backup_config_dir=BACKUP_CONFIG_DIR,
@@ -1225,11 +1228,11 @@ def start_backup():
     """Start the backup in a new thread."""
 
     if backup and not verification_running:
-        statusbar_counter_btn.configure(text='0 failed', state='disabled')
-        statusbar_details.configure(text='')
-
         # Reset UI
         if not CLI_MODE:
+            statusbar_counter_btn.configure(text='0 failed', state='disabled')
+            statusbar_details.configure(text='')
+
             # Reset file detail success and fail lists
             for list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
                 file_detail_list[list_name].clear()
@@ -1658,7 +1661,7 @@ if __name__ == '__main__':
         exit()
 
     # Set meta info
-    APP_VERSION = '3.3.0'
+    APP_VERSION = '3.3.1'
 
     # Set constants
     DRIVE_TYPE_LOCAL = 3
