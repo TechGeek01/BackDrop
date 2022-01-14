@@ -3271,10 +3271,12 @@ if __name__ == '__main__':
         def on_close():
             if not thread_manager.is_alive('Backup'):
                 root_window.quit()
+                exit()
 
             if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
                 thread_manager.kill('Backup')
                 root_window.quit()
+                exit()
 
         # Add menu bar
         menubar = tk.Menu(root_window)
