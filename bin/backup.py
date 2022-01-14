@@ -95,44 +95,44 @@ class Backup:
             bool: True if conditions are good, False otherwise.
         """
 
-        if len(self.config['destinations']) > 0 and len(self.config['sources']) > 0:
-            share_total = 0
-            drive_total = 0
+        # Both file sources, and destinations must be defined
+        if len(self.config['destinations']) <= 0 or len(self.config['sources']) <= 0:
+            return False
 
-            # Shares and destinations need identifiers
-            if self.config['source_mode'] in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH] and [share for share in self.config['sources'] if not share['dest_name']]:
-                return False
-            if self.config['dest_mode'] == Config.DEST_MODE_PATHS and [drive for drive in self.config['destinations'] if not drive['vid']]:
-                return False
+        share_total = 0
+        drive_total = 0
 
-            shares_known = True
-            for share in self.config['sources']:
-                if share['size'] is None:
-                    shares_known = False
-                    break
+        # Shares and destinations need identifiers
+        if self.config['source_mode'] in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH] and [share for share in self.config['sources'] if not share['dest_name']]:
+            return False
+        if self.config['dest_mode'] == Config.DEST_MODE_PATHS and [drive for drive in self.config['destinations'] if not drive['vid']]:
+            return False
 
-                # Add total space of selection
-                share_total += share['size']
+        # Share sizes must all be known
+        if any([share['size'] is None for share in self.config['sources']]):
+            return False
 
-            drive_total = sum((drive['capacity'] for drive in self.config['destinations']))
-            config_total = drive_total + sum((size for drive, size in self.config['missing_drives'].items()))
+        share_total = sum((share['size'] for share in self.config['sources']))
+        drive_total = sum((drive['capacity'] for drive in self.config['destinations']))
+        config_total = drive_total + sum((size for drive, size in self.config['missing_drives'].items()))
 
-            if shares_known and ((len(self.config['missing_drives']) == 0 and share_total < drive_total) or (share_total < config_total and self.config['splitMode'])):
-                # Sanity check pass if more drive selected than shares, OR, split mode and more config drives selected than shares
+        # Share total must be less than drive total if there are no missing drives,
+        # or if there is an existing config, the share total must be less than the config total
+        if not (len(self.config['missing_drives']) == 0 and share_total < drive_total) and not (share_total < config_total and self.config['splitMode']):
+            return
 
-                selected_new_drives = [drive['name'] for drive in self.config['destinations'] if drive['hasConfig'] is False]
-                if not self.confirm_wipe_existing_drives and len(selected_new_drives) > 0:
-                    drive_string = ', '.join(selected_new_drives[:-2] + [' and '.join(selected_new_drives[-2:])])
+        # If there are new drives, ask for confirmation before proceeding
+        selected_new_drives = [drive['name'] for drive in self.config['destinations'] if drive['hasConfig'] is False]
+        if not self.confirm_wipe_existing_drives and len(selected_new_drives) > 0:
+            drive_string = ', '.join(selected_new_drives[:-2] + [' and '.join(selected_new_drives[-2:])])
 
-                    new_drive_confirm_title = f"New drive{'s' if len(selected_new_drives) > 1 else ''} selected"
-                    new_drive_confirm_message = f"Drive{'s' if len(selected_new_drives) > 1 else ''} {drive_string} appear{'' if len(selected_new_drives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
-                    self.confirm_wipe_existing_drives = messagebox.askyesno(new_drive_confirm_title, new_drive_confirm_message)
+            new_drive_confirm_title = f"New drive{'s' if len(selected_new_drives) > 1 else ''} selected"
+            new_drive_confirm_message = f"Drive{'s' if len(selected_new_drives) > 1 else ''} {drive_string} appear{'' if len(selected_new_drives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
+            self.confirm_wipe_existing_drives = messagebox.askyesno(new_drive_confirm_title, new_drive_confirm_message)
 
-                    return self.confirm_wipe_existing_drives
+            return self.confirm_wipe_existing_drives
 
-                return True
-
-        return False
+        return True
 
     def get_share_source_path(self, share):
         """Convert a share name into a share path.

@@ -373,16 +373,19 @@ class BackupDetailBlock(tk.Frame):
     def toggle(self):
         """Toggle expanding content of a block."""
 
-        if not self.backup.analysis_running:
-            # Check if arrow needs to be expanded
-            if not self.content.grid_info():
-                # Collapsed turns into expanded
-                self.arrow.configure(image=self.down_arrow)
-                self.content.grid(row=1, column=1, sticky='w')
-            else:
-                # Expanded turns into collapsed
-                self.arrow.configure(image=self.right_arrow)
-                self.content.grid_forget()
+        # Don't toggle when backup analysis is still running
+        if self.backup.analysis_running:
+            return
+
+        # Check if arrow needs to be expanded
+        if not self.content.grid_info():
+            # Collapsed turns into expanded
+            self.arrow.configure(image=self.down_arrow)
+            self.content.grid(row=1, column=1, sticky='w')
+        else:
+            # Expanded turns into collapsed
+            self.arrow.configure(image=self.right_arrow)
+            self.content.grid_forget()
 
     def add_line(self, line_name, title, content, *args, **kwargs):
         """Add a line to the block content.

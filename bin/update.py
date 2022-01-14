@@ -97,7 +97,7 @@ class UpdateHandler:
         if current_version['major'] < latest_version['major']:
             # Major version is older
             return False
-        elif current_version['major'] > latest_version['major']:
+        if current_version['major'] > latest_version['major']:
             # Major version is newer
             return True
 
@@ -106,7 +106,7 @@ class UpdateHandler:
         if current_version['minor'] < latest_version['minor']:
             # Minor version is older
             return False
-        elif current_version['minor'] > latest_version['minor']:
+        if current_version['minor'] > latest_version['minor']:
             # Minor version is newer
             return True
 
@@ -115,7 +115,7 @@ class UpdateHandler:
         if current_version['patch'] < latest_version['patch']:
             # Patch version is older
             return False
-        elif current_version['patch'] > latest_version['patch']:
+        if current_version['patch'] > latest_version['patch']:
             # Patch version is newer
             return True
 
@@ -131,28 +131,28 @@ class UpdateHandler:
         if current_version['dev'] is None and latest_version['dev'] is None:
             # Neither version has dev tag, so versions are identical
             return True
-        elif current_version['dev'] is not None and latest_version['dev'] is None:
+        if current_version['dev'] is not None and latest_version['dev'] is None:
             # Latest is not dev
             return False
-        elif current_version['dev'] is None and latest_version['dev'] is not None:
+        if current_version['dev'] is None and latest_version['dev'] is not None:
             # Latest is dev
             return True
-        else:
-            current_dev_stage_rank = dev_stage_rank[current_version['dev']['stage']] if current_version['dev']['stage'] in dev_stage_rank.keys() else -1
-            latest_dev_stage_rank = dev_stage_rank[latest_version['dev']['stage']] if latest_version['dev']['stage'] in dev_stage_rank.keys() else -1
 
-            if current_dev_stage_rank > latest_dev_stage_rank:
-                # Current dev stage is ranked higher
-                return True
-            elif current_dev_stage_rank < latest_dev_stage_rank:
-                # Latest dev stage is ranked higher
-                return False
-            elif current_version['dev']['version'] >= latest_version['dev']['version']:
-                # Current dev version is same or newer than latest
-                return True
-            else:
-                # Latest is newer dev version
-                return False
+        current_dev_stage_rank = dev_stage_rank[current_version['dev']['stage']] if current_version['dev']['stage'] in dev_stage_rank.keys() else -1
+        latest_dev_stage_rank = dev_stage_rank[latest_version['dev']['stage']] if latest_version['dev']['stage'] in dev_stage_rank.keys() else -1
+
+        if current_dev_stage_rank > latest_dev_stage_rank:
+            # Current dev stage is ranked higher
+            return True
+        if current_dev_stage_rank < latest_dev_stage_rank:
+            # Latest dev stage is ranked higher
+            return False
+        if current_version['dev']['version'] >= latest_version['dev']['version']:
+            # Current dev version is same or newer than latest
+            return True
+
+        # Latest is newer dev version
+        return False
 
     def check(self):
         """Check for updates.

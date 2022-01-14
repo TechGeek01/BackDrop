@@ -62,31 +62,29 @@ class Config:
             *: The specified default if the preference doesn't exist. (default: None)
         """
 
-        if section_name in self.config:
-            if pref_name in self.config[section_name]:
-
-                # Convert data type if requested
-                if data_type == Config.BOOLEAN:
-                    setting = self.config[section_name].getboolean(pref_name)
-                elif data_type == Config.INTEGER:
-                    setting = int(self.config[section_name][pref_name])
-                elif data_type == Config.FLOAT:
-                    setting = float(self.config[section_name][pref_name])
-                elif data_type == Config.HEXADECIMAL:
-                    setting = hex(int(self.config[section_name][pref_name]))
-                else:
-                    setting = self.config[section_name][pref_name]
-
-                if type(verify_data) is list and setting not in verify_data:
-                    setting = default if default in verify_data else None
-
-                    # Setting has been changed from read value, so write changes
-                    self.config.set(section_name, pref_name, str(setting))
-
-                return setting
-
         # If preference not found, return default
-        return default
+        if section_name not in self.config or pref_name not in self.config[section_name]:
+            return default
+
+        # Convert data type if requested
+        if data_type == Config.BOOLEAN:
+            setting = self.config[section_name].getboolean(pref_name)
+        elif data_type == Config.INTEGER:
+            setting = int(self.config[section_name][pref_name])
+        elif data_type == Config.FLOAT:
+            setting = float(self.config[section_name][pref_name])
+        elif data_type == Config.HEXADECIMAL:
+            setting = hex(int(self.config[section_name][pref_name]))
+        else:
+            setting = self.config[section_name][pref_name]
+
+        if type(verify_data) is list and setting not in verify_data:
+            setting = default if default in verify_data else None
+
+            # Setting has been changed from read value, so write changes
+            self.config.set(section_name, pref_name, str(setting))
+
+        return setting
 
     def set(self, section_name, pref_name, pref_val):
         """Set a preference to a specific value.

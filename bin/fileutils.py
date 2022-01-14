@@ -122,51 +122,8 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
             pass
         fdst.close()
 
-    # If file copied in full, copy meta, and verify
-    if copied == file_size:
-        shutil.copymode(source_filename, dest_filename)
-        shutil.copystat(source_filename, dest_filename)
-
-        dest_hash = hashlib.blake2b()
-        dest_b = bytearray(buffer_size)
-        dest_mv = memoryview(dest_b)
-
-        with open(dest_filename, 'rb', buffering=0) as f:
-            display_mode = 'verify'
-            copied = 0
-
-            for n in iter(lambda: f.readinto(dest_mv), 0):
-                dest_hash.update(dest_mv[:n])
-
-                copied += n
-                prog_callback(c=copied, t=file_size, dm=display_mode)
-
-        if h.hexdigest() == dest_hash.hexdigest():
-            fd_callback(
-                list_name=FileUtils.LIST_SUCCESS,
-                filename=dest_filename
-            )
-        else:
-            # If file wasn't copied successfully, delete it
-            if os.path.isfile(dest_filename):
-                os.remove(dest_filename)
-            elif os.path.isdir(dest_filename):
-                shutil.rmtree(dest_filename)
-
-            fd_callback(
-                list_name=FileUtils.LIST_FAIL,
-                filename=dest_filename,
-                error={'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination hash mismatch'},
-                s_hex=h.hexdigest(),
-                d_hex=dest_hash.hexdigest()
-            )
-
-        if h.hexdigest() == dest_hash.hexdigest():
-            return (drive_path, dest_hash.hexdigest())
-        else:
-            return None
-    else:
-        # If file wasn't copied successfully, delete it
+    # If file wasn't copied successfully, delete it
+    if copied != file_size:
         if os.path.isfile(dest_filename):
             os.remove(dest_filename)
         elif os.path.isdir(dest_filename):
@@ -178,6 +135,49 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
             error={'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination filesize mismatch'}
         )
 
+        return None
+
+    # File copied in full, so copy meta, and verify
+    shutil.copymode(source_filename, dest_filename)
+    shutil.copystat(source_filename, dest_filename)
+
+    dest_hash = hashlib.blake2b()
+    dest_b = bytearray(buffer_size)
+    dest_mv = memoryview(dest_b)
+
+    with open(dest_filename, 'rb', buffering=0) as f:
+        display_mode = 'verify'
+        copied = 0
+
+        for n in iter(lambda: f.readinto(dest_mv), 0):
+            dest_hash.update(dest_mv[:n])
+
+            copied += n
+            prog_callback(c=copied, t=file_size, dm=display_mode)
+
+    if h.hexdigest() == dest_hash.hexdigest():
+        fd_callback(
+            list_name=FileUtils.LIST_SUCCESS,
+            filename=dest_filename
+        )
+    else:
+        # If file wasn't copied successfully, delete it
+        if os.path.isfile(dest_filename):
+            os.remove(dest_filename)
+        elif os.path.isdir(dest_filename):
+            shutil.rmtree(dest_filename)
+
+        fd_callback(
+            list_name=FileUtils.LIST_FAIL,
+            filename=dest_filename,
+            error={'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination hash mismatch'},
+            s_hex=h.hexdigest(),
+            d_hex=dest_hash.hexdigest()
+        )
+
+    if h.hexdigest() == dest_hash.hexdigest():
+        return (drive_path, dest_hash.hexdigest())
+    else:
         return None
 
 def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get_backup_killflag, display_index: int = None):

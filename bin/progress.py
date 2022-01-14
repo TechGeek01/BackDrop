@@ -34,13 +34,19 @@ class Progress:
         by another thread.
         """
 
-        if len(self._thread_manager.get_progress_threads()) <= 1:
-            self.progress_bar.configure(mode='indeterminate')
-            self.progress_bar.start()
+        # No need to start if this isn't the first progress thread
+        if len(self._thread_manager.get_progress_threads()) > 1:
+            return
+
+        self.progress_bar.configure(mode='indeterminate')
+        self.progress_bar.start()
 
     def stop_indeterminate(self):
         """Stop indeterminate mode on the progress bar."""
 
-        if len(self._thread_manager.get_progress_threads()) <= 1:
-            self.progress_bar.configure(mode='determinate')
-            self.progress_bar.stop()
+        # No need to stop if this isn't the only progress thread
+        if len(self._thread_manager.get_progress_threads()) > 1:
+            return
+
+        self.progress_bar.configure(mode='determinate')
+        self.progress_bar.stop()
