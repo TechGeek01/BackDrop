@@ -1778,8 +1778,6 @@ if __name__ == '__main__':
 
         args = parser.parse_args()
 
-        command_line = CommandLine()
-
         if args.version:
             print(f'BackDrop v{APP_VERSION}')
         elif args.update:
@@ -1870,10 +1868,11 @@ if __name__ == '__main__':
                             source_drive = ''
 
                         # Validate source
-                        if not source_drive or not command_line.validate_yes_no(f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
+                        if not source_drive or not CommandLine.validate_yes_no('', f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
                             if SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_DRIVE:
                                 print(f"Available drives: {', '.join(source_avail_drive_list)}\n")
-                                config['source_drive'] = command_line.validate_choice(
+                                config['source_drive'] = CommandLine.validate_choice(
+                                    '', 
                                     message='Which source drive would you like to use?',
                                     choices=source_avail_drive_list,
                                     default=source_drive,
@@ -1929,7 +1928,8 @@ if __name__ == '__main__':
                         print(f"{cur_drive: <{drive_display_length['name']}}  {drive_size_list[i]: <{drive_display_length['size']}}  {drive_config_list[i]: <{drive_display_length['config']}}  {drive_vid_list[i]: <{drive_display_length['vid']}}  {drive_serial_list[i]}")
                     print('')
 
-                    drive_list = command_line.validate_choice_list(
+                    drive_list = CommandLine.validate_choice_list(
+                        '',
                         message='Which destination drives (space separated) would you like to use?',
                         choices=[drive['name'] for drive in dest_drive_master_list],
                         default=None,
@@ -2035,7 +2035,8 @@ if __name__ == '__main__':
                     'path': share_name_to_source_map[share],
                     'dest_name': share,
                     'size': get_directory_size(share_name_to_source_map[share])
-                } for share in command_line.validate_choice_list(
+                } for share in CommandLine.validate_choice_list(
+                    '',
                     message='Which shares (space separated) would you like to use?',
                     choices=all_share_name_list,
                     default=None,
@@ -2091,7 +2092,7 @@ if __name__ == '__main__':
 
             # ## Confirm ## #
 
-            if not args.unattended and not command_line.validate_yes_no('Do you want to continue?', True):
+            if not args.unattended and not CommandLine.validate_yes_no('', 'Do you want to continue?', True):
                 print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 exit()
 
@@ -2104,7 +2105,7 @@ if __name__ == '__main__':
 
             # ## Confirm ## #
 
-            if not args.unattended and not command_line.validate_yes_no('Do you want to continue?', True):
+            if not args.unattended and not CommandLine.validate_yes_no('', 'Do you want to continue?', True):
                 print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 exit()
 
