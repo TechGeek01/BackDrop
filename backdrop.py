@@ -1695,9 +1695,6 @@ if __name__ == '__main__':
     verification_failed_list = []
     update_window = None
 
-    # BUG: keyboard module seems to be returning false for keypress on first try. No idea how to fix this
-    keyboard.is_pressed('alt')
-
     if SYS_PLATFORM == 'Windows':
         SYSTEM_DRIVE = f"{os.getenv('SystemDrive')[0]}:"
         APPDATA_FOLDER = os.getenv('LocalAppData') + '/BackDrop'
@@ -3086,6 +3083,9 @@ if __name__ == '__main__':
         FileUtils.LIST_SUCCESS: [],
         FileUtils.LIST_FAIL: []
     }
+
+    # BUG: keyboard module seems to be returning false for keypress on first try. No idea how to fix this
+    keyboard.is_pressed('alt')
 
     if not CLI_MODE:
         update_handler = UpdateHandler(
