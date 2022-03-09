@@ -1,9 +1,13 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 3.3.1 - TBD
+## 4.0.0 - TBD
 ### Fixed
 * Fixed CLI mode crashing when starting backup analysis
+
+### Changed
+- Made CLI params more intuitive to use
+- Removed calls to custom CommandLine class in favor of argparse
 
 ## 3.3.0 - 2021-12-10
 ### Fixed

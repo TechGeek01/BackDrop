@@ -1678,7 +1678,7 @@ if __name__ == '__main__':
         exit()
 
     # Set meta info
-    APP_VERSION = '3.3.1'
+    APP_VERSION = '4.0.0'
 
     # Set constants
     DRIVE_TYPE_LOCAL = 3
@@ -1769,9 +1769,9 @@ if __name__ == '__main__':
         parser.add_argument('-s', '--share', dest='share', nargs='+', help='The shares to back up from the source')
         parser.add_argument('-d', '--destination', dest='destination', nargs='+', help='The destination drive to back up to')
         parser.add_argument('-i', '--interactive', dest='interactive', action='store_true', help='Run in interactive mode instead of specifying backup configuration')
-        parser.add_argument('-l', '--load-config', dest='config', help='Load config file from a drive instead of specifying backup configuration')
+        parser.add_argument('-c', '--config', dest='config', help='Load config file from a drive instead of specifying backup configuration')
         parser.add_argument('-m', '--split-mode', dest='split_mode', action='store_true', help='Run in split mode if not all destination drives are connected')
-        parser.add_argument('-U', '--unattended', dest='unattended', action='store_true', help='Do not prompt for confirmation, and only exit on error')
+        parser.add_argument('-a', '--automatic', dest='automatic', action='store_true', help='Do not prompt for confirmation, and only exit on error')
         parser.add_argument('-V', '--verify', dest='verify', nargs='+', help='Verify data integrity on selected destination drives')
         parser.add_argument('-v', '--version', dest='version', action='store_true', help='Display the program version')
         parser.add_argument('-u', '--update', dest='update', action='store_true', help='Check for and download updates')
@@ -2092,7 +2092,7 @@ if __name__ == '__main__':
 
             # ## Confirm ## #
 
-            if not args.unattended and not CommandLine.validate_yes_no('', 'Do you want to continue?', True):
+            if not args.automatic and not CommandLine.validate_yes_no('', 'Do you want to continue?', True):
                 print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 exit()
 
@@ -2105,7 +2105,7 @@ if __name__ == '__main__':
 
             # ## Confirm ## #
 
-            if not args.unattended and not CommandLine.validate_yes_no('', 'Do you want to continue?', True):
+            if not args.automatic and not CommandLine.validate_yes_no('', 'Do you want to continue?', True):
                 print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 exit()
 
