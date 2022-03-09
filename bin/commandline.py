@@ -1,90 +1,10 @@
-import os
-import sys
-
 from bin.color import bcolor
 
 class CommandLine:
-    def __init__(self, option_info_list: tuple):
+    def __init__(self):
         """Configure and parse the command line options.
-
-        Args:
-            option_info_list (list): A list of parameters to configure.
-            option_info_list.item (String): An information string to show in the
-                help menu.
-            option_info_list.item (tuple): A tuple containing the short and long
-                parameters names, and the description for the help menu.
         """
-
-        self.option_info_list = option_info_list
-        self.option_list = [item for item in self.option_info_list if type(item) is tuple]
-
-        self.CONSOLE_WIDTH = os.get_terminal_size().columns
-
-        param_list_long = [param[1] for param in self.option_list]
-        param_list_short = [param[0] for param in self.option_list]
-
-        self.user_params = {}
-        param_name = False
-        for arg in sys.argv[1:]:
-            if arg in param_list_long or arg in param_list_short:
-                if arg in param_list_long:
-                    arg_index = param_list_long.index(arg)
-                else:
-                    arg_index = param_list_short.index(arg)
-
-                param_name = param_list_long[arg_index][2:]
-                self.user_params[param_name] = []
-            elif param_name:
-                self.user_params[param_name].append(arg)
-
-    def show_help(self):
-        """Show the help menu."""
-
-        length_long = len(max([item[1] for item in self.option_list], key=len))
-        length_short = 3
-
-        def parse_string(help_string, indent_size: int):
-            """Convert a help string into a line-broken message for console output.
-
-            Args:
-                help_string (String): The string to parse.
-                indent_size (int): The size of the indent for the column.
-
-            Returns:
-                (String): The broken string.
-            """
-
-            string_length = self.CONSOLE_WIDTH - 1 - indent_size
-
-            remaining_string = help_string
-            string_parts = []
-            while len(remaining_string) > 0:
-                working_string = remaining_string[:string_length]
-
-                if len(remaining_string) > string_length:
-                    if remaining_string[string_length:string_length + 1] == ' ':
-                        # If string_length breaks at space, remove space from next string
-                        string_parts.append(working_string)
-                        remaining_string = remaining_string[string_length + 1:]
-                    else:
-                        # string_length doesn't break on space, so break at last space before it
-                        string_space = working_string.rindex(' ')
-                        working_string = remaining_string[:string_space]
-
-                        string_parts.append(working_string)
-                        remaining_string = remaining_string[string_space + 1:]
-                else:
-                    string_parts.append(working_string)
-                    remaining_string = remaining_string[string_length:]
-
-            return f"\n{' ' * indent_size}".join(string_parts)
-
-        for param in self.option_info_list:
-            if type(param) is tuple:
-                display_short_option = param[0] + ',' if type(param[0]) is str else ''
-                print(f"{display_short_option: <{length_short}} {param[1]: <{length_long}}    {parse_string(param[3], length_long + length_short + 5)}")
-            else:
-                print(param)
+        pass
 
     def validate_yes_no(self, message, default: bool) -> bool:
         """Validate a yes/no answer input.
@@ -194,30 +114,3 @@ class CommandLine:
                 print('Please choose options from the list')
 
         return [choices[full_choices.index(option)] for option in user_input]
-
-    def has_param(self, param) -> bool:
-        """Check if a param is specified in the command line.
-
-        Args:
-            param (String): The param to check.
-
-        Returns:
-            bool: Whether or not the param is specified.
-        """
-
-        return param in self.user_params.keys()
-
-    def get_param(self, param) -> list:
-        """Get the value of a specific parameter.
-
-        Args:
-            param (String): The param to get.
-
-        Returns:
-            list: The list of values for the parameter.
-        """
-
-        if param in self.user_params.keys():
-            return self.user_params[param]
-        else:
-            return False

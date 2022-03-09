@@ -15,6 +15,7 @@ from signal import signal, SIGINT
 from datetime import datetime
 import re
 import pickle
+import argparse
 
 import clipboard
 import keyboard
@@ -1762,38 +1763,34 @@ if __name__ == '__main__':
 
     if CLI_MODE:
         # URGENT: Rewrite CLI mode to work without depending on source and share names
-        command_line = CommandLine(
-            [
-                'Usage: backdrop [options]\n',
-                ('-S', '--source', 1, 'The source drive to back up.'),
-                ('-s', '--share', 1, 'The shares to back up from the source.'),
-                ('-d', '--destination', 1, 'The destination drive to back up to.'),
-                '',
-                ('-i', '--interactive', 0, 'Run in interactive mode instead of specifying backup configuration.'),
-                ('-l', '--load-config', 1, 'Load config file from a drive instead of specifying backup configuration.'),
-                ('-m', '--split-mode', 0, 'Run in split mode if not all destination drives are connected.'),
-                ('-U', '--unattended', 0, 'Do not prompt for confirmation, and only exit on error.'),
-                ('-V', '--verify', 1, 'Verify data integrity on selected destination drives.'),
-                '',
-                ('-h', '--help', 0, 'Display this help menu.'),
-                ('-v', '--version', 0, 'Display the program version.'),
-                ('-u', '--update', 0, 'Check for and download updates.')
-            ]
-        )
+        parser = argparse.ArgumentParser()
 
-        if command_line.has_param('help'):
-            command_line.show_help()
-        elif command_line.has_param('version'):
-            print(f'BackDrop {APP_VERSION}')
-        elif command_line.has_param('update'):
+        parser.add_argument('-S', '--source', dest='source', help='The source drive to back up')
+        parser.add_argument('-s', '--share', dest='share', nargs='+', help='The shares to back up from the source')
+        parser.add_argument('-d', '--destination', dest='destination', nargs='+', help='The destination drive to back up to')
+        parser.add_argument('-i', '--interactive', dest='interactive', action='store_true', help='Run in interactive mode instead of specifying backup configuration')
+        parser.add_argument('-l', '--load-config', dest='config', help='Load config file from a drive instead of specifying backup configuration')
+        parser.add_argument('-m', '--split-mode', dest='split_mode', action='store_true', help='Run in split mode if not all destination drives are connected')
+        parser.add_argument('-U', '--unattended', dest='unattended', action='store_true', help='Do not prompt for confirmation, and only exit on error')
+        parser.add_argument('-V', '--verify', dest='verify', nargs='+', help='Verify data integrity on selected destination drives')
+        parser.add_argument('-v', '--version', dest='version', action='store_true', help='Display the program version')
+        parser.add_argument('-u', '--update', dest='update', action='store_true', help='Check for and download updates')
+
+        args = parser.parse_args()
+
+        command_line = CommandLine()
+
+        if args.version:
+            print(f'BackDrop v{APP_VERSION}')
+        elif args.update:
             update_handler = UpdateHandler(
                 current_version=APP_VERSION,
                 allow_prereleases=config['allow_prereleases'],
                 update_callback=check_for_updates
             )
             update_handler.check()
-        elif command_line.has_param('verify'):
-            drive_list = command_line.get_param('verify')
+        elif args.verify:
+            drive_list = args.verify
 
             if not drive_list:
                 print('Please specify one or more drives to verify')
@@ -1846,24 +1843,22 @@ if __name__ == '__main__':
                 print('CLI mode currently only works with normal destination mode')
 
             # Load config from destination if specified
-            LOAD_CONFIG_LOCATION = command_line.get_param('load-config')
-            LOAD_CONFIG_LOCATION = LOAD_CONFIG_LOCATION[0] if LOAD_CONFIG_LOCATION else ''
-            if LOAD_CONFIG_LOCATION:
+            if args.config:
                 if SYS_PLATFORM == 'Windows' and SELECTED_DEST_MODE == Config.DEST_MODE_DRIVES:
-                    LOAD_CONFIG_LOCATION = LOAD_CONFIG_LOCATION[0].upper() + ':'
+                    args.config = args.config.upper() + ':'
 
-                if not os.path.isdir(LOAD_CONFIG_LOCATION):
+                if not os.path.isdir(args.config):
                     print('Please specify a valid destination to load a config from')
                     exit()
 
                 # Config location valid, so load it
-                load_config_from_file(os.path.join(LOAD_CONFIG_LOCATION, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+                load_config_from_file(os.path.join(args.config, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
                 data_loaded_from_config = True
             else:  # Config not loaded from destination, so gather data
                 # Source drive
                 if SELECTED_SOURCE_MODE in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
                     # Load source from preferences, or user input
-                    if command_line.has_param('interactive'):
+                    if args.interactive:
                         if SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_DRIVE:
                             # Single source is loaded from preferences, or defaulted to first drive in source list
                             source_drive = prefs.get('selection', 'source_drive', default=source_avail_drive_list[0], verify_data=source_avail_drive_list)
@@ -1892,11 +1887,11 @@ if __name__ == '__main__':
                     else:
                         if SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_DRIVE:
                             if SYS_PLATFORM == 'Windows':
-                                source_drive = command_line.get_param('source')[0][0].upper() + ':' if command_line.has_param('source') and command_line.get_param('source')[0][0].upper() + ':' in source_avail_drive_list else ''
+                                source_drive = args.source[0].upper() + ':' if args.source and args.source[0].upper() + ':' in source_avail_drive_list else ''
                             elif SYS_PLATFORM == 'Linux':
-                                source_drive = command_line.get_param('source')[0] if command_line.has_param('source') and command_line.get_param('source')[0] in source_avail_drive_list else ''
+                                source_drive = args.source if args.source and args.source in source_avail_drive_list else ''
                         elif SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_PATH:
-                            source_drive = command_line.get_param('source')[0]
+                            source_drive = args.source
 
                         if not source_drive or not os.path.isdir(source_drive):
                             print('Please specify a valid source')
@@ -1908,7 +1903,7 @@ if __name__ == '__main__':
             # Destination drives
             if SELECTED_DEST_MODE == Config.DEST_MODE_DRIVES:
                 split_mode = False
-                if command_line.has_param('interactive'):
+                if args.interactive:
                     print('\nAvailable destination drives are as follows:\n')
 
                     # TODO: Generalize this into function for table-izing data?
@@ -1944,13 +1939,12 @@ if __name__ == '__main__':
                     config['destinations'] = [drive for drive in dest_drive_master_list if drive['name'] in drive_list]
                 else:
                     # Load from config
-                    split_mode = command_line.has_param('split-mode')
                     if data_loaded_from_config:
                         dest_list = [drive['name'] for drive in config['destinations']]
 
                         # If drives aren't mounted that should be, display the warning
                         missing_drive_count = len(config['missing_drives'])
-                        if missing_drive_count > 0 and not split_mode:
+                        if missing_drive_count > 0 and not args.split_mode:
                             config_missing_vids = [vid for vid in config['missing_drives'].keys()]
 
                             missing_vid_string = ', '.join(config_missing_vids[:-2] + [' and '.join(config_missing_vids[-2:])])
@@ -1965,11 +1959,12 @@ if __name__ == '__main__':
                             ]
                             print(f"{bcolor.WARNING}There {drive_parts[0]} {missing_drive_count} {drive_parts[1]} in the config that {drive_parts[2]} connected. Please connect {drive_parts[3]}, or enable split mode.{bcolor.ENDC}\n")
                     else:
-                        if not config['destinations'] and (not command_line.has_param('destination') or not command_line.get_param('destination')):
+                        if not config['destinations'] and not args.destination:
                             print('Please specify at least one destination drive')
                             exit()
 
-                        dest_list = [drive[0].upper() + ':' for drive in command_line.get_param('destination')]
+                        # FIXME: destinations doesn't check for OS, and assumes Windows. This will break on Linux.
+                        dest_list = [drive[0].upper() + ':' for drive in args.destination]
 
                         for drive in dest_list:
                             if drive not in dest_drive_name_list:
@@ -2004,7 +1999,7 @@ if __name__ == '__main__':
                 exit()
 
             # Shares
-            if command_line.has_param('interactive'):
+            if args.interactive:
                 if SELECTED_SOURCE_MODE in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
                     all_share_name_list = [share for share in next(os.walk(config['source_drive']))[1]]
                     share_name_to_source_map = {share: os.path.join(config['source_drive'], share) for share in all_share_name_list}
@@ -2048,12 +2043,12 @@ if __name__ == '__main__':
                 )]
             else:
                 # TODO: Can has_param and get_param be merged?
-                if not config['sources'] and (not command_line.has_param('share') or not command_line.get_param('share')):
+                if not config['sources'] and not args.share:
                     print('Please specify at least one share to back up')
                     exit()
 
                 if not data_loaded_from_config:
-                    share_list = sorted(command_line.get_param('share'))
+                    share_list = sorted(args.share)
                 else:
                     share_list = [share['dest_name'] for share in config['sources']]
 
@@ -2096,7 +2091,7 @@ if __name__ == '__main__':
 
             # ## Confirm ## #
 
-            if not command_line.has_param('unattended') and not command_line.validate_yes_no('Do you want to continue?', True):
+            if not args.unattended and not command_line.validate_yes_no('Do you want to continue?', True):
                 print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 exit()
 
@@ -2109,7 +2104,7 @@ if __name__ == '__main__':
 
             # ## Confirm ## #
 
-            if not command_line.has_param('unattended') and not command_line.validate_yes_no('Do you want to continue?', True):
+            if not args.unattended and not command_line.validate_yes_no('Do you want to continue?', True):
                 print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
                 exit()
 
