@@ -16,10 +16,7 @@ class UpdateHandler:
         self.current_version = current_version
         self.allow_prereleases = bool(allow_prereleases)
 
-        if status_change_fn is not None:
-            self.status_change_fn = status_change_fn
-        else:
-            self.status_change_fn = None
+        self.status_change_fn = status_change_fn
 
         self.update_callback = update_callback
 
@@ -165,7 +162,8 @@ class UpdateHandler:
             dict.download (String[]): A list of downloads for each latest asset.
         """
 
-        self.status_change_fn(Status.UPDATE_CHECKING)
+        if self.status_change_fn is not None:
+            self.status_change_fn(Status.UPDATE_CHECKING)
 
         try:
             latest_version = self.__get_latest_version()
@@ -176,10 +174,12 @@ class UpdateHandler:
                 'download': latest_version['download']
             }
 
-            self.status_change_fn(Status.UPDATE_AVAILABLE if update_info['updateAvailable'] else Status.UPDATE_UP_TO_DATE)
+            if self.status_change_fn is not None:
+                self.status_change_fn(Status.UPDATE_AVAILABLE if update_info['updateAvailable'] else Status.UPDATE_UP_TO_DATE)
             self.update_callback(update_info)
         except Exception:
             update_info = {}
-            self.status_change_fn(Status.UPDATE_FAILED)
+            if self.status_change_fn is not None:
+                self.status_change_fn(Status.UPDATE_FAILED)
 
         return update_info
