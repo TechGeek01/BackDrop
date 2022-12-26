@@ -1,8 +1,6 @@
 <p align="center">
   <img alt="Logo" src="https://github.com/TechGeek01/BackDrop/raw/master/media/logo.png">
   <br />
-  <a href="https://lgtm.com/projects/g/TechGeek01/BackDrop/context:python"><img alt="Language grade: Python" src="https://img.shields.io/lgtm/grade/python/g/TechGeek01/BackDrop.svg?logo=lgtm&logoWidth=18"/></a>
-  <br />
   <a href="https://github.com/TechGeek01/BackDrop/releases/latest"><img alt="undefined" src="https://img.shields.io/github/v/release/TechGeek01/BackDrop"></a>
   <img alt="undefined" src="https://img.shields.io/github/downloads/TechGeek01/BackDrop/total" />
   <a href="https://github.com/TechGeek01/BackDrop/blob/master/LICENSE"><img alt="undefined" src="https://img.shields.io/github/license/TechGeek01/BackDrop"></a>
