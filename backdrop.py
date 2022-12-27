@@ -15,12 +15,10 @@ from signal import signal, SIGINT
 from datetime import datetime
 import re
 import pickle
-import argparse
 
 import clipboard
 import keyboard
 from PIL import Image, ImageTk
-import urllib.request
 if platform.system() == 'Windows':
     import win32api
     import win32file
@@ -31,7 +29,6 @@ from bin.color import bcolor
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.progress import Progress
-from bin.commandline import CommandLine
 from bin.backup import Backup
 from bin.update import UpdateHandler
 from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame
@@ -44,9 +41,6 @@ def update_file_detail_lists(list_name, filename):
         list_name (String): The list name to update.
         filename (String): The file path to add to the list.
     """
-
-    if CLI_MODE:
-        return
 
     file_detail_list[list_name].append({
         'displayName': filename.split(os.path.sep)[-1],
@@ -147,11 +141,8 @@ def start_delete(filename, size: int, display_index=None):
 def copy_file_pre(di, dest_filename):
     """Stub function for the pre_callback in copy_file()"""
 
-    if not CLI_MODE:
-        cmd_info_blocks = backup.cmd_info_blocks
-        cmd_info_blocks[di].configure('current_file', text=dest_filename, fg=root_window.uicolor.NORMAL)
-    else:
-        print(f"Copying {dest_filename}")
+    cmd_info_blocks = backup.cmd_info_blocks
+    cmd_info_blocks[di].configure('current_file', text=dest_filename, fg=root_window.uicolor.NORMAL)
 
 def update_file_details_on_copy(list_name, filename, error=None, s_hex='', d_hex=''):
     """Update file detail lists in a copy operation.
@@ -164,19 +155,6 @@ def update_file_details_on_copy(list_name, filename, error=None, s_hex='', d_hex
         d_hex (String): The destination file hex digest (optional).
     """
     update_file_detail_lists(list_name, filename)
-
-    if not CLI_MODE:
-        return
-
-    if list_name == FileUtils.LIST_SUCCESS:
-        print(f"{bcolor.OKGREEN}Files are identical{bcolor.ENDC}")
-    elif list_name == FileUtils.LIST_FAIL:
-        print(f"{bcolor.FAIL}File mismatch{bcolor.ENDC}")
-        print(f"    Source: {s_hex}")
-        print(F"    Dest:   {d_hex}")
-
-    if error is not None:
-        backup_error_log.append(error)
 
 def display_backup_progress(copied, total, display_filename=None, display_mode=None, display_index: int = None):
     """Display the copy progress of a transfer
@@ -207,23 +185,14 @@ def display_backup_progress(copied, total, display_filename=None, display_mode=N
         backup_totals['progressBar'] = backup_totals['running'] + copied
 
         if display_mode == 'delete':
-            if not CLI_MODE:
-                progress.set(backup_totals['progressBar'])
-                cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=root_window.uicolor.NORMAL)
-            else:
-                print(f"Deleted {display_filename}")
+            progress.set(backup_totals['progressBar'])
+            cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=root_window.uicolor.NORMAL)
         elif display_mode == 'copy':
-            if not CLI_MODE:
-                progress.set(backup_totals['progressBar'])
-                cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.NORMAL)
-            else:
-                print(f"{percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}", end='\r', flush=True)
+            progress.set(backup_totals['progressBar'])
+            cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.NORMAL)
         elif display_mode == 'verify':
-            if not CLI_MODE:
-                progress.set(backup_totals['progressBar'])
-                cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.BLUE)
-            else:
-                print(f"{bcolor.OKCYAN}Verifying => {percent_copied:.2f}% => {human_filesize(copied)} of {human_filesize(total)}{bcolor.ENDC}", end='\r', flush=True)
+            progress.set(backup_totals['progressBar'])
+            cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.BLUE)
 
     # FIXME: Make all failed file copies add the relevant progress chunk to the progress bar
     if copied >= total:
@@ -273,43 +242,33 @@ def display_backup_summary_chunk(title, payload: tuple, reset: bool = False):
         reset (bool): Whether to clear the summary frame first (default: False).
     """
 
-    if not CLI_MODE:
-        if reset:
-            content_tab_frame.tab['summary']['content'].empty()
+    if reset:
+        content_tab_frame.tab['summary']['content'].empty()
 
-        tk.Label(content_tab_frame.tab['summary']['content'].frame, text=title, font=(None, 14),
-                 wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
-        summary_frame = tk.Frame(content_tab_frame.tab['summary']['content'].frame)
-        summary_frame.pack(fill='x', expand=True)
-        summary_frame.columnconfigure(2, weight=1)
+    tk.Label(content_tab_frame.tab['summary']['content'].frame, text=title, font=(None, 14),
+             wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
+    summary_frame = tk.Frame(content_tab_frame.tab['summary']['content'].frame)
+    summary_frame.pack(fill='x', expand=True)
+    summary_frame.columnconfigure(2, weight=1)
 
-        for i, item in enumerate(payload):
-            if len(item) > 2:
-                text_color = root_window.uicolor.NORMAL if item[2] else root_window.uicolor.FADED
-            else:
-                text_color = root_window.uicolor.NORMAL
+    for i, item in enumerate(payload):
+        if len(item) > 2:
+            text_color = root_window.uicolor.NORMAL if item[2] else root_window.uicolor.FADED
+        else:
+            text_color = root_window.uicolor.NORMAL
 
-            tk.Label(summary_frame, text=item[0], fg=text_color, justify='left').grid(row=i, column=0, sticky='w')
-            tk.Label(summary_frame, text='\u27f6', fg=text_color, justify='left').grid(row=i, column=1, sticky='w')
-            wrap_frame = tk.Frame(summary_frame)
-            wrap_frame.grid(row=i, column=2, sticky='ew')
-            tk.Label(summary_frame, text=item[1], fg=text_color, justify='left').grid(row=i, column=2, sticky='w')
-    else:
-        print(f"\n{title}")
-
-        for i, item in enumerate(payload):
-            if len(item) > 2 and not item[2]:
-                print(f"{bcolor.WARNING}{item[0]} => {item[1]}{bcolor.ENDC}")
-            else:
-                print(f"{item[0]} => {item[1]}")
+        tk.Label(summary_frame, text=item[0], fg=text_color, justify='left').grid(row=i, column=0, sticky='w')
+        tk.Label(summary_frame, text='\u27f6', fg=text_color, justify='left').grid(row=i, column=1, sticky='w')
+        wrap_frame = tk.Frame(summary_frame)
+        wrap_frame.grid(row=i, column=2, sticky='ew')
+        tk.Label(summary_frame, text=item[1], fg=text_color, justify='left').grid(row=i, column=2, sticky='w')
 
 # FIXME: Can progress bar and status updating be rolled into the same function?
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
 def update_backup_eta_timer():
     """Update the backup timer to show ETA."""
 
-    if not CLI_MODE:
-        backup_eta_label.configure(fg=root_window.uicolor.NORMAL)
+    backup_eta_label.configure(fg=root_window.uicolor.NORMAL)
 
     # Total is copy source, verify dest, so total data is 2 * copy
     total_to_copy = backup.totals['master'] - backup.totals['delete']
@@ -328,26 +287,17 @@ def update_backup_eta_timer():
             remaining_time = running_time / percent_copied - running_time
         else:
             # Show infinity symbol if no calculated ETA
-            remaining_time = '\u221e' if not CLI_MODE else 'infinite'
+            remaining_time = '\u221e'
 
-        if not CLI_MODE:
-            backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
-        else:
-            print(f"{str(running_time).split('.')[0]} elapsed => {str(remaining_time).split('.')[0]} remaining")
+        backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
         time.sleep(0.25)
 
     if thread_manager.threadlist['Backup']['killFlag'] and backup.totals['running'] < backup.totals['master']:
         # Backup aborted
-        if not CLI_MODE:
-            backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
-        else:
-            print(f"{bcolor.FAIL}Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
+        backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
     else:
         # Backup not killed, so completed successfully
-        if not CLI_MODE:
-            backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.FINISHED)
-        else:
-            print(f"{bcolor.OKGREEN}Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}{bcolor.ENDC}")
+        backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.FINISHED)
 
 def display_backup_command_info(display_command_list: list):
     """Enumerate the display widget with command info after a backup analysis.
@@ -356,10 +306,7 @@ def display_backup_command_info(display_command_list: list):
         display_command_list (list): The command list to pull data from.
     """
 
-    if not CLI_MODE:
-        content_tab_frame.tab['details']['content'].empty()
-    else:
-        print('')
+    content_tab_frame.tab['details']['content'].empty()
 
     backup.cmd_info_blocks = []
     for i, item in enumerate(display_command_list):
@@ -373,45 +320,36 @@ def display_backup_command_info(display_command_list: list):
             else:
                 cmd_header_text = f"Work with {len(item['list'])} files on {item['drive']}"
 
-        if not CLI_MODE:
-            backup_summary_block = BackupDetailBlock(
-                parent=content_tab_frame.tab['details']['content'].frame,
-                title=cmd_header_text,
-                backup=backup,
-                uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
-            )
-            backup_summary_block.pack(anchor='w', expand=1)
+        backup_summary_block = BackupDetailBlock(
+            parent=content_tab_frame.tab['details']['content'].frame,
+            title=cmd_header_text,
+            backup=backup,
+            uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
+        )
+        backup_summary_block.pack(anchor='w', expand=1)
 
-            if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
-                # Handle list trimming
-                list_font = tkfont.Font(family=None, size=10, weight='normal')
-                trimmed_file_list = ', '.join(item['list'])[:250]
-                MAX_WIDTH = content_tab_frame.tab['details']['width'] * 0.8
-                actual_file_width = list_font.measure(trimmed_file_list)
+        if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
+            # Handle list trimming
+            list_font = tkfont.Font(family=None, size=10, weight='normal')
+            trimmed_file_list = ', '.join(item['list'])[:250]
+            MAX_WIDTH = content_tab_frame.tab['details']['width'] * 0.8
+            actual_file_width = list_font.measure(trimmed_file_list)
 
-                if actual_file_width > MAX_WIDTH:
-                    while actual_file_width > MAX_WIDTH and len(trimmed_file_list) > 1:
-                        trimmed_file_list = trimmed_file_list[:-1]
-                        actual_file_width = list_font.measure(trimmed_file_list + '...')
-                    trimmed_file_list = trimmed_file_list + '...'
+            if actual_file_width > MAX_WIDTH:
+                while actual_file_width > MAX_WIDTH and len(trimmed_file_list) > 1:
+                    trimmed_file_list = trimmed_file_list[:-1]
+                    actual_file_width = list_font.measure(trimmed_file_list + '...')
+                trimmed_file_list = trimmed_file_list + '...'
 
-                backup_summary_block.add_line('file_size', 'Total size', human_filesize(item['size']))
-                backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['list']))
-                backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
-                backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
+            backup_summary_block.add_line('file_size', 'Total size', human_filesize(item['size']))
+            backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['list']))
+            backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
+            backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
 
-            backup.cmd_info_blocks.append(backup_summary_block)
-        else:
-            print(cmd_header_text)
-
-    if CLI_MODE:
-        print('')
+        backup.cmd_info_blocks.append(backup_summary_block)
 
 def backup_reset_ui():
     """Reset the UI when we run a backup analysis."""
-
-    if CLI_MODE:
-        return
 
     # Empty backup error log
     backup_error_log.clear()
@@ -453,42 +391,29 @@ def start_backup_analysis():
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    if (backup and backup.is_running()) or verification_running or (not CLI_MODE and not source_avail_drive_list):
+    if (backup and backup.is_running()) or verification_running or not source_avail_drive_list:
         return
 
-    if not CLI_MODE:
-        backup_reset_ui()
-        statusbar_counter_btn.configure(text='0 failed', state='disabled')
-        statusbar_details.configure(text='')
+    backup_reset_ui()
+    statusbar_counter_btn.configure(text='0 failed', state='disabled')
+    statusbar_details.configure(text='')
 
-        backup = Backup(
-            config=config,
-            backup_config_dir=BACKUP_CONFIG_DIR,
-            backup_config_file=BACKUP_CONFIG_FILE,
-            uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
-            do_copy_fn=start_copy,
-            do_del_fn=start_delete,
-            start_backup_timer_fn=update_backup_eta_timer,
-            update_ui_component_fn=update_ui_component,
-            update_file_detail_list_fn=update_file_detail_lists,
-            analysis_summary_display_fn=display_backup_summary_chunk,
-            display_backup_command_info_fn=display_backup_command_info,
-            thread_manager=thread_manager,
-            progress=progress
-        )
-    else:
-        backup = Backup(
-            config=config,
-            backup_config_dir=BACKUP_CONFIG_DIR,
-            backup_config_file=BACKUP_CONFIG_FILE,
-            do_copy_fn=start_copy,
-            do_del_fn=start_delete,
-            start_backup_timer_fn=update_backup_eta_timer,
-            update_file_detail_list_fn=update_file_detail_lists,
-            analysis_summary_display_fn=display_backup_summary_chunk,
-            display_backup_command_info_fn=display_backup_command_info,
-            thread_manager=thread_manager
-        )
+    backup = Backup(
+        config=config,
+        backup_config_dir=BACKUP_CONFIG_DIR,
+        backup_config_file=BACKUP_CONFIG_FILE,
+        uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
+        do_copy_fn=start_copy,
+        do_del_fn=start_delete,
+        start_backup_timer_fn=update_backup_eta_timer,
+        update_ui_component_fn=update_ui_component,
+        update_file_detail_list_fn=update_file_detail_lists,
+        analysis_summary_display_fn=display_backup_summary_chunk,
+        display_backup_command_info_fn=display_backup_command_info,
+        thread_manager=thread_manager,
+        progress=progress
+    )
+
     thread_manager.start(thread_manager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
 def get_source_drive_list():
@@ -544,93 +469,85 @@ def load_source():
     global PREV_SOURCE_DRIVE
     global source_avail_drive_list
 
-    if not CLI_MODE:
-        progress.start_indeterminate()
+    progress.start_indeterminate()
 
-        # Empty tree in case this is being refreshed
-        tree_source.delete(*tree_source.get_children())
+    # Empty tree in case this is being refreshed
+    tree_source.delete(*tree_source.get_children())
 
-        if not source_warning.grid_info() and not tree_source_frame.grid_info():
-            tree_source_frame.grid(row=1, column=1, sticky='ns')
-            source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+    if not source_warning.grid_info() and not tree_source_frame.grid_info():
+        tree_source_frame.grid(row=1, column=1, sticky='ns')
+        source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
     source_avail_drive_list = get_source_drive_list()
 
     if source_avail_drive_list or settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH]:
-        if not CLI_MODE:
-            # Display empty selection sizes
-            share_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
-            share_total_space.configure(text='~None', fg=root_window.uicolor.FADED)
+        # Display empty selection sizes
+        share_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
+        share_total_space.configure(text='~None', fg=root_window.uicolor.FADED)
 
-            source_warning.grid_forget()
-            tree_source_frame.grid(row=1, column=1, sticky='ns')
-            source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+        source_warning.grid_forget()
+        tree_source_frame.grid(row=1, column=1, sticky='ns')
+        source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
         selected_source_mode = prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS)
 
         if selected_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE:
             config['source_drive'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
 
-            if not CLI_MODE:
-                source_select_custom_single_frame.pack_forget()
-                source_select_custom_multi_frame.pack_forget()
-                source_select_multi_frame.pack_forget()
-                source_select_single_frame.pack()
+            source_select_custom_single_frame.pack_forget()
+            source_select_custom_multi_frame.pack_forget()
+            source_select_multi_frame.pack_forget()
+            source_select_single_frame.pack()
 
-                source_drive_default.set(config['source_drive'])
-                PREV_SOURCE_DRIVE = config['source_drive']
-                source_select_menu.config(state='normal')
-                source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
+            source_drive_default.set(config['source_drive'])
+            PREV_SOURCE_DRIVE = config['source_drive']
+            source_select_menu.config(state='normal')
+            source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
 
-                # Enumerate list of shares in source
-                for directory in next(os.walk(config['source_drive']))[1]:
-                    tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
+            # Enumerate list of shares in source
+            for directory in next(os.walk(config['source_drive']))[1]:
+                tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
         elif selected_source_mode == Config.SOURCE_MODE_MULTI_DRIVE:
-            if not CLI_MODE:
-                source_select_single_frame.pack_forget()
-                source_select_custom_single_frame.pack_forget()
-                source_select_custom_multi_frame.pack_forget()
-                source_select_multi_frame.pack()
+            source_select_single_frame.pack_forget()
+            source_select_custom_single_frame.pack_forget()
+            source_select_custom_multi_frame.pack_forget()
+            source_select_multi_frame.pack()
 
-                # Enumerate list of shares in source
-                for drive in source_avail_drive_list:
-                    drive_name = prefs.get('source_names', drive, default='')
-                    tree_source.insert(parent='', index='end', text=drive, values=('Unknown', 0, drive_name))
+            # Enumerate list of shares in source
+            for drive in source_avail_drive_list:
+                drive_name = prefs.get('source_names', drive, default='')
+                tree_source.insert(parent='', index='end', text=drive, values=('Unknown', 0, drive_name))
         elif selected_source_mode == Config.SOURCE_MODE_SINGLE_PATH:
-            if not CLI_MODE:
-                source_select_single_frame.pack_forget()
-                source_select_multi_frame.pack_forget()
-                source_select_custom_multi_frame.pack_forget()
-                source_select_custom_single_frame.pack(fill='x', expand=1)
+            source_select_single_frame.pack_forget()
+            source_select_multi_frame.pack_forget()
+            source_select_custom_multi_frame.pack_forget()
+            source_select_custom_single_frame.pack(fill='x', expand=1)
 
-                if not source_select_frame.grid_info():
-                    source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
+            if not source_select_frame.grid_info():
+                source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
-                if config['source_drive'] and os.path.isdir(config['source_drive']):
-                    for directory in next(os.walk(config['source_drive']))[1]:
-                        # QUESTION: Should files be allowed in custom source?
-                        tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
+            if config['source_drive'] and os.path.isdir(config['source_drive']):
+                for directory in next(os.walk(config['source_drive']))[1]:
+                    # QUESTION: Should files be allowed in custom source?
+                    tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
         elif selected_source_mode == Config.SOURCE_MODE_MULTI_PATH:
-            if not CLI_MODE:
-                source_select_single_frame.pack_forget()
-                source_select_multi_frame.pack_forget()
-                source_select_custom_single_frame.pack_forget()
-                source_select_custom_multi_frame.pack(fill='x', expand=1)
+            source_select_single_frame.pack_forget()
+            source_select_multi_frame.pack_forget()
+            source_select_custom_single_frame.pack_forget()
+            source_select_custom_multi_frame.pack(fill='x', expand=1)
 
-                if not source_select_frame.grid_info():
-                    source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
+            if not source_select_frame.grid_info():
+                source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
 
     elif settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_MULTI_DRIVE]:
-        if not CLI_MODE:
-            source_drive_default.set('No drives available')
+        source_drive_default.set('No drives available')
 
-            tree_source_frame.grid_forget()
-            source_meta_frame.grid_forget()
-            source_select_frame.grid_forget()
-            source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
+        tree_source_frame.grid_forget()
+        source_meta_frame.grid_forget()
+        source_select_frame.grid_forget()
+        source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
-    if not CLI_MODE:
-        progress.stop_indeterminate()
+    progress.stop_indeterminate()
 
 def load_source_in_background():
     """Start a source refresh in a new thread."""
@@ -858,16 +775,14 @@ def load_dest():
 
     global dest_drive_master_list
 
-    if not CLI_MODE:
-        progress.start_indeterminate()
+    progress.start_indeterminate()
 
-        # Empty tree in case this is being refreshed
-        tree_dest.delete(*tree_dest.get_children())
+    # Empty tree in case this is being refreshed
+    tree_dest.delete(*tree_dest.get_children())
 
     if prefs.get('selection', 'dest_mode', default=Config.DEST_MODE_DRIVES, verify_data=Config.DEST_MODE_OPTIONS) == Config.DEST_MODE_DRIVES:
-        if not CLI_MODE:
-            dest_select_custom_frame.pack_forget()
-            dest_select_normal_frame.pack()
+        dest_select_custom_frame.pack_forget()
+        dest_select_normal_frame.pack()
 
         if SYS_PLATFORM == 'Windows':
             logical_drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
@@ -875,15 +790,13 @@ def load_dest():
 
             # Associate logical drives with physical drives, and map them to physical serial numbers
             logical_to_physical_map = {}
-            if not CLI_MODE:
-                pythoncom.CoInitialize()
+            pythoncom.CoInitialize()
             try:
                 for physical_disk in wmi.WMI().Win32_DiskDrive():
                     for partition in physical_disk.associators("Win32_DiskDriveToDiskPartition"):
                         logical_to_physical_map.update({logical_disk.DeviceID[0]: physical_disk.SerialNumber.strip() for logical_disk in partition.associators("Win32_LogicalDiskToPartition")})
             finally:
-                if not CLI_MODE:
-                    pythoncom.CoUninitialize()
+                pythoncom.CoUninitialize()
 
             # Enumerate drive list to find info about all non-source drives
             total_drive_space_available = 0
@@ -912,8 +825,7 @@ def load_dest():
                             drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                             total_drive_space_available = total_drive_space_available + drive_size
-                            if not CLI_MODE:
-                                tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+                            tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
 
                             dest_drive_master_list.append({
                                 'name': drive,
@@ -968,8 +880,7 @@ def load_dest():
                     drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                     total_drive_space_available += drive_size
-                    if not CLI_MODE:
-                        tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+                    tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
 
                     dest_drive_master_list.append({
                         'name': drive,
@@ -979,16 +890,14 @@ def load_dest():
                         'hasConfig': drive_has_config_file
                     })
     elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-        if not CLI_MODE:
-            dest_select_normal_frame.pack_forget()
-            dest_select_custom_frame.pack(fill='x', expand=1)
+        dest_select_normal_frame.pack_forget()
+        dest_select_custom_frame.pack(fill='x', expand=1)
 
         total_drive_space_available = 0
 
-    if not CLI_MODE:
-        drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=root_window.uicolor.NORMAL if total_drive_space_available > 0 else root_window.uicolor.FADED)
+    drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=root_window.uicolor.NORMAL if total_drive_space_available > 0 else root_window.uicolor.FADED)
 
-        progress.stop_indeterminate()
+    progress.stop_indeterminate()
 
 def load_dest_in_background():
     """Start the loading of the destination drive info in a new thread."""
@@ -1099,18 +1008,11 @@ def load_config_from_file(filename):
     # Get shares
     shares = config_file.get('selection', 'sources')
     if shares is not None and len(shares) > 0:
-        if not CLI_MODE:
-            new_config['sources'] = [{
-                'path': [tree_source.item(item, 'text') if (len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] == share) else tree_source.item(item, 'text') for item in tree_source.get_children()][0],
-                'size': None,
-                'dest_name': share
-            } for share in shares.split(',')]
-        else:
-            new_config['sources'] = [{
-                'path': get_share_path_from_name(share),
-                'size': None,
-                'dest_name': share
-            } for share in shares.split(',')]
+        new_config['sources'] = [{
+            'path': [tree_source.item(item, 'text') if (len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] == share) else tree_source.item(item, 'text') for item in tree_source.get_children()][0],
+            'size': None,
+            'dest_name': share
+        } for share in shares.split(',')]
 
     if SELECTED_DEST_MODE == Config.DEST_MODE_DRIVES:
         # Get VID list
@@ -1138,9 +1040,8 @@ def load_config_from_file(filename):
 
     config.update(new_config)
 
-    if not CLI_MODE:
-        config_selected_space.configure(text=human_filesize(config_drive_total), fg=root_window.uicolor.NORMAL)
-        gui_select_from_config()
+    config_selected_space.configure(text=human_filesize(config_drive_total), fg=root_window.uicolor.NORMAL)
+    gui_select_from_config()
 
 def select_dest():
     """Parse the current drive selection, read config data, and select other drives and shares if needed.
@@ -1253,27 +1154,26 @@ def start_backup():
         return
 
     # Reset UI
-    if not CLI_MODE:
-        statusbar_counter_btn.configure(text='0 failed', state='disabled')
-        statusbar_details.configure(text='')
+    statusbar_counter_btn.configure(text='0 failed', state='disabled')
+    statusbar_details.configure(text='')
 
-        # Reset file detail success and fail lists
-        for list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
-            file_detail_list[list_name].clear()
+    # Reset file detail success and fail lists
+    for list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
+        file_detail_list[list_name].clear()
 
-        # Reset file details counters
-        FILE_DELETE_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])
-        FILE_COPY_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_COPY])
-        file_details_pending_delete_counter.configure(text=str(FILE_DELETE_COUNT))
-        file_details_pending_delete_counter_total.configure(text=str(FILE_DELETE_COUNT))
-        file_details_pending_copy_counter.configure(text=str(FILE_COPY_COUNT))
-        file_details_pending_copy_counter_total.configure(text=str(FILE_COPY_COUNT))
-        file_details_copied_counter.configure(text='0')
-        file_details_failed_counter.configure(text='0')
+    # Reset file details counters
+    FILE_DELETE_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])
+    FILE_COPY_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_COPY])
+    file_details_pending_delete_counter.configure(text=str(FILE_DELETE_COUNT))
+    file_details_pending_delete_counter_total.configure(text=str(FILE_DELETE_COUNT))
+    file_details_pending_copy_counter.configure(text=str(FILE_COPY_COUNT))
+    file_details_pending_copy_counter_total.configure(text=str(FILE_COPY_COUNT))
+    file_details_copied_counter.configure(text='0')
+    file_details_failed_counter.configure(text='0')
 
-        # Empty file details list panes
-        file_details_copied.empty()
-        file_details_failed.empty()
+    # Empty file details list panes
+    file_details_copied.empty()
+    file_details_failed.empty()
 
     thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
@@ -1366,10 +1266,7 @@ def verify_data_integrity(drive_list):
                 path_stub = entry.path.split(drive)[1].strip(os.path.sep)
                 if entry.is_file():
                     # If entry is a file, hash it, and check for a computed hash
-                    if not CLI_MODE:
-                        statusbar_details.configure(text=entry.path)
-                    else:
-                        print(entry.path)
+                    statusbar_details.configure(text=entry.path)
 
                     file_hash = get_file_hash(entry.path)
 
@@ -1390,10 +1287,7 @@ def verify_data_integrity(drive_list):
 
                             # Update UI counter
                             verification_failed_list.append(entry.path)
-                            if not CLI_MODE:
-                                statusbar_counter_btn.configure(text=f"{len(verification_failed_list)} failed", state='normal')
-                            else:
-                                print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
+                            statusbar_counter_btn.configure(text=f"{len(verification_failed_list)} failed", state='normal')
 
                             # Also delete the saved hash
                             if path_stub in hash_list[drive].keys():
@@ -1402,12 +1296,11 @@ def verify_data_integrity(drive_list):
                                 pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
 
                         # Update file detail lists
-                        if not CLI_MODE:
-                            if file_hash == saved_hash:
-                                update_file_detail_lists(FileUtils.LIST_SUCCESS, entry.path)
-                            else:
-                                update_file_detail_lists(FileUtils.LIST_FAIL, entry.path)
-                                backup_error_log.append({'file': entry.path, 'mode': 'copy', 'error': 'File hash mismatch'})
+                        if file_hash == saved_hash:
+                            update_file_detail_lists(FileUtils.LIST_SUCCESS, entry.path)
+                        else:
+                            update_file_detail_lists(FileUtils.LIST_FAIL, entry.path)
+                            backup_error_log.append({'file': entry.path, 'mode': 'copy', 'error': 'File hash mismatch'})
                     else:
                         # Hash not saved, so store it
                         hash_list[drive][path_stub] = file_hash
@@ -1423,31 +1316,29 @@ def verify_data_integrity(drive_list):
             pass
 
     if not backup or not backup.is_running():
-        if not CLI_MODE:
-            update_status_bar_action(Status.VERIFICATION_RUNNING)
-            progress.start_indeterminate()
-            statusbar_counter_btn.configure(text='0 failed', state='disabled')
-            statusbar_details.configure(text='')
+        update_status_bar_action(Status.VERIFICATION_RUNNING)
+        progress.start_indeterminate()
+        statusbar_counter_btn.configure(text='0 failed', state='disabled')
+        statusbar_details.configure(text='')
 
-            halt_verification_btn.pack(side='left', padx=4)
+        halt_verification_btn.pack(side='left', padx=4)
 
-            # Empty file detail lists
-            for list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
-                file_detail_list[list_name].clear()
+        # Empty file detail lists
+        for list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
+            file_detail_list[list_name].clear()
 
-            # Reset file details counters
-            file_details_pending_delete_counter.configure(text='0')
-            file_details_pending_delete_counter_total.configure(text='0')
-            file_details_pending_copy_counter.configure(text='0')
-            file_details_pending_copy_counter_total.configure(text='0')
-            file_details_copied_counter.configure(text='0')
-            file_details_failed_counter.configure(text='0')
+        # Reset file details counters
+        file_details_pending_delete_counter.configure(text='0')
+        file_details_pending_delete_counter_total.configure(text='0')
+        file_details_pending_copy_counter.configure(text='0')
+        file_details_pending_copy_counter_total.configure(text='0')
+        file_details_copied_counter.configure(text='0')
+        file_details_failed_counter.configure(text='0')
 
-            # Empty file details list panes
-            file_details_copied.empty()
-            file_details_failed.empty()
-        else:
-            print('==== DATA VERIFICATION STARTED ====')
+        # Empty file details list panes
+        file_details_copied.empty()
+        file_details_failed.empty()
+
         verification_running = True
         verification_failed_list = []
 
@@ -1498,10 +1389,7 @@ def verify_data_integrity(drive_list):
                 drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
                 for file, saved_hash in hash_list[drive].items():
                     filename = os.path.join(drive, file)
-                    if not CLI_MODE:
-                        statusbar_details.configure(text=filename)
-                    else:
-                        print(filename)
+                    statusbar_details.configure(text=filename)
                     computed_hash = get_file_hash(filename)
 
                     if thread_manager.threadlist['Data Verification']['killFlag']:
@@ -1513,10 +1401,7 @@ def verify_data_integrity(drive_list):
 
                         # Update UI counter
                         verification_failed_list.append(filename)
-                        if not CLI_MODE:
-                            statusbar_counter_btn.configure(text=f"{len(verification_failed_list)} failed", state='normal')
-                        else:
-                            print(f"{bcolor.FAIL}File data mismatch{bcolor.ENDC}")
+                        statusbar_counter_btn.configure(text=f"{len(verification_failed_list)} failed", state='normal')
 
                         # Delete the saved hash, and write changes to the hash file
                         if file in hash_list[drive].keys():
@@ -1525,12 +1410,11 @@ def verify_data_integrity(drive_list):
                             pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
 
                     # Update file detail lists
-                    if not CLI_MODE:
-                        if saved_hash == computed_hash:
-                            update_file_detail_lists(FileUtils.LIST_SUCCESS, filename)
-                        else:
-                            update_file_detail_lists(FileUtils.LIST_FAIL, filename)
-                            backup_error_log.append({'file': filename, 'mode': 'copy', 'error': 'File hash mismatch'})
+                    if saved_hash == computed_hash:
+                        update_file_detail_lists(FileUtils.LIST_SUCCESS, filename)
+                    else:
+                        update_file_detail_lists(FileUtils.LIST_FAIL, filename)
+                        backup_error_log.append({'file': filename, 'mode': 'copy', 'error': 'File hash mismatch'})
 
                     if thread_manager.threadlist['Data Verification']['killFlag']:
                         break
@@ -1539,14 +1423,11 @@ def verify_data_integrity(drive_list):
                     break
 
         verification_running = False
-        if not CLI_MODE:
-            halt_verification_btn.pack_forget()
+        halt_verification_btn.pack_forget()
 
-            progress.stop_indeterminate()
-            statusbar_details.configure(text='')
-            update_status_bar_action(Status.IDLE)
-        else:
-            print('==== DATA VERIFICATION COMPLETE ====')
+        progress.stop_indeterminate()
+        statusbar_details.configure(text='')
+        update_status_bar_action(Status.IDLE)
 
 def display_update_screen(update_info: dict):
     """Display information about updates.
@@ -1654,31 +1535,7 @@ def check_for_updates(info: dict):
     update_info = info
 
     if info['updateAvailable']:
-        if not CLI_MODE:
-            display_update_screen(info)
-        else:
-            download_url = None
-
-            UPDATE_OS_FILENAME_MAP = {
-                'Windows': 'backdrop.exe',
-                'Linux': 'backdrop-debian'
-            }
-
-            for item in info['download']:
-                # TODO: Make download selection filename-independent
-                if SYS_PLATFORM in UPDATE_OS_FILENAME_MAP.keys() and item.split('/')[-1] == UPDATE_OS_FILENAME_MAP[SYS_PLATFORM]:
-                    download_url = item
-                    break
-
-            if download_url is not None:
-                print('Downloading update. Please wait...')
-
-                download_filename = f"{os.getcwd()}/{download_url.split('/')[-1]}"
-                urllib.request.urlretrieve(download_url, download_filename)
-
-                print('Update downloaded successfully')
-            else:
-                print('Unable to find suitable download. Please try again, or update manually.')
+        display_update_screen(info)
 
 if __name__ == '__main__':
     # Platform sanity check
@@ -1694,7 +1551,7 @@ if __name__ == '__main__':
     if SYS_PLATFORM == 'Windows':
         DRIVE_TYPE_REMOVABLE = win32file.DRIVE_REMOVABLE
         DRIVE_TYPE_FIXED = win32file.DRIVE_FIXED
-        DRIVE_TYPE_LOCAL = DRIVE_TYPE_FIXED # TODO: Make this a proper thing instead of reusing one local value
+        DRIVE_TYPE_LOCAL = DRIVE_TYPE_FIXED  # TODO: Make this a proper thing instead of reusing one local value
         DRIVE_TYPE_REMOTE = win32file.DRIVE_REMOTE
         DRIVE_TYPE_RAMDISK = win32file.DRIVE_RAMDISK
     else:
@@ -1740,7 +1597,6 @@ if __name__ == '__main__':
     PORTABLE_CONFIG_FILE_PATH = os.path.join(os.getcwd(), PORTABLE_PREFERENCES_CONFIG_FILE)
 
     PORTABLE_MODE = os.path.isfile(PORTABLE_CONFIG_FILE_PATH)
-    CLI_MODE = len(sys.argv) > 1  # TODO: Find a way to define CLI mode besides just having args passed in
 
     if not PORTABLE_MODE:
         CONFIG_FILE_PATH = os.path.join(APPDATA_FOLDER, PREFERENCES_CONFIG_FILE)
@@ -1758,7 +1614,6 @@ if __name__ == '__main__':
         'sources': [],
         'destinations': [],
         'missing_drives': {},
-        'cli_mode': CLI_MODE,
         'allow_prereleases': prefs.get('ui', 'allow_prereleases', default=False, data_type=Config.BOOLEAN)
     }
     dest_drive_master_list = []
@@ -1774,370 +1629,6 @@ if __name__ == '__main__':
     if os.name == 'nt':
         k = ctypes.windll.kernel32
         k.SetConsoleMode(k.GetStdHandle(-11), 7)
-
-    ############
-    # CLI Mode #
-    ############
-
-    if CLI_MODE:
-        # URGENT: Rewrite CLI mode to work without depending on source and share names
-        parser = argparse.ArgumentParser()
-
-        parser.add_argument('-S', '--source', dest='source', help='The source drive to back up')
-        parser.add_argument('-s', '--share', dest='share', nargs='+', help='The shares to back up from the source')
-        parser.add_argument('-d', '--destination', dest='destination', nargs='+', help='The destination drive to back up to')
-        parser.add_argument('-i', '--interactive', dest='interactive', action='store_true', help='Run in interactive mode instead of specifying backup configuration')
-        parser.add_argument('-c', '--config', dest='config', help='Load config file from a drive instead of specifying backup configuration')
-        parser.add_argument('-m', '--split-mode', dest='split_mode', action='store_true', help='Run in split mode if not all destination drives are connected')
-        parser.add_argument('-a', '--automatic', dest='automatic', action='store_true', help='Do not prompt for confirmation, and only exit on error')
-        parser.add_argument('-V', '--verify', dest='verify', nargs='+', help='Verify data integrity on selected destination drives')
-        parser.add_argument('-v', '--version', dest='version', action='store_true', help='Display the program version')
-        parser.add_argument('-u', '--update', dest='update', action='store_true', help='Check for and download updates')
-
-        args = parser.parse_args()
-
-        if args.version:
-            print(f'BackDrop v{APP_VERSION}')
-        elif args.update:
-            update_handler = UpdateHandler(
-                current_version=APP_VERSION,
-                allow_prereleases=config['allow_prereleases'],
-                update_callback=check_for_updates
-            )
-            update_handler.check()
-        elif args.verify:
-            drive_list = args.verify
-
-            if not drive_list:
-                print('Please specify one or more drives to verify')
-                exit()
-
-            load_dest()
-            if len(dest_drive_master_list) <= 0:
-                print(f"{bcolor.FAIL}No destination drives are available{bcolor.ENDC}")
-                exit()
-            dest_drive_name_list = [drive['name'] for drive in dest_drive_master_list]
-
-            # If we're on Windows, normalize drive letter inputs
-            if SYS_PLATFORM == 'Windows':
-                drive_list = [f"{drive[0].upper()}:" for drive in drive_list]
-
-            if [drive for drive in drive_list if drive not in dest_drive_name_list]:
-                print('Please specify a valid drive mount point')
-                exit()
-
-            verify_data_integrity(drive_list)
-        else:
-            # Backup config mode
-            # TODO: Remove CLI mode stability warning
-            print(f"\n{bcolor.WARNING}{'CLI mode is a work in progress, and may not be stable or complete': ^{os.get_terminal_size().columns}}{bcolor.ENDC}\n")
-
-            # ## Input validation ## #
-
-            # Validate drive selection
-            load_source()
-            if len(source_avail_drive_list) <= 0:
-                print(f"{bcolor.FAIL}No network drives are available{bcolor.ENDC}")
-                exit()
-
-            load_dest()
-            if len(dest_drive_master_list) <= 0:
-                print(f"{bcolor.FAIL}No destination drives are available{bcolor.ENDC}")
-                exit()
-            dest_drive_name_list = [drive['name'] for drive in dest_drive_master_list]
-
-            SELECTED_SOURCE_MODE = prefs.get('selection', 'source_mode', default=Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS)
-            SELECTED_DEST_MODE = prefs.get('selection', 'dest_mode', default=Config.DEST_MODE_DRIVES, verify_data=Config.DEST_MODE_OPTIONS)
-
-            # Warn and exit with unsupported source and destination modes
-            if SELECTED_SOURCE_MODE in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-                # TODO: Get multi source modes working in CLI mode
-                print('CLI mode does not currently work in multi-source mode')
-                exit()
-            elif SELECTED_DEST_MODE == Config.DEST_MODE_PATHS:
-                # TODO: Get cutom destination mode working in CLI mode
-                print('CLI mode currently only works with normal destination mode')
-
-            # Load config from destination if specified
-            if args.config:
-                if SYS_PLATFORM == 'Windows' and SELECTED_DEST_MODE == Config.DEST_MODE_DRIVES:
-                    args.config = args.config.upper() + ':'
-
-                if not os.path.isdir(args.config):
-                    print('Please specify a valid destination to load a config from')
-                    exit()
-
-                # Config location valid, so load it
-                load_config_from_file(os.path.join(args.config, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
-                data_loaded_from_config = True
-            else:  # Config not loaded from destination, so gather data
-                # Source drive
-                if SELECTED_SOURCE_MODE in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-                    # Load source from preferences, or user input
-                    if args.interactive:
-                        if SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_DRIVE:
-                            # Single source is loaded from preferences, or defaulted to first drive in source list
-                            source_drive = prefs.get('selection', 'source_drive', default=source_avail_drive_list[0], verify_data=source_avail_drive_list)
-                        elif SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_PATH:
-                            # Custom single source is loaded from preferences if it's a valid path
-                            source_drive = prefs.get('selection', 'last_selected_custom_source', default='')
-
-                        if source_drive and not os.path.isdir(source_drive):
-                            source_drive = ''
-
-                        # Validate source
-                        if not source_drive or not CommandLine.validate_yes_no('', f"Source drive {source_drive} loaded from preferences. Is this ok?", True):
-                            if SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_DRIVE:
-                                print(f"Available drives: {', '.join(source_avail_drive_list)}\n")
-                                config['source_drive'] = CommandLine.validate_choice(
-                                    '', 
-                                    message='Which source drive would you like to use?',
-                                    choices=source_avail_drive_list,
-                                    default=source_drive,
-                                    chars_required=1
-                                )
-                            elif SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_PATH:
-                                source_drive = ''
-
-                                while not os.path.isdir(source_drive):
-                                    source_drive = input(f"{bcolor.OKCYAN}Which source path would you like to use?{bcolor.ENDC} ")
-                    else:
-                        if SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_DRIVE:
-                            if SYS_PLATFORM == 'Windows':
-                                source_drive = args.source[0].upper() + ':' if args.source and args.source[0].upper() + ':' in source_avail_drive_list else ''
-                            elif SYS_PLATFORM == 'Linux':
-                                source_drive = args.source if args.source and args.source in source_avail_drive_list else ''
-                        elif SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_PATH:
-                            source_drive = args.source
-
-                        if not source_drive or not os.path.isdir(source_drive):
-                            print('Please specify a valid source')
-                            exit()
-
-                    config['source_drive'] = source_drive
-                    data_loaded_from_config = False
-
-            # Destination drives
-            if SELECTED_DEST_MODE == Config.DEST_MODE_DRIVES:
-                split_mode = False
-                if args.interactive:
-                    print('\nAvailable destination drives are as follows:\n')
-
-                    # TODO: Generalize this into function for table-izing data?
-                    drive_name_list = ['Drive']
-                    drive_size_list = ['Size']
-                    drive_config_list = ['Config file']
-                    drive_vid_list = ['Volume ID']
-                    drive_serial_list = ['Serial']
-                    drive_name_list.extend([drive['name'] for drive in dest_drive_master_list])
-                    drive_size_list.extend([human_filesize(drive['capacity']) for drive in dest_drive_master_list])
-                    drive_config_list.extend(['Yes' if drive['hasConfig'] else '' for drive in dest_drive_master_list])
-                    drive_vid_list.extend([drive['vid'] for drive in dest_drive_master_list])
-                    drive_serial_list.extend([drive['serial'] for drive in dest_drive_master_list])
-
-                    drive_display_length = {
-                        'name': len(max(drive_name_list, key=len)),
-                        'size': len(max(drive_size_list, key=len)),
-                        'config': len(max(drive_config_list, key=len)),
-                        'vid': len(max(drive_vid_list, key=len))
-                    }
-
-                    for i, cur_drive in enumerate(drive_name_list):
-                        print(f"{cur_drive: <{drive_display_length['name']}}  {drive_size_list[i]: <{drive_display_length['size']}}  {drive_config_list[i]: <{drive_display_length['config']}}  {drive_vid_list[i]: <{drive_display_length['vid']}}  {drive_serial_list[i]}")
-                    print('')
-
-                    drive_list = CommandLine.validate_choice_list(
-                        '',
-                        message='Which destination drives (space separated) would you like to use?',
-                        choices=[drive['name'] for drive in dest_drive_master_list],
-                        default=None,
-                        chars_required=1
-                    )
-
-                    config['destinations'] = [drive for drive in dest_drive_master_list if drive['name'] in drive_list]
-                else:
-                    # Load from config
-                    if data_loaded_from_config:
-                        dest_list = [drive['name'] for drive in config['destinations']]
-
-                        # If drives aren't mounted that should be, display the warning
-                        missing_drive_count = len(config['missing_drives'])
-                        if missing_drive_count > 0 and not args.split_mode:
-                            config_missing_vids = [vid for vid in config['missing_drives'].keys()]
-
-                            missing_vid_string = ', '.join(config_missing_vids[:-2] + [' and '.join(config_missing_vids[-2:])])
-                            warning_message = f"The drive{'s' if len(config_missing_vids) > 1 else ''} with volume ID{'s' if len(config_missing_vids) > 1 else ''} {missing_vid_string} {'are' if len(config_missing_vids) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
-                            warning_title = f"Drive{'s' if len(config_missing_vids) > 1 else ''} missing"
-
-                            drive_parts = [
-                                'is' if missing_drive_count == 1 else 'are',
-                                'drive' if missing_drive_count == 1 else 'destinations',
-                                'isn\'t' if missing_drive_count == 1 else 'aren\'t',
-                                'it' if missing_drive_count == 1 else 'them'
-                            ]
-                            print(f"{bcolor.WARNING}There {drive_parts[0]} {missing_drive_count} {drive_parts[1]} in the config that {drive_parts[2]} connected. Please connect {drive_parts[3]}, or enable split mode.{bcolor.ENDC}\n")
-                    else:
-                        if not config['destinations'] and not args.destination:
-                            print('Please specify at least one destination drive')
-                            exit()
-
-                        # FIXME: destinations doesn't check for OS, and assumes Windows. This will break on Linux.
-                        dest_list = [drive[0].upper() + ':' for drive in args.destination]
-
-                        for drive in dest_list:
-                            if drive not in dest_drive_name_list:
-                                print(f"{bcolor.FAIL}One or more destinations are not valid for selection.\nAvailable drives are as follows:{bcolor.ENDC}")
-
-                                drive_name_list = ['Drive']
-                                drive_size_list = ['Size']
-                                drive_config_list = ['Config file']
-                                drive_vid_list = ['Volume ID']
-                                drive_serial_list = ['Serial']
-                                drive_name_list.extend([drive['name'] for drive in dest_drive_master_list])
-                                drive_size_list.extend([human_filesize(drive['capacity']) for drive in dest_drive_master_list])
-                                drive_config_list.extend(['Yes' if drive['hasConfig'] else '' for drive in dest_drive_master_list])
-                                drive_vid_list.extend([drive['vid'] for drive in dest_drive_master_list])
-                                drive_serial_list.extend([drive['serial'] for drive in dest_drive_master_list])
-
-                                drive_display_length = {
-                                    'name': len(max(drive_name_list, key=len)),
-                                    'size': len(max(drive_size_list, key=len)),
-                                    'config': len(max(drive_config_list, key=len)),
-                                    'vid': len(max(drive_vid_list, key=len))
-                                }
-
-                                for i, cur_drive in enumerate(drive_name_list):
-                                    print(f"{cur_drive: <{drive_display_length['name']}}  {drive_size_list[i]: <{drive_display_length['size']}}  {drive_config_list[i]: <{drive_display_length['config']}}  {drive_vid_list[i]: <{drive_display_length['vid']}}  {drive_serial_list[i]}")
-
-                                exit()
-
-                    config['destinations'] = [drive for drive in dest_drive_master_list if drive['name'] in dest_list]
-                    config['splitMode'] = split_mode
-            else:
-                exit()
-
-            # Shares
-            if args.interactive:
-                if SELECTED_SOURCE_MODE in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-                    all_share_name_list = [share for share in next(os.walk(config['source_drive']))[1]]
-                    share_name_to_source_map = {share: os.path.join(config['source_drive'], share) for share in all_share_name_list}
-
-                    print('\nAvailable paths are as follows:\n')
-                    print('\n'.join(all_share_name_list) + '\n')
-                else:
-                    print(f"{bcolor.OKCYAN}To rename paths, please use GUI mode.{bcolor.ENDC}")
-                    print('Available paths are as follows:\n')
-
-                    all_share_list = [{
-                        'path': drive,
-                        'name': prefs.get('source_names', drive, default='')
-                    } for drive in get_source_drive_list()]
-                    all_share_name_list = [share['name'] for share in all_share_list]
-                    share_name_to_source_map = {share['name']: share['path'] for share in all_share_list}
-
-                    share_path_list = ['Path']
-                    share_name_list = ['Name']
-                    share_path_list.extend(share['path'] for share in all_share_list)
-                    share_name_list.extend(share['name'] for share in all_share_list)
-
-                    share_display_length = {
-                        'path': len(max(share_path_list, key=len)),
-                        'name': len(max(share_name_list, key=len))
-                    }
-
-                    for i, cur_share in enumerate(share_path_list):
-                        print(f"{cur_share: <{share_display_length['path']}}  {share_name_list[i]: <{share_display_length['name']}}")
-                    print('')
-
-                config['sources'] = [{
-                    'path': share_name_to_source_map[share],
-                    'dest_name': share,
-                    'size': get_directory_size(share_name_to_source_map[share])
-                } for share in CommandLine.validate_choice_list(
-                    '',
-                    message='Which shares (space separated) would you like to use?',
-                    choices=all_share_name_list,
-                    default=None,
-                    case_sensitive=True
-                )]
-            else:
-                # TODO: Can has_param and get_param be merged?
-                if not config['sources'] and not args.share:
-                    print('Please specify at least one share to back up')
-                    exit()
-
-                if not data_loaded_from_config:
-                    share_list = sorted(args.share)
-                else:
-                    share_list = [share['dest_name'] for share in config['sources']]
-
-                if SELECTED_SOURCE_MODE == Config.SOURCE_MODE_SINGLE_DRIVE:
-                    source_share_list = [directory for directory in next(os.walk(config['source_drive']))[1]]
-                    filtered_share_input = [share for share in share_list if share in source_share_list]
-                else:
-                    filtered_share_input = [share for share in share_list if get_share_path_from_name(share)]
-
-                if len(filtered_share_input) < len(share_list):
-                    print(f"{bcolor.FAIL}One or more shares are not valid for selection{bcolor.ENDC}")
-                    exit()
-
-                config['sources'] = [{
-                    'path': get_share_path_from_name(share),
-                    'dest_name': share,
-                    'size': get_directory_size(get_share_path_from_name(share))
-                } for share in share_list]
-
-            # ## Show summary ## #
-
-            header_list = ['Source', 'Destination', 'Shares']
-            if len(config['missing_drives']) > 0:
-                header_list.extend(['Missing drives', 'Split mode'])
-            header_spacing = len(max(header_list, key=len)) + 1
-
-            print('')
-            print(f"{'Source:': <{header_spacing}} {config['source_drive']}")
-            print(f"{'Destination:': <{header_spacing}} {', '.join([drive['name'] for drive in config['destinations']])}")
-
-            if len(config['missing_drives']) > 0:
-                print(f"{'Missing drives:': <{header_spacing}} {', '.join([drive for drive in config['missing_drives'].keys()])}")
-                print(f"{'Split mode:': <{header_spacing}} {bcolor.OKGREEN + 'Enabled' + bcolor.ENDC if split_mode else bcolor.FAIL + 'Disabled' + bcolor.ENDC}")
-
-            print(f"{'Shares:': <{header_spacing}} {', '.join([share['dest_name'] for share in config['sources']])}\n")
-
-            if len(config['missing_drives']) > 0 and not split_mode:
-                print(f"{bcolor.FAIL}Missing drives; split mode disabled{bcolor.ENDC}")
-                exit()
-
-            # ## Confirm ## #
-
-            if not args.automatic and not CommandLine.validate_yes_no('', 'Do you want to continue?', True):
-                print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
-                exit()
-
-            # ## Analysis ## #
-
-            start_backup_analysis()
-
-            while thread_manager.is_alive('Backup Analysis'):
-                pass
-
-            # ## Confirm ## #
-
-            if not args.automatic and not CommandLine.validate_yes_no('', 'Do you want to continue?', True):
-                print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
-                exit()
-
-            # ## Backup ## #
-
-            start_backup()
-
-            while thread_manager.is_alive('Backup'):
-                pass
-
-            exit()
-
-        # Exit CLI mode once everything is done
-        exit()
 
     def update_status_bar_selection(status: int = None):
         """Update the status bar selection status.
@@ -2761,652 +2252,651 @@ if __name__ == '__main__':
     # BUG: keyboard module seems to be returning false for keypress on first try. No idea how to fix this
     keyboard.is_pressed('alt')
 
-    if not CLI_MODE:
-        update_handler = UpdateHandler(
-            current_version=APP_VERSION,
-            allow_prereleases=config['allow_prereleases'],
-            status_change_fn=update_status_bar_update,
-            update_callback=check_for_updates
-        )
+    update_handler = UpdateHandler(
+        current_version=APP_VERSION,
+        allow_prereleases=config['allow_prereleases'],
+        status_change_fn=update_status_bar_update,
+        update_callback=check_for_updates
+    )
 
-        def resource_path(relative_path):
-            """Get absolute path to resource, works for dev and for PyInstaller."""
+    def resource_path(relative_path):
+        """Get absolute path to resource, works for dev and for PyInstaller."""
 
-            try:
-                # PyInstaller creates a temp folder and stores path in _MEIPASS
-                base_path = sys._MEIPASS
-            except Exception:
-                base_path = os.path.abspath(".")
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
 
-            return os.path.join(base_path, relative_path)
+        return os.path.join(base_path, relative_path)
 
-        WINDOW_BASE_WIDTH = 1200  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
-        WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
-        WINDOW_MIN_HEIGHT = 700
-        MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == 'Windows' else 200
-        MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == 'Windows' else 140
-        SINGLE_SOURCE_TEXT_COL_WIDTH = 170
-        SINGLE_SOURCE_NAME_COL_WIDTH = 170
+    WINDOW_BASE_WIDTH = 1200  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
+    WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
+    WINDOW_MIN_HEIGHT = 700
+    MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == 'Windows' else 200
+    MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == 'Windows' else 140
+    SINGLE_SOURCE_TEXT_COL_WIDTH = 170
+    SINGLE_SOURCE_NAME_COL_WIDTH = 170
 
-        WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
-        if prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-            WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+    WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
+    if prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+        WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
 
-        root_window = RootWindow(
-            title='BackDrop - Data Backup Tool',
-            width=WINDOW_MIN_WIDTH,
-            height=WINDOW_MIN_HEIGHT,
-            center=True,
-            status_bar=True,
-            dark_mode=prefs.get('ui', 'dark_mode', False, data_type=Config.BOOLEAN)
-        )
+    root_window = RootWindow(
+        title='BackDrop - Data Backup Tool',
+        width=WINDOW_MIN_WIDTH,
+        height=WINDOW_MIN_HEIGHT,
+        center=True,
+        status_bar=True,
+        dark_mode=prefs.get('ui', 'dark_mode', False, data_type=Config.BOOLEAN)
+    )
 
-        appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
+    appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
 
-        if SYS_PLATFORM == 'Windows':
-            root_window.iconbitmap(resource_path('media/icon.ico'))
-        elif SYS_PLATFORM == 'Linux':
-            root_window.iconphoto(True, appicon_image)
+    if SYS_PLATFORM == 'Windows':
+        root_window.iconbitmap(resource_path('media/icon.ico'))
+    elif SYS_PLATFORM == 'Linux':
+        root_window.iconphoto(True, appicon_image)
 
-        default_font = tkfont.nametofont("TkDefaultFont")
-        default_font.configure(size=9)
-        heading_font = tkfont.nametofont("TkHeadingFont")
-        heading_font.configure(size=9, weight='normal')
-        menu_font = tkfont.nametofont("TkMenuFont")
-        menu_font.configure(size=9)
+    default_font = tkfont.nametofont("TkDefaultFont")
+    default_font.configure(size=9)
+    heading_font = tkfont.nametofont("TkHeadingFont")
+    heading_font.configure(size=9, weight='normal')
+    menu_font = tkfont.nametofont("TkMenuFont")
+    menu_font.configure(size=9)
 
-        # Selection and backup status, left side
-        statusbar_selection = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
-        statusbar_selection.grid(row=0, column=0, padx=6)
-        update_status_bar_selection()
-        statusbar_action = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
-        statusbar_action.grid(row=0, column=1, padx=6)
-        update_status_bar_action(Status.IDLE)
-        statusbar_counter_btn = ttk.Button(root_window.status_bar_frame, text='0 failed', width=0, command=show_backup_error_log, state='disabled', style='danger.statusbar.TButton')
-        statusbar_counter_btn.grid(row=0, column=2, ipadx=3, padx=3)
-        statusbar_details = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
-        statusbar_details.grid(row=0, column=3, padx=6)
+    # Selection and backup status, left side
+    statusbar_selection = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
+    statusbar_selection.grid(row=0, column=0, padx=6)
+    update_status_bar_selection()
+    statusbar_action = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
+    statusbar_action.grid(row=0, column=1, padx=6)
+    update_status_bar_action(Status.IDLE)
+    statusbar_counter_btn = ttk.Button(root_window.status_bar_frame, text='0 failed', width=0, command=show_backup_error_log, state='disabled', style='danger.statusbar.TButton')
+    statusbar_counter_btn.grid(row=0, column=2, ipadx=3, padx=3)
+    statusbar_details = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
+    statusbar_details.grid(row=0, column=3, padx=6)
 
-        # Portable mode indicator and update status, right side
-        if PORTABLE_MODE:
-            statusbar_portablemode = tk.Label(root_window.status_bar_frame, text='Portable mode', bg=root_window.uicolor.STATUS_BAR)
-            statusbar_portablemode.grid(row=0, column=99, padx=6)
-        statusbar_update = tk.Label(root_window.status_bar_frame, text='', bg=root_window.uicolor.STATUS_BAR)
-        statusbar_update.grid(row=0, column=100, padx=6)
-        statusbar_update.bind('<Button-1>', lambda e: display_update_screen(update_info))
+    # Portable mode indicator and update status, right side
+    if PORTABLE_MODE:
+        statusbar_portablemode = tk.Label(root_window.status_bar_frame, text='Portable mode', bg=root_window.uicolor.STATUS_BAR)
+        statusbar_portablemode.grid(row=0, column=99, padx=6)
+    statusbar_update = tk.Label(root_window.status_bar_frame, text='', bg=root_window.uicolor.STATUS_BAR)
+    statusbar_update.grid(row=0, column=100, padx=6)
+    statusbar_update.bind('<Button-1>', lambda e: display_update_screen(update_info))
 
-        # Set some default styling
-        tk_style = ttk.Style()
-        if SYS_PLATFORM == 'Windows':
-            tk_style.theme_use('vista')
-        elif SYS_PLATFORM == 'Linux':
-            tk_style.theme_use('clam')
+    # Set some default styling
+    tk_style = ttk.Style()
+    if SYS_PLATFORM == 'Windows':
+        tk_style.theme_use('vista')
+    elif SYS_PLATFORM == 'Linux':
+        tk_style.theme_use('clam')
 
-        tk_style.element_create('TButton', 'from', 'clam')
-        tk_style.layout('TButton', [
-            ('TButton.border', {'sticky': 'nswe', 'border': '1', 'children': [
-                ('TButton.focus', {'sticky': 'nswe', 'children': [
-                    ('TButton.padding', {'sticky': 'nswe', 'children': [
-                        ('TButton.label', {'sticky': 'nswe'})
-                    ]})
+    tk_style.element_create('TButton', 'from', 'clam')
+    tk_style.layout('TButton', [
+        ('TButton.border', {'sticky': 'nswe', 'border': '1', 'children': [
+            ('TButton.focus', {'sticky': 'nswe', 'children': [
+                ('TButton.padding', {'sticky': 'nswe', 'children': [
+                    ('TButton.label', {'sticky': 'nswe'})
                 ]})
             ]})
-        ])
+        ]})
+    ])
 
-        if not root_window.dark_mode:
-            BUTTON_NORMAL_COLOR = '#ccc'
-            BUTTON_TEXT_COLOR = '#000'
-            BUTTON_ACTIVE_COLOR = '#d7d7d7'
-            BUTTON_PRESSED_COLOR = '#c8c8c8'
-            BUTTON_DISABLED_COLOR = '#ddd'
-            BUTTON_DISABLED_TEXT_COLOR = '#777'
+    if not root_window.dark_mode:
+        BUTTON_NORMAL_COLOR = '#ccc'
+        BUTTON_TEXT_COLOR = '#000'
+        BUTTON_ACTIVE_COLOR = '#d7d7d7'
+        BUTTON_PRESSED_COLOR = '#c8c8c8'
+        BUTTON_DISABLED_COLOR = '#ddd'
+        BUTTON_DISABLED_TEXT_COLOR = '#777'
 
-            DANGER_BUTTON_DISABLED_COLOR = '#900'
-            DANGER_BUTTON_DISABLED_TEXT_COLOR = '#caa'
-        else:
-            BUTTON_NORMAL_COLOR = '#585858'
-            BUTTON_TEXT_COLOR = '#fff'
-            BUTTON_ACTIVE_COLOR = '#666'
-            BUTTON_PRESSED_COLOR = '#525252'
-            BUTTON_DISABLED_COLOR = '#484848'
-            BUTTON_DISABLED_TEXT_COLOR = '#888'
+        DANGER_BUTTON_DISABLED_COLOR = '#900'
+        DANGER_BUTTON_DISABLED_TEXT_COLOR = '#caa'
+    else:
+        BUTTON_NORMAL_COLOR = '#585858'
+        BUTTON_TEXT_COLOR = '#fff'
+        BUTTON_ACTIVE_COLOR = '#666'
+        BUTTON_PRESSED_COLOR = '#525252'
+        BUTTON_DISABLED_COLOR = '#484848'
+        BUTTON_DISABLED_TEXT_COLOR = '#888'
 
-            DANGER_BUTTON_DISABLED_COLOR = '#700'
-            DANGER_BUTTON_DISABLED_TEXT_COLOR = '#988'
+        DANGER_BUTTON_DISABLED_COLOR = '#700'
+        DANGER_BUTTON_DISABLED_TEXT_COLOR = '#988'
 
-        tk_style.map(
-            'TButton',
-            background=[('pressed', '!disabled', BUTTON_PRESSED_COLOR), ('active', '!disabled', BUTTON_ACTIVE_COLOR), ('disabled', BUTTON_DISABLED_COLOR)],
-            foreground=[('disabled', BUTTON_DISABLED_TEXT_COLOR)]
-        )
-        tk_style.map(
-            'danger.TButton',
-            background=[('pressed', '!disabled', '#900'), ('active', '!disabled', '#c00'), ('disabled', DANGER_BUTTON_DISABLED_COLOR)],
-            foreground=[('disabled', DANGER_BUTTON_DISABLED_TEXT_COLOR)]
-        )
-        tk_style.map(
-            'statusbar.TButton',
-            background=[('pressed', '!disabled', root_window.uicolor.STATUS_BAR), ('active', '!disabled', root_window.uicolor.STATUS_BAR), ('disabled', root_window.uicolor.STATUS_BAR)],
-            foreground=[('disabled', root_window.uicolor.FADED)]
-        )
-        tk_style.map(
-            'tab.TButton',
-            background=[('pressed', '!disabled', root_window.uicolor.BG), ('active', '!disabled', root_window.uicolor.BG), ('disabled', root_window.uicolor.BG)],
-            foreground=[('disabled', root_window.uicolor.FADED), ('active', '!disabled', root_window.uicolor.FG)]
-        )
-        tk_style.configure('TButton', background=BUTTON_NORMAL_COLOR, foreground=BUTTON_TEXT_COLOR, bordercolor=BUTTON_NORMAL_COLOR, borderwidth=0, padding=(6, 4))
-        tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#b00', borderwidth=0)
-        tk_style.configure('slim.TButton', padding=(2, 2))
-        tk_style.configure('statusbar.TButton', padding=(3, 0), background=root_window.uicolor.STATUS_BAR, foreground=root_window.uicolor.FG)
-        tk_style.configure('tab.TButton', padding=(3, 0), background=root_window.uicolor.BG, foreground=root_window.uicolor.FADED)
-        tk_style.configure('active.tab.TButton', foreground=root_window.uicolor.FG)
-        tk_style.configure('danger.statusbar.TButton', foreground=root_window.uicolor.DANGER)
+    tk_style.map(
+        'TButton',
+        background=[('pressed', '!disabled', BUTTON_PRESSED_COLOR), ('active', '!disabled', BUTTON_ACTIVE_COLOR), ('disabled', BUTTON_DISABLED_COLOR)],
+        foreground=[('disabled', BUTTON_DISABLED_TEXT_COLOR)]
+    )
+    tk_style.map(
+        'danger.TButton',
+        background=[('pressed', '!disabled', '#900'), ('active', '!disabled', '#c00'), ('disabled', DANGER_BUTTON_DISABLED_COLOR)],
+        foreground=[('disabled', DANGER_BUTTON_DISABLED_TEXT_COLOR)]
+    )
+    tk_style.map(
+        'statusbar.TButton',
+        background=[('pressed', '!disabled', root_window.uicolor.STATUS_BAR), ('active', '!disabled', root_window.uicolor.STATUS_BAR), ('disabled', root_window.uicolor.STATUS_BAR)],
+        foreground=[('disabled', root_window.uicolor.FADED)]
+    )
+    tk_style.map(
+        'tab.TButton',
+        background=[('pressed', '!disabled', root_window.uicolor.BG), ('active', '!disabled', root_window.uicolor.BG), ('disabled', root_window.uicolor.BG)],
+        foreground=[('disabled', root_window.uicolor.FADED), ('active', '!disabled', root_window.uicolor.FG)]
+    )
+    tk_style.configure('TButton', background=BUTTON_NORMAL_COLOR, foreground=BUTTON_TEXT_COLOR, bordercolor=BUTTON_NORMAL_COLOR, borderwidth=0, padding=(6, 4))
+    tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#b00', borderwidth=0)
+    tk_style.configure('slim.TButton', padding=(2, 2))
+    tk_style.configure('statusbar.TButton', padding=(3, 0), background=root_window.uicolor.STATUS_BAR, foreground=root_window.uicolor.FG)
+    tk_style.configure('tab.TButton', padding=(3, 0), background=root_window.uicolor.BG, foreground=root_window.uicolor.FADED)
+    tk_style.configure('active.tab.TButton', foreground=root_window.uicolor.FG)
+    tk_style.configure('danger.statusbar.TButton', foreground=root_window.uicolor.DANGER)
 
-        tk_style.configure('tooltip.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.TOOLTIP)
-        tk_style.configure('on.toggle.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.GREEN)
-        tk_style.configure('off.toggle.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.FADED)
+    tk_style.configure('tooltip.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.TOOLTIP)
+    tk_style.configure('on.toggle.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.GREEN)
+    tk_style.configure('off.toggle.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.FADED)
 
-        tk_style.configure('TCheckbutton', background=root_window.uicolor.BG, foreground=root_window.uicolor.NORMAL)
-        tk_style.configure('TFrame', background=root_window.uicolor.BG, foreground=root_window.uicolor.NORMAL)
+    tk_style.configure('TCheckbutton', background=root_window.uicolor.BG, foreground=root_window.uicolor.NORMAL)
+    tk_style.configure('TFrame', background=root_window.uicolor.BG, foreground=root_window.uicolor.NORMAL)
 
-        tk_style.element_create('custom.Treeheading.border', 'from', 'default')
-        tk_style.element_create('custom.Treeview.field', 'from', 'clam')
-        tk_style.layout('custom.Treeview.Heading', [
-            ('custom.Treeheading.cell', {'sticky': 'nswe'}),
-            ('custom.Treeheading.border', {'sticky': 'nswe', 'children': [
-                ('custom.Treeheading.padding', {'sticky': 'nswe', 'children': [
-                    ('custom.Treeheading.image', {'side': 'right', 'sticky': ''}),
-                    ('custom.Treeheading.text', {'sticky': 'we'})
-                ]})
-            ]}),
-        ])
-        tk_style.layout('custom.Treeview', [
-            ('custom.Treeview.field', {'sticky': 'nswe', 'border': '1', 'children': [
-                ('custom.Treeview.padding', {'sticky': 'nswe', 'children': [
-                    ('custom.Treeview.treearea', {'sticky': 'nswe'})
-                ]})
+    tk_style.element_create('custom.Treeheading.border', 'from', 'default')
+    tk_style.element_create('custom.Treeview.field', 'from', 'clam')
+    tk_style.layout('custom.Treeview.Heading', [
+        ('custom.Treeheading.cell', {'sticky': 'nswe'}),
+        ('custom.Treeheading.border', {'sticky': 'nswe', 'children': [
+            ('custom.Treeheading.padding', {'sticky': 'nswe', 'children': [
+                ('custom.Treeheading.image', {'side': 'right', 'sticky': ''}),
+                ('custom.Treeheading.text', {'sticky': 'we'})
             ]})
-        ])
-        tk_style.configure('custom.Treeview.Heading', background=root_window.uicolor.BGACCENT, foreground=root_window.uicolor.FG, padding=2.5)
-        tk_style.configure('custom.Treeview', background=root_window.uicolor.BGACCENT2, fieldbackground=root_window.uicolor.BGACCENT2, foreground=root_window.uicolor.FG, bordercolor=root_window.uicolor.BGACCENT3)
-        tk_style.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', root_window.uicolor.NORMAL), ('selected', root_window.uicolor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', root_window.uicolor.BGACCENT2), ('selected', root_window.uicolor.COLORACCENT)])
-
-        tk_style.element_create('custom.Progressbar.trough', 'from', 'clam')
-        tk_style.element_create('custom.Progressbar.pbar', 'from', 'default')
-        tk_style.layout('custom.Progressbar', [
-            ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
-                ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
-                    ('custom.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
-                ]})
+        ]}),
+    ])
+    tk_style.layout('custom.Treeview', [
+        ('custom.Treeview.field', {'sticky': 'nswe', 'border': '1', 'children': [
+            ('custom.Treeview.padding', {'sticky': 'nswe', 'children': [
+                ('custom.Treeview.treearea', {'sticky': 'nswe'})
             ]})
-        ])
-        tk_style.configure('custom.Progressbar', padding=4, background=root_window.uicolor.COLORACCENT, bordercolor=root_window.uicolor.BGACCENT3, borderwidth=0, troughcolor=root_window.uicolor.BG, lightcolor=root_window.uicolor.COLORACCENT, darkcolor=root_window.uicolor.COLORACCENT)
-
-        def on_close():
-            if not thread_manager.is_alive('Backup'):
-                root_window.quit()
-                exit()
-
-            if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
-                thread_manager.kill('Backup')
-                root_window.quit()
-                exit()
-
-        # Add menu bar
-        menubar = tk.Menu(root_window)
-
-        # File menu
-        file_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-        file_menu.add_command(label='Open Backup Config...', underline=0, accelerator='Ctrl+O', command=open_config_file)
-        file_menu.add_command(label='Save Backup Config', underline=0, accelerator='Ctrl+S', command=save_config_file)
-        file_menu.add_command(label='Save Backup Config As...', underline=19, accelerator='Ctrl+Shift+S', command=save_config_file_as)
-        file_menu.add_separator()
-        file_menu.add_command(label='Exit', underline=1, command=on_close)
-        menubar.add_cascade(label='File', underline=0, menu=file_menu)
-
-        # Selection menu
-        # FIXME: Add -c configuration option for CLI mode to change preference options
-        selection_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-        settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN))
-        settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN))
-        PREV_NETWORK_SOURCE_DRIVE = settings_showDrives_source_network.get()
-        PREV_LOCAL_SOURCE_DRIVE = settings_showDrives_source_local.get()
-        selection_menu.add_checkbutton(label='Source Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=lambda: change_source_type(DRIVE_TYPE_REMOTE))
-        selection_menu.add_checkbutton(label='Source Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=lambda: change_source_type(DRIVE_TYPE_LOCAL))
-        settings_showDrives_dest_network = tk.BooleanVar(value=prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
-        settings_showDrives_dest_local = tk.BooleanVar(value=prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
-        PREV_NETWORK_DEST_DRIVE = settings_showDrives_dest_network.get()
-        PREV_LOCAL_DEST_DRIVE = settings_showDrives_dest_local.get()
-        selection_menu.add_checkbutton(label='Destination Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE))
-        selection_menu.add_checkbutton(label='Destination Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL))
-        selection_menu.add_separator()
-        selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-        settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=Config.SOURCE_MODE_OPTIONS, default=Config.SOURCE_MODE_SINGLE_DRIVE))
-        PREV_SOURCE_MODE = settings_sourceMode.get()
-        selection_source_mode_menu.add_checkbutton(label='Single drive, select subfolders', onvalue=Config.SOURCE_MODE_SINGLE_DRIVE, offvalue=Config.SOURCE_MODE_SINGLE_DRIVE, variable=settings_sourceMode, command=change_source_mode)
-        selection_source_mode_menu.add_checkbutton(label='Multi drive, select drives', onvalue=Config.SOURCE_MODE_MULTI_DRIVE, offvalue=Config.SOURCE_MODE_MULTI_DRIVE, variable=settings_sourceMode, command=change_source_mode)
-        selection_source_mode_menu.add_separator()
-        selection_source_mode_menu.add_checkbutton(label='Single path, select subfolders', onvalue=Config.SOURCE_MODE_SINGLE_PATH, offvalue=Config.SOURCE_MODE_SINGLE_PATH, variable=settings_sourceMode, command=change_source_mode)
-        selection_source_mode_menu.add_checkbutton(label='Multi path, select paths', onvalue=Config.SOURCE_MODE_MULTI_PATH, offvalue=Config.SOURCE_MODE_MULTI_PATH, variable=settings_sourceMode, command=change_source_mode)
-        selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
-        selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-        settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=Config.DEST_MODE_OPTIONS, default=Config.DEST_MODE_DRIVES))
-        PREV_DEST_MODE = settings_destMode.get()
-        selection_dest_mode_menu.add_checkbutton(label='Drives', onvalue=Config.DEST_MODE_DRIVES, offvalue=Config.DEST_MODE_DRIVES, variable=settings_destMode, command=change_dest_mode)
-        selection_dest_mode_menu.add_checkbutton(label='Paths', onvalue=Config.DEST_MODE_PATHS, offvalue=Config.DEST_MODE_PATHS, variable=settings_destMode, command=change_dest_mode)
-        selection_menu.add_cascade(label='Destination Mode', underline=0, menu=selection_dest_mode_menu)
-        menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
-
-        # View menu
-        view_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-        view_menu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=load_source_in_background)
-        view_menu.add_command(label='Refresh Destination', underline=0, accelerator='F5', command=load_dest_in_background)
-        show_file_details_pane = tk.BooleanVar()
-        view_menu.add_separator()
-        view_menu.add_command(label='Backup Error Log', accelerator='Ctrl+E', command=show_backup_error_log)
-        menubar.add_cascade(label='View', underline=0, menu=view_menu)
-
-        # Actions menu
-        actions_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-        actions_menu.add_command(label='Verify Data Integrity on Selected Destinations', underline=0, command=start_verify_data_from_hash_list)
-        actions_menu.add_command(label='Delete Config from Selected Destinations', command=delete_config_file_from_selected_drives)
-        menubar.add_cascade(label='Actions', underline=0, menu=actions_menu)
-
-        # Preferences menu
-        preferences_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-        preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-        settings_verifyAllFiles = tk.BooleanVar(value=prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN))
-        preferences_verification_menu.add_checkbutton(label='Verify Known Files', onvalue=False, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
-        preferences_verification_menu.add_checkbutton(label='Verify All Files', onvalue=True, offvalue=True, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
-        preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
-        settings_darkModeEnabled = tk.BooleanVar(value=root_window.dark_mode) 
-        preferences_menu.add_checkbutton(label='Enable Dark Mode (requires restart)', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()))
-        menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
-
-        # Help menu
-        help_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-        help_menu.add_command(label='Check for Updates', command=lambda: thread_manager.start(
-            thread_manager.SINGLE,
-            target=update_handler.check,
-            name='Update Check',
-            daemon=True
-        ))
-        settings_allow_prerelease_updates = tk.BooleanVar(value=config['allow_prereleases'])
-        help_menu.add_checkbutton(label='Allow Prereleases', onvalue=True, offvalue=False, variable=settings_allow_prerelease_updates, command=lambda: prefs.set('ui', 'allow_prereleases', settings_allow_prerelease_updates.get()))
-        menubar.add_cascade(label='Help', underline=0, menu=help_menu)
-
-        # Key bindings
-        root_window.bind('<Control-o>', lambda e: open_config_file())
-        root_window.bind('<Control-s>', lambda e: save_config_file())
-        root_window.bind('<Control-Shift-S>', lambda e: save_config_file_as())
-        root_window.bind('<Control-e>', lambda e: show_backup_error_log())
-
-        root_window.config(menu=menubar)
-
-        icon_windows = ImageTk.PhotoImage(Image.open(resource_path(f"media/windows{'_light' if root_window.dark_mode else ''}.png")))
-        icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media/windows_color.png')))
-        icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media/zip{'_light' if root_window.dark_mode else ''}.png")))
-        icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media/zip_color.png')))
-        icon_debian = ImageTk.PhotoImage(Image.open(resource_path(f"media/debian{'_light' if root_window.dark_mode else ''}.png")))
-        icon_debian_color = ImageTk.PhotoImage(Image.open(resource_path('media/debian_color.png')))
-        icon_targz = ImageTk.PhotoImage(Image.open(resource_path(f"media/targz{'_light' if root_window.dark_mode else ''}.png")))
-        icon_targz_color = ImageTk.PhotoImage(Image.open(resource_path('media/targz_color.png')))
-
-        # Progress/status values
-        progress_bar = ttk.Progressbar(root_window.main_frame, maximum=100, style='custom.Progressbar')
-        progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING, 0))
-
-        progress = Progress(
-            progress_bar=progress_bar,
-            thread_manager=thread_manager
-        )
-
-        source_avail_drive_list = []
-        source_drive_default = tk.StringVar()
-
-        # Tree frames for tree and scrollbar
-        tree_source_frame = tk.Frame(root_window.main_frame)
-
-        tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize', 'name'), style='custom.Treeview')
-        if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-            tree_source_display_cols = ('size')
-        elif settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-            tree_source_display_cols = ('name', 'size')
-
-        if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-            SOURCE_TEXT_COL_WIDTH = 200  # Windows 120
-            SOURCE_NAME_COL_WIDTH = 140  # Windows 220
-        else:
-            SOURCE_TEXT_COL_WIDTH = 170
-            SOURCE_NAME_COL_WIDTH = 170
-
-        tree_source.heading('#0', text='Path')
-        tree_source.column('#0', width=SOURCE_TEXT_COL_WIDTH)
-        tree_source.heading('name', text='Name')
-        tree_source.column('name', width=SOURCE_NAME_COL_WIDTH)
-        tree_source.heading('size', text='Size')
-        tree_source.column('size', width=80)
-        tree_source['displaycolumns'] = tree_source_display_cols
-
-        tree_source.pack(side='left')
-        tree_source_scrollbar = ttk.Scrollbar(tree_source_frame, orient='vertical', command=tree_source.yview)
-        tree_source_scrollbar.pack(side='left', fill='y')
-        tree_source.configure(yscrollcommand=tree_source_scrollbar.set)
-
-        source_meta_frame = tk.Frame(root_window.main_frame)
-        tk.Grid.columnconfigure(source_meta_frame, 0, weight=1)
-
-        share_space_frame = tk.Frame(source_meta_frame)
-        share_space_frame.grid(row=0, column=0)
-        share_selected_space_frame = tk.Frame(share_space_frame)
-        share_selected_space_frame.grid(row=0, column=0)
-        share_selected_space_label = tk.Label(share_selected_space_frame, text='Selected:').pack(side='left')
-        share_selected_space = tk.Label(share_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
-        share_selected_space.pack(side='left')
-        share_total_space_frame = tk.Frame(share_space_frame)
-        share_total_space_frame.grid(row=0, column=1, padx=(12, 0))
-        share_total_space_label = tk.Label(share_total_space_frame, text='Total:').pack(side='left')
-        share_total_space = tk.Label(share_total_space_frame, text='~None', fg=root_window.uicolor.FADED)
-        share_total_space.pack(side='left')
-
-        source_select_frame = tk.Frame(root_window.main_frame)
-        source_select_frame.grid(row=0, column=1, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
-
-        source_select_single_frame = tk.Frame(source_select_frame)
-        tk.Label(source_select_single_frame, text='Source:').pack(side='left')
-        PREV_SOURCE_DRIVE = source_drive_default
-        source_select_menu = ttk.OptionMenu(source_select_single_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
-        source_select_menu['menu'].config(selectcolor=root_window.uicolor.FG)
-        source_select_menu.pack(side='left', padx=(12, 0))
-
-        source_select_multi_frame = tk.Frame(source_select_frame)
-        tk.Label(source_select_multi_frame, text='Multi-source mode, selection disabled').pack()
-
-        source_select_custom_single_frame = tk.Frame(source_select_frame)
-        source_select_custom_single_frame.grid_columnconfigure(0, weight=1)
-        selected_custom_source_text = last_selected_custom_source if last_selected_custom_source and os.path.isdir(last_selected_custom_source) else 'Custom source'
-        source_select_custom_single_path_label = tk.Label(source_select_custom_single_frame, text=selected_custom_source_text)
-        source_select_custom_single_path_label.grid(row=0, column=0, sticky='w')
-        source_select_custom_single_browse_button = ttk.Button(source_select_custom_single_frame, text='Browse', command=browse_for_source, style='slim.TButton')
-        source_select_custom_single_browse_button.grid(row=0, column=1)
-
-        source_select_custom_multi_frame = tk.Frame(source_select_frame)
-        source_select_custom_multi_frame.grid_columnconfigure(0, weight=1)
-        source_select_custom_multi_path_label = tk.Label(source_select_custom_multi_frame, text='Custom multi-source mode')
-        source_select_custom_multi_path_label.grid(row=0, column=0)
-        source_select_custom_multi_browse_button = ttk.Button(source_select_custom_multi_frame, text='Browse', command=browse_for_source, style='slim.TButton')
-        source_select_custom_multi_browse_button.grid(row=0, column=1)
-
-        # Source tree right click menu
-        source_right_click_menu = tk.Menu(tree_source, tearoff=0)
-        source_right_click_menu.add_command(label='Rename', underline=0)
-        if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_PATH:
-            source_right_click_menu.add_command(label='Delete')
-
-        source_select_bind = tree_source.bind("<<TreeviewSelect>>", select_source_in_background)
-        if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-            source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
-        else:
-            source_right_click_bind = None
-
-        source_warning = tk.Label(root_window.main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=root_window.uicolor.ERROR, fg=root_window.uicolor.BLACK)
-
-        root_window.bind('<Control-F5>', lambda x: load_source_in_background())
-
-        tree_dest_frame = tk.Frame(root_window.main_frame)
-        tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
-
-        dest_mode_frame = tk.Frame(root_window.main_frame)
-        dest_mode_frame.grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
-
-        def toggle_split_mode(event):
-            """Handle toggling of split mode based on checkbox value."""
-
-            if (not backup or not backup.is_running()) and not verification_running:
-                config['splitMode'] = not config['splitMode']
-
-                if config['splitMode']:
-                    split_mode_frame.configure(highlightbackground=root_window.uicolor.GREEN)
-                    split_mode_status.configure(style='on.toggle.TLabel')
-                else:
-                    split_mode_frame.configure(highlightbackground=root_window.uicolor.FADED)
-                    split_mode_status.configure(style='off.toggle.TLabel')
-
-        dest_select_normal_frame = tk.Frame(dest_mode_frame)
-        dest_select_normal_frame.pack()
-        alt_tooltip_normal_frame = tk.Frame(dest_select_normal_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
-        alt_tooltip_normal_frame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
-        ttk.Label(alt_tooltip_normal_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
-
-        dest_select_custom_frame = tk.Frame(dest_mode_frame)
-        dest_select_custom_frame.grid_columnconfigure(0, weight=1)
-        alt_tooltip_custom_frame = tk.Frame(dest_select_custom_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
-        alt_tooltip_custom_frame.grid(row=0, column=0, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
-        ttk.Label(alt_tooltip_custom_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
-        dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest, style='slim.TButton')
-        dest_select_custom_browse_button.grid(row=0, column=1)
-
-        DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == 'Windows' else 150
-        DEST_TREE_COLWIDTH_VID = 140 if settings_destMode.get() == Config.DEST_MODE_PATHS else 90
-        DEST_TREE_COLWIDTH_SERIAL = 150 if SYS_PLATFORM == 'Windows' else 50
-
-        tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
-        tree_dest.heading('#0', text='Drive')
-        if settings_destMode.get() == Config.DEST_MODE_PATHS:
-            tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
-        else:
-            tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
-        tree_dest.heading('size', text='Size')
-        tree_dest.column('size', width=80)
-        tree_dest.heading('configfile', text='Config')
-        tree_dest.column('configfile', width=50)
-        if settings_destMode.get() == Config.DEST_MODE_DRIVES:
-            tree_dest.heading('vid', text='Volume ID')
-        elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-            tree_dest.heading('vid', text='Name')
-        tree_dest.column('vid', width=DEST_TREE_COLWIDTH_VID)
-        tree_dest.heading('serial', text='Serial')
-        tree_dest.column('serial', width=DEST_TREE_COLWIDTH_SERIAL)
-
-        if settings_destMode.get() == Config.DEST_MODE_DRIVES:
-            tree_dest_display_cols = ('size', 'configfile', 'vid', 'serial')
-        elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-            tree_dest_display_cols = ('vid', 'size', 'configfile')
-        tree_dest['displaycolumns'] = tree_dest_display_cols
-
-        tree_dest.pack(side='left')
-        tree_dest_scrollbar = ttk.Scrollbar(tree_dest_frame, orient='vertical', command=tree_dest.yview)
-        tree_dest_scrollbar.pack(side='left', fill='y')
-        tree_dest.configure(yscrollcommand=tree_dest_scrollbar.set)
-
-        root_window.bind('<F5>', lambda x: load_dest_in_background())
-
-        # Dest tree right click menu
-        dest_right_click_menu = tk.Menu(tree_source, tearoff=0)
-        dest_right_click_menu.add_command(label='Rename', underline=0)
-        dest_right_click_menu.add_command(label='Delete')
-
-        if settings_destMode.get() == Config.DEST_MODE_PATHS:
-            dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
-        else:
-            dest_right_click_bind = None
-
-        # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
-        # visible, so 1px needs to be added back
-        dest_meta_frame = tk.Frame(root_window.main_frame)
-        dest_meta_frame.grid(row=2, column=2, sticky='nsew', pady=(1, 0))
-        tk.Grid.columnconfigure(dest_meta_frame, 0, weight=1)
-
-        dest_split_warning_frame = tk.Frame(root_window.main_frame, bg=root_window.uicolor.WARNING)
-        dest_split_warning_frame.rowconfigure(0, weight=1)
-        dest_split_warning_frame.columnconfigure(0, weight=1)
-        dest_split_warning_frame.columnconfigure(10, weight=1)
-
-        # TODO: Can this be cleaned up?
-        tk.Frame(dest_split_warning_frame).grid(row=0, column=1)
-        split_warning_prefix = tk.Label(dest_split_warning_frame, text='There are', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK)
-        split_warning_prefix.grid(row=0, column=1, sticky='ns')
-        split_warning_missing_drive_count = tk.Label(dest_split_warning_frame, text='0', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK, font=(None, 18, 'bold'))
-        split_warning_missing_drive_count.grid(row=0, column=2, sticky='ns')
-        split_warning_suffix = tk.Label(dest_split_warning_frame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK)
-        split_warning_suffix.grid(row=0, column=3, sticky='ns')
-        tk.Frame(dest_split_warning_frame).grid(row=0, column=10)
-
-        drive_space_frame = tk.Frame(dest_meta_frame)
-        drive_space_frame.grid(row=0, column=0)
-
-        config_selected_space_frame = tk.Frame(drive_space_frame)
-        config_selected_space_frame.grid(row=0, column=0)
-        tk.Label(config_selected_space_frame, text='Config:').pack(side='left')
-        config_selected_space = tk.Label(config_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
-        config_selected_space.pack(side='left')
-
-        drive_selected_space_frame = tk.Frame(drive_space_frame)
-        drive_selected_space_frame.grid(row=0, column=1, padx=(12, 0))
-        tk.Label(drive_selected_space_frame, text='Selected:').pack(side='left')
-        drive_selected_space = tk.Label(drive_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
-        drive_selected_space.pack(side='left')
-
-        drive_total_space_frame = tk.Frame(drive_space_frame)
-        drive_total_space_frame.grid(row=0, column=2, padx=(12, 0))
-        tk.Label(drive_total_space_frame, text='Avail:').pack(side='left')
-        drive_total_space = tk.Label(drive_total_space_frame, text=human_filesize(0), fg=root_window.uicolor.FADED)
-        drive_total_space.pack(side='left')
-        split_mode_frame = tk.Frame(drive_space_frame, highlightbackground=root_window.uicolor.GREEN if config['splitMode'] else root_window.uicolor.FADED, highlightthickness=1)
-        split_mode_frame.grid(row=0, column=3, padx=(12, 0), pady=4, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=3)
-        split_mode_status = ttk.Label(split_mode_frame, text='Split mode', style='on.toggle.TLabel' if config['splitMode'] else 'off.toggle.TLabel')
-        split_mode_status.pack(fill='y', expand=1)
-
-        split_mode_frame.bind('<Button-1>', toggle_split_mode)
-        split_mode_status.bind('<Button-1>', toggle_split_mode)
-
-        dest_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_dest_in_background)
-
-        # Add tab frame for main detail views
-        content_tab_frame = TabbedFrame(root_window.main_frame, tabs={
-            'summary': 'Backup summary',
-            'details': 'Backup details'
-        })
-        content_tab_frame.tab['summary']['content'] = ScrollableFrame(content_tab_frame.frame)
-        content_tab_frame.tab['details']['content'] = ScrollableFrame(content_tab_frame.frame)
-        content_tab_frame.grid(row=5, column=1, columnspan=2, sticky='nsew')
-        tk.Grid.rowconfigure(root_window.main_frame, 5, weight=1)
-        content_tab_frame.change_tab('details')
-        # FIXME: Canvas returning wrong width that's smaller than actual width of canvas
-        content_tab_frame.tab['details']['width'] = content_tab_frame.tab['details']['content'].winfo_width()
-        content_tab_frame.change_tab('summary')
-        content_tab_frame.tab['summary']['width'] = content_tab_frame.tab['summary']['content'].winfo_width()
-
-        # Backup ETA (tab gutter)
-        backup_eta_label = tk.Label(content_tab_frame.gutter, text='Please start a backup to show ETA')
-        backup_eta_label.pack()
-
-        # Right side frame
-        tk.Grid.columnconfigure(root_window.main_frame, 3, weight=1)
-        right_side_frame = tk.Frame(root_window.main_frame)
-        right_side_frame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
-
-        backup_file_details_frame = tk.Frame(right_side_frame)
-        backup_file_details_frame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING)
-        backup_file_details_frame.pack_propagate(0)
-
-        file_details_pending_delete_header_line = tk.Frame(backup_file_details_frame)
-        file_details_pending_delete_header_line.grid(row=0, column=0, sticky='w')
-        file_details_pending_delete_header = tk.Label(file_details_pending_delete_header_line, text='Files to delete', font=(None, 11, 'bold'))
-        file_details_pending_delete_header.pack(side='left')
-        file_details_pending_delete_tooltip = tk.Label(file_details_pending_delete_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
-        file_details_pending_delete_tooltip.pack(side='left')
-        file_details_pending_delete_counter_frame = tk.Frame(backup_file_details_frame)
-        file_details_pending_delete_counter_frame.grid(row=1, column=0, sticky='w')
-        file_details_pending_delete_counter = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 28))
-        file_details_pending_delete_counter.pack(side='left', anchor='s')
-        tk.Label(file_details_pending_delete_counter_frame, text='of', font=(None, 11), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
-        file_details_pending_delete_counter_total = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 12), fg=root_window.uicolor.FADED)
-        file_details_pending_delete_counter_total.pack(side='left', anchor='s', pady=(0, 5))
-
-        file_details_pending_copy_header_line = tk.Frame(backup_file_details_frame)
-        file_details_pending_copy_header_line.grid(row=0, column=1, sticky='e')
-        file_details_pending_copy_header = tk.Label(file_details_pending_copy_header_line, text='Files to copy', font=(None, 11, 'bold'))
-        file_details_pending_copy_header.pack(side='right')
-        file_details_pending_copy_tooltip = tk.Label(file_details_pending_copy_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
-        file_details_pending_copy_tooltip.pack(side='right')
-        file_details_pending_copy_counter_frame = tk.Frame(backup_file_details_frame)
-        file_details_pending_copy_counter_frame.grid(row=1, column=1, sticky='e')
-        file_details_pending_copy_counter = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 28))
-        file_details_pending_copy_counter.pack(side='left', anchor='s')
-        tk.Label(file_details_pending_copy_counter_frame, text='of', font=(None, 11), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
-        file_details_pending_copy_counter_total = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 12), fg=root_window.uicolor.FADED)
-        file_details_pending_copy_counter_total.pack(side='left', anchor='s', pady=(0, 5))
-
-        file_details_copied_header_line = tk.Frame(backup_file_details_frame)
-        file_details_copied_header_line.grid(row=2, column=0, columnspan=2, sticky='ew')
-        file_details_copied_header_line.grid_columnconfigure(1, weight=1)
-        file_details_copied_header = tk.Label(file_details_copied_header_line, text='Successful', font=(None, 11, 'bold'))
-        file_details_copied_header.grid(row=0, column=0)
-        file_details_copied_tooltip = tk.Label(file_details_copied_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
-        file_details_copied_tooltip.grid(row=0, column=1, sticky='w')
-        file_details_copied_counter = tk.Label(file_details_copied_header_line, text='0', font=(None, 11, 'bold'))
-        file_details_copied_counter.grid(row=0, column=2)
-        file_details_copied = ScrollableFrame(backup_file_details_frame)
-        file_details_copied.grid(row=3, column=0, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='nsew')
-
-        file_details_failed_header_line = tk.Frame(backup_file_details_frame)
-        file_details_failed_header_line.grid(row=4, column=0, columnspan=2, sticky='ew')
-        file_details_failed_header_line.grid_columnconfigure(1, weight=1)
-        file_details_failed_header = tk.Label(file_details_failed_header_line, text='Failed', font=(None, 11, 'bold'))
-        file_details_failed_header.grid(row=0, column=0)
-        file_details_failed_tooltip = tk.Label(file_details_failed_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
-        file_details_failed_tooltip.grid(row=0, column=1, sticky='w')
-        file_details_failed_counter = tk.Label(file_details_failed_header_line, text='0', font=(None, 11, 'bold'))
-        file_details_failed_counter.grid(row=0, column=2)
-        file_details_failed = ScrollableFrame(backup_file_details_frame)
-        file_details_failed.grid(row=5, column=0, columnspan=2, sticky='nsew')
-
-        # Set grid weights
-        tk.Grid.rowconfigure(backup_file_details_frame, 3, weight=2)
-        tk.Grid.rowconfigure(backup_file_details_frame, 5, weight=1)
-        tk.Grid.columnconfigure(backup_file_details_frame, (0, 1), weight=1)
-
-        # Set click to copy key bindings
-        file_details_pending_delete_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
-        file_details_pending_delete_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
-        file_details_pending_copy_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
-        file_details_pending_copy_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
-        file_details_copied_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
-        file_details_copied_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
-        file_details_copied_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
-        file_details_failed_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
-        file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
-        file_details_failed_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
-
-        # Add placeholder to backup analysis
-        reset_analysis_output()
-        backup_action_button_frame = tk.Frame(right_side_frame)
-        backup_action_button_frame.pack(padx=WINDOW_ELEMENT_PADDING, pady=WINDOW_ELEMENT_PADDING / 2)
-        start_analysis_btn = ttk.Button(backup_action_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
-        start_analysis_btn.pack(side='left', padx=4)
-        start_backup_btn = ttk.Button(backup_action_button_frame, text='Run Backup', width=0, command=start_backup, state='disabled')
-        start_backup_btn.pack(side='left', padx=4)
-        halt_verification_btn = ttk.Button(backup_action_button_frame, text='Halt Verification', width=0, command=lambda: thread_manager.kill('Data Verification'), style='danger.TButton')
-
-        branding_frame = tk.Frame(right_side_frame)
-        branding_frame.pack(padx=WINDOW_ELEMENT_PADDING / 2)
-
-        image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if root_window.dark_mode else ''}.png")))
-        tk.Label(branding_frame, image=image_logo).pack(side='left')
-        tk.Label(branding_frame, text=f"v{APP_VERSION}", font=(None, 10), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
-
-        load_source_in_background()
-        # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
-        thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
-
-        # Check for updates on startup
-        thread_manager.start(
-            thread_manager.SINGLE,
-            target=update_handler.check,
-            name='Update Check',
-            daemon=True
-        )
-
-        root_window.protocol('WM_DELETE_WINDOW', on_close)
-        root_window.mainloop()
+        ]})
+    ])
+    tk_style.configure('custom.Treeview.Heading', background=root_window.uicolor.BGACCENT, foreground=root_window.uicolor.FG, padding=2.5)
+    tk_style.configure('custom.Treeview', background=root_window.uicolor.BGACCENT2, fieldbackground=root_window.uicolor.BGACCENT2, foreground=root_window.uicolor.FG, bordercolor=root_window.uicolor.BGACCENT3)
+    tk_style.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', root_window.uicolor.NORMAL), ('selected', root_window.uicolor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', root_window.uicolor.BGACCENT2), ('selected', root_window.uicolor.COLORACCENT)])
+
+    tk_style.element_create('custom.Progressbar.trough', 'from', 'clam')
+    tk_style.element_create('custom.Progressbar.pbar', 'from', 'default')
+    tk_style.layout('custom.Progressbar', [
+        ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
+            ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
+                ('custom.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
+            ]})
+        ]})
+    ])
+    tk_style.configure('custom.Progressbar', padding=4, background=root_window.uicolor.COLORACCENT, bordercolor=root_window.uicolor.BGACCENT3, borderwidth=0, troughcolor=root_window.uicolor.BG, lightcolor=root_window.uicolor.COLORACCENT, darkcolor=root_window.uicolor.COLORACCENT)
+
+    def on_close():
+        if not thread_manager.is_alive('Backup'):
+            root_window.quit()
+            exit()
+
+        if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
+            thread_manager.kill('Backup')
+            root_window.quit()
+            exit()
+
+    # Add menu bar
+    menubar = tk.Menu(root_window)
+
+    # File menu
+    file_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
+    file_menu.add_command(label='Open Backup Config...', underline=0, accelerator='Ctrl+O', command=open_config_file)
+    file_menu.add_command(label='Save Backup Config', underline=0, accelerator='Ctrl+S', command=save_config_file)
+    file_menu.add_command(label='Save Backup Config As...', underline=19, accelerator='Ctrl+Shift+S', command=save_config_file_as)
+    file_menu.add_separator()
+    file_menu.add_command(label='Exit', underline=1, command=on_close)
+    menubar.add_cascade(label='File', underline=0, menu=file_menu)
+
+    # Selection menu
+    # FIXME: Add -c configuration option for CLI mode to change preference options
+    selection_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
+    settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN))
+    settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN))
+    PREV_NETWORK_SOURCE_DRIVE = settings_showDrives_source_network.get()
+    PREV_LOCAL_SOURCE_DRIVE = settings_showDrives_source_local.get()
+    selection_menu.add_checkbutton(label='Source Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=lambda: change_source_type(DRIVE_TYPE_REMOTE))
+    selection_menu.add_checkbutton(label='Source Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=lambda: change_source_type(DRIVE_TYPE_LOCAL))
+    settings_showDrives_dest_network = tk.BooleanVar(value=prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
+    settings_showDrives_dest_local = tk.BooleanVar(value=prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
+    PREV_NETWORK_DEST_DRIVE = settings_showDrives_dest_network.get()
+    PREV_LOCAL_DEST_DRIVE = settings_showDrives_dest_local.get()
+    selection_menu.add_checkbutton(label='Destination Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE))
+    selection_menu.add_checkbutton(label='Destination Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL))
+    selection_menu.add_separator()
+    selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
+    settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=Config.SOURCE_MODE_OPTIONS, default=Config.SOURCE_MODE_SINGLE_DRIVE))
+    PREV_SOURCE_MODE = settings_sourceMode.get()
+    selection_source_mode_menu.add_checkbutton(label='Single drive, select subfolders', onvalue=Config.SOURCE_MODE_SINGLE_DRIVE, offvalue=Config.SOURCE_MODE_SINGLE_DRIVE, variable=settings_sourceMode, command=change_source_mode)
+    selection_source_mode_menu.add_checkbutton(label='Multi drive, select drives', onvalue=Config.SOURCE_MODE_MULTI_DRIVE, offvalue=Config.SOURCE_MODE_MULTI_DRIVE, variable=settings_sourceMode, command=change_source_mode)
+    selection_source_mode_menu.add_separator()
+    selection_source_mode_menu.add_checkbutton(label='Single path, select subfolders', onvalue=Config.SOURCE_MODE_SINGLE_PATH, offvalue=Config.SOURCE_MODE_SINGLE_PATH, variable=settings_sourceMode, command=change_source_mode)
+    selection_source_mode_menu.add_checkbutton(label='Multi path, select paths', onvalue=Config.SOURCE_MODE_MULTI_PATH, offvalue=Config.SOURCE_MODE_MULTI_PATH, variable=settings_sourceMode, command=change_source_mode)
+    selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
+    selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
+    settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=Config.DEST_MODE_OPTIONS, default=Config.DEST_MODE_DRIVES))
+    PREV_DEST_MODE = settings_destMode.get()
+    selection_dest_mode_menu.add_checkbutton(label='Drives', onvalue=Config.DEST_MODE_DRIVES, offvalue=Config.DEST_MODE_DRIVES, variable=settings_destMode, command=change_dest_mode)
+    selection_dest_mode_menu.add_checkbutton(label='Paths', onvalue=Config.DEST_MODE_PATHS, offvalue=Config.DEST_MODE_PATHS, variable=settings_destMode, command=change_dest_mode)
+    selection_menu.add_cascade(label='Destination Mode', underline=0, menu=selection_dest_mode_menu)
+    menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
+
+    # View menu
+    view_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
+    view_menu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=load_source_in_background)
+    view_menu.add_command(label='Refresh Destination', underline=0, accelerator='F5', command=load_dest_in_background)
+    show_file_details_pane = tk.BooleanVar()
+    view_menu.add_separator()
+    view_menu.add_command(label='Backup Error Log', accelerator='Ctrl+E', command=show_backup_error_log)
+    menubar.add_cascade(label='View', underline=0, menu=view_menu)
+
+    # Actions menu
+    actions_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
+    actions_menu.add_command(label='Verify Data Integrity on Selected Destinations', underline=0, command=start_verify_data_from_hash_list)
+    actions_menu.add_command(label='Delete Config from Selected Destinations', command=delete_config_file_from_selected_drives)
+    menubar.add_cascade(label='Actions', underline=0, menu=actions_menu)
+
+    # Preferences menu
+    preferences_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
+    preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
+    settings_verifyAllFiles = tk.BooleanVar(value=prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN))
+    preferences_verification_menu.add_checkbutton(label='Verify Known Files', onvalue=False, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
+    preferences_verification_menu.add_checkbutton(label='Verify All Files', onvalue=True, offvalue=True, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
+    preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
+    settings_darkModeEnabled = tk.BooleanVar(value=root_window.dark_mode) 
+    preferences_menu.add_checkbutton(label='Enable Dark Mode (requires restart)', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()))
+    menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
+
+    # Help menu
+    help_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
+    help_menu.add_command(label='Check for Updates', command=lambda: thread_manager.start(
+        thread_manager.SINGLE,
+        target=update_handler.check,
+        name='Update Check',
+        daemon=True
+    ))
+    settings_allow_prerelease_updates = tk.BooleanVar(value=config['allow_prereleases'])
+    help_menu.add_checkbutton(label='Allow Prereleases', onvalue=True, offvalue=False, variable=settings_allow_prerelease_updates, command=lambda: prefs.set('ui', 'allow_prereleases', settings_allow_prerelease_updates.get()))
+    menubar.add_cascade(label='Help', underline=0, menu=help_menu)
+
+    # Key bindings
+    root_window.bind('<Control-o>', lambda e: open_config_file())
+    root_window.bind('<Control-s>', lambda e: save_config_file())
+    root_window.bind('<Control-Shift-S>', lambda e: save_config_file_as())
+    root_window.bind('<Control-e>', lambda e: show_backup_error_log())
+
+    root_window.config(menu=menubar)
+
+    icon_windows = ImageTk.PhotoImage(Image.open(resource_path(f"media/windows{'_light' if root_window.dark_mode else ''}.png")))
+    icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media/windows_color.png')))
+    icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media/zip{'_light' if root_window.dark_mode else ''}.png")))
+    icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media/zip_color.png')))
+    icon_debian = ImageTk.PhotoImage(Image.open(resource_path(f"media/debian{'_light' if root_window.dark_mode else ''}.png")))
+    icon_debian_color = ImageTk.PhotoImage(Image.open(resource_path('media/debian_color.png')))
+    icon_targz = ImageTk.PhotoImage(Image.open(resource_path(f"media/targz{'_light' if root_window.dark_mode else ''}.png")))
+    icon_targz_color = ImageTk.PhotoImage(Image.open(resource_path('media/targz_color.png')))
+
+    # Progress/status values
+    progress_bar = ttk.Progressbar(root_window.main_frame, maximum=100, style='custom.Progressbar')
+    progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING, 0))
+
+    progress = Progress(
+        progress_bar=progress_bar,
+        thread_manager=thread_manager
+    )
+
+    source_avail_drive_list = []
+    source_drive_default = tk.StringVar()
+
+    # Tree frames for tree and scrollbar
+    tree_source_frame = tk.Frame(root_window.main_frame)
+
+    tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize', 'name'), style='custom.Treeview')
+    if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
+        tree_source_display_cols = ('size')
+    elif settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+        tree_source_display_cols = ('name', 'size')
+
+    if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+        SOURCE_TEXT_COL_WIDTH = 200  # Windows 120
+        SOURCE_NAME_COL_WIDTH = 140  # Windows 220
+    else:
+        SOURCE_TEXT_COL_WIDTH = 170
+        SOURCE_NAME_COL_WIDTH = 170
+
+    tree_source.heading('#0', text='Path')
+    tree_source.column('#0', width=SOURCE_TEXT_COL_WIDTH)
+    tree_source.heading('name', text='Name')
+    tree_source.column('name', width=SOURCE_NAME_COL_WIDTH)
+    tree_source.heading('size', text='Size')
+    tree_source.column('size', width=80)
+    tree_source['displaycolumns'] = tree_source_display_cols
+
+    tree_source.pack(side='left')
+    tree_source_scrollbar = ttk.Scrollbar(tree_source_frame, orient='vertical', command=tree_source.yview)
+    tree_source_scrollbar.pack(side='left', fill='y')
+    tree_source.configure(yscrollcommand=tree_source_scrollbar.set)
+
+    source_meta_frame = tk.Frame(root_window.main_frame)
+    tk.Grid.columnconfigure(source_meta_frame, 0, weight=1)
+
+    share_space_frame = tk.Frame(source_meta_frame)
+    share_space_frame.grid(row=0, column=0)
+    share_selected_space_frame = tk.Frame(share_space_frame)
+    share_selected_space_frame.grid(row=0, column=0)
+    share_selected_space_label = tk.Label(share_selected_space_frame, text='Selected:').pack(side='left')
+    share_selected_space = tk.Label(share_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
+    share_selected_space.pack(side='left')
+    share_total_space_frame = tk.Frame(share_space_frame)
+    share_total_space_frame.grid(row=0, column=1, padx=(12, 0))
+    share_total_space_label = tk.Label(share_total_space_frame, text='Total:').pack(side='left')
+    share_total_space = tk.Label(share_total_space_frame, text='~None', fg=root_window.uicolor.FADED)
+    share_total_space.pack(side='left')
+
+    source_select_frame = tk.Frame(root_window.main_frame)
+    source_select_frame.grid(row=0, column=1, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
+
+    source_select_single_frame = tk.Frame(source_select_frame)
+    tk.Label(source_select_single_frame, text='Source:').pack(side='left')
+    PREV_SOURCE_DRIVE = source_drive_default
+    source_select_menu = ttk.OptionMenu(source_select_single_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
+    source_select_menu['menu'].config(selectcolor=root_window.uicolor.FG)
+    source_select_menu.pack(side='left', padx=(12, 0))
+
+    source_select_multi_frame = tk.Frame(source_select_frame)
+    tk.Label(source_select_multi_frame, text='Multi-source mode, selection disabled').pack()
+
+    source_select_custom_single_frame = tk.Frame(source_select_frame)
+    source_select_custom_single_frame.grid_columnconfigure(0, weight=1)
+    selected_custom_source_text = last_selected_custom_source if last_selected_custom_source and os.path.isdir(last_selected_custom_source) else 'Custom source'
+    source_select_custom_single_path_label = tk.Label(source_select_custom_single_frame, text=selected_custom_source_text)
+    source_select_custom_single_path_label.grid(row=0, column=0, sticky='w')
+    source_select_custom_single_browse_button = ttk.Button(source_select_custom_single_frame, text='Browse', command=browse_for_source, style='slim.TButton')
+    source_select_custom_single_browse_button.grid(row=0, column=1)
+
+    source_select_custom_multi_frame = tk.Frame(source_select_frame)
+    source_select_custom_multi_frame.grid_columnconfigure(0, weight=1)
+    source_select_custom_multi_path_label = tk.Label(source_select_custom_multi_frame, text='Custom multi-source mode')
+    source_select_custom_multi_path_label.grid(row=0, column=0)
+    source_select_custom_multi_browse_button = ttk.Button(source_select_custom_multi_frame, text='Browse', command=browse_for_source, style='slim.TButton')
+    source_select_custom_multi_browse_button.grid(row=0, column=1)
+
+    # Source tree right click menu
+    source_right_click_menu = tk.Menu(tree_source, tearoff=0)
+    source_right_click_menu.add_command(label='Rename', underline=0)
+    if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_PATH:
+        source_right_click_menu.add_command(label='Delete')
+
+    source_select_bind = tree_source.bind("<<TreeviewSelect>>", select_source_in_background)
+    if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+        source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
+    else:
+        source_right_click_bind = None
+
+    source_warning = tk.Label(root_window.main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=root_window.uicolor.ERROR, fg=root_window.uicolor.BLACK)
+
+    root_window.bind('<Control-F5>', lambda x: load_source_in_background())
+
+    tree_dest_frame = tk.Frame(root_window.main_frame)
+    tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
+
+    dest_mode_frame = tk.Frame(root_window.main_frame)
+    dest_mode_frame.grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
+
+    def toggle_split_mode(event):
+        """Handle toggling of split mode based on checkbox value."""
+
+        if (not backup or not backup.is_running()) and not verification_running:
+            config['splitMode'] = not config['splitMode']
+
+            if config['splitMode']:
+                split_mode_frame.configure(highlightbackground=root_window.uicolor.GREEN)
+                split_mode_status.configure(style='on.toggle.TLabel')
+            else:
+                split_mode_frame.configure(highlightbackground=root_window.uicolor.FADED)
+                split_mode_status.configure(style='off.toggle.TLabel')
+
+    dest_select_normal_frame = tk.Frame(dest_mode_frame)
+    dest_select_normal_frame.pack()
+    alt_tooltip_normal_frame = tk.Frame(dest_select_normal_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
+    alt_tooltip_normal_frame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
+    ttk.Label(alt_tooltip_normal_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
+
+    dest_select_custom_frame = tk.Frame(dest_mode_frame)
+    dest_select_custom_frame.grid_columnconfigure(0, weight=1)
+    alt_tooltip_custom_frame = tk.Frame(dest_select_custom_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
+    alt_tooltip_custom_frame.grid(row=0, column=0, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
+    ttk.Label(alt_tooltip_custom_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
+    dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest, style='slim.TButton')
+    dest_select_custom_browse_button.grid(row=0, column=1)
+
+    DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == 'Windows' else 150
+    DEST_TREE_COLWIDTH_VID = 140 if settings_destMode.get() == Config.DEST_MODE_PATHS else 90
+    DEST_TREE_COLWIDTH_SERIAL = 150 if SYS_PLATFORM == 'Windows' else 50
+
+    tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
+    tree_dest.heading('#0', text='Drive')
+    if settings_destMode.get() == Config.DEST_MODE_PATHS:
+        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
+    else:
+        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
+    tree_dest.heading('size', text='Size')
+    tree_dest.column('size', width=80)
+    tree_dest.heading('configfile', text='Config')
+    tree_dest.column('configfile', width=50)
+    if settings_destMode.get() == Config.DEST_MODE_DRIVES:
+        tree_dest.heading('vid', text='Volume ID')
+    elif settings_destMode.get() == Config.DEST_MODE_PATHS:
+        tree_dest.heading('vid', text='Name')
+    tree_dest.column('vid', width=DEST_TREE_COLWIDTH_VID)
+    tree_dest.heading('serial', text='Serial')
+    tree_dest.column('serial', width=DEST_TREE_COLWIDTH_SERIAL)
+
+    if settings_destMode.get() == Config.DEST_MODE_DRIVES:
+        tree_dest_display_cols = ('size', 'configfile', 'vid', 'serial')
+    elif settings_destMode.get() == Config.DEST_MODE_PATHS:
+        tree_dest_display_cols = ('vid', 'size', 'configfile')
+    tree_dest['displaycolumns'] = tree_dest_display_cols
+
+    tree_dest.pack(side='left')
+    tree_dest_scrollbar = ttk.Scrollbar(tree_dest_frame, orient='vertical', command=tree_dest.yview)
+    tree_dest_scrollbar.pack(side='left', fill='y')
+    tree_dest.configure(yscrollcommand=tree_dest_scrollbar.set)
+
+    root_window.bind('<F5>', lambda x: load_dest_in_background())
+
+    # Dest tree right click menu
+    dest_right_click_menu = tk.Menu(tree_source, tearoff=0)
+    dest_right_click_menu.add_command(label='Rename', underline=0)
+    dest_right_click_menu.add_command(label='Delete')
+
+    if settings_destMode.get() == Config.DEST_MODE_PATHS:
+        dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
+    else:
+        dest_right_click_bind = None
+
+    # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
+    # visible, so 1px needs to be added back
+    dest_meta_frame = tk.Frame(root_window.main_frame)
+    dest_meta_frame.grid(row=2, column=2, sticky='nsew', pady=(1, 0))
+    tk.Grid.columnconfigure(dest_meta_frame, 0, weight=1)
+
+    dest_split_warning_frame = tk.Frame(root_window.main_frame, bg=root_window.uicolor.WARNING)
+    dest_split_warning_frame.rowconfigure(0, weight=1)
+    dest_split_warning_frame.columnconfigure(0, weight=1)
+    dest_split_warning_frame.columnconfigure(10, weight=1)
+
+    # TODO: Can this be cleaned up?
+    tk.Frame(dest_split_warning_frame).grid(row=0, column=1)
+    split_warning_prefix = tk.Label(dest_split_warning_frame, text='There are', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK)
+    split_warning_prefix.grid(row=0, column=1, sticky='ns')
+    split_warning_missing_drive_count = tk.Label(dest_split_warning_frame, text='0', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK, font=(None, 18, 'bold'))
+    split_warning_missing_drive_count.grid(row=0, column=2, sticky='ns')
+    split_warning_suffix = tk.Label(dest_split_warning_frame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK)
+    split_warning_suffix.grid(row=0, column=3, sticky='ns')
+    tk.Frame(dest_split_warning_frame).grid(row=0, column=10)
+
+    drive_space_frame = tk.Frame(dest_meta_frame)
+    drive_space_frame.grid(row=0, column=0)
+
+    config_selected_space_frame = tk.Frame(drive_space_frame)
+    config_selected_space_frame.grid(row=0, column=0)
+    tk.Label(config_selected_space_frame, text='Config:').pack(side='left')
+    config_selected_space = tk.Label(config_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
+    config_selected_space.pack(side='left')
+
+    drive_selected_space_frame = tk.Frame(drive_space_frame)
+    drive_selected_space_frame.grid(row=0, column=1, padx=(12, 0))
+    tk.Label(drive_selected_space_frame, text='Selected:').pack(side='left')
+    drive_selected_space = tk.Label(drive_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
+    drive_selected_space.pack(side='left')
+
+    drive_total_space_frame = tk.Frame(drive_space_frame)
+    drive_total_space_frame.grid(row=0, column=2, padx=(12, 0))
+    tk.Label(drive_total_space_frame, text='Avail:').pack(side='left')
+    drive_total_space = tk.Label(drive_total_space_frame, text=human_filesize(0), fg=root_window.uicolor.FADED)
+    drive_total_space.pack(side='left')
+    split_mode_frame = tk.Frame(drive_space_frame, highlightbackground=root_window.uicolor.GREEN if config['splitMode'] else root_window.uicolor.FADED, highlightthickness=1)
+    split_mode_frame.grid(row=0, column=3, padx=(12, 0), pady=4, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=3)
+    split_mode_status = ttk.Label(split_mode_frame, text='Split mode', style='on.toggle.TLabel' if config['splitMode'] else 'off.toggle.TLabel')
+    split_mode_status.pack(fill='y', expand=1)
+
+    split_mode_frame.bind('<Button-1>', toggle_split_mode)
+    split_mode_status.bind('<Button-1>', toggle_split_mode)
+
+    dest_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_dest_in_background)
+
+    # Add tab frame for main detail views
+    content_tab_frame = TabbedFrame(root_window.main_frame, tabs={
+        'summary': 'Backup summary',
+        'details': 'Backup details'
+    })
+    content_tab_frame.tab['summary']['content'] = ScrollableFrame(content_tab_frame.frame)
+    content_tab_frame.tab['details']['content'] = ScrollableFrame(content_tab_frame.frame)
+    content_tab_frame.grid(row=5, column=1, columnspan=2, sticky='nsew')
+    tk.Grid.rowconfigure(root_window.main_frame, 5, weight=1)
+    content_tab_frame.change_tab('details')
+    # FIXME: Canvas returning wrong width that's smaller than actual width of canvas
+    content_tab_frame.tab['details']['width'] = content_tab_frame.tab['details']['content'].winfo_width()
+    content_tab_frame.change_tab('summary')
+    content_tab_frame.tab['summary']['width'] = content_tab_frame.tab['summary']['content'].winfo_width()
+
+    # Backup ETA (tab gutter)
+    backup_eta_label = tk.Label(content_tab_frame.gutter, text='Please start a backup to show ETA')
+    backup_eta_label.pack()
+
+    # Right side frame
+    tk.Grid.columnconfigure(root_window.main_frame, 3, weight=1)
+    right_side_frame = tk.Frame(root_window.main_frame)
+    right_side_frame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+
+    backup_file_details_frame = tk.Frame(right_side_frame)
+    backup_file_details_frame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING)
+    backup_file_details_frame.pack_propagate(0)
+
+    file_details_pending_delete_header_line = tk.Frame(backup_file_details_frame)
+    file_details_pending_delete_header_line.grid(row=0, column=0, sticky='w')
+    file_details_pending_delete_header = tk.Label(file_details_pending_delete_header_line, text='Files to delete', font=(None, 11, 'bold'))
+    file_details_pending_delete_header.pack(side='left')
+    file_details_pending_delete_tooltip = tk.Label(file_details_pending_delete_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
+    file_details_pending_delete_tooltip.pack(side='left')
+    file_details_pending_delete_counter_frame = tk.Frame(backup_file_details_frame)
+    file_details_pending_delete_counter_frame.grid(row=1, column=0, sticky='w')
+    file_details_pending_delete_counter = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 28))
+    file_details_pending_delete_counter.pack(side='left', anchor='s')
+    tk.Label(file_details_pending_delete_counter_frame, text='of', font=(None, 11), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
+    file_details_pending_delete_counter_total = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 12), fg=root_window.uicolor.FADED)
+    file_details_pending_delete_counter_total.pack(side='left', anchor='s', pady=(0, 5))
+
+    file_details_pending_copy_header_line = tk.Frame(backup_file_details_frame)
+    file_details_pending_copy_header_line.grid(row=0, column=1, sticky='e')
+    file_details_pending_copy_header = tk.Label(file_details_pending_copy_header_line, text='Files to copy', font=(None, 11, 'bold'))
+    file_details_pending_copy_header.pack(side='right')
+    file_details_pending_copy_tooltip = tk.Label(file_details_pending_copy_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
+    file_details_pending_copy_tooltip.pack(side='right')
+    file_details_pending_copy_counter_frame = tk.Frame(backup_file_details_frame)
+    file_details_pending_copy_counter_frame.grid(row=1, column=1, sticky='e')
+    file_details_pending_copy_counter = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 28))
+    file_details_pending_copy_counter.pack(side='left', anchor='s')
+    tk.Label(file_details_pending_copy_counter_frame, text='of', font=(None, 11), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
+    file_details_pending_copy_counter_total = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 12), fg=root_window.uicolor.FADED)
+    file_details_pending_copy_counter_total.pack(side='left', anchor='s', pady=(0, 5))
+
+    file_details_copied_header_line = tk.Frame(backup_file_details_frame)
+    file_details_copied_header_line.grid(row=2, column=0, columnspan=2, sticky='ew')
+    file_details_copied_header_line.grid_columnconfigure(1, weight=1)
+    file_details_copied_header = tk.Label(file_details_copied_header_line, text='Successful', font=(None, 11, 'bold'))
+    file_details_copied_header.grid(row=0, column=0)
+    file_details_copied_tooltip = tk.Label(file_details_copied_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
+    file_details_copied_tooltip.grid(row=0, column=1, sticky='w')
+    file_details_copied_counter = tk.Label(file_details_copied_header_line, text='0', font=(None, 11, 'bold'))
+    file_details_copied_counter.grid(row=0, column=2)
+    file_details_copied = ScrollableFrame(backup_file_details_frame)
+    file_details_copied.grid(row=3, column=0, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='nsew')
+
+    file_details_failed_header_line = tk.Frame(backup_file_details_frame)
+    file_details_failed_header_line.grid(row=4, column=0, columnspan=2, sticky='ew')
+    file_details_failed_header_line.grid_columnconfigure(1, weight=1)
+    file_details_failed_header = tk.Label(file_details_failed_header_line, text='Failed', font=(None, 11, 'bold'))
+    file_details_failed_header.grid(row=0, column=0)
+    file_details_failed_tooltip = tk.Label(file_details_failed_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
+    file_details_failed_tooltip.grid(row=0, column=1, sticky='w')
+    file_details_failed_counter = tk.Label(file_details_failed_header_line, text='0', font=(None, 11, 'bold'))
+    file_details_failed_counter.grid(row=0, column=2)
+    file_details_failed = ScrollableFrame(backup_file_details_frame)
+    file_details_failed.grid(row=5, column=0, columnspan=2, sticky='nsew')
+
+    # Set grid weights
+    tk.Grid.rowconfigure(backup_file_details_frame, 3, weight=2)
+    tk.Grid.rowconfigure(backup_file_details_frame, 5, weight=1)
+    tk.Grid.columnconfigure(backup_file_details_frame, (0, 1), weight=1)
+
+    # Set click to copy key bindings
+    file_details_pending_delete_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
+    file_details_pending_delete_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
+    file_details_pending_copy_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
+    file_details_pending_copy_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
+    file_details_copied_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+    file_details_copied_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+    file_details_copied_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+    file_details_failed_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+    file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+    file_details_failed_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+
+    # Add placeholder to backup analysis
+    reset_analysis_output()
+    backup_action_button_frame = tk.Frame(right_side_frame)
+    backup_action_button_frame.pack(padx=WINDOW_ELEMENT_PADDING, pady=WINDOW_ELEMENT_PADDING / 2)
+    start_analysis_btn = ttk.Button(backup_action_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
+    start_analysis_btn.pack(side='left', padx=4)
+    start_backup_btn = ttk.Button(backup_action_button_frame, text='Run Backup', width=0, command=start_backup, state='disabled')
+    start_backup_btn.pack(side='left', padx=4)
+    halt_verification_btn = ttk.Button(backup_action_button_frame, text='Halt Verification', width=0, command=lambda: thread_manager.kill('Data Verification'), style='danger.TButton')
+
+    branding_frame = tk.Frame(right_side_frame)
+    branding_frame.pack(padx=WINDOW_ELEMENT_PADDING / 2)
+
+    image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if root_window.dark_mode else ''}.png")))
+    tk.Label(branding_frame, image=image_logo).pack(side='left')
+    tk.Label(branding_frame, text=f"v{APP_VERSION}", font=(None, 10), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
+
+    load_source_in_background()
+    # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
+    thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
+
+    # Check for updates on startup
+    thread_manager.start(
+        thread_manager.SINGLE,
+        target=update_handler.check,
+        name='Update Check',
+        daemon=True
+    )
+
+    root_window.protocol('WM_DELETE_WINDOW', on_close)
+    root_window.mainloop()

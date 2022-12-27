@@ -5,13 +5,11 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Added current working file during backup to status bar details
 
-### Fixed
-- Fixed CLI mode crashing when starting backup analysis
-- Fixed removable drives like flash drives not showing as local drives
+### Removed
+- Removed buggy CLI for performance reasons
 
-### Changed
-- Made CLI params more intuitive to use
-- Removed calls to custom CommandLine class in favor of argparse
+### Fixed
+- Fixed removable drives like flash drives not showing as local drives
 
 ## 3.3.0 - 2021-12-10
 ### Fixed

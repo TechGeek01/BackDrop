@@ -69,8 +69,6 @@ class Backup:
         self.BACKUP_CONFIG_FILE = backup_config_file
         self.BACKUP_HASH_FILE = 'hashes.pkl'
 
-        self.CLI_MODE = self.config['cli_mode']
-
         self.file_hashes = {drive['name']: {} for drive in self.config['destinations']}
 
         self.uicolor = uicolor
@@ -172,11 +170,10 @@ class Backup:
         self.analysis_running = True
         self.analysis_started = True
 
-        if not self.CLI_MODE:
-            self.progress.start_indeterminate()
-            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
-            self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
-            self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_START)
+        self.progress.start_indeterminate()
+        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
+        self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
+        self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_START)
 
         share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
         all_share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
@@ -919,19 +916,16 @@ class Backup:
 
             self.analysis_valid = True
 
-            if not self.CLI_MODE:
-                self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
-                self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
-                self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
+            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
+            self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
+            self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
         else:
             # If thread halted, mark analysis as invalid
-            if not self.CLI_MODE:
-                self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
-                self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
-                self.update_ui_component_fn(Status.RESET_ANALYSIS_OUTPUT)
+            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
+            self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
+            self.update_ui_component_fn(Status.RESET_ANALYSIS_OUTPUT)
 
-        if not self.CLI_MODE:
-            self.progress.stop_indeterminate()
+        self.progress.stop_indeterminate()
 
         self.analysis_running = False
 
@@ -987,17 +981,16 @@ class Backup:
         if not self.analysis_valid or not self.sanity_check():
             return
 
-        if not self.CLI_MODE:
-            self.update_ui_component_fn(Status.UPDATEUI_BACKUP_START)
-            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
-            self.progress.set(0)
-            self.progress.set_max(self.totals['master'])
+        self.update_ui_component_fn(Status.UPDATEUI_BACKUP_START)
+        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
+        self.progress.set(0)
+        self.progress.set_max(self.totals['master'])
 
-            for cmd in self.command_list:
-                self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=self.uicolor.PENDING)
-                if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
-                    self.cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=self.uicolor.PENDING)
-                self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=self.uicolor.PENDING)
+        for cmd in self.command_list:
+            self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=self.uicolor.PENDING)
+            if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
+                self.cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=self.uicolor.PENDING)
+            self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=self.uicolor.PENDING)
 
         # Write config file to drives
         self.write_config_to_disks()
@@ -1010,8 +1003,7 @@ class Backup:
 
         for cmd in self.command_list:
             if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
-                if not self.CLI_MODE:
-                    self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Running', fg=self.uicolor.RUNNING)
+                self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Running', fg=self.uicolor.RUNNING)
 
                 if not timer_started:
                     timer_started = True
@@ -1077,24 +1069,17 @@ class Backup:
                             pickle.dump(hash_list, f)
 
             if self.thread_manager.threadlist['Backup']['killFlag'] and self.totals['running'] < self.totals['master']:
-                if not self.CLI_MODE:
-                    self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Aborted', fg=self.uicolor.STOPPED)
-                    self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Aborted', fg=self.uicolor.STOPPED)
-                else:
-                    print(f"{bcolor.FAIL}Backup aborted by user{bcolor.ENDC}")
+                self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Aborted', fg=self.uicolor.STOPPED)
+                self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Aborted', fg=self.uicolor.STOPPED)
                 break
             else:
-                if not self.CLI_MODE:
-                    self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Done', fg=self.uicolor.FINISHED)
-                    self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Done', fg=self.uicolor.FINISHED)
-                else:
-                    print(f"{bcolor.OKGREEN}Backup finished{bcolor.ENDC}")
+                self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Done', fg=self.uicolor.FINISHED)
+                self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Done', fg=self.uicolor.FINISHED)
 
         self.thread_manager.kill('backupTimer')
 
-        if not self.CLI_MODE:
-            self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
-            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
+        self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
+        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
         self.backup_running = False
 
     def get_backup_start_time(self):
