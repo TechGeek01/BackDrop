@@ -1681,10 +1681,15 @@ if __name__ == '__main__':
     APP_VERSION = '4.0.0'
 
     # Set constants
-    DRIVE_TYPE_LOCAL = 3
-    DRIVE_TYPE_REMOTE = 4
-    DRIVE_TYPE_RAMDISK = 6
     SYS_PLATFORM = platform.system()
+    if SYS_PLATFORM == 'Windows':
+        DRIVE_TYPE_LOCAL = win32file.DRIVE_FIXED
+        DRIVE_TYPE_REMOTE = win32file.DRIVE_REMOTE
+        DRIVE_TYPE_RAMDISK = win32file.DRIVE_RAMDISK
+    else:
+        DRIVE_TYPE_LOCAL = 3
+        DRIVE_TYPE_REMOTE = 4
+        DRIVE_TYPE_RAMDISK = 6
     READINTO_BUFSIZE = 1024 * 1024  # differs from shutil.COPY_BUFSIZE on platforms != Windows
 
     # Set defaults
