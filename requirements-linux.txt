@@ -1,7 +1,7 @@
 certifi==2022.12.07
 chardet==4.0.0
 clipboard==0.0.4
-idna==2.10
+idna==3.4
 keyboard==0.13.5
 Pillow==9.3.0
 pyperclip==1.8.2
