@@ -506,7 +506,8 @@ def get_source_drive_list():
         if prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN):
             drive_type_list.append(DRIVE_TYPE_REMOTE)
         if prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN):
-            drive_type_list.append(DRIVE_TYPE_LOCAL)
+            drive_type_list.append(DRIVE_TYPE_FIXED)
+            drive_type_list.append(DRIVE_TYPE_REMOVABLE)
         source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
     elif SYS_PLATFORM == 'Linux':
         local_selected = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
@@ -890,8 +891,15 @@ def load_dest():
             for drive in logical_drive_list:
                 if drive != config['source_drive'] and drive != SYSTEM_DRIVE:
                     drive_type = win32file.GetDriveType(drive)
-                    if ((prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_LOCAL)  # Drive is LOCAL
-                            or (prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN) and drive_type == DRIVE_TYPE_REMOTE)):  # Drive is REMOTE
+
+                    drive_type_list = []
+                    if prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN):
+                        drive_type_list.append(DRIVE_TYPE_REMOTE)
+                    if prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN):
+                        drive_type_list.append(DRIVE_TYPE_FIXED)
+                        drive_type_list.append(DRIVE_TYPE_REMOVABLE)
+
+                    if drive_type in drive_type_list:
                         try:
                             drive_size = shutil.disk_usage(drive).total
                             vsn = os.stat(drive).st_dev
@@ -1683,11 +1691,15 @@ if __name__ == '__main__':
     # Set constants
     SYS_PLATFORM = platform.system()
     if SYS_PLATFORM == 'Windows':
-        DRIVE_TYPE_LOCAL = win32file.DRIVE_FIXED
+        DRIVE_TYPE_REMOVABLE = win32file.DRIVE_REMOVABLE
+        DRIVE_TYPE_FIXED = win32file.DRIVE_FIXED
+        DRIVE_TYPE_LOCAL = DRIVE_TYPE_FIXED # TODO: Make this a proper thing instead of reusing one local value
         DRIVE_TYPE_REMOTE = win32file.DRIVE_REMOTE
         DRIVE_TYPE_RAMDISK = win32file.DRIVE_RAMDISK
     else:
-        DRIVE_TYPE_LOCAL = 3
+        DRIVE_TYPE_REMOVABLE = 2
+        DRIVE_TYPE_FIXED = 3
+        DRIVE_TYPE_LOCAL = DRIVE_TYPE_FIXED
         DRIVE_TYPE_REMOTE = 4
         DRIVE_TYPE_RAMDISK = 6
     READINTO_BUFSIZE = 1024 * 1024  # differs from shutil.COPY_BUFSIZE on platforms != Windows
@@ -2668,6 +2680,9 @@ if __name__ == '__main__':
 
         # If both selections are unchecked, the last one has just been unchecked
         # In this case, re-check it, so that there's always some selection
+        # TODO: This currently uses the fixed type to indicate local drives, but
+        # will be used to select both fixed and removable drives. Should probably
+        # find a proper solution for this...
         if not selected_local and not selected_network:
             if toggle_type == DRIVE_TYPE_LOCAL:
                 settings_showDrives_source_local.set(True)

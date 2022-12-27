@@ -3,7 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## 4.0.0 - TBD
 ### Fixed
-* Fixed CLI mode crashing when starting backup analysis
+- Fixed CLI mode crashing when starting backup analysis
+- Fixed removable drives like flash drives not showing as local drives
 
 ### Changed
 - Made CLI params more intuitive to use
@@ -11,11 +12,11 @@ All notable changes to this project will be documented in this file.
 
 ## 3.3.0 - 2021-12-10
 ### Fixed
-* Fixed measured width of TabbedFrame tabs being 0 when tab is not active
+- Fixed measured width of TabbedFrame tabs being 0 when tab is not active
 
 ### Changed
-* Converted backup details and overview to tabbed layout, and made window smaller
-* Cleaned up code
+- Converted backup details and overview to tabbed layout, and made window smaller
+- Cleaned up code
 
 ## 3.2.0 - 2021-11-28
 ### Added
