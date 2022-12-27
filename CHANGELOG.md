@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## 4.0.0 - TBD
+### Added
+- Added current working file during backup to status bar details
+
 ### Fixed
 - Fixed CLI mode crashing when starting backup analysis
 - Fixed removable drives like flash drives not showing as local drives

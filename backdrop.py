@@ -1309,6 +1309,7 @@ def cleanup_handler(signal_received, frame):
 
     exit(0)
 
+# TODO: Move file verification to backup class
 def verify_data_integrity(drive_list):
     """Verify itegrity of files on destination drives by checking hashes.
 
@@ -2255,6 +2256,8 @@ if __name__ == '__main__':
             start_backup_btn.configure(text='Run Backup', command=start_backup, style='TButton')
         elif status == Status.UPDATEUI_STATUS_BAR:
             update_status_bar_action(data)
+        elif status == Status.UPDATEUI_STATUS_BAR_DETAILS:
+            statusbar_details.configure(text=data)
         elif status == Status.RESET_ANALYSIS_OUTPUT:
             reset_analysis_output()
 

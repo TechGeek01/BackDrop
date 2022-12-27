@@ -989,6 +989,7 @@ class Backup:
 
         if not self.CLI_MODE:
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_START)
+            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
             self.progress.set(0)
             self.progress.set_max(self.totals['master'])
 
@@ -1025,6 +1026,7 @@ class Backup:
 
                         src = os.path.join(drive, file)
 
+                        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, src)
                         self.do_del_fn(filename=src, size=size, display_index=cmd['displayIndex'])
 
                         # If file hash was in list, remove it, and write changes to file
@@ -1045,6 +1047,7 @@ class Backup:
                         src = os.path.join(share_path, file)
                         dest = os.path.join(drive, share, file)
 
+                        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, dest)
                         file_hashes = self.do_copy_fn(src=src, dest=dest, drive_path=drive, display_index=cmd['displayIndex'])
                         self.file_hashes[drive].update(file_hashes)
 
@@ -1063,6 +1066,7 @@ class Backup:
                         src = os.path.join(share_path, file)
                         dest = os.path.join(drive, share, file)
 
+                        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, dest)
                         file_hashes = self.do_copy_fn(src=src, dest=dest, drive_path=drive, display_index=cmd['displayIndex'])
                         self.file_hashes[drive].update(file_hashes)
 
@@ -1090,6 +1094,7 @@ class Backup:
 
         if not self.CLI_MODE:
             self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
+            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
         self.backup_running = False
 
     def get_backup_start_time(self):
