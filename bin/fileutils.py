@@ -13,7 +13,7 @@ class FileUtils:
     LIST_DELETE_SUCCESS = 'delete_success'
     LIST_DELETE_FAIL = 'delete_fail'
 
-    READINTO_BUFSIZE = 1024 * 1024  # differs from shutil.COPY_BUFSIZE on platforms != Windows
+    READINTO_BUFSIZE = 1024 * 1024 * 2  # differs from shutil.COPY_BUFSIZE on platforms != Windows
 
 def human_filesize(num: int, suffix='B'):
     """Convert a number of bytes to a human readable format.
@@ -81,7 +81,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     pre_callback()
     display_mode = 'copy'
 
-    buffer_size = 1024 * 1024
+    buffer_size = 1024 * 1024 * 2
 
     # Optimize the buffer for small files
     buffer_size = min(buffer_size, os.path.getsize(source_filename))

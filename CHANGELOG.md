@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Replaced blake2b hash with blake3
+- Increased buffer size for copy operations
 
 ## 3.3.0 - 2021-12-10
 ### Fixed
