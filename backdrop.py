@@ -505,6 +505,9 @@ def load_source():
             source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
 
             # Enumerate list of shares in source
+            if SYS_PLATFORM == 'Windows':
+                config['source_drive'] = config['source_drive'] + os.path.sep
+
             for directory in next(os.walk(config['source_drive']))[1]:
                 tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
         elif selected_source_mode == Config.SOURCE_MODE_MULTI_DRIVE:

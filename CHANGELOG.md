@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Fixed removable drives like flash drives not showing as local drives
+- Fixed regression causing source drive selection to list folders in PWD instead of drive root if drive selected was the same drive BackDrop is run from
 
 ## 3.3.0 - 2021-12-10
 ### Fixed
