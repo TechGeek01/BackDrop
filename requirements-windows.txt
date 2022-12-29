@@ -1,3 +1,4 @@
+blake3==0.3.3
 certifi==2022.12.07
 chardet==5.1.0
 clipboard==0.0.4

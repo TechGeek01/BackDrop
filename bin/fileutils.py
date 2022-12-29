@@ -1,6 +1,6 @@
 import os
-import hashlib
 import shutil
+from blake3 import blake3
 
 class FileUtils:
     STATUS_SUCCESS = 0x00
@@ -88,7 +88,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     if buffer_size == 0:
         buffer_size = 1024
 
-    h = hashlib.blake2b()
+    h = blake3()
     b = bytearray(buffer_size)
     mv = memoryview(b)
 
@@ -141,7 +141,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     shutil.copymode(source_filename, dest_filename)
     shutil.copystat(source_filename, dest_filename)
 
-    dest_hash = hashlib.blake2b()
+    dest_hash = blake3()
     dest_b = bytearray(buffer_size)
     dest_mv = memoryview(dest_b)
 

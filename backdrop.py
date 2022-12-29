@@ -7,7 +7,7 @@ import subprocess
 import webbrowser
 if platform.system() == 'Windows':
     import pythoncom
-import hashlib
+from blake3 import blake3
 import sys
 import time
 import ctypes
@@ -1230,7 +1230,7 @@ def verify_data_integrity(drive_list):
             filename (String): The file to get the hash of.
 
         Returns:
-            String: The blake2b hash of the file if readable. None otherwise.
+            String: The blake3 hash of the file if readable. None otherwise.
         """
 
         buffer_size = 1024 * 1024
@@ -1240,7 +1240,7 @@ def verify_data_integrity(drive_list):
         if buffer_size == 0:
             buffer_size = 1024
 
-        h = hashlib.blake2b()
+        h = blake3()
         b = bytearray(buffer_size)
         mv = memoryview(b)
 

@@ -12,6 +12,9 @@ All notable changes to this project will be documented in this file.
 - Fixed removable drives like flash drives not showing as local drives
 - Fixed regression causing source drive selection to list folders in PWD instead of drive root if drive selected was the same drive BackDrop is run from
 
+### Changed
+- Replaced blake2b hash with blake3
+
 ## 3.3.0 - 2021-12-10
 ### Fixed
 - Fixed measured width of TabbedFrame tabs being 0 when tab is not active
