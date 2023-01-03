@@ -6,7 +6,6 @@ import shutil
 import pickle
 
 from bin.fileutils import FileUtils, human_filesize, get_directory_size
-from bin.color import bcolor
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.status import Status
@@ -94,7 +93,7 @@ class Backup:
         """
 
         # Both file sources, and destinations must be defined
-        if len(self.config['destinations']) <= 0 or len(self.config['sources']) <= 0:
+        if not self.config['destinations'] or not self.config['sources']:
             return False
 
         share_total = 0
@@ -426,7 +425,7 @@ class Backup:
                                 largest_set = subset
 
                     files_that_fit_on_drive.extend([file for file in largest_set])
-                    processed_small_files.extend([file for file in trimmed_small_file_list.keys()])
+                    processed_small_files.extend([file for file in trimmed_small_file_list])
                     file_info = {file: size for (file, size) in file_info.items() if file not in largest_set}
 
                     # Subtract file size of each batch of files from the free space on the drive so the next batch sorts properly
@@ -448,10 +447,10 @@ class Backup:
             share_split_summary = [{
                 'share': share,
                 'files': drive_file_list,
-                'exclusions': [file for file in file_info.keys()]
+                'exclusions': [file for file in file_info]
             }]
 
-            for file in file_info.keys():
+            for file in file_info:
                 file_path = os.path.join(share, file)
                 share_split_summary.extend(split_share(file_path))
 
@@ -460,7 +459,7 @@ class Backup:
         # For shares larger than all drives, recurse into each share
         # share_info contains shares not sorted into drives
         drive_exclusions = {drive['name']: [] for drive in master_drive_list}
-        for share in share_info.keys():
+        for share in share_info:
             share_path = self.get_share_source_path(share)
 
             if os.path.exists(share_path) and os.path.isdir(share_path):
@@ -497,7 +496,7 @@ class Backup:
                     # For each drive, gather list of files to be written to other drives, and
                     # use that as exclusions
                     for drive_vid, files in share_files.items():
-                        if len(files) > 0:
+                        if files:
                             raw_exclusions = all_files.copy()
                             raw_exclusions.pop(drive_vid, None)
 
@@ -530,7 +529,7 @@ class Backup:
 
             file_list = []
             try:
-                if len(os.listdir(directory)) > 0:
+                if os.listdir(directory):
                     for entry in os.scandir(directory):
                         # For each entry, add file to list, and recurse into path if directory
                         file_list.append(entry.path)
@@ -694,7 +693,7 @@ class Backup:
                     source_path = os.path.join(share_path, path)
 
                     # Check if directory has files
-                    if len(os.listdir(source_path)) > 0:
+                    if os.listdir(source_path):
                         for entry in os.scandir(source_path):
                             if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                                 return file_list
@@ -768,7 +767,7 @@ class Backup:
             modified_file_list = build_delta_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])
 
             delete_items = modified_file_list['delete']
-            if len(delete_items) > 0:
+            if delete_items:
                 self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']] = delete_items
                 file_delete_list = [os.path.join(drive, file) for drive, file, size in delete_items]
 
@@ -793,7 +792,7 @@ class Backup:
             # Build list of files to replace
             replace_items = modified_file_list['replace']
             replace_items.sort(key=lambda x: x[1])
-            if len(replace_items) > 0:
+            if replace_items:
                 self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']] = replace_items
                 file_replace_list = [os.path.join(drive, share, file) for drive, share, file, source_size, dest_size in replace_items]
 
@@ -817,7 +816,7 @@ class Backup:
 
             # Build list of new files to copy
             new_items = build_new_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])['new']
-            if len(new_items) > 0:
+            if new_items:
                 self.new_file_list[self.DRIVE_VID_INFO[drive]['name']] = new_items
                 file_copy_list = [os.path.join(drive, share, file) for drive, share, file, size in new_items]
 
@@ -886,7 +885,7 @@ class Backup:
             self.totals['delete'] += drive_total['delete']
             self.totals['delta'] += drive_total['delta']
 
-            if len(file_summary) > 0:
+            if file_summary:
                 show_file_info.append((self.DRIVE_VID_INFO[drive]['name'], '\n'.join(file_summary)))
 
         if not self.thread_manager.threadlist['Backup Analysis']['killFlag']:
@@ -949,7 +948,7 @@ class Backup:
             for drive in self.config['destinations']:
                 # If config exists on drives, back it up first
                 if os.path.isfile(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE)):
-                    shutil.move(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE), os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE + '.old'))
+                    shutil.move(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE), os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, f'{self.BACKUP_CONFIG_FILE}.old'))
 
                 drive_config_file = Config(os.path.join(self.DRIVE_VID_INFO[drive['vid']]['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_CONFIG_FILE))
 

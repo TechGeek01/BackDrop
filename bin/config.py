@@ -1,7 +1,9 @@
 from configparser import ConfigParser
 import os
 import re
+from dataclasses import dataclass
 
+@dataclass
 class Config:
     BOOLEAN = 'boolean'
     INTEGER = 'integer'

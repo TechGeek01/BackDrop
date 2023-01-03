@@ -45,15 +45,18 @@ class Color:
         blue = (color1[2] * (255 - ratio2 * 255) + color2[2] * ratio2 * 255) / 255
 
         # Convert back to hex
-        return '#' + hex(int(red))[-2:] + hex(int(green))[-2:] + hex(int(blue))[-2:]
+        return f'#{hex(int(red))[-2:]}{hex(int(green))[-2:]}{hex(int(blue))[-2:]}'
 
-    def __init__(self, root, dark_mode: bool = False):
+    def __init__(self, root, dark_mode: bool = None):
         """Set the UI colors for the GUI.
 
         Args:
             root (Tk): The root tkinter window.
             dark_mode (bool): Whether or not the UI should be set to dark mode.
         """
+
+        if dark_mode is None:
+            dark_mode = False
 
         self.dark_mode = dark_mode
 

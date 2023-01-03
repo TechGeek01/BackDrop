@@ -4,7 +4,7 @@ import re
 from bin.status import Status
 
 class UpdateHandler:
-    def __init__(self, current_version, update_callback, allow_prereleases: bool = False, status_change_fn=None):
+    def __init__(self, current_version, update_callback, allow_prereleases: bool = None, status_change_fn=None):
         """
         Args:
             current_version (String): The current version of the program.
@@ -12,6 +12,9 @@ class UpdateHandler:
             allow_prereleases (bool): Whether to included prerelease versions (default: False).
             status_change_fn (def): The function to call when changing status.
         """
+
+        if allow_prereleases is None:
+            allow_prereleases = False
 
         self.current_version = current_version
         self.allow_prereleases = bool(allow_prereleases)

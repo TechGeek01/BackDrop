@@ -23,7 +23,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 class RootWindow(tk.Tk):
-    def __init__(self, title, width: int, height: int, center: bool = False, resizable=(True, True), status_bar: bool = False, dark_mode: bool = False, *args, **kwargs):
+    def __init__(self, title, width: int, height: int, center: bool = None, resizable=None, status_bar: bool = None, dark_mode: bool = None, *args, **kwargs):
         # TODO: Get icons working to be passed into RootWindow class
         # TODO: Add option to give RootWindow a scrollbar
         # TODO: Add option to give RootWindow status bar
@@ -42,6 +42,15 @@ class RootWindow(tk.Tk):
                 (optional).
             dark_mode (bool): Whether to use dark mode (optional).
         """
+
+        if center is None:
+            center = False
+        if resizable is None:
+            resizable = (True, True)
+        if status_bar is None:
+            status_bar = False
+        if dark_mode is None:
+            dark_mode = False
 
         (resize_width, resize_height) = resizable
 
@@ -93,7 +102,7 @@ class RootWindow(tk.Tk):
         self.deiconify()
 
 class AppWindow(tk.Toplevel):
-    def __init__(self, root, title, width: int, height: int, center: bool = False, center_content: bool = False, resizable=(True, True), status_bar: bool = False, modal: bool = False, *args, **kwargs):
+    def __init__(self, root, title, width: int, height: int, center: bool = None, center_content: bool = None, resizable=None, status_bar: bool = None, modal: bool = None, *args, **kwargs):
         # TODO: Get icons working to be passed into AppWindow class
         # TODO: Add option to give AppWindow a scrollbar
         # TODO: Add option to give AppWindow status bar
@@ -115,6 +124,16 @@ class AppWindow(tk.Toplevel):
                 (optional).
             modal (bool): Whether or not the window is a modal window (optional).
         """
+        if center is None:
+            center = False
+        if center_content is None:
+            center_content = False
+        if resizable is None:
+            resizable = (True, True)
+        if status_bar is None:
+            status_bar = False
+        if modal is None:
+            modal = False
 
         (resize_width, resize_height) = resizable
 
@@ -245,16 +264,14 @@ class ScrollableFrame(tk.Frame):
         """
 
         if limit is not None and isinstance(limit, int):
-            for widget in self.frame.winfo_children()[:-limit]:
-                widget.destroy()
+            [widget.destroy() for widget in self.frame.winfo_children()[:-limit]]
 
         time.sleep(0.01)
         self.canvas.yview_moveto(1)
 
     def empty(self):
         self.canvas.yview_moveto(0)
-        for widget in self.frame.winfo_children():
-            widget.destroy()
+        [widget.destroy() for widget in self.frame.winfo_children()]
 
     def winfo_height(self):
         self.canvas.update_idletasks()
@@ -265,7 +282,7 @@ class ScrollableFrame(tk.Frame):
         return self.canvas.winfo_width()
 
 class TabbedFrame(tk.Frame):
-    def __init__(self, parent, tabs={}, *args, **kwargs):
+    def __init__(self, parent, tabs=None, *args, **kwargs):
         """Create a tabbed frame widget.
 
         Args:
@@ -274,6 +291,9 @@ class TabbedFrame(tk.Frame):
                 key (String): The internal name for the tab.
                 value (String): The display name for the tab.
         """
+
+        if tabs is None:
+            tabs = {}
 
         tk.Frame.__init__(self, parent)
         self.pack_propagate(0)
@@ -310,8 +330,7 @@ class TabbedFrame(tk.Frame):
 
         self.focus_set()
 
-        for widget in self.frame.winfo_children():
-            widget.pack_forget()
+        [widget.pack_forget() for widget in self.frame.winfo_children()]
 
         # Change styling of tabs to show active tab
         for tab in self.tab:
@@ -330,7 +349,7 @@ class BackupDetailBlock(tk.Frame):
     TITLE = 'title'
     CONTENT = 'content'
 
-    def __init__(self, parent, title, uicolor, backup, enabled: bool = True):
+    def __init__(self, parent, title, uicolor, backup, enabled: bool = None):
         """Create an expandable detail block to display info.
 
         Args:
@@ -340,6 +359,9 @@ class BackupDetailBlock(tk.Frame):
             backup (Backup): The backup instance to reference.
             enabled (bool): Whether or not this block is enabled.
         """
+
+        if enabled is None:
+            enabled = True
 
         self.enabled = enabled
         self.backup = backup

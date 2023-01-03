@@ -23,6 +23,7 @@ if platform.system() == 'Windows':
     import win32api
     import win32file
     import wmi
+import logging
 
 from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_copy, do_delete
 from bin.color import bcolor
@@ -144,7 +145,7 @@ def copy_file_pre(di, dest_filename):
     cmd_info_blocks = backup.cmd_info_blocks
     cmd_info_blocks[di].configure('current_file', text=dest_filename, fg=root_window.uicolor.NORMAL)
 
-def update_file_details_on_copy(list_name, filename, error=None, s_hex='', d_hex=''):
+def update_file_details_on_copy(list_name, filename, error=None, s_hex=None, d_hex=None):
     """Update file detail lists in a copy operation.
 
     Args:
@@ -154,6 +155,12 @@ def update_file_details_on_copy(list_name, filename, error=None, s_hex='', d_hex
         s_hex (String): The source file hex digest (optional).
         d_hex (String): The destination file hex digest (optional).
     """
+
+    if s_hex is None:
+        s_hex = ''
+    if d_hex is None:
+        d_hex = ''
+
     update_file_detail_lists(list_name, filename)
 
 def display_backup_progress(copied, total, display_filename=None, display_mode=None, display_index: int = None):
@@ -231,7 +238,7 @@ def start_copy(src, dest, drive_path, display_index):
         get_backup_killflag=get_backup_killflag
     )
 
-def display_backup_summary_chunk(title, payload: tuple, reset: bool = False):
+def display_backup_summary_chunk(title, payload: tuple, reset: bool = None):
     """Display a chunk of a backup analysis summary to the user.
 
     Args:
@@ -241,6 +248,9 @@ def display_backup_summary_chunk(title, payload: tuple, reset: bool = False):
         payload tuple[1]: The data to associate to the subject.
         reset (bool): Whether to clear the summary frame first (default: False).
     """
+
+    if reset is None:
+        reset = False
 
     if reset:
         content_tab_frame.tab['summary']['content'].empty()
@@ -338,8 +348,8 @@ def display_backup_command_info(display_command_list: list):
             if actual_file_width > MAX_WIDTH:
                 while actual_file_width > MAX_WIDTH and len(trimmed_file_list) > 1:
                     trimmed_file_list = trimmed_file_list[:-1]
-                    actual_file_width = list_font.measure(trimmed_file_list + '...')
-                trimmed_file_list = trimmed_file_list + '...'
+                    actual_file_width = list_font.measure(f'{trimmed_file_list}...')
+                trimmed_file_list = f'{trimmed_file_list}...'
 
             backup_summary_block.add_line('file_size', 'Total size', human_filesize(item['size']))
             backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['list']))
@@ -364,7 +374,7 @@ def backup_reset_ui():
     content_tab_frame.tab['details']['content'].empty()
 
     # Clear file lists for file details pane
-    [file_detail_list[list_name].clear() for list_name in file_detail_list.keys()]
+    [file_detail_list[list_name].clear() for list_name in file_detail_list]
 
     # Reset file details counters
     file_details_pending_delete_counter.configure(text='0')
@@ -439,13 +449,16 @@ def get_source_drive_list():
         network_selected = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
 
         if network_selected and not local_selected:
-            cmd = 'df -tcifs -tnfs --output=target'
+            cmd = ['df', '-tcifs', '-tnfs', '--output=target']
         elif local_selected and not network_selected:
-            cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target'
+            cmd = ['df', '-xtmpfs', '-xsquashfs', '-xdevtmpfs', '-xcifs', '-xnfs', '--output=target']
         elif local_selected and network_selected:
-            cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs --output=target'
+            cmd = ['df', '-xtmpfs', '-xsquashfs', '-xdevtmpfs', '--output=target']
 
-        out = subprocess.run(cmd, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+        out = subprocess.run(cmd,
+                             stdout=subprocess.PIPE,
+                             stdin=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
         logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
         logical_drive_list = [mount for mount in logical_drive_list if mount]
 
@@ -454,7 +467,11 @@ def get_source_drive_list():
         for drive in logical_drive_list:
             drive_name = f'"{drive}"'
 
-            out = subprocess.run("mount | grep " + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            out = subprocess.run("mount | grep " + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'",
+                                 stdout=subprocess.PIPE,
+                                 stdin=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL,
+                                 shell=True)
             physical_disk = out.stdout.decode('utf-8').split('\n')[0].strip()
 
             # Only process mount point if it's not on the system drive
@@ -683,11 +700,9 @@ def select_source():
         share_total_space.configure(text=total_prefix + human_filesize(share_total), fg=root_window.uicolor.NORMAL if share_total > 0 else root_window.uicolor.FADED)
 
         # If everything's calculated, enable analysis button to be clicked
-        all_shares_known = True
-        for item in tree_source.selection():
-            if tree_source.item(item, 'values')[0] == 'Unknown':
-                all_shares_known = False
-        if all_shares_known:
+        # IDEA: Is it better to assume calculations are out of date, and always calculate on the fly during analysis?
+        share_size_list = [tree_source.item(item, 'values')[0] for item in tree_source.selection()]
+        if 'Unknown' not in share_size_list:
             start_analysis_btn.configure(state='normal')
             update_status_bar_selection()
 
@@ -852,7 +867,11 @@ def load_dest():
             elif local_selected and network_selected:
                 cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs --output=target'
 
-            out = subprocess.run(cmd, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            out = subprocess.run(cmd,
+                                 stdout=subprocess.PIPE,
+                                 stdin=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL,
+                                 shell=True)
             logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
             logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['source_drive']]
 
@@ -861,7 +880,11 @@ def load_dest():
             for drive in logical_drive_list:
                 drive_name = f'"{drive}"'
 
-                out = subprocess.run("mount | grep " + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+                out = subprocess.run("mount | grep " + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'",
+                                     stdout=subprocess.PIPE,
+                                     stdin=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL,
+                                     shell=True)
                 physical_disk = out.stdout.decode('utf-8').split('\n')[0].strip()
 
                 # Only process mount point if it's not on the system drive
@@ -869,12 +892,20 @@ def load_dest():
                     drive_size = shutil.disk_usage(drive).total
 
                     # Get volume ID, remove dashes, and format the last 8 characters
-                    out = subprocess.run(f"df {drive_name} --output=source | awk 'NR==2' | xargs lsblk -o uuid | awk 'NR==2'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+                    out = subprocess.run(f"df {drive_name} --output=source | awk 'NR==2' | xargs lsblk -o uuid | awk 'NR==2'",
+                                         stdout=subprocess.PIPE,
+                                         stdin=subprocess.DEVNULL,
+                                         stderr=subprocess.DEVNULL,
+                                         shell=True)
                     vsn = out.stdout.decode('utf-8').split('\n')[0].strip().replace('-', '').upper()
-                    vsn = vsn[-8:-4] + '-' + vsn[-4:]
+                    vsn = f'{vsn[-8:-4]}-{vsn[-4:]}'
 
                     # Get drive serial, if present
-                    out = subprocess.run(f"lsblk -o serial '{physical_disk}' | awk 'NR==2'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+                    out = subprocess.run(f"lsblk -o serial '{physical_disk}' | awk 'NR==2'",
+                                         stdout=subprocess.PIPE,
+                                         stdin=subprocess.DEVNULL,
+                                         stderr=subprocess.DEVNULL,
+                                         shell=True)
                     serial = out.stdout.decode('utf-8').split('\n')[0].strip()
 
                     # Set default if serial not found
@@ -942,7 +973,7 @@ def gui_select_from_config():
     # If drives aren't mounted that should be, display the warning
     MISSING_DRIVE_COUNT = len(config['missing_drives'])
     if MISSING_DRIVE_COUNT > 0:
-        config_missing_drive_vid_list = [vid for vid in config['missing_drives'].keys()]
+        config_missing_drive_vid_list = [vid for vid in config['missing_drives']]
 
         MISSING_VID_READABLE_LIST = ', '.join(config_missing_drive_vid_list[:-2] + [' and '.join(config_missing_drive_vid_list[-2:])])
         MISSING_VID_ALERT_MESSAGE = f"The drive{'s' if len(config_missing_drive_vid_list) > 1 else ''} with volume ID{'s' if len(config_missing_drive_vid_list) > 1 else ''} {MISSING_VID_READABLE_LIST} {'are' if len(config_missing_drive_vid_list) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
@@ -1191,24 +1222,24 @@ def cleanup_handler(signal_received, frame):
     global force_non_graceful_cleanup
 
     if not force_non_graceful_cleanup:
-        print(f"{bcolor.FAIL}SIGINT or Ctrl-C detected. Exiting gracefully...{bcolor.ENDC}")
+        logging.error('SIGINT or Ctrl-C detected. Exiting gracefully...')
 
         if thread_manager.is_alive('Backup'):
             thread_manager.kill('Backup')
 
             if thread_manager.is_alive('Backup'):
                 force_non_graceful_cleanup = True
-                print(f"{bcolor.FAIL}Press Ctrl-C again to force stop{bcolor.ENDC}")
+                logging.error('Press Ctrl-C again to force stop')
 
             while thread_manager.is_alive('Backup'):
                 pass
 
-            print(f"{bcolor.FAIL}Exiting...{bcolor.ENDC}")
+            logging.error('Exiting...')
 
         if thread_manager.is_alive('backupTimer'):
             thread_manager.kill('backupTimer')
     else:
-        print(f"{bcolor.FAIL}SIGINT or Ctrl-C detected. Force closing...{bcolor.ENDC}")
+        logging.error('SIGINT or Ctrl-C detected. Force closing...')
 
     exit(0)
 
@@ -1543,7 +1574,7 @@ def check_for_updates(info: dict):
 if __name__ == '__main__':
     # Platform sanity check
     if not platform.system() in ['Windows', 'Linux']:
-        print('This operating system is not supported')
+        logging.error('This operating system is not supported')
         exit()
 
     # Set meta info
@@ -1575,11 +1606,15 @@ if __name__ == '__main__':
     update_window = None
 
     if SYS_PLATFORM == 'Windows':
-        SYSTEM_DRIVE = f"{os.getenv('SystemDrive')[0]}:"
-        APPDATA_FOLDER = os.getenv('LocalAppData') + '/BackDrop'
+        SYSTEM_DRIVE = f'{os.getenv("SystemDrive")[0]}:'
+        APPDATA_FOLDER = f'{os.getenv("LocalAppData")}/BackDrop'
     elif SYS_PLATFORM == 'Linux':
         # Get system drive by querying mount points
-        out = subprocess.run('mount | grep "on / type"' + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'", stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+        out = subprocess.run('mount | grep "on / type"' + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'",
+                             stdout=subprocess.PIPE,
+                             stdin=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL,
+                             shell=True)
         SYSTEM_DRIVE = out.stdout.decode('utf-8').split('\n')[0].strip()
 
         # If user runs as sudo, username has to be grabbed through sudo to get the
@@ -1775,7 +1810,7 @@ if __name__ == '__main__':
             for drive in config['destinations']:
                 # If config exists on drives, back it up first
                 if os.path.isfile(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)):
-                    shutil.move(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE), os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE + '.old'))
+                    shutil.move(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE), os.path.join(drive['name'], BACKUP_CONFIG_DIR, f'{BACKUP_CONFIG_FILE}.old'))
 
                 new_config_file = Config(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
@@ -1842,8 +1877,7 @@ if __name__ == '__main__':
             # Ask for confirmation before deleting
             if messagebox.askyesno('Delete config files?', 'Are you sure you want to delete the config files from the selected drives?'):
                 # Delete config file on each drive
-                for drive in drive_list:
-                    os.remove(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+                [os.remove(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) for drive in drive_list]
 
                 # Since config files on drives changed, refresh the destination list
                 load_dest_in_background()
@@ -1910,9 +1944,7 @@ if __name__ == '__main__':
             load_source_in_background()
         elif settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_PATH:
             # Get list of paths already in tree
-            existing_path_list = []
-            for item in tree_source.get_children():
-                existing_path_list.append(tree_source.item(item, 'text'))
+            existing_path_list = [tree_source.item(item, 'text') for item in tree_source.get_children()]
 
             # Only add item to list if it's not already there
             if dir_name not in existing_path_list:
@@ -1937,9 +1969,7 @@ if __name__ == '__main__':
             return
 
         # Get list of paths already in tree
-        existing_path_list = []
-        for item in tree_dest.get_children():
-            existing_path_list.append(tree_dest.item(item, 'text'))
+        existing_path_list = [tree_dest.item(item, 'text') for item in tree_dest.get_children()]
 
         # Only add item to list if it's not already there
         if dir_name not in existing_path_list:
@@ -2239,9 +2269,9 @@ if __name__ == '__main__':
         drive_list = [drive['name'] for drive in config['destinations']]
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
-    ############
-    # GUI Mode #
-    ############
+    LOGGING_LEVEL = logging.INFO
+    LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
+    logging.basicConfig(level=LOGGING_LEVEL, format=LOGGING_FORMAT)
 
     file_detail_list = {
         FileUtils.LIST_TOTAL_DELETE: [],

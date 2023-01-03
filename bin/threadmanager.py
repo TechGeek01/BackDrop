@@ -47,7 +47,7 @@ class ThreadManager:
         self._gc_thread = threading.Thread(target=thread_garbage_collect, name='ThreadManager_GC', daemon=True)
         self._gc_thread.start()
 
-    def start(self, thread_type, is_progress_thread: bool = False, callback=None, *args, **kwargs):
+    def start(self, thread_type, is_progress_thread: bool = None, callback=None, *args, **kwargs):
         """Create and start a thread if one doesn't already exist.
 
         Args:
@@ -61,6 +61,9 @@ class ThreadManager:
             String: If a thread is successfully created, the thread name is returned.
             bool: False if an active thread exists with that name.
         """
+
+        if is_progress_thread is None:
+            is_progress_thread = False
 
         if 'name' in kwargs:
             thread_name = kwargs['name']

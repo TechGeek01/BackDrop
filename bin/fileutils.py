@@ -15,7 +15,7 @@ class FileUtils:
 
     READINTO_BUFSIZE = 1024 * 1024 * 2  # differs from shutil.COPY_BUFSIZE on platforms != Windows
 
-def human_filesize(num: int, suffix='B'):
+def human_filesize(num: int, suffix=None):
     """Convert a number of bytes to a human readable format.
 
     Args:
@@ -25,6 +25,9 @@ def human_filesize(num: int, suffix='B'):
     Returns:
         String: A string representation of the filesize passed in.
     """
+
+    if suffix is None:
+        suffix = 'B'
 
     for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
         if abs(num) < 1024.0:
@@ -120,7 +123,6 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
                     break
         except OSError:
             pass
-        fdst.close()
 
     # If file wasn't copied successfully, delete it
     if copied != file_size:
