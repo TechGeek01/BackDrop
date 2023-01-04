@@ -1593,7 +1593,7 @@ if __name__ == '__main__':
         DRIVE_TYPE_LOCAL = DRIVE_TYPE_FIXED
         DRIVE_TYPE_REMOTE = 4
         DRIVE_TYPE_RAMDISK = 6
-    READINTO_BUFSIZE = 1024 * 1024  # differs from shutil.COPY_BUFSIZE on platforms != Windows
+    READINTO_BUFSIZE = 1024 * 1024 * 2  # differs from shutil.COPY_BUFSIZE on platforms != Windows
 
     # Set defaults
     prev_source_selection = []
