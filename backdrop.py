@@ -26,7 +26,6 @@ if platform.system() == 'Windows':
 import logging
 
 from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_copy, do_delete
-from bin.color import bcolor
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.progress import Progress
