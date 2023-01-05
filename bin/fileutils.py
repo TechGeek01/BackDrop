@@ -110,9 +110,6 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
         fdst = open(dest_filename, 'wb')
         try:
             for n in iter(lambda: f.readinto(mv), 0):
-                if get_backup_killflag():
-                    break
-
                 fdst.write(mv[:n])
                 h.update(mv[:n])
 
