@@ -124,6 +124,8 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
         except OSError:
             pass
 
+        fdst.close()
+
     # If file wasn't copied successfully, delete it
     if copied != file_size:
         if os.path.isfile(dest_filename):
