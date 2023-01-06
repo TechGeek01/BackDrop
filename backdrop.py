@@ -2268,7 +2268,7 @@ if __name__ == '__main__':
         drive_list = [drive['name'] for drive in config['destinations']]
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
-    LOGGING_LEVEL = logging.INFO
+    LOGGING_LEVEL = logging.DEBUG
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
     logging.basicConfig(level=LOGGING_LEVEL, format=LOGGING_FORMAT)
 

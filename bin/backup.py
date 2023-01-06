@@ -4,6 +4,9 @@ import itertools
 from datetime import datetime
 import shutil
 import pickle
+import time
+import logging
+import math
 
 from bin.fileutils import FileUtils, human_filesize, get_directory_size
 from bin.threadmanager import ThreadManager
@@ -169,6 +172,8 @@ class Backup:
         self.analysis_running = True
         self.analysis_started = True
 
+        start_time = time.perf_counter()
+
         self.progress.start_indeterminate()
         self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
         self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
@@ -255,9 +260,15 @@ class Backup:
 
         all_drive_files_buffer = {drive['name']: [] for drive in master_drive_list}
 
+        SOURCE_LIST_CHUNK_SIZE = 15
+
         for i, drive in enumerate(drive_info):
             # Get list of sources small enough to fit on drive
             total_small_sources = {source: size for source, size in share_info.items() if size <= drive['free']}
+            SOURCE_LIST_LENGTH = len(total_small_sources)
+
+            # Sort sources by largest first
+            total_small_sources = sorted(total_small_sources.items(), key=lambda x: x[1], reverse=True)
 
             # Since the list of files is truncated to prevent an unreasonably large
             # number of combinations to check, we need to keep processing the file list
@@ -266,15 +277,19 @@ class Backup:
             small_source_list = {}
             processed_small_sources = []
             processed_source_size = 0
-            while len(processed_small_sources) < len(total_small_sources):
+
+            for chunk in range(0, math.ceil(SOURCE_LIST_LENGTH / SOURCE_LIST_CHUNK_SIZE)):
                 if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
-                    break
+                    break  # while len(processed_small_sources) < len(total_small_sources):
 
                 # Trim the list of small files to those that aren't already processed
-                small_source_list = {source: size for (source, size) in total_small_sources.items() if source not in processed_small_sources}
-                small_source_list = sorted(small_source_list.items(), key=lambda x: x[1], reverse=True)
+                small_source_list = {source: size for (source, size) in total_small_sources if source not in processed_small_sources}
 
-                trimmed_small_source_list = {source[0]: source[1] for source in small_source_list[:15]}
+                LIST_CHUNK_MIN = chunk * SOURCE_LIST_CHUNK_SIZE
+                LIST_CHUNK_MAX = min((chunk + 1) * SOURCE_LIST_CHUNK_SIZE, SOURCE_LIST_LENGTH)
+
+                # Truncate to prevent unreasonably large number of combinations
+                trimmed_small_source_list = {source[0]: source[1] for source in total_small_sources[LIST_CHUNK_MIN:LIST_CHUNK_MAX]}
 
                 # Try every combination of sources that fit to find result that uses most of that drive
                 largest_sum = 0
@@ -378,9 +393,15 @@ class Backup:
             # For splitting shares, sort by largest free space first
             drive_info.sort(reverse=True, key=lambda x: x['free'])
 
+            FILE_LIST_CHUNK_SIZE = 15
+
             for i, drive in enumerate(drive_info):
                 # Get list of files small enough to fit on drive
                 total_small_files = {file: size for file, size in file_info.items() if size <= drive['free']}
+                FILE_LIST_LENGTH = len(total_small_files)
+
+                # Sort files by largest first
+                total_small_files = sorted(total_small_files.items(), key=lambda x: x[1], reverse=True)
 
                 # Since the list of files is truncated to prevent an unreasonably large
                 # number of combinations to check, we need to keep processing the file list
@@ -389,29 +410,19 @@ class Backup:
                 small_file_list = {}
                 processed_small_files = []
                 processed_file_size = 0
-                while len(processed_small_files) < len(total_small_files):
+
+                for chunk in range(0, math.ceil(FILE_LIST_LENGTH / FILE_LIST_CHUNK_SIZE)):
                     if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                         break
 
                     # Trim the list of small files to those that aren't already processed
                     small_file_list = {file: size for (file, size) in total_small_files.items() if file not in processed_small_files}
 
-                    # Make sure we don't end with an unreasonable number of combinations to go through
-                    # by sorting by largest first, and truncating
-                    # Sorting files first, since files can't be split, so it's preferred to have directories last
-                    file_list = {}
-                    dir_list = {}
-                    for file, size in small_file_list.items():
-                        if os.path.isfile(os.path.join(share_path, file)):
-                            file_list[file] = size
-                        elif os.path.isdir(os.path.join(share_path, file)):
-                            dir_list[file] = size
+                    LIST_CHUNK_MIN = chunk * FILE_LIST_CHUNK_SIZE
+                    LIST_CHUNK_MAX = min((chunk + 1) * FILE_LIST_CHUNK_SIZE, FILE_LIST_LENGTH)
 
-                    # Sort file list by largest first, and truncate to prevent unreasonably large number of combinations
-                    small_file_list = sorted(file_list.items(), key=lambda x: x[1], reverse=True)
-                    small_file_list.extend(sorted(dir_list.items(), key=lambda x: x[1], reverse=True))
-                    trimmed_small_file_list = {file[0]: file[1] for file in small_file_list[:15]}
-                    small_file_list = {file[0]: file[1] for file in small_file_list}
+                    # Truncate to prevent unreasonably large number of combinations
+                    trimmed_small_file_list = {file[0]: file[1] for file in total_small_files[LIST_CHUNK_MIN:LIST_CHUNK_MAX]}
 
                     # Try every combination of shares that fit to find result that uses most of that drive
                     largest_sum = 0
@@ -514,6 +525,9 @@ class Backup:
             if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                 break
 
+        sort_time = time.perf_counter()
+        logging.info(f'Sorting took {sort_time - start_time} seconds')
+
         def recurse_file_list(directory):
             """Get a complete list of files in a directory.
 
@@ -554,6 +568,9 @@ class Backup:
             for file in files:
                 all_drive_files[drive].extend(recurse_file_list(file))
 
+        file_list_time = time.perf_counter()
+        logging.info(f'File enumeration took {file_list_time - sort_time} seconds')
+
         def build_delta_file_list(drive, path, shares: list, exclusions: list) -> dict:
             """Get lists of files to delete and replace from the destination drive, that no longer
             exist in the source, or have changed.
@@ -577,13 +594,14 @@ class Backup:
                 'replace': []
             }
             try:
+                if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                    return file_list
+
                 shares_to_process = [share for share in shares if share == path or path.find(share + os.path.sep) == 0]
 
                 for entry in os.scandir(os.path.join(drive, path)):
-                    if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
-                        return file_list
-
                     stub_path = entry.path[len(drive):].strip(os.path.sep)
+                    root_path = stub_path.split(os.path.sep)[0]
 
                     # For each entry, either add filesize to the total, or recurse into the directory
                     if entry.is_file():
@@ -614,24 +632,18 @@ class Backup:
                     elif entry.is_dir():
                         found_share = False
 
-                        for item in shares:
-                            path_slug = stub_path[len(item):].strip(os.path.sep)
-                            share_path = self.get_share_source_path(item)
-                            source_path = os.path.join(share_path, path_slug)
+                        if (root_path in shares and os.path.isdir(self.get_share_source_path(root_path))  # Dir is share or folder in share, and exists on source
+                                or 0 in [item.find(stub_path + os.path.sep) for item in shares]):  # Directory is parent of share, so it stays
+                            found_share = True
 
-                            if (stub_path == item  # Dir is share, so it stays
-                                    or (stub_path.find(item + os.path.sep) == 0 and os.path.isdir(source_path))  # Dir is subdir inside share, and it exists in source
-                                    or item.find(stub_path + os.path.sep) == 0):  # Dir is parent directory of a share we're copying, so it stays
-                                # Recurse into the share
-                                new_list = build_delta_file_list(drive, stub_path, shares, exclusions)
-                                file_list['delete'].extend(new_list['delete'])
-                                file_list['replace'].extend(new_list['replace'])
-                                found_share = True
-                                break
+                            # Recurse into folder
+                            new_list = build_delta_file_list(drive, stub_path, shares, exclusions)
+                            file_list['delete'].extend(new_list['delete'])
+                            file_list['replace'].extend(new_list['replace'])
 
                         if (not found_share or stub_path in exclusions) and stub_path not in special_ignore_list:
-                            # Directory isn't share, or part of one, and isn't a special folder or
-                            # exclusion, so delete it
+                            # Directory isn't a share, or part of one, or is an exclusion,  and isn't
+                            # a special folder, so delete it
                             file_list['delete'].append((drive, stub_path, get_directory_size(entry.path)))
                             self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_DELETE, entry.path)
             except NotADirectoryError:
@@ -689,15 +701,15 @@ class Backup:
                 }
 
                 try:
+                    if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
+                        return file_list
+
                     share_path = self.get_share_source_path(share)
                     source_path = os.path.join(share_path, path)
 
                     # Check if directory has files
                     if os.listdir(source_path):
                         for entry in os.scandir(source_path):
-                            if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
-                                return file_list
-
                             stub_path = entry.path[len(share_path):].strip(os.path.sep)
                             exclusion_stub_path = os.path.join(share, stub_path)
                             target_path = os.path.join(drive, share, stub_path)
@@ -761,10 +773,16 @@ class Backup:
         copy_command_list = []
         display_purge_command_list = []
         display_copy_command_list = []
+        logging.debug('Delta file lists starting...')
         for drive, shares in drive_share_list.items():
             if self.thread_manager.threadlist['Backup Analysis']['killFlag']:
                 break
+
+            logging.debug(f'Drive {self.DRIVE_VID_INFO[drive]["name"]} delta starting...')
+            delta_start = time.perf_counter()
             modified_file_list = build_delta_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])
+            delta_stop = time.perf_counter()
+            logging.debug(f'Drive {self.DRIVE_VID_INFO[drive]["name"]} delta took {delta_stop - delta_start} seconds')
 
             delete_items = modified_file_list['delete']
             if delete_items:
@@ -815,7 +833,11 @@ class Backup:
                 })
 
             # Build list of new files to copy
+            logging.debug(f'Drive {self.DRIVE_VID_INFO[drive]["name"]} file list starting...')
+            file_list_start = time.perf_counter()
             new_items = build_new_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])['new']
+            file_list_stop = time.perf_counter()
+            logging.debug(f'Drive {self.DRIVE_VID_INFO[drive]["name"]} file list took {file_list_stop - file_list_start} seconds')
             if new_items:
                 self.new_file_list[self.DRIVE_VID_INFO[drive]['name']] = new_items
                 file_copy_list = [os.path.join(drive, share, file) for drive, share, file, size in new_items]
@@ -837,6 +859,7 @@ class Backup:
                     'payload': new_items,
                     'mode': Backup.COMMAND_MODE_COPY
                 })
+        logging.debug('Delta file lists finished')
 
         # Gather and summarize totals for analysis summary
         show_file_info = []
@@ -923,6 +946,11 @@ class Backup:
             self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
             self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
             self.update_ui_component_fn(Status.RESET_ANALYSIS_OUTPUT)
+
+        stop_time = time.perf_counter()
+
+        logging.info(f'File delta calculation took {stop_time - file_list_time} seconds')
+        logging.info(f'Full analysis took {stop_time - start_time} seconds')
 
         self.progress.stop_indeterminate()
 
