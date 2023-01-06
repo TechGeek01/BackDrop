@@ -851,9 +851,7 @@ def load_dest():
                                 'capacity': drive_size,
                                 'hasConfig': drive_has_config_file
                             })
-                        except FileNotFoundError:
-                            pass
-                        except OSError:
+                        except (FileNotFoundError, OSError):
                             pass
         elif SYS_PLATFORM == 'Linux':
             local_selected = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)

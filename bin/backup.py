@@ -552,13 +552,7 @@ class Backup:
                 else:
                     # No files, so append dir to list
                     file_list.append(entry.path)
-            except NotADirectoryError:
-                return []
-            except PermissionError:
-                return []
-            except OSError:
-                return []
-            except TypeError:
+            except (NotADirectoryError, PermissionError, OSError, TypeError):
                 return []
             return file_list
 
@@ -646,17 +640,7 @@ class Backup:
                             # a special folder, so delete it
                             file_list['delete'].append((drive, stub_path, get_directory_size(entry.path)))
                             self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_DELETE, entry.path)
-            except NotADirectoryError:
-                return {
-                    'delete': [],
-                    'replace': []
-                }
-            except PermissionError:
-                return {
-                    'delete': [],
-                    'replace': []
-                }
-            except OSError:
+            except (NotADirectoryError, PermissionError, OSError):
                 return {
                     'delete': [],
                     'replace': []
@@ -739,15 +723,7 @@ class Backup:
                             'new': [(drive, share, path, get_directory_size(os.path.join(source_path, path)))]
                         }
 
-                except NotADirectoryError:
-                    return {
-                        'new': []
-                    }
-                except PermissionError:
-                    return {
-                        'new': []
-                    }
-                except OSError:
+                except (NotADirectoryError, PermissionError, OSError):
                     return {
                         'new': []
                     }
