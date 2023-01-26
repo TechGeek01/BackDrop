@@ -7,5 +7,5 @@ keyboard==0.13.5
 Pillow==9.4.0
 pyperclip==1.8.2
 pywin32==305
-requests==2.28.1
+requests==2.28.2
 WMI==1.5.1
