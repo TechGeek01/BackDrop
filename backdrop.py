@@ -5,21 +5,18 @@ import shutil
 import os
 import subprocess
 import webbrowser
-if platform.system() == 'Windows':
-    import pythoncom
 from blake3 import blake3
-import sys
 import time
 import ctypes
 from signal import signal, SIGINT
 from datetime import datetime
 import re
 import pickle
-
 import clipboard
 import keyboard
 from PIL import Image, ImageTk
 if platform.system() == 'Windows':
+    import pythoncom
     import win32api
     import win32file
     import wmi
@@ -858,17 +855,16 @@ def load_dest():
             network_selected = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
 
             if network_selected and not local_selected:
-                cmd = 'df -tcifs -tnfs --output=target'
+                cmd = ['df', ' -tcifs', '-tnfs', '--output=target']
             elif local_selected and not network_selected:
-                cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs -xcifs -xnfs --output=target'
+                cmd = ['df', ' -xtmpfs', '-xsquashfs', '-xdevtmpfs', '-xcifs', '-xnfs', '--output=target']
             elif local_selected and network_selected:
-                cmd = 'df -xtmpfs -xsquashfs -xdevtmpfs --output=target'
+                cmd = ['df', ' -xtmpfs', '-xsquashfs', '-xdevtmpfs', '--output=target']
 
             out = subprocess.run(cmd,
                                  stdout=subprocess.PIPE,
                                  stdin=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL,
-                                 shell=True)
+                                 stderr=subprocess.DEVNULL)
             logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
             logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['source_drive']]
 
@@ -1591,7 +1587,7 @@ if __name__ == '__main__':
         DRIVE_TYPE_LOCAL = DRIVE_TYPE_FIXED
         DRIVE_TYPE_REMOTE = 4
         DRIVE_TYPE_RAMDISK = 6
-    READINTO_BUFSIZE = 1024 * 1024 * 2  # differs from shutil.COPY_BUFSIZE on platforms != Windows
+    READINTO_BUFSIZE = FileUtils.READINTO_BUFSIZE  # differs from shutil.COPY_BUFSIZE on platforms != Windows
 
     # Set defaults
     prev_source_selection = []
@@ -2266,7 +2262,7 @@ if __name__ == '__main__':
         drive_list = [drive['name'] for drive in config['destinations']]
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
-    LOGGING_LEVEL = logging.DEBUG
+    LOGGING_LEVEL = logging.INFO
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
     logging.basicConfig(level=LOGGING_LEVEL, format=LOGGING_FORMAT)
 
@@ -2288,17 +2284,6 @@ if __name__ == '__main__':
         status_change_fn=update_status_bar_update,
         update_callback=check_for_updates
     )
-
-    def resource_path(relative_path):
-        """Get absolute path to resource, works for dev and for PyInstaller."""
-
-        try:
-            # PyInstaller creates a temp folder and stores path in _MEIPASS
-            base_path = sys._MEIPASS
-        except Exception:
-            base_path = os.path.abspath(".")
-
-        return os.path.join(base_path, relative_path)
 
     WINDOW_BASE_WIDTH = 1200  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
     WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
