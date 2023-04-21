@@ -84,7 +84,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     pre_callback()
     display_mode = 'copy'
 
-    buffer_size = 1024 * 1024 * 2
+    buffer_size = FileUtils.READINTO_BUFSIZE
 
     # Optimize the buffer for small files
     buffer_size = min(buffer_size, os.path.getsize(source_filename))
