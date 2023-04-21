@@ -13,7 +13,7 @@ from datetime import datetime
 import re
 import pickle
 import clipboard
-import keyboard
+from pynput import keyboard
 from PIL import Image, ImageTk
 if platform.system() == 'Windows':
     import pythoncom
@@ -30,6 +30,51 @@ from bin.backup import Backup
 from bin.update import UpdateHandler
 from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame
 from bin.status import Status
+
+def on_press(key):
+    """Do things when keys are pressed.
+
+    Args:
+        key (keyboard.Key): The key that was pressed.
+    """
+
+    global isAltLPressed
+    global isAltRPressed
+    global isAltGrPressed
+    global isAltPressed
+
+    if key == keyboard.Key.alt_l:
+        isAltLPressed = True
+    if key == keyboard.Key.alt_r:
+        isAltRPressed = True
+    if key == keyboard.Key.alt_gr:
+        isAltGrPressed = True
+
+    if isAltLPressed or isAltRPressed or isAltGrPressed:
+        isAltPressed = True
+
+def on_release(key):
+    """Do things when keys are pressed.
+
+    Args:
+        key (keyboard.Key): The key that was released.
+    """
+
+    global isAltLPressed
+    global isAltRPressed
+    global isAltGrPressed
+    global isAltPressed
+
+    if key == keyboard.Key.alt_l:
+        isAltLPressed = False
+    if key == keyboard.Key.alt_r:
+        isAltRPressed = False
+    if key == keyboard.Key.alt_gr:
+        isAltGrPressed = False
+
+    if not isAltLPressed and not isAltRPressed and not isAltGrPressed:
+        isAltPressed = False
+
 
 def update_file_detail_lists(list_name, filename):
     """Update the file lists for the detail file view.
@@ -1118,7 +1163,7 @@ def select_dest():
     if len(dest_selection) > 0:
         selected_drive = tree_dest.item(dest_selection[0], 'text')
         SELECTED_PATH_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
-        if not keyboard.is_pressed('alt') and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
+        if not isAltPressed and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
             # Found config file, so read it
             load_config_from_file(SELECTED_PATH_CONFIG_FILE)
             dest_selection = tree_dest.selection()
@@ -1660,6 +1705,11 @@ if __name__ == '__main__':
     if os.name == 'nt':
         k = ctypes.windll.kernel32
         k.SetConsoleMode(k.GetStdHandle(-11), 7)
+
+    isAltLPressed = False
+    isAltRPressed = False
+    isAltGrPressed = False
+    isAltPressed = False
 
     def update_status_bar_selection(status: int = None):
         """Update the status bar selection status.
@@ -2274,9 +2324,6 @@ if __name__ == '__main__':
         FileUtils.LIST_SUCCESS: [],
         FileUtils.LIST_FAIL: []
     }
-
-    # BUG: keyboard module seems to be returning false for keypress on first try. No idea how to fix this
-    keyboard.is_pressed('alt')
 
     update_handler = UpdateHandler(
         current_version=APP_VERSION,
@@ -2900,6 +2947,12 @@ if __name__ == '__main__':
     image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if root_window.dark_mode else ''}.png")))
     tk.Label(branding_frame, image=image_logo).pack(side='left')
     tk.Label(branding_frame, text=f"v{APP_VERSION}", font=(None, 10), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
+
+    # Keyboard listener
+    listener = keyboard.Listener(
+        on_press=on_press,
+        on_release=on_release)
+    listener.start()
 
     load_source_in_background()
     # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
