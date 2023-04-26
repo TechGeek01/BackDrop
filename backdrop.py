@@ -28,7 +28,7 @@ from bin.config import Config
 from bin.progress import Progress
 from bin.backup import Backup
 from bin.update import UpdateHandler
-from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame
+from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame, resource_path
 from bin.status import Status
 
 def on_press(key):
