@@ -116,7 +116,7 @@ class Backup:
         self.thread_manager = thread_manager
         self.progress = progress
 
-    def do_del_fn(self, filename, size: int, display_index=None):
+    def do_del_fn(self, filename, size: int, display_index: int = None):
         """Start a do_delete() call, and report to the GUI.
 
         Args:
@@ -132,7 +132,7 @@ class Backup:
 
         if not os.path.exists(filename):
             print(f'Deleted {filename}')
-            self.progress_buffer['files']['deleted'].append((filename, size))
+            self.progress_buffer['files']['deleted'].append((filename, size, display_index))
             self.progress_buffer['size']['deleted'] += size
             self.progress_buffer['totals']['deleted'] += 1
         else:

@@ -150,12 +150,13 @@ def update_file_detail_lists(list_name, filename):
 
 backup_error_log = []
 
-def update_ui_on_delete(filename, size: int):
+def update_ui_on_delete(filename, size: int, display_index: int = None):
     """Update file lists and progress bar on file delete.
 
     Args:
         filename (String): The file or folder to delete.
         size (int): The size in bytes of the file or folder.
+        display_index (int): The command index used for UI updates (optional).
     """
 
     if not os.path.exists(filename):
@@ -164,7 +165,7 @@ def update_ui_on_delete(filename, size: int):
             total=size,
             display_filename=filename.split(os.path.sep)[-1],
             display_mode='delete',
-            display_index=1
+            display_index=display_index
         )
         update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
     else:
@@ -173,7 +174,7 @@ def update_ui_on_delete(filename, size: int):
             total=size,
             display_filename=filename.split(os.path.sep)[-1],
             display_mode='delete',
-            display_index=1,
+            display_index=display_index,
         )
         update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
         backup_error_log.append({'file': filename, 'mode': 'delete', 'error': 'File or path does not exist'})
@@ -2315,8 +2316,8 @@ if __name__ == '__main__':
         if backup:
             backup_progress = backup.get_progress()
             
-            for (file, size) in backup_progress['delta']['files']['deleted']:
-                update_ui_on_delete(file, size)
+            for (file, size, display_index) in backup_progress['delta']['files']['deleted']:
+                update_ui_on_delete(file, size, display_index)
 
     LOGGING_LEVEL = logging.INFO
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
