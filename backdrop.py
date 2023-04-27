@@ -1245,6 +1245,20 @@ def start_backup():
     file_details_copied.empty()
     file_details_failed.empty()
 
+    if not backup.analysis_valid or not backup.sanity_check():
+        return
+
+    update_ui_component(Status.UPDATEUI_BACKUP_START)
+    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
+    progress.set(0)
+    progress.set_max(backup.totals['master'])
+
+    for cmd in backup.command_list:
+        backup.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=root_window.uicolor.PENDING)
+        if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
+            backup.cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=root_window.uicolor.PENDING)
+        backup.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=root_window.uicolor.PENDING)
+
     thread_manager.start(thread_manager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
 def cleanup_handler(signal_received, frame):

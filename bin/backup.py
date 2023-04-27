@@ -1047,21 +1047,10 @@ class Backup:
         If sanity_check() returns False, the backup isn't run.
         """
 
-        self.backup_running = True
-
         if not self.analysis_valid or not self.sanity_check():
             return
 
-        self.update_ui_component_fn(Status.UPDATEUI_BACKUP_START)
-        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
-        self.progress.set(0)
-        self.progress.set_max(self.totals['master'])
-
-        for cmd in self.command_list:
-            self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=self.uicolor.PENDING)
-            if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
-                self.cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=self.uicolor.PENDING)
-            self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=self.uicolor.PENDING)
+        self.backup_running = True
 
         # Write config file to drives
         self.write_config_to_disks()
