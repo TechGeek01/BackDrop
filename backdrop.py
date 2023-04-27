@@ -38,20 +38,17 @@ def on_press(key):
         key (keyboard.Key): The key that was pressed.
     """
 
-    global isAltLPressed
-    global isAltRPressed
-    global isAltGrPressed
-    global isAltPressed
+    global keypresses
 
     if key == keyboard.Key.alt_l:
-        isAltLPressed = True
+        keypresses['AltL'] = True
     if key == keyboard.Key.alt_r:
-        isAltRPressed = True
+        keypresses['AltR'] = True
     if key == keyboard.Key.alt_gr:
-        isAltGrPressed = True
+        keypresses['AltGr'] = True
 
-    if isAltLPressed or isAltRPressed or isAltGrPressed:
-        isAltPressed = True
+    if keypresses['AltL'] or keypresses['AltR'] or keypresses['AltGr']:
+        keypresses['Alt'] = True
 
 def on_release(key):
     """Do things when keys are pressed.
@@ -60,20 +57,17 @@ def on_release(key):
         key (keyboard.Key): The key that was released.
     """
 
-    global isAltLPressed
-    global isAltRPressed
-    global isAltGrPressed
-    global isAltPressed
+    global keypresses
 
     if key == keyboard.Key.alt_l:
-        isAltLPressed = False
+        keypresses['AltL'] = False
     if key == keyboard.Key.alt_r:
-        isAltRPressed = False
+        keypresses['AltR'] = False
     if key == keyboard.Key.alt_gr:
-        isAltGrPressed = False
+        keypresses['AltGr'] = False
 
-    if not isAltLPressed and not isAltRPressed and not isAltGrPressed:
-        isAltPressed = False
+    if not keypresses['AltL'] and not keypresses['AltR'] and not keypresses['AltGr']:
+        keypresses['Alt'] = False
 
 
 def update_file_detail_lists(list_name, filename):
@@ -1163,7 +1157,7 @@ def select_dest():
     if len(dest_selection) > 0:
         selected_drive = tree_dest.item(dest_selection[0], 'text')
         SELECTED_PATH_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
-        if not isAltPressed and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
+        if not keypresses['Alt'] and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
             # Found config file, so read it
             load_config_from_file(SELECTED_PATH_CONFIG_FILE)
             dest_selection = tree_dest.selection()
@@ -1706,10 +1700,12 @@ if __name__ == '__main__':
         k = ctypes.windll.kernel32
         k.SetConsoleMode(k.GetStdHandle(-11), 7)
 
-    isAltLPressed = False
-    isAltRPressed = False
-    isAltGrPressed = False
-    isAltPressed = False
+    keypresses = {
+        'AltL': False,
+        'AltR': False,
+        'AltGr': False,
+        'Alt': False
+    }
 
     def update_status_bar_selection(status: int = None):
         """Update the status bar selection status.
