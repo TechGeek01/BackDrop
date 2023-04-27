@@ -150,13 +150,12 @@ def update_file_detail_lists(list_name, filename):
 
 backup_error_log = []
 
-def update_ui_on_delete(filename, size: int, display_index=None):
+def update_ui_on_delete(filename, size: int):
     """Update file lists and progress bar on file delete.
 
     Args:
         filename (String): The file or folder to delete.
         size (int): The size in bytes of the file or folder.
-        display_index (int): The index to display the item in the GUI (optional).
     """
 
     if not os.path.exists(filename):
@@ -165,7 +164,7 @@ def update_ui_on_delete(filename, size: int, display_index=None):
             total=size,
             display_filename=filename.split(os.path.sep)[-1],
             display_mode='delete',
-            display_index=display_index
+            display_index=1
         )
         update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
     else:
@@ -174,31 +173,10 @@ def update_ui_on_delete(filename, size: int, display_index=None):
             total=size,
             display_filename=filename.split(os.path.sep)[-1],
             display_mode='delete',
-            display_index=display_index,
+            display_index=1,
         )
         update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
         backup_error_log.append({'file': filename, 'mode': 'delete', 'error': 'File or path does not exist'})
-
-def start_delete(filename, size: int, display_index=None):
-    """Start a do_delete() call, and report to the GUI.
-
-    Args:
-        filename (String): The file or folder to delete.
-        size (int): The size in bytes of the file or folder.
-        display_index (int): The index to display the item in the GUI (optional).
-    """
-
-    if get_backup_killflag() or not os.path.exists(filename):
-        return
-
-    do_delete(filename=filename)
-
-    # If file deleted successfully, remove it from the list
-    update_ui_on_delete(
-        filename=filename,
-        size=size,
-        display_index=display_index
-    )
 
 def copy_file_pre(di, dest_filename):
     """Stub function for the pre_callback in copy_file()"""
@@ -475,7 +453,6 @@ def start_backup_analysis():
         backup_config_file=BACKUP_CONFIG_FILE,
         uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
         do_copy_fn=start_copy,
-        do_del_fn=start_delete,
         start_backup_timer_fn=update_backup_eta_timer,
         update_ui_component_fn=update_ui_component,
         update_file_detail_list_fn=update_file_detail_lists,
@@ -2336,7 +2313,10 @@ if __name__ == '__main__':
 
     def update_ui_during_backup():
         if backup:
-            pass
+            backup_progress = backup.get_progress()
+            
+            for (file, size) in backup_progress['delta']['files']['deleted']:
+                update_ui_on_delete(file, size)
 
     LOGGING_LEVEL = logging.INFO
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'

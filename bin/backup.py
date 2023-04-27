@@ -7,7 +7,7 @@ import pickle
 import logging
 import math
 
-from bin.fileutils import FileUtils, human_filesize, get_directory_size
+from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_delete
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.status import Status
@@ -20,7 +20,7 @@ class Backup:
     COMMAND_MODE_REPLACE = 'replace'
     COMMAND_MODE_DELETE = 'delete'
 
-    def __init__(self, config: dict, backup_config_dir, backup_config_file, do_copy_fn, do_del_fn, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager: ThreadManager, update_ui_component_fn=None, uicolor=None, progress=None):
+    def __init__(self, config: dict, backup_config_dir, backup_config_file, do_copy_fn, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager: ThreadManager, update_ui_component_fn=None, uicolor=None, progress=None):
         """Configure a backup to be run on a set of drives.
 
         Args:
@@ -28,7 +28,6 @@ class Backup:
             backup_config_dir (String): The directory to store backup configs on each drive.
             backup_config_file (String): The file to store backup configs on each drive.
             do_copy_fn (def): The function to be used to handle file copying.
-            do_del_fn (def): The function to be used to handle file copying.
             start_backup_timer_fn (def): The function to be used to start the backup timer.
             update_ui_component_fn (def): The function to be used to update UI components (default None).
             update_file_detail_list_fn (def): The function to be used to update file lists.
@@ -48,6 +47,41 @@ class Backup:
             'running': 0,
             'buffer': 0,
             'progressBar': 0
+        }
+
+        self.progress_test = {
+            'files': {
+                'deleted': [],
+                'copied': [],
+                'updated': []
+            },
+            'size': {
+                'deleted': 0,
+                'copied': 0,
+                'updated': 0
+            },
+            'totals': {
+                'deleted': 0,
+                'copied': 0,
+                'updated': 0
+            }
+        }
+        self.progress_buffer = {
+            'files': {
+                'deleted': [],
+                'copied': [],
+                'updated': []
+            },
+            'size': {
+                'deleted': 0,
+                'copied': 0,
+                'updated': 0
+            },
+            'totals': {
+                'deleted': 0,
+                'copied': 0,
+                'updated': 0
+            }
         }
 
         self.confirm_wipe_existing_drives = False
@@ -74,7 +108,6 @@ class Backup:
 
         self.uicolor = uicolor
         self.do_copy_fn = do_copy_fn
-        self.do_del_fn = do_del_fn
         self.start_backup_timer_fn = start_backup_timer_fn
         self.update_ui_component_fn = update_ui_component_fn
         self.update_file_detail_list_fn = update_file_detail_list_fn
@@ -82,6 +115,28 @@ class Backup:
         self.display_backup_command_info_fn = display_backup_command_info_fn
         self.thread_manager = thread_manager
         self.progress = progress
+
+    def do_del_fn(self, filename, size: int, display_index=None):
+        """Start a do_delete() call, and report to the GUI.
+
+        Args:
+            filename (String): The file or folder to delete.
+            size (int): The size in bytes of the file or folder.
+            display_index (int): The index to display the item in the GUI (optional).
+        """
+
+        if self.thread_manager.threadlist['Backup']['killFlag'] or not os.path.exists(filename):
+            return
+
+        do_delete(filename=filename)
+
+        if not os.path.exists(filename):
+            print(f'Deleted {filename}')
+            self.progress_buffer['files']['deleted'].append((filename, size))
+            self.progress_buffer['size']['deleted'] += size
+            self.progress_buffer['totals']['deleted'] += 1
+        else:
+            pass
 
     def sanity_check(self):
         """Check to make sure everything is correct before a backup.
@@ -1057,6 +1112,51 @@ class Backup:
         self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
         self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
         self.backup_running = False
+
+    def add_progress_buffer_to_total(self):
+        """Add the progress buffer to the total, and reset the buffer.
+        """
+
+        [self.progress_test['files'][name].extend(self.progress_buffer['files'][name]) for (name, files) in self.progress_buffer['files'].items()]
+        self.progress_test['size'] = {name: self.progress_test['size'][name] + count for (name, count) in self.progress_buffer['size'].items()}
+        self.progress_test['totals'] = {name: self.progress_test['totals'][name] + count for (name, count) in self.progress_buffer['totals'].items()}
+
+        self.progress_buffer = {
+            'files': {
+                'deleted': [],
+                'copied': [],
+                'updated': []
+            },
+            'size': {
+                'deleted': 0,
+                'copied': 0,
+                'updated': 0
+            },
+            'totals': {
+                'deleted': 0,
+                'copied': 0,
+                'updated': 0
+            }
+        }
+
+    def get_progress(self):
+        """Get the current progress of the backup, and file lists since the
+        last update. Then, reset the last update progress.
+
+        Returns:
+            dict: The current progress of the backup
+        """
+
+        current_progress = {
+            'delta': self.progress_buffer,
+            'buffer': self.totals['buffer']
+        }
+
+        self.add_progress_buffer_to_total()
+
+        current_progress['status'] = self.progress_test
+
+        return current_progress
 
     def get_backup_start_time(self):
         """
