@@ -21,6 +21,7 @@ if platform.system() == 'Windows':
     import win32file
     import wmi
 import logging
+from threading import Event, Thread
 
 from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_copy, do_delete
 from bin.threadmanager import ThreadManager
@@ -30,6 +31,31 @@ from bin.backup import Backup
 from bin.update import UpdateHandler
 from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame, resource_path
 from bin.status import Status
+
+class RepeatedTimer:
+    """Repeat `function` every `interval` seconds."""
+
+    def __init__(self, interval, function, *args, **kwargs):
+        self.interval = interval
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.start = time.time()
+        self.event = Event()
+        self.thread = Thread(target=self._target, daemon=True)
+        self.thread.start()
+
+    def _target(self):
+        while not self.event.wait(self._time):
+            self.function(*self.args, **self.kwargs)
+
+    @property
+    def _time(self):
+        return self.interval - ((time.time() - self.start) % self.interval)
+
+    def stop(self):
+        self.event.set()
+        self.thread.join()
 
 def on_press(key):
     """Do things when keys are pressed.
@@ -2308,6 +2334,10 @@ if __name__ == '__main__':
         drive_list = [drive['name'] for drive in config['destinations']]
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
+    def update_ui_during_backup():
+        if backup:
+            pass
+
     LOGGING_LEVEL = logging.INFO
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
     logging.basicConfig(level=LOGGING_LEVEL, format=LOGGING_FORMAT)
@@ -2961,6 +2991,8 @@ if __name__ == '__main__':
         name='Update Check',
         daemon=True
     )
+
+    ui_update_scheduler = RepeatedTimer(0.25, update_ui_during_backup)
 
     root_window.protocol('WM_DELETE_WINDOW', on_close)
     root_window.mainloop()
