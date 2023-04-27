@@ -64,7 +64,8 @@ class Backup:
                 'deleted': 0,
                 'copied': 0,
                 'updated': 0
-            }
+            },
+            'current_file': None
         }
         self.progress_buffer = {
             'files': {
@@ -116,6 +117,16 @@ class Backup:
         self.thread_manager = thread_manager
         self.progress = progress
 
+    def set_working_file(self, filename, display_index: int = None):
+        """Handle updating the UI before copying a file.
+
+        Args:
+            filename (String): The filename of the destination file.
+            display_index (int): The index to display the item in the GUI (optional).
+        """
+
+        self.progress_test['current_file'] = (filename, display_index)
+
     def do_del_fn(self, filename, size: int, display_index: int = None):
         """Start a do_delete() call, and report to the GUI.
 
@@ -128,15 +139,44 @@ class Backup:
         if self.thread_manager.threadlist['Backup']['killFlag'] or not os.path.exists(filename):
             return
 
+        self.set_working_file(filename, display_index)
         do_delete(filename=filename)
 
         if not os.path.exists(filename):
-            print(f'Deleted {filename}')
             self.progress_buffer['files']['deleted'].append((filename, size, display_index))
             self.progress_buffer['size']['deleted'] += size
             self.progress_buffer['totals']['deleted'] += 1
         else:
             pass
+
+    def test_do_copy_fn(self, src, dest, drive_path, display_index: int = None):
+        """Start a do_copy() call and report to the GUI.
+
+        Args:
+            src (String): The source to copy.
+            dest (String): The destination to copy to.
+            drive_path (String): The path of the destination drive to copy to.
+            display_index (int): The index to display the item in the GUI (optional).
+
+        Return:
+            dict: The hash list returned by do_copy().
+        """
+
+        return do_copy(
+            src=src,
+            dest=dest,
+            drive_path=drive_path,
+            pre_callback=lambda di, dest_filename: self.set_working_file(self, dest_filename=dest_filename, display_index=di),
+            prog_callback=lambda c, t, dm: display_backup_progress(
+                c,
+                t,
+                display_mode=dm,
+                display_index=display_index
+            ),
+            display_index=display_index,
+            fd_callback=update_file_details_on_copy,
+            get_backup_killflag=lambda self: self.get_kill_flag()
+        )
 
     def sanity_check(self):
         """Check to make sure everything is correct before a backup.
