@@ -118,15 +118,16 @@ class Backup:
         self.thread_manager = thread_manager
         self.progress = progress
 
-    def set_working_file(self, filename, display_index: int = None):
+    def set_working_file(self, filename = None, size: int = None, display_index: int = None):
         """Handle updating the UI before copying a file.
 
         Args:
-            filename (String): The filename of the destination file.
+            filename (String): The filename of the destination file (optional).
+            size (int): The filesize of the working file (optional).
             display_index (int): The index to display the item in the GUI (optional).
         """
 
-        self.progress_test['current_file'] = (filename, display_index)
+        self.progress_test['current_file'] = (filename, size, display_index)
 
     def do_del_fn(self, filename, size: int, display_index: int = None):
         """Start a do_delete() call, and report to the GUI.
@@ -140,7 +141,7 @@ class Backup:
         if self.thread_manager.threadlist['Backup']['killFlag'] or not os.path.exists(filename):
             return
 
-        self.set_working_file(filename, display_index)
+        self.set_working_file(filename, size, display_index)
         do_delete(filename=filename)
 
         if not os.path.exists(filename):
@@ -1079,7 +1080,6 @@ class Backup:
 
                         src = os.path.join(drive, file)
 
-                        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, src)
                         self.do_del_fn(filename=src, size=size, display_index=cmd['displayIndex'])
 
                         # If file hash was in list, remove it, and write changes to file
@@ -1140,7 +1140,7 @@ class Backup:
         self.thread_manager.kill('backupTimer')
 
         self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
-        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
+        self.set_working_file(None)
         self.backup_running = False
 
     def add_progress_buffer_to_total(self):
