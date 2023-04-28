@@ -2331,8 +2331,8 @@ if __name__ == '__main__':
             backup_progress = backup.get_progress()
 
             # Update working file for copies
-            if backup_progress['status']['current_file'] is not None:
-                filename, size, display_index = backup_progress['status']['current_file']
+            if backup_progress['total']['current_file'] is not None:
+                filename, size, operation, display_index = backup_progress['total']['current_file']
 
                 # Update file details info block
                 cmd_info_blocks = backup.cmd_info_blocks
@@ -2345,8 +2345,9 @@ if __name__ == '__main__':
             update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, filename if filename is not None else '')
 
             # Update deleted files
-            for (file, size, display_index) in backup_progress['delta']['files']['deleted']:
-                update_ui_on_delete(file, size, display_index)
+            for (file, size, operation, display_index) in backup_progress['delta']['files']:
+                if operation == Status.FILE_OPERATION_DELETE:
+                    update_ui_on_delete(file, size, display_index)
 
     LOGGING_LEVEL = logging.INFO
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'

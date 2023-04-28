@@ -49,40 +49,22 @@ class Backup:
             'progressBar': 0
         }
 
+        # (filemane, filesize, operation, display_index)
         self.progress_test = {
-            'files': {
-                'deleted': [],
-                'copied': [],
-                'updated': []
-            },
-            'size': {
-                'deleted': 0,
+            'files': [],
+            'failed': [],
+            'buffer': {
                 'copied': 0,
-                'updated': 0
-            },
-            'totals': {
-                'deleted': 0,
-                'copied': 0,
-                'updated': 0
+                'total': 0,
+                'display_filename': None,
+                'display_mode': None,
+                'display_index': None
             },
             'current_file': None
         }
         self.progress_buffer = {
-            'files': {
-                'deleted': [],
-                'copied': [],
-                'updated': []
-            },
-            'size': {
-                'deleted': 0,
-                'copied': 0,
-                'updated': 0
-            },
-            'totals': {
-                'deleted': 0,
-                'copied': 0,
-                'updated': 0
-            }
+            'files': [],
+            'failed': []
         }
 
         self.confirm_wipe_existing_drives = False
@@ -118,16 +100,17 @@ class Backup:
         self.thread_manager = thread_manager
         self.progress = progress
 
-    def set_working_file(self, filename = None, size: int = None, display_index: int = None):
+    def set_working_file(self, filename = None, size: int = None, operation = None, display_index: int = None):
         """Handle updating the UI before copying a file.
 
         Args:
             filename (String): The filename of the destination file (optional).
             size (int): The filesize of the working file (optional).
+            operation (int): The status code for the file operation (optional).
             display_index (int): The index to display the item in the GUI (optional).
         """
 
-        self.progress_test['current_file'] = (filename, size, display_index)
+        self.progress_test['current_file'] = (filename, size, operation, display_index)
 
     def do_del_fn(self, filename, size: int, display_index: int = None):
         """Start a do_delete() call, and report to the GUI.
@@ -141,15 +124,13 @@ class Backup:
         if self.thread_manager.threadlist['Backup']['killFlag'] or not os.path.exists(filename):
             return
 
-        self.set_working_file(filename, size, display_index)
+        self.set_working_file(filename, size, Status.FILE_OPERATION_DELETE, display_index)
         do_delete(filename=filename)
 
         if not os.path.exists(filename):
-            self.progress_buffer['files']['deleted'].append((filename, size, display_index))
-            self.progress_buffer['size']['deleted'] += size
-            self.progress_buffer['totals']['deleted'] += 1
+            self.progress_buffer['files'].append((filename, size, Status.FILE_OPERATION_DELETE, display_index))
         else:
-            pass
+            self.progress_buffer['failed'].append((filename, size, Status.FILE_OPERATION_DELETE, display_index))
 
     def test_do_copy_fn(self, src, dest, drive_path, display_index: int = None):
         """Start a do_copy() call and report to the GUI.
@@ -1147,27 +1128,12 @@ class Backup:
         """Add the progress buffer to the total, and reset the buffer.
         """
 
+        # Add buffer to total
         [self.progress_test['files'][name].extend(self.progress_buffer['files'][name]) for (name, files) in self.progress_buffer['files'].items()]
-        self.progress_test['size'] = {name: self.progress_test['size'][name] + count for (name, count) in self.progress_buffer['size'].items()}
-        self.progress_test['totals'] = {name: self.progress_test['totals'][name] + count for (name, count) in self.progress_buffer['totals'].items()}
 
-        self.progress_buffer = {
-            'files': {
-                'deleted': [],
-                'copied': [],
-                'updated': []
-            },
-            'size': {
-                'deleted': 0,
-                'copied': 0,
-                'updated': 0
-            },
-            'totals': {
-                'deleted': 0,
-                'copied': 0,
-                'updated': 0
-            }
-        }
+        # Clear buffer
+        self.progress_buffer['files'].clear()
+        self.progress_buffer['failed'].clear()
 
     def get_progress(self):
         """Get the current progress of the backup, and file lists since the
@@ -1184,7 +1150,7 @@ class Backup:
 
         self.add_progress_buffer_to_total()
 
-        current_progress['status'] = self.progress_test
+        current_progress['total'] = self.progress_test
 
         return current_progress
 

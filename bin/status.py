@@ -27,6 +27,11 @@ class Status:
     SAVE_PENDING_CHANGES = 0x20
     SAVE_ALL_SAVED = 0x21
 
+    # 0x3 => File operations
+    FILE_OPERATION_DELETE = 0x30
+    FILE_OPERATION_COPY = 0x31
+    FILE_OPERATION_UPDATE = 0x32
+
     # 0xe => Update UI
     UPDATEUI_ANALYSIS_BTN = 0xe0
     UPDATEUI_BACKUP_BTN = 0xe1
