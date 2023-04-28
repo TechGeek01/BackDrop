@@ -7,7 +7,7 @@ import pickle
 import logging
 import math
 
-from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_delete
+from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_delete, do_copy
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.status import Status
@@ -20,14 +20,13 @@ class Backup:
     COMMAND_MODE_REPLACE = 'replace'
     COMMAND_MODE_DELETE = 'delete'
 
-    def __init__(self, config: dict, backup_config_dir, backup_config_file, do_copy_fn, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager: ThreadManager, update_ui_component_fn=None, uicolor=None, progress=None):
+    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager: ThreadManager, update_ui_component_fn=None, uicolor=None, progress=None):
         """Configure a backup to be run on a set of drives.
 
         Args:
             config (dict): The backup config to be processed.
             backup_config_dir (String): The directory to store backup configs on each drive.
             backup_config_file (String): The file to store backup configs on each drive.
-            do_copy_fn (def): The function to be used to handle file copying.
             start_backup_timer_fn (def): The function to be used to start the backup timer.
             update_ui_component_fn (def): The function to be used to update UI components (default None).
             update_file_detail_list_fn (def): The function to be used to update file lists.
@@ -50,7 +49,7 @@ class Backup:
         }
 
         # (filemane, filesize, operation, display_index)
-        self.progress_test = {
+        self.progress = {
             'files': [],
             'failed': [],
             'buffer': {
@@ -91,14 +90,18 @@ class Backup:
         self.file_hashes = {drive['name']: {} for drive in self.config['destinations']}
 
         self.uicolor = uicolor
-        self.do_copy_fn = do_copy_fn
         self.start_backup_timer_fn = start_backup_timer_fn
         self.update_ui_component_fn = update_ui_component_fn
         self.update_file_detail_list_fn = update_file_detail_list_fn
         self.analysis_summary_display_fn = analysis_summary_display_fn
         self.display_backup_command_info_fn = display_backup_command_info_fn
         self.thread_manager = thread_manager
-        self.progress = progress
+        self.progress_bar = progress
+
+    def get_kill_flag(self):
+        """Get the kill flag status for the backup."""
+
+        return self.thread_manager.threadlist['Backup']['killFlag']
 
     def set_working_file(self, filename = None, size: int = None, operation = None, display_index: int = None):
         """Handle updating the UI before copying a file.
@@ -110,7 +113,7 @@ class Backup:
             display_index (int): The index to display the item in the GUI (optional).
         """
 
-        self.progress_test['current_file'] = (filename, size, operation, display_index)
+        self.progress['current_file'] = (filename, size, operation, display_index)
 
     def do_del_fn(self, filename, size: int, display_index: int = None):
         """Start a do_delete() call, and report to the GUI.
@@ -132,7 +135,37 @@ class Backup:
         else:
             self.progress_buffer['failed'].append((filename, size, Status.FILE_OPERATION_DELETE, display_index))
 
-    def test_do_copy_fn(self, src, dest, drive_path, display_index: int = None):
+    def set_copy_progress(self, copied, total, display_filename=None, display_mode=None, display_index: int = None):
+        """Set the copy progress of a transfer.
+
+        Args:
+            copied (int): the number of bytes copied.
+            total (int): The total file size.
+            display_filename (String): The filename to display inthe GUI (optional).
+            display_mode (String): The mode to display the progress in (optional).
+            display_index (int): The index to display the item in the GUI (optional).
+        """
+
+        self.progress['buffer']['copied'] = copied
+        self.progress['buffer']['total'] = total
+        self.progress['buffer']['display_filename'] = display_filename
+        self.progress['buffer']['display_mode'] = display_mode
+        self.progress['buffer']['display_index'] = display_index
+
+    def update_copy_lists(self, status, file):
+        """Add the copied file to the correct list.
+
+        Args:
+            status (int): The Status of the file copy state.
+            file (tuple): The file to add to the list.
+        """
+
+        if status == Status.FILE_OPERATION_SUCCESS:
+            self.progress_buffer['files'].append(file)
+        elif status == Status.FILE_OPERATION_FAILED:
+            self.progress_buffer['failed'].append(file)
+
+    def do_copy_fn(self, src, dest, drive_path, display_index: int = None):
         """Start a do_copy() call and report to the GUI.
 
         Args:
@@ -149,16 +182,16 @@ class Backup:
             src=src,
             dest=dest,
             drive_path=drive_path,
-            pre_callback=lambda di, dest_filename: self.set_working_file(self, dest_filename=dest_filename, display_index=di),
-            prog_callback=lambda c, t, dm: display_backup_progress(
+            pre_callback=self.set_working_file,
+            prog_callback=lambda c, t, dm: self.set_copy_progress(
                 c,
                 t,
                 display_mode=dm,
                 display_index=display_index
             ),
             display_index=display_index,
-            fd_callback=update_file_details_on_copy,
-            get_backup_killflag=lambda self: self.get_kill_flag()
+            fd_callback=self.update_copy_lists,
+            get_backup_killflag=self.get_kill_flag
         )
 
     def sanity_check(self):
@@ -249,7 +282,7 @@ class Backup:
         self.analysis_running = True
         self.analysis_started = True
 
-        self.progress.start_indeterminate()
+        self.progress_bar.start_indeterminate()
         self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
         self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
         self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_START)
@@ -979,7 +1012,7 @@ class Backup:
             self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
             self.update_ui_component_fn(Status.RESET_ANALYSIS_OUTPUT)
 
-        self.progress.stop_indeterminate()
+        self.progress_bar.stop_indeterminate()
 
         self.analysis_running = False
 
@@ -1129,8 +1162,8 @@ class Backup:
         """
 
         # Add buffer to total
-        self.progress_test['files'].extend(self.progress_buffer['files'])
-        self.progress_test['failed'].extend(self.progress_buffer['failed'])
+        self.progress['files'].extend(self.progress_buffer['files'])
+        self.progress['failed'].extend(self.progress_buffer['failed'])
 
         # Clear buffer
         self.progress_buffer['files'].clear()
@@ -1154,7 +1187,7 @@ class Backup:
 
         self.add_progress_buffer_to_total()
 
-        current_progress['total'] = self.progress_test
+        current_progress['total'] = self.progress
 
         return current_progress
 

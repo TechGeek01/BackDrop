@@ -23,7 +23,7 @@ if platform.system() == 'Windows':
 import logging
 from threading import Event, Thread
 
-from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_copy, do_delete
+from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_delete
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.progress import Progress
@@ -179,30 +179,6 @@ def update_ui_on_delete(filename, size: int, display_index: int = None):
         update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
         backup_error_log.append({'file': filename, 'mode': 'delete', 'error': 'File or path does not exist'})
 
-def copy_file_pre(di, dest_filename):
-    """Stub function for the pre_callback in copy_file()"""
-
-    cmd_info_blocks = backup.cmd_info_blocks
-    cmd_info_blocks[di].configure('current_file', text=dest_filename, fg=root_window.uicolor.NORMAL)
-
-def update_file_details_on_copy(list_name, filename, error=None, s_hex=None, d_hex=None):
-    """Update file detail lists in a copy operation.
-
-    Args:
-        list_name (String): The list name to update.
-        filename (String): The file path to add to the list.
-        error (String): The error to append to the error log (optional).
-        s_hex (String): The source file hex digest (optional).
-        d_hex (String): The destination file hex digest (optional).
-    """
-
-    if s_hex is None:
-        s_hex = ''
-    if d_hex is None:
-        d_hex = ''
-
-    update_file_detail_lists(list_name, filename)
-
 def display_backup_progress(copied, total, display_filename=None, display_mode=None, display_index: int = None):
     """Display the copy progress of a transfer
 
@@ -248,35 +224,6 @@ def display_backup_progress(copied, total, display_filename=None, display_mode=N
 def get_backup_killflag():
     """Get backup thread kill flag status."""
     return thread_manager.threadlist['Backup']['killFlag']
-
-def start_copy(src, dest, drive_path, display_index):
-    """Start a do_copy() call and report to the GUI.
-
-    Args:
-        src (String): The source to copy.
-        dest (String): The destination to copy to.
-        drive_path (String): The path of the destination drive to copy to.
-        display_index (int): The index to display the item in the GUI (optional).
-
-    Return:
-        dict: The hash list returned by do_copy().
-    """
-
-    return do_copy(
-        src=src,
-        dest=dest,
-        drive_path=drive_path,
-        pre_callback=lambda di, dest_filename: copy_file_pre(di=di, dest_filename=dest_filename),
-        prog_callback=lambda c, t, dm: display_backup_progress(
-            c,
-            t,
-            display_mode=dm,
-            display_index=display_index
-        ),
-        display_index=display_index,
-        fd_callback=update_file_details_on_copy,
-        get_backup_killflag=get_backup_killflag
-    )
 
 def display_backup_summary_chunk(title, payload: tuple, reset: bool = None):
     """Display a chunk of a backup analysis summary to the user.
@@ -453,7 +400,6 @@ def start_backup_analysis():
         backup_config_dir=BACKUP_CONFIG_DIR,
         backup_config_file=BACKUP_CONFIG_FILE,
         uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
-        do_copy_fn=start_copy,
         start_backup_timer_fn=update_backup_eta_timer,
         update_ui_component_fn=update_ui_component,
         update_file_detail_list_fn=update_file_detail_lists,
@@ -1628,7 +1574,7 @@ if __name__ == '__main__':
         exit()
 
     # Set meta info
-    APP_VERSION = '4.0.0'
+    APP_VERSION = '4.0.0-alpha1'
 
     # Set constants
     SYS_PLATFORM = platform.system()
@@ -2336,7 +2282,7 @@ if __name__ == '__main__':
 
                 # Update file details info block
                 cmd_info_blocks = backup.cmd_info_blocks
-                if display_index is not None and display_index in cmd_info_blocks.keys():
+                if display_index is not None and display_index in cmd_info_blocks:
                     cmd_info_blocks[display_index].configure('current_file', text=filename if filename is not None else '', fg=root_window.uicolor.NORMAL)
             else:
                 filename, size, display_index = (None, None, None)
@@ -2348,6 +2294,51 @@ if __name__ == '__main__':
             for (file, size, operation, display_index) in backup_progress['delta']['files']:
                 if operation == Status.FILE_OPERATION_DELETE:
                     update_ui_on_delete(file, size, display_index)
+
+            # Update copied files
+            backup_totals = backup.totals
+            buffer = backup_progress['total']['buffer']
+
+            if buffer['copied'] > buffer['total']:
+                buffer['copied'] = buffer['total']
+
+            if buffer['total'] > 0:
+                percent_copied = buffer['copied'] / buffer['total'] * 100
+            else:
+                percent_copied = 100
+
+            # If display index has been specified, write progress to GUI
+            if display_index is not None:
+                cmd_info_blocks = backup.cmd_info_blocks
+
+                backup_totals['buffer'] = buffer['copied']
+                backup_totals['progressBar'] = backup_totals['running'] + buffer['copied']
+
+                if buffer['display_mode'] == 'delete':
+                    progress.set(backup_totals['progressBar'])
+                    cmd_info_blocks[display_index].configure('progress', text=f"Deleted {buffer['display_filename']}", fg=root_window.uicolor.NORMAL)
+                elif buffer['display_mode'] == 'copy':
+                    progress.set(backup_totals['progressBar'])
+                    cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.NORMAL)
+                elif buffer['display_mode'] == 'verify':
+                    progress.set(backup_totals['progressBar'])
+                    cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.BLUE)
+
+            # Update file detail lists on successful copies
+            for file in backup_progress['delta']['files']:
+                filename, filesize, operation, display_index = file
+
+                if operation == Status.FILE_OPERATION_DELETE:
+                    update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
+                elif operation == Status.FILE_OPERATION_COPY:
+                    update_file_detail_lists(FileUtils.LIST_SUCCESS, filename)
+            for file in backup_progress['delta']['failed']:
+                filename, filesize, operation, display_index = file
+
+                if operation == Status.FILE_OPERATION_DELETE:
+                    update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
+                elif operation == Status.FILE_OPERATION_COPY:
+                    update_file_detail_lists(FileUtils.LIST_FAIL, filename)
 
     LOGGING_LEVEL = logging.INFO
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'

@@ -2,6 +2,8 @@ import os
 import shutil
 from blake3 import blake3
 
+from bin.status import Status
+
 class FileUtils:
     STATUS_SUCCESS = 0x00
     STATUS_FAIL = 0x01
@@ -131,9 +133,8 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
             shutil.rmtree(dest_filename)
 
         fd_callback(
-            list_name=FileUtils.LIST_FAIL,
-            filename=dest_filename,
-            error={'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination filesize mismatch'}
+            status=Status.FILE_OPERATION_FAILED,
+            file=(dest_filename, file_size, Status.FILE_OPERATION_COPY, None)
         )
 
         return None
@@ -158,8 +159,8 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
 
     if h.hexdigest() == dest_hash.hexdigest():
         fd_callback(
-            list_name=FileUtils.LIST_SUCCESS,
-            filename=dest_filename
+            status=Status.FILE_OPERATION_SUCCESS,
+            file=(dest_filename, file_size, Status.FILE_OPERATION_COPY, None)
         )
     else:
         # If file wasn't copied successfully, delete it
@@ -169,11 +170,8 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
             shutil.rmtree(dest_filename)
 
         fd_callback(
-            list_name=FileUtils.LIST_FAIL,
-            filename=dest_filename,
-            error={'file': dest_filename, 'mode': 'copy', 'error': 'Source and destination hash mismatch'},
-            s_hex=h.hexdigest(),
-            d_hex=dest_hash.hexdigest()
+            status=Status.FILE_OPERATION_FAILED,
+            file=(dest_filename, file_size, Status.FILE_OPERATION_COPY, None)
         )
 
     if h.hexdigest() == dest_hash.hexdigest():
@@ -206,7 +204,7 @@ def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get
                 source_filename=src,
                 dest_filename=dest,
                 drive_path=drive_path,
-                pre_callback=lambda: pre_callback(di=display_index, dest_filename=dest),
+                pre_callback=lambda: pre_callback(display_index=display_index, filename=dest),
                 prog_callback=prog_callback,
                 fd_callback=fd_callback,
                 get_backup_killflag=get_backup_killflag
@@ -234,7 +232,7 @@ def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get
                         source_filename=src_file,
                         dest_filename=dest_file,
                         drive_path=drive_path,
-                        pre_callback=lambda: pre_callback(di=display_index, dest_filename=dest_file),
+                        pre_callback=lambda: pre_callback(display_index=display_index, filename=dest_file),
                         prog_callback=prog_callback,
                         fd_callback=fd_callback,
                         get_backup_killflag=get_backup_killflag
