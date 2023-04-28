@@ -77,7 +77,7 @@ class Backup:
         self.delete_file_list = {}
         self.replace_file_list = {}
         self.new_file_list = {}
-        self.cmd_info_blocks ={}
+        self.cmd_info_blocks = {}
 
         self.config = config
         self.DRIVE_VID_INFO = {drive['vid']: drive for drive in config['destinations']}
