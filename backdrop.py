@@ -150,35 +150,6 @@ def update_file_detail_lists(list_name, filename):
 
 backup_error_log = []
 
-def update_ui_on_delete(filename, size: int, display_index: int = None):
-    """Update file lists and progress bar on file delete.
-
-    Args:
-        filename (String): The file or folder to delete.
-        size (int): The size in bytes of the file or folder.
-        display_index (int): The command index used for UI updates (optional).
-    """
-
-    if not os.path.exists(filename):
-        display_backup_progress(
-            copied=size,
-            total=size,
-            display_filename=filename.split(os.path.sep)[-1],
-            display_mode='delete',
-            display_index=display_index
-        )
-        update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
-    else:
-        display_backup_progress(
-            copied=size,
-            total=size,
-            display_filename=filename.split(os.path.sep)[-1],
-            display_mode='delete',
-            display_index=display_index,
-        )
-        update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
-        backup_error_log.append({'file': filename, 'mode': 'delete', 'error': 'File or path does not exist'})
-
 def display_backup_progress(copied, total, display_filename=None, display_mode=None, display_index: int = None):
     """Display the copy progress of a transfer
 
@@ -2290,11 +2261,6 @@ if __name__ == '__main__':
             # Update status bar
             update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, filename if filename is not None else '')
 
-            # Update deleted files
-            for (file, size, operation, display_index) in backup_progress['delta']['files']:
-                if operation == Status.FILE_OPERATION_DELETE:
-                    update_ui_on_delete(file, size, display_index)
-
             # Update copied files
             backup_totals = backup.totals
             buffer = backup_progress['total']['buffer']
@@ -2324,19 +2290,57 @@ if __name__ == '__main__':
                     progress.set(backup_totals['progressBar'])
                     cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.BLUE)
 
-            # Update file detail lists on successful copies
+            # Update file detail lists on deletes and copies
             for file in backup_progress['delta']['files']:
                 filename, filesize, operation, display_index = file
 
                 if operation == Status.FILE_OPERATION_DELETE:
-                    update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
+                    if not os.path.exists(filename):
+                        display_backup_progress(
+                            copied=size,
+                            total=size,
+                            display_filename=filename.split(os.path.sep)[-1],
+                            display_mode='delete',
+                            display_index=display_index
+                        )
+                        update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
+                    else:
+                        display_backup_progress(
+                            copied=size,
+                            total=size,
+                            display_filename=filename.split(os.path.sep)[-1],
+                            display_mode='delete',
+                            display_index=display_index,
+                        )
+                        update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
+                        backup_error_log.append({'file': filename, 'mode': 'delete', 'error': 'File or path does not exist'})
                 elif operation == Status.FILE_OPERATION_COPY:
                     update_file_detail_lists(FileUtils.LIST_SUCCESS, filename)
+
             for file in backup_progress['delta']['failed']:
                 filename, filesize, operation, display_index = file
 
                 if operation == Status.FILE_OPERATION_DELETE:
-                    update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
+                    if os.path.exists(filename):
+                        display_backup_progress(
+                            copied=size,
+                            total=size,
+                            display_filename=filename.split(os.path.sep)[-1],
+                            display_mode='delete',
+                            display_index=display_index,
+                        )
+                        update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
+                        backup_error_log.append({'file': filename, 'mode': 'delete', 'error': 'File or path does not exist'})
+                        
+                    else:
+                        display_backup_progress(
+                            copied=size,
+                            total=size,
+                            display_filename=filename.split(os.path.sep)[-1],
+                            display_mode='delete',
+                            display_index=display_index
+                        )
+                        update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
                 elif operation == Status.FILE_OPERATION_COPY:
                     update_file_detail_lists(FileUtils.LIST_FAIL, filename)
 
