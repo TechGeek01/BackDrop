@@ -1129,7 +1129,8 @@ class Backup:
         """
 
         # Add buffer to total
-        [self.progress_test['files'][name].extend(self.progress_buffer['files'][name]) for (name, files) in self.progress_buffer['files'].items()]
+        self.progress_test['files'].extend(self.progress_buffer['files'])
+        self.progress_test['failed'].extend(self.progress_buffer['failed'])
 
         # Clear buffer
         self.progress_buffer['files'].clear()
@@ -1144,7 +1145,10 @@ class Backup:
         """
 
         current_progress = {
-            'delta': self.progress_buffer,
+            'delta': {
+                'files': self.progress_buffer['files'].copy(),
+                'failed': self.progress_buffer['failed'].copy()
+            },
             'buffer': self.totals['buffer']
         }
 
