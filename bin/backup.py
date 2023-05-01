@@ -42,14 +42,17 @@ class Backup:
         self.totals = {
             'master': 0,
             'delete': 0,
-            'delta': 0,
             'running': 0,
-            'buffer': 0,
-            'progressBar': 0
+            'buffer': 0
+        }
+
+        self.progress = {
+            'current': 0,
+            'total': 0
         }
 
         # (filemane, filesize, operation, display_index)
-        self.progress = {
+        self.progress_list = {
             'files': [],
             'failed': [],
             'buffer': {
@@ -113,7 +116,7 @@ class Backup:
             display_index (int): The index to display the item in the GUI (optional).
         """
 
-        self.progress['current_file'] = (filename, size, operation, display_index)
+        self.progress_list['current_file'] = (filename, size, operation, display_index)
 
     def do_del_fn(self, filename, size: int, display_index: int = None):
         """Start a do_delete() call, and report to the GUI.
@@ -131,9 +134,11 @@ class Backup:
         do_delete(filename=filename)
 
         if not os.path.exists(filename):
-            self.progress_buffer['files'].append((filename, size, Status.FILE_OPERATION_DELETE, display_index))
+            status = Status.FILE_OPERATION_SUCCESS
         else:
-            self.progress_buffer['failed'].append((filename, size, Status.FILE_OPERATION_DELETE, display_index))
+            status = Status.FILE_OPERATION_FAILED
+
+        self.update_copy_lists(status, (filename, size, Status.FILE_OPERATION_DELETE, display_index))
 
     def set_copy_progress(self, copied, total, display_filename=None, display_mode=None, display_index: int = None):
         """Set the copy progress of a transfer.
@@ -146,11 +151,11 @@ class Backup:
             display_index (int): The index to display the item in the GUI (optional).
         """
 
-        self.progress['buffer']['copied'] = copied
-        self.progress['buffer']['total'] = total
-        self.progress['buffer']['display_filename'] = display_filename
-        self.progress['buffer']['display_mode'] = display_mode
-        self.progress['buffer']['display_index'] = display_index
+        self.progress_list['buffer']['copied'] = copied
+        self.progress_list['buffer']['total'] = total
+        self.progress_list['buffer']['display_filename'] = display_filename
+        self.progress_list['buffer']['display_mode'] = display_mode
+        self.progress_list['buffer']['display_index'] = display_index
 
     def update_copy_lists(self, status, file):
         """Add the copied file to the correct list.
@@ -160,6 +165,7 @@ class Backup:
             file (tuple): The file to add to the list.
         """
 
+        self.progress_list['buffer']['copied'] = 0
         if status == Status.FILE_OPERATION_SUCCESS:
             self.progress_buffer['files'].append(file)
         elif status == Status.FILE_OPERATION_FAILED:
@@ -283,6 +289,10 @@ class Backup:
         self.analysis_started = True
 
         self.progress_bar.start_indeterminate()
+
+        self.progress['current'] = 0
+        self.progress['total'] = 0
+
         self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
         self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
         self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_START)
@@ -934,7 +944,6 @@ class Backup:
             file_summary = []
             drive_total = {
                 'running': 0,
-                'delta': 0,
                 'delete': 0,
                 'replace': 0,
                 'copy': 0,
@@ -945,7 +954,6 @@ class Backup:
                 drive_total['delete'] = sum((size for drive, file, size in self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']]))
 
                 drive_total['running'] -= drive_total['delete']
-                self.totals['delta'] -= drive_total['delete']
 
                 file_summary.append(f"Deleting {len(self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']])} files ({human_filesize(drive_total['delete'])})")
 
@@ -954,7 +962,6 @@ class Backup:
 
                 drive_total['running'] += drive_total['replace']
                 drive_total['copy'] += drive_total['replace']
-                drive_total['delta'] += sum((source_size - dest_size for drive, share, file, source_size, dest_size in self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']]))
 
                 file_summary.append(f"Updating {len(self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']])} files ({human_filesize(drive_total['replace'])})")
 
@@ -963,15 +970,13 @@ class Backup:
 
                 drive_total['running'] += drive_total['new']
                 drive_total['copy'] += drive_total['new']
-                drive_total['delta'] += drive_total['new']
 
                 file_summary.append(f"{len(self.new_file_list[self.DRIVE_VID_INFO[drive]['name']])} new files ({human_filesize(drive_total['new'])})")
 
             # Increment master totals
             # Double copy total to account for both copy and verify operations
-            self.totals['master'] += 2 * drive_total['copy'] + drive_total['delete']
+            self.progress['total'] += 2 * drive_total['copy'] + drive_total['delete']
             self.totals['delete'] += drive_total['delete']
-            self.totals['delta'] += drive_total['delta']
 
             if file_summary:
                 show_file_info.append((self.DRIVE_VID_INFO[drive]['name'], '\n'.join(file_summary)))
@@ -1071,9 +1076,8 @@ class Backup:
         # Write config file to drives
         self.write_config_to_disks()
 
-        self.totals['running'] = 0
         self.totals['buffer'] = 0
-        self.totals['progressBar'] = 0
+        self.progress['current'] = 0
 
         timer_started = False
 
@@ -1143,7 +1147,7 @@ class Backup:
                             hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
                             pickle.dump(hash_list, f)
 
-            if self.thread_manager.threadlist['Backup']['killFlag'] and self.totals['running'] < self.totals['master']:
+            if self.thread_manager.threadlist['Backup']['killFlag'] and self.progress['current'] < self.progress['total']:
                 self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Aborted', fg=self.uicolor.STOPPED)
                 self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Aborted', fg=self.uicolor.STOPPED)
                 break
@@ -1162,14 +1166,14 @@ class Backup:
         """
 
         # Add buffer to total
-        self.progress['files'].extend(self.progress_buffer['files'])
-        self.progress['failed'].extend(self.progress_buffer['failed'])
+        self.progress_list['files'].extend(self.progress_buffer['files'])
+        self.progress_list['failed'].extend(self.progress_buffer['failed'])
 
         # Clear buffer
         self.progress_buffer['files'].clear()
         self.progress_buffer['failed'].clear()
 
-    def get_progress(self):
+    def get_progress_updates(self):
         """Get the current progress of the backup, and file lists since the
         last update. Then, reset the last update progress.
 
@@ -1187,7 +1191,19 @@ class Backup:
 
         self.add_progress_buffer_to_total()
 
-        current_progress['total'] = self.progress
+        # Set progress to all processed files
+        self.progress['current'] = sum([filesize for (filename, filesize, operation, display_index) in self.progress_list['files'] if operation == Status.FILE_OPERATION_DELETE])
+        self.progress['current'] += sum([2 * filesize for (filename, filesize, operation, display_index) in self.progress_list['files'] if operation == Status.FILE_OPERATION_COPY])
+        self.progress['current'] += sum([filesize for (filename, filesize, operation, display_index) in self.progress_list['failed'] if operation == Status.FILE_OPERATION_DELETE])
+        self.progress['current'] += sum([2 * filesize for (filename, filesize, operation, display_index) in self.progress_list['failed'] if operation == Status.FILE_OPERATION_COPY])
+        
+        # Get total progress of completed files, and add buffer
+        buffer_progress = self.progress_list['buffer']['copied']
+        if self.progress_list['buffer']['display_mode'] == 'verify':
+            buffer_progress += self.progress_list['buffer']['total']
+            self.progress['current'] += buffer_progress
+
+        current_progress['total'] = self.progress_list
 
         return current_progress
 

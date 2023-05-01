@@ -176,16 +176,15 @@ def display_backup_progress(copied, total, display_filename=None, display_mode=N
         cmd_info_blocks = backup.cmd_info_blocks
 
         backup_totals['buffer'] = copied
-        backup_totals['progressBar'] = backup_totals['running'] + copied
 
         if display_mode == 'delete':
-            progress.set(backup_totals['progressBar'])
+            progress.set(backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=root_window.uicolor.NORMAL)
         elif display_mode == 'copy':
-            progress.set(backup_totals['progressBar'])
+            progress.set(backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.NORMAL)
         elif display_mode == 'verify':
-            progress.set(backup_totals['progressBar'])
+            progress.set(backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.BLUE)
 
     # FIXME: Make all failed file copies add the relevant progress chunk to the progress bar
@@ -2245,7 +2244,7 @@ if __name__ == '__main__':
 
     def update_ui_during_backup():
         if backup:
-            backup_progress = backup.get_progress()
+            backup_progress = backup.get_progress_updates()
 
             # Update working file for copies
             if backup_progress['total']['current_file'] is not None:
@@ -2256,7 +2255,7 @@ if __name__ == '__main__':
                 if display_index is not None and display_index in cmd_info_blocks:
                     cmd_info_blocks[display_index].configure('current_file', text=filename if filename is not None else '', fg=root_window.uicolor.NORMAL)
             else:
-                filename, size, display_index = (None, None, None)
+                filename, display_index = (None, None)
 
             # Update status bar
             update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, filename if filename is not None else '')
@@ -2278,16 +2277,15 @@ if __name__ == '__main__':
                 cmd_info_blocks = backup.cmd_info_blocks
 
                 backup_totals['buffer'] = buffer['copied']
-                backup_totals['progressBar'] = backup_totals['running'] + buffer['copied']
+
+                progress.set_max(backup.progress['total'])
+                progress.set(backup.progress['current'])
 
                 if buffer['display_mode'] == 'delete':
-                    progress.set(backup_totals['progressBar'])
                     cmd_info_blocks[display_index].configure('progress', text=f"Deleted {buffer['display_filename']}", fg=root_window.uicolor.NORMAL)
                 elif buffer['display_mode'] == 'copy':
-                    progress.set(backup_totals['progressBar'])
                     cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.NORMAL)
                 elif buffer['display_mode'] == 'verify':
-                    progress.set(backup_totals['progressBar'])
                     cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.BLUE)
 
             # Update file detail lists on deletes and copies
@@ -2297,8 +2295,8 @@ if __name__ == '__main__':
                 if operation == Status.FILE_OPERATION_DELETE:
                     if not os.path.exists(filename):
                         display_backup_progress(
-                            copied=size,
-                            total=size,
+                            copied=filesize,
+                            total=filesize,
                             display_filename=filename.split(os.path.sep)[-1],
                             display_mode='delete',
                             display_index=display_index
@@ -2306,8 +2304,8 @@ if __name__ == '__main__':
                         update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
                     else:
                         display_backup_progress(
-                            copied=size,
-                            total=size,
+                            copied=filesize,
+                            total=filesize,
                             display_filename=filename.split(os.path.sep)[-1],
                             display_mode='delete',
                             display_index=display_index,
@@ -2323,8 +2321,8 @@ if __name__ == '__main__':
                 if operation == Status.FILE_OPERATION_DELETE:
                     if os.path.exists(filename):
                         display_backup_progress(
-                            copied=size,
-                            total=size,
+                            copied=filesize,
+                            total=filesize,
                             display_filename=filename.split(os.path.sep)[-1],
                             display_mode='delete',
                             display_index=display_index,
@@ -2334,8 +2332,8 @@ if __name__ == '__main__':
                         
                     else:
                         display_backup_progress(
-                            copied=size,
-                            total=size,
+                            copied=filesize,
+                            total=filesize,
                             display_filename=filename.split(os.path.sep)[-1],
                             display_mode='delete',
                             display_index=display_index
