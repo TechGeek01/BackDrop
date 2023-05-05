@@ -20,7 +20,7 @@ class Backup:
     COMMAND_MODE_REPLACE = 'replace'
     COMMAND_MODE_DELETE = 'delete'
 
-    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager: ThreadManager, update_ui_component_fn=None, uicolor=None, progress=None):
+    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, thread_manager: ThreadManager, update_ui_component_fn=None, uicolor=None):
         """Configure a backup to be run on a set of drives.
 
         Args:
@@ -36,7 +36,6 @@ class Backup:
                     in the UI.
             thread_manager (ThreadManager): The thread manager to check for kill flags.
             uicolor (Color): The UI color instance to reference for styling (default None).
-            progress (Progress): The progress tracker to bind to.
         """
 
         self.totals = {
@@ -95,7 +94,6 @@ class Backup:
         self.analysis_summary_display_fn = analysis_summary_display_fn
         self.display_backup_command_info_fn = display_backup_command_info_fn
         self.thread_manager = thread_manager
-        self.progress_bar = progress
 
     def get_kill_flag(self):
         """Get the kill flag status for the backup."""
@@ -283,8 +281,6 @@ class Backup:
 
         self.analysis_running = True
         self.analysis_started = True
-
-        self.progress_bar.start_indeterminate()
 
         self.progress['current'] = 0
         self.progress['total'] = 0
@@ -1012,8 +1008,6 @@ class Backup:
             self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
             self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
             self.update_ui_component_fn(Status.RESET_ANALYSIS_OUTPUT)
-
-        self.progress_bar.stop_indeterminate()
 
         self.analysis_running = False
 

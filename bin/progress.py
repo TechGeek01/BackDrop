@@ -9,6 +9,7 @@ class Progress:
 
         self.progress_bar = progress_bar
         self._thread_manager = thread_manager
+        self.mode = None
         self.max = 0
 
     def set_max(self, max_val: int):
@@ -43,6 +44,11 @@ class Progress:
         if len(self._thread_manager.get_progress_threads()) > 1:
             return
 
+        # Mode should only be changed if it's not already correct
+        if self.mode == 'indeterminate':
+            return
+
+        self.mode = 'indeterminate'
         self.progress_bar.configure(mode='indeterminate')
         self.progress_bar.start()
 
@@ -53,5 +59,10 @@ class Progress:
         if len(self._thread_manager.get_progress_threads()) > 1:
             return
 
+        # Mode should only be changed if it's not already correct
+        if self.mode == 'determinate':
+            return
+
+        self.mode = 'determinate'
         self.progress_bar.configure(mode='determinate')
         self.progress_bar.stop()

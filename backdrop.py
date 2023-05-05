@@ -375,8 +375,7 @@ def start_backup_analysis():
         update_file_detail_list_fn=update_file_detail_lists,
         analysis_summary_display_fn=display_backup_summary_chunk,
         display_backup_command_info_fn=display_backup_command_info,
-        thread_manager=thread_manager,
-        progress=progress
+        thread_manager=thread_manager
     )
 
     thread_manager.start(thread_manager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
@@ -2247,6 +2246,11 @@ if __name__ == '__main__':
 
         if backup:
             backup_progress = backup.get_progress_updates()
+
+            if backup.analysis_running:
+                progress.start_indeterminate()
+            else:
+                progress.stop_indeterminate()
 
             # Update working file for copies
             if backup_progress['total']['current_file'] is not None:
