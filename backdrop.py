@@ -2243,6 +2243,8 @@ if __name__ == '__main__':
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
     def update_ui_during_backup():
+        """Update the user interface using a RepeatedTimer."""
+
         if backup:
             backup_progress = backup.get_progress_updates()
 
