@@ -1158,7 +1158,6 @@ class Backup:
         self.thread_manager.kill('backupTimer')
 
         self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
-        self.set_working_file(None)
         self.backup_running = False
 
     def add_progress_buffer_to_total(self):
@@ -1197,11 +1196,9 @@ class Backup:
         self.progress['current'] += sum([filesize for (filename, filesize, operation, display_index) in self.progress_list['failed'] if operation == Status.FILE_OPERATION_DELETE])
         self.progress['current'] += sum([2 * filesize for (filename, filesize, operation, display_index) in self.progress_list['failed'] if operation == Status.FILE_OPERATION_COPY])
         
-        # Get total progress of completed files, and add buffer
+        # Add copy buffer to progress total
         buffer_progress = self.progress_list['buffer']['copied']
-        if self.progress_list['buffer']['display_mode'] == 'verify':
-            buffer_progress += self.progress_list['buffer']['total']
-            self.progress['current'] += buffer_progress
+        self.progress['current'] += buffer_progress
 
         current_progress['total'] = self.progress_list
 
