@@ -21,41 +21,16 @@ if platform.system() == 'Windows':
     import win32file
     import wmi
 import logging
-from threading import Event, Thread
 
 from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_delete
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.progress import Progress
 from bin.backup import Backup
+from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
 from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame, resource_path
 from bin.status import Status
-
-class RepeatedTimer:
-    """Repeat `function` every `interval` seconds."""
-
-    def __init__(self, interval, function, *args, **kwargs):
-        self.interval = interval
-        self.function = function
-        self.args = args
-        self.kwargs = kwargs
-        self.start = time.time()
-        self.event = Event()
-        self.thread = Thread(target=self._target, daemon=True)
-        self.thread.start()
-
-    def _target(self):
-        while not self.event.wait(self._time):
-            self.function(*self.args, **self.kwargs)
-
-    @property
-    def _time(self):
-        return self.interval - ((time.time() - self.start) % self.interval)
-
-    def stop(self):
-        self.event.set()
-        self.thread.join()
 
 def on_press(key):
     """Do things when keys are pressed.
