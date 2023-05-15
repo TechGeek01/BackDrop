@@ -365,7 +365,7 @@ def start_backup_analysis():
         display_backup_command_info_fn=display_backup_command_info
     )
 
-    thread_manager.start(thread_manager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
+    thread_manager.start(ThreadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
 def get_source_drive_list():
     """Get the list of available source drives.

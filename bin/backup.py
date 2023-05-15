@@ -45,8 +45,6 @@ class Backup:
         }
 
         self.progress = {
-            'files': [],  # (filemane, filesize, operation, display_index)
-            'failed': [],  # (filemane, filesize, operation, display_index)
             'buffer': {
                 'copied': 0,
                 'total': 0,
@@ -54,13 +52,15 @@ class Backup:
                 'display_mode': None,
                 'display_index': None
             },
-            'current_file': None,  # (filemane, filesize, operation, display_index)
             'current': 0,  # (int) Current progress
+            'current_file': None,  # (filemane, filesize, operation, display_index)
+            'failed': [],  # (filemane, filesize, operation, display_index)
+            'files': [],  # (filemane, filesize, operation, display_index)
+            'since_last_update': {  # Buffer for tracking delta UI updates
+                'files': [],
+                'failed': []
+            },
             'total': 0  # (int) Total for calculating progress percentage
-        }
-        self.progress_buffer = {  # Buffer for tracking delta UI updates
-            'files': [],
-            'failed': []
         }
 
         self.confirm_wipe_existing_drives = False
@@ -163,9 +163,9 @@ class Backup:
 
         self.progress['buffer']['copied'] = 0
         if status == Status.FILE_OPERATION_SUCCESS:
-            self.progress_buffer['files'].append(file)
+            self.progress['since_last_update']['files'].append(file)
         elif status == Status.FILE_OPERATION_FAILED:
-            self.progress_buffer['failed'].append(file)
+            self.progress['since_last_update']['failed'].append(file)
 
     def do_copy_fn(self, src, dest, drive_path, display_index: int = None):
         """Start a do_copy() call and report to the GUI.
@@ -1159,12 +1159,12 @@ class Backup:
         """
 
         # Add buffer to total
-        self.progress['files'].extend(self.progress_buffer['files'])
-        self.progress['failed'].extend(self.progress_buffer['failed'])
+        self.progress['files'].extend(self.progress['since_last_update']['files'])
+        self.progress['failed'].extend(self.progress['since_last_update']['failed'])
 
         # Clear buffer
-        self.progress_buffer['files'].clear()
-        self.progress_buffer['failed'].clear()
+        self.progress['since_last_update']['files'].clear()
+        self.progress['since_last_update']['failed'].clear()
 
     def get_progress_updates(self):
         """Get the current progress of the backup, and file lists since the
@@ -1176,8 +1176,8 @@ class Backup:
 
         current_progress = {
             'delta': {
-                'files': self.progress_buffer['files'].copy(),
-                'failed': self.progress_buffer['failed'].copy()
+                'files': self.progress['since_last_update']['files'].copy(),
+                'failed': self.progress['since_last_update']['failed'].copy()
             },
             'buffer': self.totals['buffer']
         }
