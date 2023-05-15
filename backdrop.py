@@ -216,7 +216,7 @@ def update_backup_eta_timer():
     total_to_copy = backup.totals['master'] - backup.totals['delete']
     backup_start_time = backup.get_backup_start_time()
 
-    while not thread_manager.threadlist['backupTimer']['killFlag']:
+    while not get_backup_killflag():
         backup_totals = backup.totals
 
         running_time = datetime.now() - backup_start_time
@@ -234,12 +234,22 @@ def update_backup_eta_timer():
         backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
         time.sleep(0.25)
 
-    if thread_manager.threadlist['Backup']['killFlag'] and backup.totals['running'] < backup.totals['master']:
+    if get_backup_killflag() and backup.totals['running'] < backup.totals['master']:
         # Backup aborted
         backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
     else:
         # Backup not killed, so completed successfully
         backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.FINISHED)
+
+def start_backup_timer():
+    """Start the backup timer when requested by the Backup class."""
+
+    thread_manager.start(ThreadManager.KILLABLE, name='backupTimer', target=update_backup_eta_timer)
+
+def kill_backup_timer():
+    """Stop the backup timer when requested by the Backup class."""
+
+    thread_manager.kill('backupTimer')
 
 def display_backup_command_info(display_command_list: list):
     """Enumerate the display widget with command info after a backup analysis.
@@ -325,6 +335,8 @@ def request_kill_analysis():
 
     statusbar_action.configure(text='Stopping analysis')
     thread_manager.kill('Backup Analysis')
+    if backup:
+        backup.analysis_killed = True
 
 def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
@@ -345,12 +357,12 @@ def start_backup_analysis():
         backup_config_dir=BACKUP_CONFIG_DIR,
         backup_config_file=BACKUP_CONFIG_FILE,
         uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
-        start_backup_timer_fn=update_backup_eta_timer,
+        start_backup_timer_fn=start_backup_timer,
+        kill_backup_timer_fn=kill_backup_timer,
         update_ui_component_fn=update_ui_component,
         update_file_detail_list_fn=update_file_detail_lists,
         analysis_summary_display_fn=display_backup_summary_chunk,
-        display_backup_command_info_fn=display_backup_command_info,
-        thread_manager=thread_manager
+        display_backup_command_info_fn=display_backup_command_info
     )
 
     thread_manager.start(thread_manager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
@@ -1166,6 +1178,8 @@ def cleanup_handler(signal_received, frame):
 
         if thread_manager.is_alive('Backup'):
             thread_manager.kill('Backup')
+            if backup:
+                backup.run_killed = True
 
             if thread_manager.is_alive('Backup'):
                 force_non_graceful_cleanup = True
@@ -1703,6 +1717,8 @@ if __name__ == '__main__':
 
         statusbar_action.configure(text='Stopping backup')
         thread_manager.kill('Backup')
+        if backup:
+            backup.run_killed = True
 
     def update_ui_component(status: int, data=None):
         """Update UI elements with given data..
@@ -2512,6 +2528,8 @@ if __name__ == '__main__':
 
         if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
             thread_manager.kill('Backup')
+            if backup:
+                backup.run_killed = True
             root_window.quit()
             exit()
 
