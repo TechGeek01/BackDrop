@@ -2290,23 +2290,17 @@ if __name__ == '__main__':
                 filename, filesize, operation, display_index = file
 
                 if operation == Status.FILE_OPERATION_DELETE:
+                    display_backup_progress(
+                        copied=filesize,
+                        total=filesize,
+                        display_filename=filename.split(os.path.sep)[-1],
+                        operation=operation,
+                        display_index=display_index
+                    )
+
                     if not os.path.exists(filename):
-                        display_backup_progress(
-                            copied=filesize,
-                            total=filesize,
-                            display_filename=filename.split(os.path.sep)[-1],
-                            operation=Status.FILE_OPERATION_DELETE,
-                            display_index=display_index
-                        )
                         update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
                     else:
-                        display_backup_progress(
-                            copied=filesize,
-                            total=filesize,
-                            display_filename=filename.split(os.path.sep)[-1],
-                            operation=Status.FILE_OPERATION_DELETE,
-                            display_index=display_index,
-                        )
                         update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
                         backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
                 elif operation == Status.FILE_OPERATION_COPY:
@@ -2316,25 +2310,18 @@ if __name__ == '__main__':
                 filename, filesize, operation, display_index = file
 
                 if operation == Status.FILE_OPERATION_DELETE:
+                    display_backup_progress(
+                        copied=filesize,
+                        total=filesize,
+                        display_filename=filename.split(os.path.sep)[-1],
+                        operation=operation,
+                        display_index=display_index,
+                    )
+
                     if os.path.exists(filename):
-                        display_backup_progress(
-                            copied=filesize,
-                            total=filesize,
-                            display_filename=filename.split(os.path.sep)[-1],
-                            operation=Status.FILE_OPERATION_DELETE,
-                            display_index=display_index,
-                        )
                         update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
                         backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
-                        
                     else:
-                        display_backup_progress(
-                            copied=filesize,
-                            total=filesize,
-                            display_filename=filename.split(os.path.sep)[-1],
-                            operation=Status.FILE_OPERATION_DELETE,
-                            display_index=display_index
-                        )
                         update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
                 elif operation == Status.FILE_OPERATION_COPY:
                     update_file_detail_lists(FileUtils.LIST_FAIL, filename)
