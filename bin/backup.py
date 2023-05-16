@@ -49,7 +49,7 @@ class Backup:
                 'copied': 0,
                 'total': 0,
                 'display_filename': None,
-                'display_mode': None,
+                'operation': None,
                 'display_index': None
             },
             'current': 0,  # (int) Current progress
@@ -136,21 +136,21 @@ class Backup:
 
         self.update_copy_lists(status, (filename, size, Status.FILE_OPERATION_DELETE, display_index))
 
-    def set_copy_progress(self, copied, total, display_filename=None, display_mode=None, display_index: int = None):
+    def set_copy_progress(self, copied, total, display_filename=None, operation=None, display_index: int = None):
         """Set the copy progress of a transfer.
 
         Args:
             copied (int): the number of bytes copied.
             total (int): The total file size.
             display_filename (String): The filename to display inthe GUI (optional).
-            display_mode (String): The mode to display the progress in (optional).
+            operation (int): The mode to display the progress in (optional).
             display_index (int): The index to display the item in the GUI (optional).
         """
 
         self.progress['buffer']['copied'] = copied
         self.progress['buffer']['total'] = total
         self.progress['buffer']['display_filename'] = display_filename
-        self.progress['buffer']['display_mode'] = display_mode
+        self.progress['buffer']['operation'] = operation
         self.progress['buffer']['display_index'] = display_index
 
     def update_copy_lists(self, status, file):
@@ -185,10 +185,10 @@ class Backup:
             dest=dest,
             drive_path=drive_path,
             pre_callback=self.set_working_file,
-            prog_callback=lambda c, t, dm: self.set_copy_progress(
-                c,
-                t,
-                display_mode=dm,
+            prog_callback=lambda c, t, op: self.set_copy_progress(
+                copied=c,
+                total=t,
+                operation=op,
                 display_index=display_index
             ),
             display_index=display_index,

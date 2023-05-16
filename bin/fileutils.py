@@ -84,7 +84,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     """
 
     pre_callback()
-    display_mode = 'copy'
+    operation = Status.FILE_OPERATION_COPY
 
     buffer_size = FileUtils.READINTO_BUFSIZE
 
@@ -116,7 +116,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
                 h.update(mv[:n])
 
                 copied += n
-                prog_callback(c=copied, t=file_size, dm=display_mode)
+                prog_callback(c=copied, t=file_size, op=operation)
 
                 if get_backup_killflag():
                     break
@@ -148,14 +148,14 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     dest_mv = memoryview(dest_b)
 
     with open(dest_filename, 'rb', buffering=0) as f:
-        display_mode = 'verify'
+        operation = Status.FILE_OPERATION_VERIFY
         copied = 0
 
         for n in iter(lambda: f.readinto(dest_mv), 0):
             dest_hash.update(dest_mv[:n])
 
             copied += n
-            prog_callback(c=copied, t=file_size, dm=display_mode)
+            prog_callback(c=copied, t=file_size, op=operation)
 
     if h.hexdigest() == dest_hash.hexdigest():
         fd_callback(
