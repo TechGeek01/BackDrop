@@ -19,7 +19,7 @@ class Backup:
     COMMAND_MODE_REPLACE = 'replace'
     COMMAND_MODE_DELETE = 'delete'
 
-    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, update_ui_component_fn=None, uicolor=None):
+    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, display_backup_command_info_fn, analysis_callback_fn, update_ui_component_fn=None, uicolor=None):
         """Configure a backup to be run on a set of drives.
 
         Args:
@@ -34,6 +34,7 @@ class Backup:
                     summary.
             display_backup_command_info_fn (def): The function to be used to enumerate command info
                     in the UI.
+            analysis_callback_fn (def): The callback function to call post analysis.
             uicolor (Color): The UI color instance to reference for styling (default None).
         """
 
@@ -96,6 +97,7 @@ class Backup:
         self.update_file_detail_list_fn = update_file_detail_list_fn
         self.analysis_summary_display_fn = analysis_summary_display_fn
         self.display_backup_command_info_fn = display_backup_command_info_fn
+        self.analysis_callback_fn = analysis_callback_fn
 
     def get_kill_flag(self):
         """Get the kill flag status for the backup."""
@@ -1013,6 +1015,7 @@ class Backup:
             self.update_ui_component_fn(Status.RESET_ANALYSIS_OUTPUT)
 
         self.analysis_running = False
+        self.analysis_callback_fn()
 
     # TODO: Make changes to existing @config check the existing for missing @drives, and delete the config file from drives we unselected if there's multiple drives in a config
     # TODO: If a @drive @config is overwritten with a new config file, due to the drive

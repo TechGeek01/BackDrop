@@ -362,7 +362,8 @@ def start_backup_analysis():
         update_ui_component_fn=update_ui_component,
         update_file_detail_list_fn=update_file_detail_lists,
         analysis_summary_display_fn=display_backup_summary_chunk,
-        display_backup_command_info_fn=display_backup_command_info
+        display_backup_command_info_fn=display_backup_command_info,
+        analysis_callback_fn=update_ui_post_analysis
     )
 
     thread_manager.start(ThreadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
@@ -2231,6 +2232,11 @@ if __name__ == '__main__':
 
         drive_list = [drive['name'] for drive in config['destinations']]
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
+
+    def update_ui_post_analysis():
+        """ Update the UI after an analysis has been run. """
+
+        pass
 
     def update_ui_during_backup():
         """Update the user interface using a RepeatedTimer."""
