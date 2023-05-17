@@ -2620,7 +2620,7 @@ if __name__ == '__main__':
     preferences_verification_menu.add_checkbutton(label='Verify Known Files', onvalue=False, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
     preferences_verification_menu.add_checkbutton(label='Verify All Files', onvalue=True, offvalue=True, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
     preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
-    settings_darkModeEnabled = tk.BooleanVar(value=root_window.dark_mode) 
+    settings_darkModeEnabled = tk.BooleanVar(value=root_window.dark_mode)
     preferences_menu.add_checkbutton(label='Enable Dark Mode (requires restart)', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()))
     menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
 

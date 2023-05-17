@@ -1141,7 +1141,7 @@ class Backup:
         self.progress['current'] += sum([2 * filesize for (filename, filesize, operation, display_index) in self.progress['files'] if operation == Status.FILE_OPERATION_COPY])
         self.progress['current'] += sum([filesize for (filename, filesize, operation, display_index) in self.progress['failed'] if operation == Status.FILE_OPERATION_DELETE])
         self.progress['current'] += sum([2 * filesize for (filename, filesize, operation, display_index) in self.progress['failed'] if operation == Status.FILE_OPERATION_COPY])
-        
+
         # Add copy buffer to progress total
         self.progress['current'] += self.progress['buffer']['copied']
 
