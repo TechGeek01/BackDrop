@@ -848,8 +848,6 @@ class Backup:
         self.new_file_list = {}
         purge_command_list = []
         copy_command_list = []
-        display_purge_command_list = []
-        display_copy_command_list = []
         logging.debug('Delta file lists starting...')
         for drive, shares in drive_share_list.items():
             if self.analysis_killed:
@@ -862,19 +860,12 @@ class Backup:
                 self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']] = delete_items
                 file_delete_list = [os.path.join(drive, file) for drive, file, size in delete_items]
 
-                display_purge_command_list.append({
+                purge_command_list.append({
                     'enabled': True,
+                    'displayIndex': len(purge_command_list) + 1,
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((size for drive, file, size in delete_items)),
-                    'list': file_delete_list,
-                    'mode': Backup.COMMAND_MODE_DELETE
-                })
-
-                purge_command_list.append({
-                    'displayIndex': len(display_purge_command_list) + 1,
-                    'type': Backup.COMMAND_TYPE_FILE_LIST,
-                    'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'list': file_delete_list,
                     'payload': delete_items,
                     'mode': Backup.COMMAND_MODE_DELETE
@@ -887,19 +878,12 @@ class Backup:
                 self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']] = replace_items
                 file_replace_list = [os.path.join(drive, share, file) for drive, share, file, source_size, dest_size in replace_items]
 
-                display_copy_command_list.append({
+                copy_command_list.append({
                     'enabled': True,
+                    'displayIndex': len(purge_command_list) + 1,
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((source_size for drive, share, file, source_size, dest_size in replace_items)),
-                    'list': file_replace_list,
-                    'mode': Backup.COMMAND_MODE_REPLACE
-                })
-
-                copy_command_list.append({
-                    'displayIndex': len(display_purge_command_list) + 1,
-                    'type': Backup.COMMAND_TYPE_FILE_LIST,
-                    'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'list': file_replace_list,
                     'payload': replace_items,
                     'mode': Backup.COMMAND_MODE_REPLACE
@@ -911,19 +895,12 @@ class Backup:
                 self.new_file_list[self.DRIVE_VID_INFO[drive]['name']] = new_items
                 file_copy_list = [os.path.join(drive, share, file) for drive, share, file, size in new_items]
 
-                display_copy_command_list.append({
+                copy_command_list.append({
                     'enabled': True,
+                    'displayIndex': len(purge_command_list) + 1,
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((size for drive, share, file, size in new_items)),
-                    'list': file_copy_list,
-                    'mode': Backup.COMMAND_MODE_COPY
-                })
-
-                copy_command_list.append({
-                    'displayIndex': len(display_purge_command_list) + 1,
-                    'type': Backup.COMMAND_TYPE_FILE_LIST,
-                    'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'list': file_copy_list,
                     'payload': new_items,
                     'mode': Backup.COMMAND_MODE_COPY
@@ -985,10 +962,6 @@ class Backup:
             self.command_list = [cmd for cmd in purge_command_list]
             self.command_list.extend([cmd for cmd in copy_command_list])
 
-            # Concat lists into display command list
-            display_command_list = [cmd for cmd in display_purge_command_list]
-            display_command_list.extend([cmd for cmd in display_copy_command_list])
-
             # Fix display index on command list
             for i, cmd in enumerate(self.command_list):
                 self.command_list[i]['displayIndex'] = i
@@ -999,11 +972,9 @@ class Backup:
             )
 
             self.analysis_valid = True
-        else:
-            display_command_list = None  # Stub to avoid errors calling analysis_callback
 
         self.analysis_running = False
-        self.analysis_callback_fn(display_command_list)
+        self.analysis_callback_fn()
 
     # TODO: Make changes to existing @config check the existing for missing @drives, and delete the config file from drives we unselected if there's multiple drives in a config
     # TODO: If a @drive @config is overwritten with a new config file, due to the drive

@@ -2232,19 +2232,15 @@ if __name__ == '__main__':
         drive_list = [drive['name'] for drive in config['destinations']]
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
-    def update_ui_post_analysis(display_command_list):
-        """ Update the UI after an analysis has been run.
-
-        Args:
-            display_command_list (list): The display command list to interpret.
-        """
+    def update_ui_post_analysis():
+        """ Update the UI after an analysis has been run. """
 
         # Only run if there's a backup configured.
         if not backup:
             return
 
         if not backup.analysis_killed:
-            display_backup_command_info(display_command_list)
+            display_backup_command_info(backup.command_list)
 
             update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
             update_ui_component(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
