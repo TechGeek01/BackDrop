@@ -999,17 +999,8 @@ class Backup:
             )
 
             self.analysis_valid = True
-
-            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
-            self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
-            self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
         else:
             display_command_list = None  # Stub to avoid errors calling analysis_callback
-
-            # If thread halted, mark analysis as invalid
-            self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
-            self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_END)
-            self.update_ui_component_fn(Status.RESET_ANALYSIS_OUTPUT)
 
         self.analysis_running = False
         self.analysis_callback_fn(display_command_list)

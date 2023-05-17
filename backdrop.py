@@ -2246,6 +2246,15 @@ if __name__ == '__main__':
         if not backup.analysis_killed:
             display_backup_command_info(display_command_list)
 
+            update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
+            update_ui_component(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
+            update_ui_component(Status.UPDATEUI_ANALYSIS_END)
+        else:
+            # If thread halted, mark analysis as invalid
+            update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
+            update_ui_component(Status.UPDATEUI_ANALYSIS_END)
+            update_ui_component(Status.RESET_ANALYSIS_OUTPUT)
+
     def update_ui_during_backup():
         """Update the user interface using a RepeatedTimer."""
 
