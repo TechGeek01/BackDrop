@@ -361,7 +361,6 @@ def start_backup_analysis():
         kill_backup_timer_fn=kill_backup_timer,
         update_ui_component_fn=update_ui_component,
         update_file_detail_list_fn=update_file_detail_lists,
-        analysis_summary_display_fn=display_backup_summary_chunk,
         analysis_callback_fn=update_ui_post_analysis
     )
 
@@ -2232,8 +2231,13 @@ if __name__ == '__main__':
         drive_list = [drive['name'] for drive in config['destinations']]
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
-    def update_ui_post_analysis():
-        """ Update the UI after an analysis has been run. """
+    def update_ui_post_analysis(files_payload, summary_payload):
+        """ Update the UI after an analysis has been run.
+
+        Args:
+            files_payload (list): The file data to display in the UI.
+            summary_payload (list): The summary data to display in the UI.
+        """
 
         # Only run if there's a backup configured.
         if not backup:
@@ -2241,6 +2245,16 @@ if __name__ == '__main__':
 
         if not backup.analysis_killed:
             display_backup_command_info(backup.command_list)
+
+            display_backup_summary_chunk(
+                title='Files',
+                payload=files_payload
+            )
+
+            display_backup_summary_chunk(
+                title='Summary',
+                payload=summary_payload
+            )
 
             update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
             update_ui_component(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})

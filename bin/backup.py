@@ -19,7 +19,7 @@ class Backup:
     COMMAND_MODE_REPLACE = 'replace'
     COMMAND_MODE_DELETE = 'delete'
 
-    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, update_file_detail_list_fn, analysis_summary_display_fn, analysis_callback_fn, update_ui_component_fn=None, uicolor=None):
+    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, update_file_detail_list_fn, analysis_callback_fn, update_ui_component_fn=None, uicolor=None):
         """Configure a backup to be run on a set of drives.
 
         Args:
@@ -30,8 +30,6 @@ class Backup:
             kill_backup_timer_fn (def): The function to be used to stop the backup timer.
             update_ui_component_fn (def): The function to be used to update UI components (default None).
             update_file_detail_list_fn (def): The function to be used to update file lists.
-            analysis_summary_display_fn (def): The function to be used to show an analysis
-                    summary.
             analysis_callback_fn (def): The callback function to call post analysis.
             uicolor (Color): The UI color instance to reference for styling (default None).
         """
@@ -93,7 +91,6 @@ class Backup:
         self.kill_backup_timer_fn = kill_backup_timer_fn
         self.update_ui_component_fn = update_ui_component_fn
         self.update_file_detail_list_fn = update_file_detail_list_fn
-        self.analysis_summary_display_fn = analysis_summary_display_fn
         self.analysis_callback_fn = analysis_callback_fn
 
     def get_kill_flag(self):
@@ -953,11 +950,6 @@ class Backup:
                 show_file_info.append((self.DRIVE_VID_INFO[drive]['name'], '\n'.join(file_summary)))
 
         if not self.analysis_killed:
-            self.analysis_summary_display_fn(
-                title='Files',
-                payload=show_file_info
-            )
-
             # Concat both lists into command list
             self.command_list = [cmd for cmd in purge_command_list]
             self.command_list.extend([cmd for cmd in copy_command_list])
@@ -966,15 +958,13 @@ class Backup:
             for i, cmd in enumerate(self.command_list):
                 self.command_list[i]['displayIndex'] = i
 
-            self.analysis_summary_display_fn(
-                title='Summary',
-                payload=[(self.DRIVE_VID_INFO[drive]['name'], '\n'.join(shares), drive in connected_vid_list) for drive, shares in drive_share_list.items()]
-            )
-
             self.analysis_valid = True
 
         self.analysis_running = False
-        self.analysis_callback_fn()
+        self.analysis_callback_fn(
+            files_payload=show_file_info,
+            summary_payload=[(self.DRIVE_VID_INFO[drive]['name'], '\n'.join(shares), drive in connected_vid_list) for drive, shares in drive_share_list.items()]
+        )
 
     # TODO: Make changes to existing @config check the existing for missing @drives, and delete the config file from drives we unselected if there's multiple drives in a config
     # TODO: If a @drive @config is overwritten with a new config file, due to the drive
