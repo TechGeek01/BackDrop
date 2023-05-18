@@ -19,7 +19,7 @@ class Backup:
     COMMAND_MODE_REPLACE = 'replace'
     COMMAND_MODE_DELETE = 'delete'
 
-    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, update_file_detail_list_fn, analysis_callback_fn, update_ui_component_fn=None, uicolor=None):
+    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, analysis_callback_fn, update_ui_component_fn=None, uicolor=None):
         """Configure a backup to be run on a set of drives.
 
         Args:
@@ -29,7 +29,6 @@ class Backup:
             start_backup_timer_fn (def): The function to be used to start the backup timer.
             kill_backup_timer_fn (def): The function to be used to stop the backup timer.
             update_ui_component_fn (def): The function to be used to update UI components (default None).
-            update_file_detail_list_fn (def): The function to be used to update file lists.
             analysis_callback_fn (def): The callback function to call post analysis.
             uicolor (Color): The UI color instance to reference for styling (default None).
         """
@@ -42,6 +41,7 @@ class Backup:
         }
 
         self.progress = {
+            'analysis': [],  # (list, file path)
             'buffer': {
                 'copied': 0,
                 'total': 0,
@@ -54,6 +54,7 @@ class Backup:
             'failed': [],  # (filemane, filesize, operation, display_index)
             'files': [],  # (filemane, filesize, operation, display_index)
             'since_last_update': {  # Buffer for tracking delta UI updates
+                'analysis': [],  # (list, file path)
                 'files': [],
                 'failed': []
             },
@@ -90,7 +91,6 @@ class Backup:
         self.start_backup_timer_fn = start_backup_timer_fn
         self.kill_backup_timer_fn = kill_backup_timer_fn
         self.update_ui_component_fn = update_ui_component_fn
-        self.update_file_detail_list_fn = update_file_detail_list_fn
         self.analysis_callback_fn = analysis_callback_fn
 
     def get_kill_flag(self):
@@ -717,14 +717,14 @@ class Backup:
                             # Directory isn't a share, or part of one, or is an exclusion,  and isn't
                             # a special folder, so delete it
                             file_list['delete'].append((drive, stub_path, get_directory_size(entry.path)))
-                            self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_DELETE, entry.path)
+                            self.progress['since_last_update']['analysis'].append((FileUtils.LIST_TOTAL_DELETE, entry.path))
                     elif entry.is_file():  # Path is file
                         if (stub_path.find(os.path.sep) == -1  # Files should not be on root of drive
                                 # or not os.path.isfile(source_path)  # File doesn't exist in source, so delete it
                                 or stub_path in exclusions  # File is excluded from drive
                                 or len(shares_to_process) == 0):  # File should only count if dir is share or child, not parent
                             file_list['delete'].append((drive, stub_path, file_stat.st_size))
-                            self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_DELETE, entry.path)
+                            self.progress['since_last_update']['analysis'].append((FileUtils.LIST_TOTAL_DELETE, entry.path))
                         else:  # File is in share on destination drive
                             target_share = shares_to_process[0]
                             path_slug = stub_path[len(target_share):].strip(os.path.sep)
@@ -737,13 +737,13 @@ class Backup:
                             except FileNotFoundError:  # Thrown if file doesn't exist
                                 # If file doesn't exist on source, delete it
                                 file_list['delete'].append((drive, stub_path, file_stat.st_size))
-                                self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_DELETE, entry.path)
+                                self.progress['since_last_update']['analysis'].append((FileUtils.LIST_TOTAL_DELETE, entry.path))
                             else:
                                 if (file_stat.st_size != source_stats.st_size  # Existing file is different size than source
                                         or file_stat.st_mtime != source_stats.st_mtime):  # Existing file is older than source
                                     # If existing dest file is not same time as source, it needs to be replaced
                                     file_list['replace'].append((drive, target_share, path_slug, os.path.getsize(source_path), file_stat.st_size))
-                                    self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_COPY, entry.path)
+                                    self.progress['since_last_update']['analysis'].append((FileUtils.LIST_TOTAL_COPY, entry.path))
             except (NotADirectoryError, PermissionError, OSError):
                 return {
                     'delete': [],
@@ -815,7 +815,7 @@ class Backup:
                         elif (not os.path.isfile(target_path)  # File doesn't exist in destination drive
                               and exclusion_stub_path not in exclusions):  # File isn't part of drive exclusion
                             file_list['new'].append((drive, share, stub_path, entry.stat().st_size))
-                            self.update_file_detail_list_fn(FileUtils.LIST_TOTAL_COPY, target_path)
+                            self.progress['since_last_update']['analysis'].append((FileUtils.LIST_TOTAL_COPY, target_path))
                     if file_count == 0 and not os.path.isdir(os.path.join(drive, share, path)):
                         # If no files in folder on source, create empty folder in destination
                         return {
@@ -1106,15 +1106,17 @@ class Backup:
         self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
         self.backup_running = False
 
-    def add_progress_buffer_to_total(self):
-        """Add the progress buffer to the total, and reset the buffer.
+    def add_progress_delta_to_total(self):
+        """Add the progress delta to the total, and reset the buffer.
         """
 
         # Add buffer to total
+        self.progress['analysis'].extend(self.progress['since_last_update']['analysis'])
         self.progress['files'].extend(self.progress['since_last_update']['files'])
         self.progress['failed'].extend(self.progress['since_last_update']['failed'])
 
         # Clear buffer
+        self.progress['since_last_update']['analysis'].clear()
         self.progress['since_last_update']['files'].clear()
         self.progress['since_last_update']['failed'].clear()
 
@@ -1128,13 +1130,14 @@ class Backup:
 
         current_progress = {
             'delta': {
+                'analysis': self.progress['since_last_update']['analysis'].copy(),
                 'files': self.progress['since_last_update']['files'].copy(),
                 'failed': self.progress['since_last_update']['failed'].copy()
             },
             'buffer': self.totals['buffer']
         }
 
-        self.add_progress_buffer_to_total()
+        self.add_progress_delta_to_total()
 
         # Set progress to all processed files
         self.progress['current'] = sum([filesize for (filename, filesize, operation, display_index) in self.progress['files'] if operation == Status.FILE_OPERATION_DELETE])

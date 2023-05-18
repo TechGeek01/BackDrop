@@ -360,7 +360,6 @@ def start_backup_analysis():
         start_backup_timer_fn=start_backup_timer,
         kill_backup_timer_fn=kill_backup_timer,
         update_ui_component_fn=update_ui_component,
-        update_file_detail_list_fn=update_file_detail_lists,
         analysis_callback_fn=update_ui_post_analysis
     )
 
@@ -2275,6 +2274,10 @@ if __name__ == '__main__':
                 progress.start_indeterminate()
             else:
                 progress.stop_indeterminate()
+
+            # Update analysis file lists
+            for (file_list, filename) in backup_progress['delta']['analysis']:
+                update_file_detail_lists(file_list, filename)
 
             # Update working file for copies
             if backup_progress['total']['current_file'] is not None:
