@@ -263,11 +263,11 @@ def display_backup_command_info(display_command_list: list):
     backup.cmd_info_blocks = []
     for i, item in enumerate(display_command_list):
         if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
-            if item['mode'] == Backup.COMMAND_MODE_DELETE:
+            if item['mode'] == Status.FILE_OPERATION_DELETE:
                 cmd_header_text = f"Delete {len(item['list'])} files from {item['drive']}"
-            elif item['mode'] == Backup.COMMAND_MODE_REPLACE:
+            elif item['mode'] == Status.FILE_OPERATION_UPDATE:
                 cmd_header_text = f"Update {len(item['list'])} files on {item['drive']}"
-            elif item['mode'] == Backup.COMMAND_MODE_COPY:
+            elif item['mode'] == Status.FILE_OPERATION_COPY:
                 cmd_header_text = f"Copy {len(item['list'])} new files to {item['drive']}"
             else:
                 cmd_header_text = f"Work with {len(item['list'])} files on {item['drive']}"

@@ -15,10 +15,6 @@ class Backup:
     COMMAND_TYPE_FILE_LIST = 'file_list'
     COMMAND_FILE_LIST = 'file_list'
 
-    COMMAND_MODE_COPY = 'copy'
-    COMMAND_MODE_REPLACE = 'replace'
-    COMMAND_MODE_DELETE = 'delete'
-
     def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, backup_callback_fn, analysis_callback_fn, update_ui_component_fn=None, uicolor=None):
         """Configure a backup to be run on a set of drives.
 
@@ -867,7 +863,7 @@ class Backup:
                     'size': sum((size for drive, file, size in delete_items)),
                     'list': file_delete_list,
                     'payload': delete_items,
-                    'mode': Backup.COMMAND_MODE_DELETE
+                    'mode': Status.FILE_OPERATION_DELETE
                 })
 
             # Build list of files to replace
@@ -885,7 +881,7 @@ class Backup:
                     'size': sum((source_size for drive, share, file, source_size, dest_size in replace_items)),
                     'list': file_replace_list,
                     'payload': replace_items,
-                    'mode': Backup.COMMAND_MODE_REPLACE
+                    'mode': Status.FILE_OPERATION_UPDATE
                 })
 
             # Build list of new files to copy
@@ -902,7 +898,7 @@ class Backup:
                     'size': sum((size for drive, share, file, size in new_items)),
                     'list': file_copy_list,
                     'payload': new_items,
-                    'mode': Backup.COMMAND_MODE_COPY
+                    'mode': Status.FILE_OPERATION_COPY
                 })
         logging.debug('Delta file lists finished')
 
@@ -1039,7 +1035,7 @@ class Backup:
 
                 self.start_backup_timer_fn()
 
-                if cmd['mode'] == Backup.COMMAND_MODE_DELETE:
+                if cmd['mode'] == Status.FILE_OPERATION_DELETE:
                     for drive, file, size in cmd['payload']:
                         if self.run_killed:
                             break
@@ -1056,7 +1052,7 @@ class Backup:
                             with open(drive_hash_file_path, 'wb') as f:
                                 hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
                                 pickle.dump(hash_list, f)
-                if cmd['mode'] == Backup.COMMAND_MODE_REPLACE:
+                if cmd['mode'] == Status.FILE_OPERATION_UPDATE:
                     for drive, share, file, source_size, dest_size in cmd['payload']:
                         if self.run_killed:
                             break
@@ -1075,7 +1071,7 @@ class Backup:
                         with open(drive_hash_file_path, 'wb') as f:
                             hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
                             pickle.dump(hash_list, f)
-                elif cmd['mode'] == Backup.COMMAND_MODE_COPY:
+                elif cmd['mode'] == Status.FILE_OPERATION_COPY:
                     for drive, share, file, size in cmd['payload']:
                         if self.run_killed:
                             break
