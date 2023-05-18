@@ -15,7 +15,7 @@ class Backup:
     COMMAND_TYPE_FILE_LIST = 'file_list'
     COMMAND_FILE_LIST = 'file_list'
 
-    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, backup_callback_fn, analysis_callback_fn, update_ui_component_fn=None, uicolor=None):
+    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, analysis_pre_callback_fn, analysis_callback_fn, backup_callback_fn, uicolor=None):
         """Configure a backup to be run on a set of drives.
 
         Args:
@@ -24,9 +24,9 @@ class Backup:
             backup_config_file (String): The file to store backup configs on each drive.
             start_backup_timer_fn (def): The function to be used to start the backup timer.
             kill_backup_timer_fn (def): The function to be used to stop the backup timer.
-            update_ui_component_fn (def): The function to be used to update UI components (default None).
-            backup_callback_fn (def): The callback function to call post backup.
+            analysis_pre_callback_fn (def): The callback function to call before analysis.
             analysis_callback_fn (def): The callback function to call post analysis.
+            backup_callback_fn (def): The callback function to call post backup.
             uicolor (Color): The UI color instance to reference for styling (default None).
         """
 
@@ -87,9 +87,9 @@ class Backup:
         self.uicolor = uicolor
         self.start_backup_timer_fn = start_backup_timer_fn
         self.kill_backup_timer_fn = kill_backup_timer_fn
-        self.update_ui_component_fn = update_ui_component_fn
-        self.backup_callback_fn = backup_callback_fn
+        self.analysis_pre_callback_fn = analysis_pre_callback_fn
         self.analysis_callback_fn = analysis_callback_fn
+        self.backup_callback_fn = backup_callback_fn
 
     def get_kill_flag(self):
         """Get the kill flag status for the backup."""
@@ -279,12 +279,10 @@ class Backup:
         self.analysis_running = True
         self.analysis_started = True
 
+        self.analysis_pre_callback_fn()
+
         self.progress['current'] = 0
         self.progress['total'] = 0
-
-        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
-        self.update_ui_component_fn(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
-        self.update_ui_component_fn(Status.UPDATEUI_ANALYSIS_START)
 
         share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
         all_share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
@@ -1032,8 +1030,7 @@ class Backup:
                 if not timer_started:
                     timer_started = True
                     self.backup_start_time = datetime.now()
-
-                self.start_backup_timer_fn()
+                    self.start_backup_timer_fn()
 
                 if cmd['mode'] == Status.FILE_OPERATION_DELETE:
                     for drive, file, size in cmd['payload']:
@@ -1062,7 +1059,7 @@ class Backup:
                         src = os.path.join(share_path, file)
                         dest = os.path.join(drive, share, file)
 
-                        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, dest)
+                        self.set_working_file(dest, source_size, Status.FILE_OPERATION_UPDATE, cmd['displayIndex'])
                         file_hashes = self.do_copy_fn(src=src, dest=dest, drive_path=drive, display_index=cmd['displayIndex'])
                         self.file_hashes[drive].update(file_hashes)
 
@@ -1081,7 +1078,7 @@ class Backup:
                         src = os.path.join(share_path, file)
                         dest = os.path.join(drive, share, file)
 
-                        self.update_ui_component_fn(Status.UPDATEUI_STATUS_BAR_DETAILS, dest)
+                        self.set_working_file(dest, size, Status.FILE_OPERATION_COPY, cmd['displayIndex'])
                         file_hashes = self.do_copy_fn(src=src, dest=dest, drive_path=drive, display_index=cmd['displayIndex'])
                         self.file_hashes[drive].update(file_hashes)
 
@@ -1091,18 +1088,14 @@ class Backup:
                             hash_list = {'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in self.file_hashes[drive].items()}
                             pickle.dump(hash_list, f)
 
-            if self.run_killed and self.progress['current'] < self.progress['total']:
-                self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Aborted', fg=self.uicolor.STOPPED)
-                self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Aborted', fg=self.uicolor.STOPPED)
+            self.backup_callback_fn(cmd)
+
+            if self.run_killed:
                 break
-            else:
-                self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Done', fg=self.uicolor.FINISHED)
-                self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Done', fg=self.uicolor.FINISHED)
 
         self.kill_backup_timer_fn()
-        self.backup_callback_fn()
-
         self.backup_running = False
+        self.backup_callback_fn()
 
     def add_progress_delta_to_total(self):
         """Add the progress delta to the total, and reset the buffer.

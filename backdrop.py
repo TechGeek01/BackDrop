@@ -359,9 +359,9 @@ def start_backup_analysis():
         uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
         start_backup_timer_fn=start_backup_timer,
         kill_backup_timer_fn=kill_backup_timer,
-        update_ui_component_fn=update_ui_component,
-        backup_callback_fn=update_ui_post_backup,
-        analysis_callback_fn=update_ui_post_analysis
+        analysis_pre_callback_fn=update_ui_pre_analysis,
+        analysis_callback_fn=update_ui_post_analysis,
+        backup_callback_fn=update_ui_post_backup
     )
 
     thread_manager.start(ThreadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
@@ -2231,6 +2231,13 @@ if __name__ == '__main__':
         drive_list = [drive['name'] for drive in config['destinations']]
         thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
+    def update_ui_pre_analysis():
+        """Update the UI before an analysis is run."""
+
+        update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
+        update_ui_component(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
+        update_ui_component(Status.UPDATEUI_ANALYSIS_START)
+
     def update_ui_post_analysis(files_payload, summary_payload):
         """ Update the UI after an analysis has been run.
 
@@ -2363,10 +2370,29 @@ if __name__ == '__main__':
                 elif operation == Status.FILE_OPERATION_COPY:
                     update_file_detail_lists(FileUtils.LIST_FAIL, filename)
 
-    def update_ui_post_backup():
-        """ Update the UI after the backup finishes. """
+    def update_ui_post_backup(command=None):
+        """ Update the UI after the backup finishes.
 
-        update_ui_component(Status.UPDATEUI_BACKUP_END)
+        Args:
+            command: The backup command to pull data from (optional).
+        """
+
+        # Only run if a backup has been configured
+        if not backup:
+            return
+
+        if backup.backup_running and command is not None:
+            display_index = command['displayIndex']
+            if backup.run_killed and backup.progress['current'] < backup.progress['total']:
+                backup.cmd_info_blocks[display_index].state.configure(text='Aborted', fg=root_window.uicolor.STOPPED)
+                backup.cmd_info_blocks[display_index].configure('progress', text='Aborted', fg=root_window.uicolor.STOPPED)
+            else:
+                backup.cmd_info_blocks[display_index].state.configure(text='Done', fg=root_window.uicolor.FINISHED)
+                backup.cmd_info_blocks[display_index].configure('progress', text='Done', fg=root_window.uicolor.FINISHED)
+
+        # If backup stopped, 
+        if not backup.backup_running:
+            update_ui_component(Status.UPDATEUI_BACKUP_END)
 
     LOGGING_LEVEL = logging.INFO
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
