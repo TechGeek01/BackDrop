@@ -19,7 +19,7 @@ class Backup:
     COMMAND_MODE_REPLACE = 'replace'
     COMMAND_MODE_DELETE = 'delete'
 
-    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, analysis_callback_fn, update_ui_component_fn=None, uicolor=None):
+    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, backup_callback_fn, analysis_callback_fn, update_ui_component_fn=None, uicolor=None):
         """Configure a backup to be run on a set of drives.
 
         Args:
@@ -29,6 +29,7 @@ class Backup:
             start_backup_timer_fn (def): The function to be used to start the backup timer.
             kill_backup_timer_fn (def): The function to be used to stop the backup timer.
             update_ui_component_fn (def): The function to be used to update UI components (default None).
+            backup_callback_fn (def): The callback function to call post backup.
             analysis_callback_fn (def): The callback function to call post analysis.
             uicolor (Color): The UI color instance to reference for styling (default None).
         """
@@ -91,6 +92,7 @@ class Backup:
         self.start_backup_timer_fn = start_backup_timer_fn
         self.kill_backup_timer_fn = kill_backup_timer_fn
         self.update_ui_component_fn = update_ui_component_fn
+        self.backup_callback_fn = backup_callback_fn
         self.analysis_callback_fn = analysis_callback_fn
 
     def get_kill_flag(self):
@@ -1102,8 +1104,8 @@ class Backup:
                 self.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Done', fg=self.uicolor.FINISHED)
 
         self.kill_backup_timer_fn()
+        self.backup_callback_fn()
 
-        self.update_ui_component_fn(Status.UPDATEUI_BACKUP_END)
         self.backup_running = False
 
     def add_progress_delta_to_total(self):

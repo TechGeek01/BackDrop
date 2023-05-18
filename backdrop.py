@@ -360,6 +360,7 @@ def start_backup_analysis():
         start_backup_timer_fn=start_backup_timer,
         kill_backup_timer_fn=kill_backup_timer,
         update_ui_component_fn=update_ui_component,
+        backup_callback_fn=update_ui_post_backup,
         analysis_callback_fn=update_ui_post_analysis
     )
 
@@ -2361,6 +2362,11 @@ if __name__ == '__main__':
                         update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
                 elif operation == Status.FILE_OPERATION_COPY:
                     update_file_detail_lists(FileUtils.LIST_FAIL, filename)
+
+    def update_ui_post_backup():
+        """ Update the UI after the backup finishes. """
+
+        update_ui_component(Status.UPDATEUI_BACKUP_END)
 
     LOGGING_LEVEL = logging.INFO
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
