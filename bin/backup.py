@@ -300,8 +300,13 @@ class Backup:
                     try:
                         # Load hash list, and filter out ignored folders
                         hash_list = pickle.load(f)
-                        new_hash_list = {file_name: hash_val for file_name, hash_val in hash_list.items() if file_name.split('/')[0] not in special_ignore_list}
-                        new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in new_hash_list.items() if os.path.isfile(os.path.join(drive['name'], file_name))}
+                        new_hash_list = {}
+                        for file_name, hash_val in hash_list.items():
+                            filename_chunks = file_name.split('/')
+
+                            if filename_chunks[0] not in special_ignore_list:
+                                if os.path.isfile(os.path.join(drive['name'], file_name)):
+                                    new_hash_list[os.path.sep.join(filename_chunks)]: hash_val
 
                         # If trimmed list is shorter, new changes have to be written to the file
                         if len(new_hash_list) < len(hash_list):
