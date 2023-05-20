@@ -662,13 +662,6 @@ class Backup:
                 return set()
             return file_list
 
-        # For each drive in file list buffer, recurse into each directory and build a complete file list
-        # QUESTION: Does this do anything?
-        all_drive_files = {drive['name']: {} for drive in master_drive_list}
-        for drive, files in all_drive_files_buffer.items():
-            for file in files:
-                all_drive_files[drive].update(recurse_file_list(file))
-
         def build_delta_file_list(drive, path, shares: set, exclusions: list) -> dict:
             """Get lists of files to delete and replace from the destination drive, that no longer
             exist in the source, or have changed.
