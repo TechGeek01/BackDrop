@@ -360,14 +360,14 @@ class Backup:
             drive_info.append(current_drive_info)
 
             # Enumerate list for tracking what shares go where
-            drive_share_list[drive['vid']] = []
+            drive_share_list[drive['vid']] = set()
 
             show_drive_info.append((current_drive_info['name'], human_filesize(drive['capacity']), drive_connected))
 
         # For each drive, smallest first, filter list of shares to those that fit
         drive_info.sort(key=lambda x: x['free'])
 
-        all_drive_files_buffer = {drive['name']: [] for drive in master_drive_list}
+        all_drive_files_buffer = {drive['name']: set() for drive in master_drive_list}
 
         SOURCE_LIST_CHUNK_SIZE = 15
 
@@ -382,7 +382,7 @@ class Backup:
             # Since the list of files is truncated to prevent an unreasonably large
             # number of combinations to check, we need to keep processing the file list
             # in chunks to make sure we check if all files can be fit on one drive
-            sources_that_fit_on_dest = []
+            sources_that_fit_on_dest = set()
             small_source_list = {}
             processed_small_sources = []
             processed_source_size = 0
@@ -411,7 +411,7 @@ class Backup:
                             largest_sum = combination_total
                             largest_set = subset
 
-                sources_that_fit_on_dest.extend([source for source in largest_set])
+                sources_that_fit_on_dest.update({source for source in largest_set})
                 remaining_small_sources = {source[0]: source[1] for source in small_source_list if source not in sources_that_fit_on_dest}
                 processed_small_sources.extend([source for source in trimmed_small_source_list.keys()])
                 share_info = {share: size for (share, size) in share_info.items() if share not in sources_that_fit_on_dest}
@@ -440,22 +440,22 @@ class Backup:
                     total_small_share_space = sum(size for size in small_source_list.values())
                     if next_drive_free_space < drive['free'] and total_small_share_space <= next_drive['free']:
                         # Next drive free space less than total on current, so it's optimal to store on next drive instead
-                        drive_share_list[next_drive['vid']].extend([share for share in small_source_list.keys()])  # All small shares on next drive
+                        drive_share_list[next_drive['vid']].update({share for share in small_source_list.keys()})  # All small shares on next drive
                     else:
                         # Better to leave on current, but overflow to next drive
-                        drive_share_list[drive['vid']].extend(sources_that_fit_on_dest)  # Shares that fit on current drive
-                        drive_share_list[next_drive['vid']].extend([share for share in small_source_list.keys() if share not in sources_that_fit_on_dest])  # Remaining small shares on next drive
+                        drive_share_list[drive['vid']].update(sources_that_fit_on_dest)  # Shares that fit on current drive
+                        drive_share_list[next_drive['vid']].update({share for share in small_source_list.keys() if share not in sources_that_fit_on_dest})  # Remaining small shares on next drive
                 else:
                     # If overflow for next drive is more than can fit on that drive, ignore it, put overflow
                     # back in pool of shares to sort, and put small drive shares only in current drive
-                    drive_share_list[drive['vid']].extend(sources_that_fit_on_dest)  # Shares that fit on current drive
-                    all_drive_files_buffer[drive['name']].extend([f"{drive['name']}{share}" for share in sources_that_fit_on_dest])
+                    drive_share_list[drive['vid']].update(sources_that_fit_on_dest)  # Shares that fit on current drive
+                    all_drive_files_buffer[drive['name']].update({f"{drive['name']}{share}" for share in sources_that_fit_on_dest})
 
                     # Put remaining small shares back into pool to work with for next drive
                     share_info.update({share: size for share, size in remaining_small_sources.items()})
             else:
                 # Fit all small shares onto drive
-                drive_share_list[drive['vid']].extend(sources_that_fit_on_dest)
+                drive_share_list[drive['vid']].update(sources_that_fit_on_dest)
 
             # Calculate space used by shares, and subtract it from capacity to get free space
             used_space = sum(all_share_info[share] for share in drive_share_list[drive['vid']])
@@ -598,7 +598,7 @@ class Backup:
 
                     for drive_vid, files in file_list.items():
                         # Add files to file list
-                        all_drive_files_buffer[self.DRIVE_VID_INFO[drive_vid]['name']].extend(os.path.join(split['share'], file) for file in files)
+                        all_drive_files_buffer[self.DRIVE_VID_INFO[drive_vid]['name']].update({os.path.join(split['share'], file) for file in files})
 
                 # Each summary contains a split share, and any split subfolders, starting with
                 # the share and recursing into the directories
@@ -629,7 +629,7 @@ class Backup:
 
                             # Add new exclusions to list
                             drive_exclusions[self.DRIVE_VID_INFO[drive_vid]['name']].extend([os.path.join(share_name, file) for file in master_exclusions])
-                            drive_share_list[drive_vid].append(share_name)
+                            drive_share_list[drive_vid].add(share_name)
 
             if self.analysis_killed:
                 break
@@ -641,34 +641,35 @@ class Backup:
                 directory (String): The directory to check.
 
             Returns:
-                String[]: The file list.
+                set: The file list.
             """
 
             if self.analysis_killed:
-                return []
+                return set()
 
-            file_list = []
+            file_list = set()
             try:
                 if os.listdir(directory):
                     for entry in os.scandir(directory):
                         # For each entry, add file to list, and recurse into path if directory
-                        file_list.append(entry.path)
+                        file_list.add(entry.path)
                         if entry.is_dir():
-                            file_list.extend(recurse_file_list(entry.path))
+                            file_list.update(recurse_file_list(entry.path))
                 else:
                     # No files, so append dir to list
-                    file_list.append(entry.path)
+                    file_list.add(entry.path)
             except (NotADirectoryError, PermissionError, OSError, TypeError):
-                return []
+                return set()
             return file_list
 
         # For each drive in file list buffer, recurse into each directory and build a complete file list
-        all_drive_files = {drive['name']: [] for drive in master_drive_list}
+        # QUESTION: Does this do anything?
+        all_drive_files = {drive['name']: {} for drive in master_drive_list}
         for drive, files in all_drive_files_buffer.items():
             for file in files:
-                all_drive_files[drive].extend(recurse_file_list(file))
+                all_drive_files[drive].update(recurse_file_list(file))
 
-        def build_delta_file_list(drive, path, shares: list, exclusions: list) -> dict:
+        def build_delta_file_list(drive, path, shares: set, exclusions: list) -> dict:
             """Get lists of files to delete and replace from the destination drive, that no longer
             exist in the source, or have changed.
 
@@ -680,15 +681,15 @@ class Backup:
 
             Returns:
                 {
-                    'delete' (tuple(String, int)[]): The list of files and filesizes for deleting.
-                    'replace' (tuple(String, int, int)[]): The list of files and source/dest filesizes for replacement.
+                    'delete' (set(tuple)): (drive, path, size).
+                    'replace' (set(tuple)): (drive, share, path, source_path, size).
                 }
             """
 
             special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
             file_list = {
-                'delete': [],
-                'replace': []
+                'delete': set(),
+                'replace': set()
             }
             try:
                 if self.analysis_killed:
@@ -711,20 +712,19 @@ class Backup:
 
                             # Recurse into folder
                             new_list = build_delta_file_list(drive, stub_path, shares, exclusions)
-                            file_list['delete'].extend(new_list['delete'])
-                            file_list['replace'].extend(new_list['replace'])
+                            file_list['delete'].update(new_list['delete'])
+                            file_list['replace'].update(new_list['replace'])
 
                         if (not found_share or stub_path in exclusions) and stub_path not in special_ignore_list:
                             # Directory isn't a share, or part of one, or is an exclusion,  and isn't
                             # a special folder, so delete it
-                            file_list['delete'].append((drive, stub_path, get_directory_size(entry.path)))
+                            file_list['delete'].add((drive, stub_path, get_directory_size(entry.path)))
                             self.progress['since_last_update']['analysis'].append((FileUtils.LIST_TOTAL_DELETE, entry.path))
                     elif entry.is_file():  # Path is file
                         if (stub_path.find(os.path.sep) == -1  # Files should not be on root of drive
-                                # or not os.path.isfile(source_path)  # File doesn't exist in source, so delete it
                                 or stub_path in exclusions  # File is excluded from drive
-                                or len(shares_to_process) == 0):  # File should only count if dir is share or child, not parent
-                            file_list['delete'].append((drive, stub_path, file_stat.st_size))
+                                or not shares_to_process):  # File should only count if dir is share or child, not parent
+                            file_list['delete'].add((drive, stub_path, file_stat.st_size))
                             self.progress['since_last_update']['analysis'].append((FileUtils.LIST_TOTAL_DELETE, entry.path))
                         else:  # File is in share on destination drive
                             target_share = shares_to_process[0]
@@ -737,22 +737,22 @@ class Backup:
                                 source_stats = os.stat(source_path)
                             except FileNotFoundError:  # Thrown if file doesn't exist
                                 # If file doesn't exist on source, delete it
-                                file_list['delete'].append((drive, stub_path, file_stat.st_size))
+                                file_list['delete'].add((drive, stub_path, file_stat.st_size))
                                 self.progress['since_last_update']['analysis'].append((FileUtils.LIST_TOTAL_DELETE, entry.path))
                             else:
                                 if (file_stat.st_size != source_stats.st_size  # Existing file is different size than source
                                         or file_stat.st_mtime != source_stats.st_mtime):  # Existing file is older than source
                                     # If existing dest file is not same time as source, it needs to be replaced
-                                    file_list['replace'].append((drive, target_share, path_slug, os.path.getsize(source_path), file_stat.st_size))
+                                    file_list['replace'].add((drive, target_share, path_slug, os.path.getsize(source_path), file_stat.st_size))
                                     self.progress['since_last_update']['analysis'].append((FileUtils.LIST_TOTAL_COPY, entry.path))
             except (NotADirectoryError, PermissionError, OSError):
                 return {
-                    'delete': [],
-                    'replace': []
+                    'delete': set(),
+                    'replace': set()
                 }
             return file_list
 
-        def build_new_file_list(drive, path, shares: list, exclusions: list) -> dict:
+        def build_new_file_list(drive, path, shares: set, exclusions: list) -> dict:
             """Get lists of files to copy to the destination drive, that only exist on the
             source.
 
@@ -764,11 +764,11 @@ class Backup:
 
             Returns:
                 {
-                    'new' (tuple(String, int)[]): The list of file destinations and filesizes to copy.
+                    'new' (set(tuple)): (drive, share, path, size).
                 }
             """
 
-            def scan_share_source_for_new_files(drive, share, path, exclusions: list, all_shares: list) -> dict:
+            def scan_share_source_for_new_files(drive, share, path, exclusions: list, all_shares: set) -> dict:
                 """Get lists of files to copy to the destination drive from a given share.
 
                 Args:
@@ -776,17 +776,17 @@ class Backup:
                     share (String): The share to check.
                     path (String): The path to check.
                     exclusions (String[]): The list of files and folders to exclude.
-                    all_shares (String[]): The list of shares the drive should contain, to
+                    all_shares (set): The list of shares the drive should contain, to
                         avoid recursing into split shares.
 
                 Returns:
                     {
-                        'new' (tuple(String, int)[]): The list of file destinations and filesizes to copy.
+                        'new' (set(tuple)): (drive, share, path, size).
                     }
                 """
 
                 file_list = {
-                    'new': []
+                    'new': set()
                 }
 
                 try:
@@ -794,49 +794,49 @@ class Backup:
                         return file_list
 
                     share_path = self.get_share_source_path(share)
+                    share_path_len = len(share_path)
                     source_path = os.path.join(share_path, path)
 
                     # Check if directory has files
-                    file_count = 0
-                    for entry in os.scandir(source_path):
-                        file_count += 1
-
-                        stub_path = entry.path[len(share_path):].strip(os.path.sep)
+                    source_file_list = os.scandir(source_path)
+                    for entry in source_file_list:
+                        stub_path = entry.path[share_path_len:].strip(os.path.sep)
                         exclusion_stub_path = os.path.join(share, stub_path)
                         target_path = os.path.join(drive, share, stub_path)
 
                         if entry.is_dir():  # Entry is directory
                             # Avoid recursing into any split share directories and double counting files
-                            if exclusion_stub_path not in all_shares:
-                                if (os.path.isdir(target_path)  # If exists on dest, recurse into it
-                                        or exclusion_stub_path not in exclusions):  # Path doesn't exist on dest, so add to list if not excluded
-                                    new_list = scan_share_source_for_new_files(drive, share, stub_path, exclusions, all_shares)
-                                    file_list['new'].extend(new_list['new'])
+                            if (exclusion_stub_path not in all_shares
+                                and (os.path.isdir(target_path)  # If exists on dest, recurse into it
+                                     or exclusion_stub_path not in exclusions)):  # Path doesn't exist on dest, so add to list if not excluded
+                                new_list = scan_share_source_for_new_files(drive, share, stub_path, exclusions, all_shares)
+                                file_list['new'].update(new_list['new'])
                         # For each entry, either add filesize to the total, or recurse into the directory
                         elif (not os.path.isfile(target_path)  # File doesn't exist in destination drive
                               and exclusion_stub_path not in exclusions):  # File isn't part of drive exclusion
-                            file_list['new'].append((drive, share, stub_path, entry.stat().st_size))
+                            file_list['new'].add((drive, share, stub_path, entry.stat().st_size))
                             self.progress['since_last_update']['analysis'].append((FileUtils.LIST_TOTAL_COPY, target_path))
-                    if file_count == 0 and not os.path.isdir(os.path.join(drive, share, path)):
-                        # If no files in folder on source, create empty folder in destination
+
+                    # If no files in folder on source, create empty folder in destination
+                    if not source_file_list and not os.path.isdir(os.path.join(drive, share, path)):
                         return {
-                            'new': [(drive, share, path, get_directory_size(os.path.join(source_path, path)))]
+                            'new': {(drive, share, path, get_directory_size(os.path.join(source_path, path)))}
                         }
                 except (NotADirectoryError, PermissionError, OSError):
                     return {
-                        'new': []
+                        'new': set()
                     }
                 return file_list
 
             file_list = {
-                'new': []
+                'new': set()
             }
 
             for share in shares:
                 if self.analysis_killed:
                     break
 
-                file_list['new'].extend(scan_share_source_for_new_files(drive, share, path, exclusions, shares)['new'])
+                file_list['new'].update(scan_share_source_for_new_files(drive, share, path, exclusions, shares)['new'])
 
             return file_list
 
@@ -856,7 +856,6 @@ class Backup:
             delete_items = modified_file_list['delete']
             if delete_items:
                 self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']] = delete_items
-                file_delete_list = [os.path.join(drive, file) for drive, file, size in delete_items]
 
                 purge_command_list.append({
                     'enabled': True,
@@ -864,17 +863,16 @@ class Backup:
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((size for drive, file, size in delete_items)),
-                    'list': file_delete_list,
+                    'list': {os.path.join(drive, file) for drive, file, size in delete_items},
                     'payload': delete_items,
                     'mode': Status.FILE_OPERATION_DELETE
                 })
 
             # Build list of files to replace
-            replace_items = modified_file_list['replace']
+            replace_items = list(modified_file_list['replace'])
             replace_items.sort(key=lambda x: x[1])
             if replace_items:
                 self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']] = replace_items
-                file_replace_list = [os.path.join(drive, share, file) for drive, share, file, source_size, dest_size in replace_items]
 
                 copy_command_list.append({
                     'enabled': True,
@@ -882,7 +880,7 @@ class Backup:
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((source_size for drive, share, file, source_size, dest_size in replace_items)),
-                    'list': file_replace_list,
+                    'list': [os.path.join(drive, share, file) for drive, share, file, source_size, dest_size in replace_items],
                     'payload': replace_items,
                     'mode': Status.FILE_OPERATION_UPDATE
                 })
@@ -891,7 +889,6 @@ class Backup:
             new_items = build_new_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])['new']
             if new_items:
                 self.new_file_list[self.DRIVE_VID_INFO[drive]['name']] = new_items
-                file_copy_list = [os.path.join(drive, share, file) for drive, share, file, size in new_items]
 
                 copy_command_list.append({
                     'enabled': True,
@@ -899,7 +896,7 @@ class Backup:
                     'type': Backup.COMMAND_TYPE_FILE_LIST,
                     'drive': self.DRIVE_VID_INFO[drive]['name'],
                     'size': sum((size for drive, share, file, size in new_items)),
-                    'list': file_copy_list,
+                    'list': {os.path.join(drive, share, file) for (drive, share, file, size) in new_items},
                     'payload': new_items,
                     'mode': Status.FILE_OPERATION_COPY
                 })
