@@ -522,7 +522,7 @@ def load_source_in_background():
     if (backup and backup.is_running()) or thread_manager.is_alive('Refresh Source'):
         return
 
-    thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
+    thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
 
 def change_source_drive(selection):
     """Change the source drive to pull shares from to a new selection.
@@ -713,7 +713,7 @@ def select_source():
                 update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
                 start_analysis_btn.configure(state='disable')
                 share_name = tree_source.item(item, 'text')
-                thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
+                thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
 
         if all_shares_known:
             progress.stop_indeterminate()
@@ -733,7 +733,7 @@ def select_source():
 def select_source_in_background(event):
     """Start a calculation of source filesize in a new thread."""
 
-    thread_manager.start(thread_manager.MULTIPLE, is_progress_thread=True, target=select_source, name='Load Source Selection', daemon=True)
+    thread_manager.start(ThreadManager.MULTIPLE, is_progress_thread=True, target=select_source, name='Load Source Selection', daemon=True)
 
 def load_dest():
     """Load the destination drive info, and display it in the tree."""
@@ -885,7 +885,7 @@ def load_dest_in_background():
     if (backup and backup.is_running()) or thread_manager.is_alive('Refresh Destination'):
         return
 
-    thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
+    thread_manager.start(ThreadManager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
 
 def gui_select_from_config():
     """From the current config, select the appropriate shares and drives in the GUI."""
@@ -1123,7 +1123,7 @@ def select_dest():
 def select_dest_in_background(event):
     """Start the drive selection handling in a new thread."""
 
-    thread_manager.start(thread_manager.MULTIPLE, is_progress_thread=True, target=select_dest, name='Drive Select', daemon=True)
+    thread_manager.start(ThreadManager.MULTIPLE, is_progress_thread=True, target=select_dest, name='Drive Select', daemon=True)
 
 def start_backup():
     """Start the backup in a new thread."""
@@ -2165,7 +2165,7 @@ if __name__ == '__main__':
             PREV_DEST_MODE = settings_destMode.get()
 
         if not thread_manager.is_alive('Refresh Destination'):
-            thread_manager.start(thread_manager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
+            thread_manager.start(ThreadManager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
 
     def change_source_type(toggle_type: int):
         """Change the drive types for source selection.
@@ -2692,7 +2692,7 @@ if __name__ == '__main__':
     # Help menu
     help_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
     help_menu.add_command(label='Check for Updates', command=lambda: thread_manager.start(
-        thread_manager.SINGLE,
+        ThreadManager.SINGLE,
         target=update_handler.check,
         name='Update Check',
         daemon=True
@@ -3070,11 +3070,11 @@ if __name__ == '__main__':
 
     load_source_in_background()
     # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
-    thread_manager.start(thread_manager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
+    thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
 
     # Check for updates on startup
     thread_manager.start(
-        thread_manager.SINGLE,
+        ThreadManager.SINGLE,
         target=update_handler.check,
         name='Update Check',
         daemon=True
