@@ -868,7 +868,6 @@ def load_dest():
                         'hasConfig': drive_has_config_file
                     })
     elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-        # URGENT: Loading destination paths sometumes hangs UI thread for long periods of time
         dest_select_normal_frame.pack_forget()
         dest_select_custom_frame.pack(fill='x', expand=1)
 
@@ -1932,6 +1931,11 @@ if __name__ == '__main__':
                 path_name = dir_name.split(os.path.sep)[-1]
                 tree_source.insert(parent='', index='end', text=dir_name, values=('Unknown', 0, path_name))
 
+    def browse_for_source_in_background():
+        """ Load a browsed source in the background. """
+
+        thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=browse_for_source, name='Browse for source', daemon=True)
+
     def browse_for_dest():
         """Browse for a destination path, and add to the list."""
 
@@ -1958,6 +1962,11 @@ if __name__ == '__main__':
             name_stub = dir_name.split(os.path.sep)[-1].strip()
             avail_space = drive_free_space + path_space - config_space
             tree_dest.insert(parent='', index='end', text=dir_name, values=(human_filesize(avail_space), avail_space, 'Yes' if dir_has_config_file else '', name_stub))
+
+    def browse_for_dest_in_background():
+        """ Load a browsed destination in the background. """
+
+        thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=browse_for_dest, name='Browse for destination', daemon=True)
 
     def rename_source_item(item):
         """Rename an item in the source tree for multi-source mode.
@@ -2784,14 +2793,14 @@ if __name__ == '__main__':
     selected_custom_source_text = last_selected_custom_source if last_selected_custom_source and os.path.isdir(last_selected_custom_source) else 'Custom source'
     source_select_custom_single_path_label = tk.Label(source_select_custom_single_frame, text=selected_custom_source_text)
     source_select_custom_single_path_label.grid(row=0, column=0, sticky='w')
-    source_select_custom_single_browse_button = ttk.Button(source_select_custom_single_frame, text='Browse', command=browse_for_source, style='slim.TButton')
+    source_select_custom_single_browse_button = ttk.Button(source_select_custom_single_frame, text='Browse', command=browse_for_source_in_background, style='slim.TButton')
     source_select_custom_single_browse_button.grid(row=0, column=1)
 
     source_select_custom_multi_frame = tk.Frame(source_select_frame)
     source_select_custom_multi_frame.grid_columnconfigure(0, weight=1)
     source_select_custom_multi_path_label = tk.Label(source_select_custom_multi_frame, text='Custom multi-source mode')
     source_select_custom_multi_path_label.grid(row=0, column=0)
-    source_select_custom_multi_browse_button = ttk.Button(source_select_custom_multi_frame, text='Browse', command=browse_for_source, style='slim.TButton')
+    source_select_custom_multi_browse_button = ttk.Button(source_select_custom_multi_frame, text='Browse', command=browse_for_source_in_background, style='slim.TButton')
     source_select_custom_multi_browse_button.grid(row=0, column=1)
 
     # Source tree right click menu
@@ -2840,7 +2849,7 @@ if __name__ == '__main__':
     alt_tooltip_custom_frame = tk.Frame(dest_select_custom_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
     alt_tooltip_custom_frame.grid(row=0, column=0, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
     ttk.Label(alt_tooltip_custom_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
-    dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest, style='slim.TButton')
+    dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest_in_background, style='slim.TButton')
     dest_select_custom_browse_button.grid(row=0, column=1)
 
     DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == PLATFORM_WINDOWS else 150
