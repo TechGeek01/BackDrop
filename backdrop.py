@@ -1340,7 +1340,9 @@ def verify_data_integrity(drive_list):
         # Get hash list for all drives
         bad_hash_files = []
         hash_list = {drive: {} for drive in drive_list}
-        special_ignore_list = [BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']  # FIXME: This ignore list should only exclude recycle bin and system volume info if Windows. They can be safely deleted in Linux
+        special_ignore_list = [BACKUP_CONFIG_DIR]
+        if SYS_PLATFORM == PLATFORM_WINDOWS:
+            special_ignore_list.extend(['$RECYCLE.BIN', 'System Volume Information'])
         for drive in drive_list:
             drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
 
