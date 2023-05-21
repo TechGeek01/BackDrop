@@ -182,6 +182,7 @@ class Backup:
             prog_callback=lambda c, t, op: self.set_copy_progress(
                 copied=c,
                 total=t,
+                display_filename=dest,
                 operation=op,
                 display_index=display_index
             ),

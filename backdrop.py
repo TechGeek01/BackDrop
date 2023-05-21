@@ -2329,6 +2329,7 @@ if __name__ == '__main__':
                 progress.set_max(backup.progress['total'])
                 progress.set(backup.progress['current'])
 
+                cmd_info_blocks[display_index].configure('current_file', text=buffer['display_filename'], fg=root_window.uicolor.NORMAL)
                 if buffer['operation'] == Status.FILE_OPERATION_DELETE:
                     cmd_info_blocks[display_index].configure('progress', text=f"Deleted {buffer['display_filename']}", fg=root_window.uicolor.NORMAL)
                 elif buffer['operation'] == Status.FILE_OPERATION_COPY:
