@@ -212,7 +212,6 @@ def display_backup_summary_chunk(title, payload: tuple, reset: bool = None):
         wrap_frame.grid(row=i, column=2, sticky='ew')
         tk.Label(summary_frame, text=item[1], fg=text_color, justify='left').grid(row=i, column=2, sticky='w')
 
-# FIXME: Can progress bar and status updating be rolled into the same function?
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
 def update_backup_eta_timer():
     """Update the backup timer to show ETA."""
@@ -241,6 +240,7 @@ def update_backup_eta_timer():
         backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
         time.sleep(0.25)
 
+    # FIXME: Fix backup timer saying completed when aborting backup
     if get_backup_killflag() and backup.progress['current'] < backup.totals['master']:
         # Backup aborted
         backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
@@ -382,7 +382,7 @@ def get_source_drive_list():
 
     source_avail_drive_list = []
 
-    if SYS_PLATFORM == 'Windows':
+    if SYS_PLATFORM == PLATFORM_WINDOWS:
         drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
         drive_type_list = []
         if prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN):
@@ -391,7 +391,7 @@ def get_source_drive_list():
             drive_type_list.append(DRIVE_TYPE_FIXED)
             drive_type_list.append(DRIVE_TYPE_REMOVABLE)
         source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
-    elif SYS_PLATFORM == 'Linux':
+    elif SYS_PLATFORM == PLATFORM_LINUX:
         local_selected = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
         network_selected = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
 
@@ -469,7 +469,7 @@ def load_source():
             source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
 
             # Enumerate list of shares in source
-            if SYS_PLATFORM == 'Windows':
+            if SYS_PLATFORM == PLATFORM_WINDOWS:
                 config['source_drive'] = config['source_drive'] + os.path.sep
 
             for directory in next(os.walk(config['source_drive']))[1]:
@@ -609,10 +609,10 @@ def select_source():
 
                 share_vals = tree_source.item(item, 'values')
 
-                if SYS_PLATFORM == 'Windows':
+                if SYS_PLATFORM == PLATFORM_WINDOWS:
                     # Windows uses drive letters, so default name is letter
                     default_name = tree_source.item(item, 'text')[0]
-                elif SYS_PLATFORM == 'Linux':
+                elif SYS_PLATFORM == PLATFORM_LINUX:
                     # Linux uses mount points, so get last dir name
                     default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
 
@@ -675,10 +675,10 @@ def select_source():
 
                     share_vals = tree_source.item(item, 'values')
 
-                    if SYS_PLATFORM == 'Windows':
+                    if SYS_PLATFORM == PLATFORM_WINDOWS:
                         # Windows uses drive letters, so default name is letter
                         default_name = tree_source.item(item, 'text')[0]
-                    elif SYS_PLATFORM == 'Linux':
+                    elif SYS_PLATFORM == PLATFORM_LINUX:
                         # Linux uses mount points, so get last dir name
                         default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
 
@@ -749,7 +749,7 @@ def load_dest():
         dest_select_custom_frame.pack_forget()
         dest_select_normal_frame.pack()
 
-        if SYS_PLATFORM == 'Windows':
+        if SYS_PLATFORM == PLATFORM_WINDOWS:
             logical_drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
             logical_drive_list = [drive[:2] for drive in logical_drive_list]
 
@@ -801,7 +801,7 @@ def load_dest():
                             })
                         except (FileNotFoundError, OSError):
                             pass
-        elif SYS_PLATFORM == 'Linux':
+        elif SYS_PLATFORM == PLATFORM_LINUX:
             local_selected = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
             network_selected = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
 
@@ -868,6 +868,7 @@ def load_dest():
                         'hasConfig': drive_has_config_file
                     })
     elif settings_destMode.get() == Config.DEST_MODE_PATHS:
+        # URGENT: Loading destination paths sometumes hangs UI thread for long periods of time
         dest_select_normal_frame.pack_forget()
         dest_select_custom_frame.pack(fill='x', expand=1)
 
@@ -880,8 +881,8 @@ def load_dest():
 def load_dest_in_background():
     """Start the loading of the destination drive info in a new thread."""
 
-    # URGENT: Make load_dest and load_source replaceable, and in their own class
-    # URGENT: Invalidate load_source or load_dest if tree gets refreshed via some class def call
+    # TODO: Make load_dest and load_source replaceable, and in their own class
+    # TODO: Invalidate load_source or load_dest if tree gets refreshed via some class def call
     if (backup and backup.is_running()) or thread_manager.is_alive('Refresh Destination'):
         return
 
@@ -1446,7 +1447,7 @@ def display_update_screen(update_info: dict):
         modal=True
     )
 
-    if SYS_PLATFORM == 'Windows':
+    if SYS_PLATFORM == PLATFORM_WINDOWS:
         update_window.iconbitmap(resource_path('media/icon.ico'))
 
     update_header = tk.Label(update_window.main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=root_window.uicolor.INFOTEXTDARK)
@@ -1532,17 +1533,20 @@ def check_for_updates(info: dict):
         display_update_screen(info)
 
 if __name__ == '__main__':
+    PLATFORM_WINDOWS = 'Windows'
+    PLATFORM_LINUX = 'Linux'
+
     # Platform sanity check
-    if not platform.system() in ['Windows', 'Linux']:
+    if not platform.system() in [PLATFORM_WINDOWS, PLATFORM_LINUX]:
         logging.error('This operating system is not supported')
         exit()
 
     # Set meta info
-    APP_VERSION = '4.0.0-alpha1'
+    APP_VERSION = '4.0.0-alpha2'
 
     # Set constants
     SYS_PLATFORM = platform.system()
-    if SYS_PLATFORM == 'Windows':
+    if SYS_PLATFORM == PLATFORM_WINDOWS:
         DRIVE_TYPE_REMOVABLE = win32file.DRIVE_REMOVABLE
         DRIVE_TYPE_FIXED = win32file.DRIVE_FIXED
         DRIVE_TYPE_LOCAL = DRIVE_TYPE_FIXED  # TODO: Make this a proper thing instead of reusing one local value
@@ -1565,10 +1569,10 @@ if __name__ == '__main__':
     verification_failed_list = []
     update_window = None
 
-    if SYS_PLATFORM == 'Windows':
+    if SYS_PLATFORM == PLATFORM_WINDOWS:
         SYSTEM_DRIVE = f'{os.getenv("SystemDrive")[0]}:'
         APPDATA_FOLDER = f'{os.getenv("LocalAppData")}/BackDrop'
-    elif SYS_PLATFORM == 'Linux':
+    elif SYS_PLATFORM == PLATFORM_LINUX:
         # Get system drive by querying mount points
         out = subprocess.run('mount | grep "on / type"' + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'",
                              stdout=subprocess.PIPE,
@@ -1872,7 +1876,7 @@ if __name__ == '__main__':
             window_backup_error_log.main_frame.grid_columnconfigure(0, weight=1)
             window_backup_error_log.main_frame.grid_rowconfigure(1, weight=1)
 
-            if SYS_PLATFORM == 'Windows':
+            if SYS_PLATFORM == PLATFORM_WINDOWS:
                 window_backup_error_log.iconbitmap(resource_path('media/icon.ico'))
 
             tk.Label(window_backup_error_log.main_frame, text='Error Log', font=(None, 20)).grid(row=0, column=0, sticky='ew', pady=WINDOW_ELEMENT_PADDING / 2)
@@ -2321,11 +2325,19 @@ if __name__ == '__main__':
                 percent_copied = 100
 
             # If display index has been specified, write progress to GUI
+            # URGENT: Fix updates stopping in status bar and file detail blocks
+            #     after many operations have been completed
+            # URGENT: When aborting backup after many operations, files continue copying
+            #     This seems to be related to time. The longer the backups have
+            #     been running, the more operations in continues to do before
+            #     stopping after aborting the backup
             if display_index is not None:
                 cmd_info_blocks = backup.cmd_info_blocks
 
                 backup_totals['buffer'] = buffer['copied']
 
+                # FIXME: Progress bar jumps after completing backup, as though
+                #     the progress or total changes when the backup completes
                 progress.set_max(backup.progress['total'])
                 progress.set(backup.progress['current'])
 
@@ -2425,8 +2437,8 @@ if __name__ == '__main__':
     WINDOW_BASE_WIDTH = 1200  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
     WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
     WINDOW_MIN_HEIGHT = 700
-    MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == 'Windows' else 200
-    MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == 'Windows' else 140
+    MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == PLATFORM_WINDOWS else 200
+    MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == PLATFORM_WINDOWS else 140
     SINGLE_SOURCE_TEXT_COL_WIDTH = 170
     SINGLE_SOURCE_NAME_COL_WIDTH = 170
 
@@ -2445,9 +2457,9 @@ if __name__ == '__main__':
 
     appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
 
-    if SYS_PLATFORM == 'Windows':
+    if SYS_PLATFORM == PLATFORM_WINDOWS:
         root_window.iconbitmap(resource_path('media/icon.ico'))
-    elif SYS_PLATFORM == 'Linux':
+    elif SYS_PLATFORM == PLATFORM_LINUX:
         root_window.iconphoto(True, appicon_image)
 
     default_font = tkfont.nametofont("TkDefaultFont")
@@ -2479,9 +2491,9 @@ if __name__ == '__main__':
 
     # Set some default styling
     tk_style = ttk.Style()
-    if SYS_PLATFORM == 'Windows':
+    if SYS_PLATFORM == PLATFORM_WINDOWS:
         tk_style.theme_use('vista')
-    elif SYS_PLATFORM == 'Linux':
+    elif SYS_PLATFORM == PLATFORM_LINUX:
         tk_style.theme_use('clam')
 
     tk_style.element_create('TButton', 'from', 'clam')
@@ -2609,7 +2621,6 @@ if __name__ == '__main__':
     menubar.add_cascade(label='File', underline=0, menu=file_menu)
 
     # Selection menu
-    # FIXME: Add -c configuration option for CLI mode to change preference options
     selection_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
     settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN))
     settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN))
@@ -2830,9 +2841,9 @@ if __name__ == '__main__':
     dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest, style='slim.TButton')
     dest_select_custom_browse_button.grid(row=0, column=1)
 
-    DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == 'Windows' else 150
+    DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == PLATFORM_WINDOWS else 150
     DEST_TREE_COLWIDTH_VID = 140 if settings_destMode.get() == Config.DEST_MODE_PATHS else 90
-    DEST_TREE_COLWIDTH_SERIAL = 150 if SYS_PLATFORM == 'Windows' else 50
+    DEST_TREE_COLWIDTH_SERIAL = 150 if SYS_PLATFORM == PLATFORM_WINDOWS else 50
 
     tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
     tree_dest.heading('#0', text='Drive')

@@ -26,6 +26,7 @@ class Progress:
             self.progress_bar.stop()
             self.progress_bar.configure(mode='determinate', maximum=max_val)
 
+    # TODO: Change Progress.set() to use total and current variables to combine set and set_max into one function
     def set(self, cur_val: int):
         """Set the current value of the progress bar.
 

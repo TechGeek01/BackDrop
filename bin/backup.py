@@ -15,7 +15,10 @@ class Backup:
     COMMAND_TYPE_FILE_LIST = 'file_list'
     COMMAND_FILE_LIST = 'file_list'
 
-    def __init__(self, config: dict, backup_config_dir, backup_config_file, start_backup_timer_fn, kill_backup_timer_fn, analysis_pre_callback_fn, analysis_callback_fn, backup_callback_fn, uicolor=None):
+    def __init__(self, config: dict, backup_config_dir, backup_config_file,
+                 start_backup_timer_fn, kill_backup_timer_fn,
+                 analysis_pre_callback_fn, analysis_callback_fn,
+                 backup_callback_fn, uicolor=None):
         """Configure a backup to be run on a set of drives.
 
         Args:
@@ -29,6 +32,10 @@ class Backup:
             backup_callback_fn (def): The callback function to call post backup.
             uicolor (Color): The UI color instance to reference for styling (default None).
         """
+
+        # IDEA: Give Backup clas its own kill function to replace killable thread
+        #     with kill flag. This kill function can also handle resetting analysis
+        #     and run functions and variables.
 
         self.totals = {
             'master': 0,
@@ -106,6 +113,7 @@ class Backup:
             display_index (int): The index to display the item in the GUI (optional).
         """
 
+        # TODO: Replace current_file with buffer in self.progress
         self.progress['current_file'] = (filename, size, operation, display_index)
 
     def do_del_fn(self, filename, size: int, display_index: int = None):
@@ -173,6 +181,8 @@ class Backup:
         Return:
             dict: The hash list returned by do_copy().
         """
+
+        # FIXME: Backup error log is not being appended to from fd_callback
 
         return do_copy(
             src=src,
@@ -1001,6 +1011,8 @@ class Backup:
         This function is run in a new thread, but is only run if the backup config is valid.
         If sanity_check() returns False, the backup isn't run.
         """
+
+        # FIXME: When stopping and starting backup after analysis in quick succession, program sometimes crashes
 
         if not self.analysis_valid or not self.sanity_check():
             return
