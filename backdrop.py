@@ -71,18 +71,23 @@ def on_release(key):
         keypresses['Alt'] = False
 
 
-def update_file_detail_lists(list_name, filename):
+def update_file_detail_lists(list_name, files):
     """Update the file lists for the detail file view.
 
     Args:
         list_name (String): The list name to update.
-        filename (String): The file path to add to the list.
+        filename (set): The file path to add to the list.
     """
 
-    file_detail_list[list_name].append({
-        'displayName': filename.split(os.path.sep)[-1],
-        'filename': filename
-    })
+    # Ignore empty filename sets
+    if not files:
+        return
+
+    for filename in files:
+        file_detail_list[list_name].append({
+            'displayName': filename.split(os.path.sep)[-1],
+            'filename': filename
+        })
 
     if list_name == FileUtils.LIST_TOTAL_DELETE:
         file_details_pending_delete_counter.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
@@ -94,8 +99,9 @@ def update_file_detail_lists(list_name, filename):
         # Remove file from delete list
         file_detail_list_name = FileUtils.LIST_TOTAL_COPY if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else FileUtils.LIST_TOTAL_DELETE
         filename_list = [file['filename'] for file in file_detail_list[file_detail_list_name]]
-        if filename in filename_list:
-            del file_detail_list[file_detail_list_name][filename_list.index(filename)]
+        for filename in files:
+            if filename in filename_list:
+                del file_detail_list[file_detail_list_name][filename_list.index(filename)]
 
         # Update file counter
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
@@ -104,14 +110,15 @@ def update_file_detail_lists(list_name, filename):
             file_details_pending_delete_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
 
         # Update copy list scrollable
+        filenames = '\n'.join([filename.split(os.path.sep)[-1] for filename in files])
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_DELETE_SUCCESS]:
-            tk.Label(file_details_copied.frame, text=filename.split(os.path.sep)[-1], fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+            tk.Label(file_details_copied.frame, text=filenames, fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
             file_details_copied_counter.configure(text=len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS]))
 
-            # Remove all but the most recent 250 items
+            # Remove all but the most recent 250 items for performance reasons
             file_details_copied.show_items(250)
         else:
-            tk.Label(file_details_failed.frame, text=filename.split(os.path.sep)[-1], fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+            tk.Label(file_details_failed.frame, text=filenames, fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
             file_details_failed_counter.configure(text=len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL]))
 
             # Update counter in status bar
@@ -234,7 +241,7 @@ def update_backup_eta_timer():
         backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
         time.sleep(0.25)
 
-    if get_backup_killflag() and backup.totals['running'] < backup.totals['master']:
+    if get_backup_killflag() and backup.progress['total'] < backup.totals['master']:
         # Backup aborted
         backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
     else:
@@ -1284,9 +1291,9 @@ def verify_data_integrity(drive_list):
 
                         # Update file detail lists
                         if file_hash == saved_hash:
-                            update_file_detail_lists(FileUtils.LIST_SUCCESS, entry.path)
+                            update_file_detail_lists(FileUtils.LIST_SUCCESS, {entry.path})
                         else:
-                            update_file_detail_lists(FileUtils.LIST_FAIL, entry.path)
+                            update_file_detail_lists(FileUtils.LIST_FAIL, {entry.path})
                             backup_error_log.append({'file': entry.path, 'mode': 'copy', 'error': 'File hash mismatch'})
                     else:
                         # Hash not saved, so store it
@@ -1398,9 +1405,9 @@ def verify_data_integrity(drive_list):
 
                     # Update file detail lists
                     if saved_hash == computed_hash:
-                        update_file_detail_lists(FileUtils.LIST_SUCCESS, filename)
+                        update_file_detail_lists(FileUtils.LIST_SUCCESS, {filename})
                     else:
-                        update_file_detail_lists(FileUtils.LIST_FAIL, filename)
+                        update_file_detail_lists(FileUtils.LIST_FAIL, {filename})
                         backup_error_log.append({'file': filename, 'mode': 'copy', 'error': 'File hash mismatch'})
 
                     if thread_manager.threadlist['Data Verification']['killFlag']:
@@ -2285,7 +2292,7 @@ if __name__ == '__main__':
 
             # Update analysis file lists
             for (file_list, filename) in backup_progress['delta']['analysis']:
-                update_file_detail_lists(file_list, filename)
+                update_file_detail_lists(file_list, {filename})
 
             # Update working file for copies
             if backup_progress['total']['current_file'] is not None:
@@ -2343,12 +2350,12 @@ if __name__ == '__main__':
                     )
 
                     if not os.path.exists(filename):
-                        update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
+                        update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, {filename})
                     else:
-                        update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
+                        update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, {filename})
                         backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
                 elif operation == Status.FILE_OPERATION_COPY:
-                    update_file_detail_lists(FileUtils.LIST_SUCCESS, filename)
+                    update_file_detail_lists(FileUtils.LIST_SUCCESS, {filename})
 
             for file in backup_progress['delta']['failed']:
                 filename, filesize, operation, display_index = file
@@ -2363,12 +2370,12 @@ if __name__ == '__main__':
                     )
 
                     if os.path.exists(filename):
-                        update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, filename)
+                        update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, {filename})
                         backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
                     else:
-                        update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, filename)
+                        update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, {filename})
                 elif operation == Status.FILE_OPERATION_COPY:
-                    update_file_detail_lists(FileUtils.LIST_FAIL, filename)
+                    update_file_detail_lists(FileUtils.LIST_FAIL, {filename})
 
     def update_ui_post_backup(command=None):
         """ Update the UI after the backup finishes.
