@@ -241,7 +241,7 @@ def update_backup_eta_timer():
         backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
         time.sleep(0.25)
 
-    if get_backup_killflag() and backup.progress['total'] < backup.totals['master']:
+    if get_backup_killflag() and backup.progress['current'] < backup.totals['master']:
         # Backup aborted
         backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
     else:
