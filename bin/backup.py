@@ -338,7 +338,6 @@ class Backup:
         master_drive_list = [drive for drive in self.config['destinations']]
         master_drive_list.extend([{'vid': vid, 'capacity': capacity} for vid, capacity in self.config['missing_drives'].items()])
         connected_vid_list = [drive['vid'] for drive in self.config['destinations']]
-        show_drive_info = []
         for i, drive in enumerate(master_drive_list):
             if self.analysis_killed:
                 break
@@ -361,8 +360,6 @@ class Backup:
 
             # Enumerate list for tracking what shares go where
             drive_share_list[drive['vid']] = set()
-
-            show_drive_info.append((current_drive_info['name'], human_filesize(drive['capacity']), drive_connected))
 
         # For each drive, smallest first, filter list of shares to those that fit
         drive_info.sort(key=lambda x: x['free'])
@@ -402,7 +399,7 @@ class Backup:
 
                 # Try every combination of sources that fit to find result that uses most of that drive
                 largest_sum = 0
-                largest_set = []
+                largest_set = set()
                 for n in range(1, len(trimmed_small_source_list) + 1):
                     for subset in itertools.combinations(trimmed_small_source_list.keys(), n):
                         combination_total = sum(trimmed_small_source_list[share] for share in subset)
@@ -477,7 +474,7 @@ class Backup:
             """
 
             # Enumerate list for tracking what shares go where
-            drive_file_list = {drive['vid']: [] for drive in drive_info}
+            drive_file_list = {drive['vid']: set() for drive in drive_info}
 
             file_info = {}
             share_path = self.get_share_source_path(share)
@@ -515,7 +512,7 @@ class Backup:
                 # Since the list of files is truncated to prevent an unreasonably large
                 # number of combinations to check, we need to keep processing the file list
                 # in chunks to make sure we check if all files can be fit on one drive
-                files_that_fit_on_drive = []
+                files_that_fit_on_drive = set()
                 small_file_list = {}
                 processed_small_files = []
                 processed_file_size = 0
@@ -544,7 +541,7 @@ class Backup:
                                 largest_sum = combination_total
                                 largest_set = subset
 
-                    files_that_fit_on_drive.extend([file for file in largest_set])
+                    files_that_fit_on_drive.update({file for file in largest_set})
                     processed_small_files.extend([file for file in trimmed_small_file_list])
                     file_info = {file: size for (file, size) in file_info.items() if file not in largest_set}
 
@@ -558,7 +555,7 @@ class Backup:
                 # Since we're sorting by largest free space first, there's no cases to move
                 # to a larger drive. This means all files that can fit should be put on the
                 # drive they fit on.
-                drive_file_list[drive['vid']].extend(files_that_fit_on_drive)
+                drive_file_list[drive['vid']].update(files_that_fit_on_drive)
                 drive_info[i]['free'] -= processed_file_size
 
             if self.analysis_killed:
@@ -1032,9 +1029,11 @@ class Backup:
                         if self.run_killed:
                             break
 
-                        src = os.path.join(drive, file)
-
-                        self.do_del_fn(filename=src, size=size, display_index=cmd['displayIndex'])
+                        self.do_del_fn(
+                            filename=os.path.join(drive, file),
+                            size=size,
+                            display_index=cmd['displayIndex']
+                        )
 
                         # If file hash was in list, remove it, and write changes to file
                         if file in self.file_hashes[drive].keys():
@@ -1051,11 +1050,15 @@ class Backup:
 
                         share_path = self.get_share_source_path(share)
 
-                        src = os.path.join(share_path, file)
                         dest = os.path.join(drive, share, file)
 
                         self.set_working_file(dest, source_size, Status.FILE_OPERATION_UPDATE, cmd['displayIndex'])
-                        file_hashes = self.do_copy_fn(src=src, dest=dest, drive_path=drive, display_index=cmd['displayIndex'])
+                        file_hashes = self.do_copy_fn(
+                            src=os.path.join(share_path, file),
+                            dest=dest,
+                            drive_path=drive,
+                            display_index=cmd['displayIndex']
+                        )
                         self.file_hashes[drive].update(file_hashes)
 
                         # Write updated hash file to drive
@@ -1070,11 +1073,15 @@ class Backup:
 
                         share_path = self.get_share_source_path(share)
 
-                        src = os.path.join(share_path, file)
                         dest = os.path.join(drive, share, file)
 
                         self.set_working_file(dest, size, Status.FILE_OPERATION_COPY, cmd['displayIndex'])
-                        file_hashes = self.do_copy_fn(src=src, dest=dest, drive_path=drive, display_index=cmd['displayIndex'])
+                        file_hashes = self.do_copy_fn(
+                            src=os.path.join(share_path, file),
+                            dest=dest,
+                            drive_path=drive,
+                            display_index=cmd['displayIndex']
+                        )
                         self.file_hashes[drive].update(file_hashes)
 
                         # Write updated hash file to drive
