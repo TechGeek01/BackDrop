@@ -219,29 +219,30 @@ def update_backup_eta_timer():
     backup_eta_label.configure(fg=root_window.uicolor.NORMAL)
 
     # Total is copy source, verify dest, so total data is 2 * copy
-    total_to_copy = backup.totals['master'] - backup.totals['delete']
+    total_to_copy = backup.progress['total'] - backup.totals['delete']
     backup_start_time = backup.get_backup_start_time()
 
-    while not get_backup_killflag():
-        backup_totals = backup.totals
+    while not backup.run_killed:
+        if backup.backup_running:
+            backup_totals = backup.totals
 
-        running_time = datetime.now() - backup_start_time
-        if total_to_copy > 0:
-            percent_copied = (backup_totals['running'] + backup_totals['buffer'] - backup_totals['delete']) / total_to_copy
-        else:
-            percent_copied = 0
+            running_time = datetime.now() - backup_start_time
+            if total_to_copy > 0:
+                percent_copied = (backup_totals['running'] + backup_totals['buffer'] - backup_totals['delete']) / total_to_copy
+            else:
+                percent_copied = 0
 
-        if percent_copied > 0:
-            remaining_time = running_time / percent_copied - running_time
-        else:
-            # Show infinity symbol if no calculated ETA
-            remaining_time = '\u221e'
+            if percent_copied > 0:
+                remaining_time = running_time / percent_copied - running_time
+            else:
+                # Show infinity symbol if no calculated ETA
+                remaining_time = '\u221e'
 
-        backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
+            backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
+
         time.sleep(0.25)
 
-    # FIXME: Fix backup timer saying completed when aborting backup
-    if get_backup_killflag() and backup.progress['current'] < backup.totals['master']:
+    if backup.run_killed and backup.progress['current'] < backup.progress['total']:
         # Backup aborted
         backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
     else:
@@ -1157,7 +1158,7 @@ def start_backup():
 
     update_ui_component(Status.UPDATEUI_BACKUP_START)
     update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
-    progress.set(current=0, total=backup.totals['master'])
+    progress.set(current=0, total=backup.progress['total'])
 
     for cmd in backup.command_list:
         backup.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=root_window.uicolor.PENDING)

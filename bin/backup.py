@@ -38,7 +38,6 @@ class Backup:
         """
 
         self.totals = {
-            'master': 0,
             'delete': 0,
             'running': 0,
             'buffer': 0
@@ -70,7 +69,7 @@ class Backup:
         self.analysis_started = False
         self.analysis_running = False
         self.backup_running = False
-        self.backup_start_time = 0
+        self.backup_start_time = datetime.now()
 
         self.command_list = []
         self.delete_file_list = {}
@@ -1164,10 +1163,7 @@ class Backup:
             datetime: The time the backup started. (default 0)
         """
 
-        if self.backup_start_time:
-            return self.backup_start_time
-        else:
-            return 0
+        return self.backup_start_time
 
     def is_running(self):
         """
