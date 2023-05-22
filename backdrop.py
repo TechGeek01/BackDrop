@@ -6,7 +6,6 @@ import os
 import subprocess
 import webbrowser
 from blake3 import blake3
-import time
 import ctypes
 from signal import signal, SIGINT
 from datetime import datetime
@@ -213,51 +212,38 @@ def display_backup_summary_chunk(title, payload: tuple, reset: bool = None):
         tk.Label(summary_frame, text=item[1], fg=text_color, justify='left').grid(row=i, column=2, sticky='w')
 
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
+# FIXME: Make function poll backup for timer status, and have things like "analysis running" all happen within this function, rather than elsewhere"
 def update_backup_eta_timer():
     """Update the backup timer to show ETA."""
-
-    backup_eta_label.configure(fg=root_window.uicolor.NORMAL)
 
     # Total is copy source, verify dest, so total data is 2 * copy
     total_to_copy = backup.progress['total'] - backup.totals['delete']
     backup_start_time = backup.get_backup_start_time()
 
-    while not backup.run_killed:
-        if backup.backup_running:
-            backup_totals = backup.totals
+    if backup.backup_running:
+        backup_totals = backup.totals
 
-            running_time = datetime.now() - backup_start_time
-            if total_to_copy > 0:
-                percent_copied = (backup_totals['running'] + backup_totals['buffer'] - backup_totals['delete']) / total_to_copy
-            else:
-                percent_copied = 0
+        running_time = datetime.now() - backup_start_time
+        if total_to_copy > 0:
+            percent_copied = (backup_totals['running'] + backup_totals['buffer'] - backup_totals['delete']) / total_to_copy
+        else:
+            percent_copied = 0
 
-            if percent_copied > 0:
-                remaining_time = running_time / percent_copied - running_time
-            else:
-                # Show infinity symbol if no calculated ETA
-                remaining_time = '\u221e'
+        if percent_copied > 0:
+            remaining_time = running_time / percent_copied - running_time
+        else:
+            # Show infinity symbol if no calculated ETA
+            remaining_time = '\u221e'
 
-            backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining")
+        backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining", fg=root_window.uicolor.NORMAL)
 
-        time.sleep(0.25)
-
-    if backup.run_killed and backup.progress['current'] < backup.progress['total']:
-        # Backup aborted
-        backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
-    else:
-        # Backup not killed, so completed successfully
-        backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.FINISHED)
-
-def start_backup_timer():
-    """Start the backup timer when requested by the Backup class."""
-
-    thread_manager.start(ThreadManager.KILLABLE, name='backupTimer', target=update_backup_eta_timer)
-
-def kill_backup_timer():
-    """Stop the backup timer when requested by the Backup class."""
-
-    thread_manager.kill('backupTimer')
+    if not backup.analysis_running:
+        if backup.run_killed and backup.progress['current'] < backup.progress['total']:
+            # Backup aborted
+            backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
+        else:
+            # Backup not killed, so completed successfully
+            backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.FINISHED)
 
 def display_backup_command_info(display_command_list: list):
     """Enumerate the display widget with command info after a backup analysis.
@@ -364,8 +350,6 @@ def start_backup_analysis():
         backup_config_dir=BACKUP_CONFIG_DIR,
         backup_config_file=BACKUP_CONFIG_FILE,
         uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
-        start_backup_timer_fn=start_backup_timer,
-        kill_backup_timer_fn=kill_backup_timer,
         analysis_pre_callback_fn=update_ui_pre_analysis,
         analysis_callback_fn=update_ui_post_analysis,
         backup_callback_fn=update_ui_post_backup
@@ -2301,6 +2285,9 @@ if __name__ == '__main__':
                 progress.start_indeterminate()
             else:
                 progress.stop_indeterminate()
+
+            # Update ETA timer
+            update_backup_eta_timer()
 
             # Update analysis file lists
             for (file_list, filename) in backup_progress['delta']['analysis']:

@@ -20,7 +20,6 @@ class Backup:
     COMMAND_FILE_LIST = 'file_list'
 
     def __init__(self, config: dict, backup_config_dir, backup_config_file,
-                 start_backup_timer_fn, kill_backup_timer_fn,
                  analysis_pre_callback_fn, analysis_callback_fn,
                  backup_callback_fn, uicolor=None):
         """Configure a backup to be run on a set of drives.
@@ -29,8 +28,6 @@ class Backup:
             config (dict): The backup config to be processed.
             backup_config_dir (String): The directory to store backup configs on each drive.
             backup_config_file (String): The file to store backup configs on each drive.
-            start_backup_timer_fn (def): The function to be used to start the backup timer.
-            kill_backup_timer_fn (def): The function to be used to stop the backup timer.
             analysis_pre_callback_fn (def): The callback function to call before analysis.
             analysis_callback_fn (def): The callback function to call post analysis.
             backup_callback_fn (def): The callback function to call post backup.
@@ -91,8 +88,6 @@ class Backup:
         self.run_killed = False
 
         self.uicolor = uicolor
-        self.start_backup_timer_fn = start_backup_timer_fn
-        self.kill_backup_timer_fn = kill_backup_timer_fn
         self.analysis_pre_callback_fn = analysis_pre_callback_fn
         self.analysis_callback_fn = analysis_callback_fn
         self.backup_callback_fn = backup_callback_fn
@@ -1034,7 +1029,6 @@ class Backup:
                 if not timer_started:
                     timer_started = True
                     self.backup_start_time = datetime.now()
-                    self.start_backup_timer_fn()
 
                 if cmd['mode'] == Status.FILE_OPERATION_DELETE:
                     for drive, file, size in cmd['payload']:
@@ -1107,7 +1101,6 @@ class Backup:
             if self.run_killed:
                 break
 
-        self.kill_backup_timer_fn()
         self.backup_running = False
         self.backup_callback_fn()
 
