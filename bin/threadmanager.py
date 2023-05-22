@@ -3,10 +3,10 @@ import time
 
 class ThreadManager:
     # Define thread types for starting threads
-    SINGLE = 0       # One thread at once, block if already running
-    MULTIPLE = 1     # Multiple threads, name with counter, and run
-    KILLABLE = 2     # Thread can be killed with a flag
-    REPLACEABLE = 3  # Like SINGLE, but instead of blocking, kill and restart
+    SINGLE = 0x00       # One thread at once, block if already running
+    MULTIPLE = 0x01     # Multiple threads, name with counter, and run
+    KILLABLE = 0x02     # Thread can be killed with a flag
+    REPLACEABLE = 0x03  # Like SINGLE, but instead of blocking, kill and restart
 
     def is_alive(self, thread_name):
         """Check if a thread by a given name is active.

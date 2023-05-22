@@ -1913,7 +1913,7 @@ if __name__ == '__main__':
                 tree_source.insert(parent='', index='end', text=dir_name, values=('Unknown', 0, path_name))
 
     def browse_for_source_in_background():
-        """ Load a browsed source in the background. """
+        """Load a browsed source in the background."""
 
         thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=browse_for_source, name='Browse for source', daemon=True)
 
@@ -1945,7 +1945,7 @@ if __name__ == '__main__':
             tree_dest.insert(parent='', index='end', text=dir_name, values=(human_filesize(avail_space), avail_space, 'Yes' if dir_has_config_file else '', name_stub))
 
     def browse_for_dest_in_background():
-        """ Load a browsed destination in the background. """
+        """Load a browsed destination in the background."""
 
         thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=browse_for_dest, name='Browse for destination', daemon=True)
 
@@ -2242,7 +2242,7 @@ if __name__ == '__main__':
         update_ui_component(Status.UPDATEUI_ANALYSIS_START)
 
     def update_ui_post_analysis(files_payload, summary_payload):
-        """ Update the UI after an analysis has been run.
+        """Update the UI after an analysis has been run.
 
         Args:
             files_payload (list): The file data to display in the UI.
@@ -2385,7 +2385,7 @@ if __name__ == '__main__':
                     update_file_detail_lists(FileUtils.LIST_FAIL, {filename})
 
     def update_ui_post_backup(command=None):
-        """ Update the UI after the backup finishes.
+        """Update the UI after the backup finishes.
 
         Args:
             command: The backup command to pull data from (optional).
@@ -3051,7 +3051,7 @@ if __name__ == '__main__':
     listener.start()
 
     load_source_in_background()
-    # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or OVERRIDE?
+    # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or REPLACEABLE?
     thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
 
     # Check for updates on startup

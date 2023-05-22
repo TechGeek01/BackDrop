@@ -1167,7 +1167,7 @@ class Backup:
         return self.analysis_running or self.backup_running
 
     def kill(self, request: int = None):
-        """ Kill the analysis and running backup.
+        """Kill the analysis and running backup.
 
         Args:
             request (int): The kill request to make (optional, default KILL_ALL).
