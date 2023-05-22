@@ -212,18 +212,20 @@ def display_backup_summary_chunk(title, payload: tuple, reset: bool = None):
         tk.Label(summary_frame, text=item[1], fg=text_color, justify='left').grid(row=i, column=2, sticky='w')
 
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
-# FIXME: Make function poll backup for timer status, and have things like "analysis running" all happen within this function, rather than elsewhere"
 def update_backup_eta_timer():
     """Update the backup timer to show ETA."""
 
-    # Total is copy source, verify dest, so total data is 2 * copy
-    total_to_copy = backup.progress['total'] - backup.totals['delete']
-    backup_start_time = backup.get_backup_start_time()
-
-    if backup.backup_running:
+    if backup.status == Status.BACKUP_ANALYSIS_RUNNING or backup.status == Status.BACKUP_ANALYSIS_FINISHED:
+        backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=root_window.uicolor.NORMAL)
+    elif backup.status == Status.BACKUP_IDLE or backup.status == Status.BACKUP_ANALYSIS_ABORTED:
+        backup_eta_label.configure(text='Please start a backup to show ETA', fg=root_window.uicolor.NORMAL)
+    elif backup.status == Status.BACKUP_BACKUP_RUNNING:
         backup_totals = backup.totals
 
-        running_time = datetime.now() - backup_start_time
+        # Total is copy source, verify dest, so total data is 2 * copy
+        total_to_copy = backup.progress['total'] - backup.totals['delete']
+
+        running_time = datetime.now() - backup.get_backup_start_time()
         if total_to_copy > 0:
             percent_copied = (backup_totals['running'] + backup_totals['buffer'] - backup_totals['delete']) / total_to_copy
         else:
@@ -236,14 +238,10 @@ def update_backup_eta_timer():
             remaining_time = '\u221e'
 
         backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining", fg=root_window.uicolor.NORMAL)
-
-    if not backup.analysis_running:
-        if backup.run_killed and backup.progress['current'] < backup.progress['total']:
-            # Backup aborted
-            backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.STOPPED)
-        else:
-            # Backup not killed, so completed successfully
-            backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup_start_time).split('.')[0]}", fg=root_window.uicolor.FINISHED)
+    elif backup.status == Status.BACKUP_BACKUP_ABORTED:
+        backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup.get_backup_start_time()).split('.')[0]}", fg=root_window.uicolor.STOPPED)
+    elif backup.status == Status.BACKUP_BACKUP_FINISHED:
+        backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup.get_backup_start_time()).split('.')[0]}", fg=root_window.uicolor.FINISHED)
 
 def display_backup_command_info(display_command_list: list):
     """Enumerate the display widget with command info after a backup analysis.
@@ -302,9 +300,6 @@ def backup_reset_ui():
 
     # Empty backup summary pane
     content_tab_frame.tab['summary']['content'].empty()
-
-    # Reset ETA counter
-    backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=root_window.uicolor.NORMAL)
 
     # Empty backup operation list pane
     content_tab_frame.tab['details']['content'].empty()
@@ -2253,7 +2248,7 @@ if __name__ == '__main__':
         if not backup:
             return
 
-        if not backup.analysis_killed:
+        if backup.status != Status.BACKUP_ANALYSIS_ABORTED:
             display_backup_command_info(backup.command_list)
 
             display_backup_summary_chunk(
@@ -2281,7 +2276,7 @@ if __name__ == '__main__':
         if backup:
             backup_progress = backup.get_progress_updates()
 
-            if backup.analysis_running:
+            if backup.status == Status.BACKUP_ANALYSIS_RUNNING:
                 progress.start_indeterminate()
             else:
                 progress.stop_indeterminate()
@@ -2395,9 +2390,9 @@ if __name__ == '__main__':
         if not backup:
             return
 
-        if backup.backup_running and command is not None:
+        if command is not None:
             display_index = command['displayIndex']
-            if backup.run_killed and backup.progress['current'] < backup.progress['total']:
+            if backup.status == Status.BACKUP_BACKUP_ABORTED and backup.progress['current'] < backup.progress['total']:
                 backup.cmd_info_blocks[display_index].state.configure(text='Aborted', fg=root_window.uicolor.STOPPED)
                 backup.cmd_info_blocks[display_index].configure('progress', text='Aborted', fg=root_window.uicolor.STOPPED)
             else:
@@ -2405,7 +2400,7 @@ if __name__ == '__main__':
                 backup.cmd_info_blocks[display_index].configure('progress', text='Done', fg=root_window.uicolor.FINISHED)
 
         # If backup stopped, 
-        if not backup.backup_running:
+        if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
 
     LOGGING_LEVEL = logging.INFO

@@ -67,6 +67,7 @@ class Backup:
         self.analysis_running = False
         self.backup_running = False
         self.backup_start_time = datetime.now()
+        self.status = Status.BACKUP_IDLE
 
         self.command_list = []
         self.delete_file_list = {}
@@ -283,6 +284,7 @@ class Backup:
         self.analysis_killed = False
         self.analysis_running = True
         self.analysis_started = True
+        self.status = Status.BACKUP_ANALYSIS_RUNNING
 
         self.analysis_pre_callback_fn()
 
@@ -952,6 +954,9 @@ class Backup:
                 self.command_list[i]['displayIndex'] = i
 
             self.analysis_valid = True
+            self.status = Status.BACKUP_ANALYSIS_FINISHED
+        else:
+            self.status = Status.BACKUP_ANALYSIS_ABORTED
 
         self.analysis_running = False
         self.analysis_callback_fn(
@@ -1013,6 +1018,7 @@ class Backup:
 
         self.run_killed = False
         self.backup_running = True
+        self.status = Status.BACKUP_BACKUP_RUNNING
 
         # Write config file to drives
         self.write_config_to_disks()
@@ -1100,6 +1106,11 @@ class Backup:
 
             if self.run_killed:
                 break
+
+        if not self.run_killed:
+            self.status = Status.BACKUP_BACKUP_FINISHED
+        if self.run_killed:
+            self.status = Status.BACKUP_BACKUP_ABORTED
 
         self.backup_running = False
         self.backup_callback_fn()
