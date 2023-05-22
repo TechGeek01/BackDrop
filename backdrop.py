@@ -160,13 +160,13 @@ def display_backup_progress(copied, total, display_filename=None, operation=None
         backup_totals['buffer'] = copied
 
         if operation == Status.FILE_OPERATION_DELETE:
-            progress.set(backup.progress['current'])
+            progress.set(current=backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=root_window.uicolor.NORMAL)
         elif operation == Status.FILE_OPERATION_COPY:
-            progress.set(backup.progress['current'])
+            progress.set(current=backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.NORMAL)
         elif operation == Status.FILE_OPERATION_VERIFY:
-            progress.set(backup.progress['current'])
+            progress.set(current=backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.BLUE)
 
     # FIXME: Make all failed file copies add the relevant progress chunk to the progress bar
@@ -1158,8 +1158,7 @@ def start_backup():
 
     update_ui_component(Status.UPDATEUI_BACKUP_START)
     update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
-    progress.set(0)
-    progress.set_max(backup.totals['master'])
+    progress.set(current=0, total=backup.totals['master'])
 
     for cmd in backup.command_list:
         backup.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=root_window.uicolor.PENDING)
@@ -2349,8 +2348,7 @@ if __name__ == '__main__':
 
                 # FIXME: Progress bar jumps after completing backup, as though
                 #     the progress or total changes when the backup completes
-                progress.set_max(backup.progress['total'])
-                progress.set(backup.progress['current'])
+                progress.set(current=backup.progress['current'], total=backup.progress['total'])
 
                 cmd_info_blocks[display_index].configure('current_file', text=buffer['display_filename'], fg=root_window.uicolor.NORMAL)
                 if buffer['operation'] == Status.FILE_OPERATION_DELETE:

@@ -12,29 +12,22 @@ class Progress:
         self.mode = None
         self.max = 0
 
-    def set_max(self, max_val: int):
-        """Set the max value of the progress bar.
-
-        Args:
-            max_val (int): The max value to set.
-        """
-
-        # Only update max if it's not the same as it already was
-        if self.max != max_val:
-            self.max = max_val
-
-            self.progress_bar.stop()
-            self.progress_bar.configure(mode='determinate', maximum=max_val)
-
-    # TODO: Change Progress.set() to use total and current variables to combine set and set_max into one function
-    def set(self, cur_val: int):
+    def set(self, current: int = None, total: int = None):
         """Set the current value of the progress bar.
 
         Args:
-            cur_val (int): The value to set.
+            current (int): The value to set (optional).
+            total (int): The max vlaue to set (optional).
         """
 
-        self.progress_bar.configure(value=cur_val)
+        params = {}
+        if current is not None:
+            params['value'] = current
+        if total is not None and self.max != total:
+            self.max = total
+            params['maximum'] = total
+
+        self.progress_bar.configure(**params)
 
     def start_indeterminate(self):
         """Start indeterminate mode on the progress bar if it isn't being controlled
