@@ -12,6 +12,10 @@ from bin.config import Config
 from bin.status import Status
 
 class Backup:
+    KILL_ALL = 0x00
+    KILL_ANALYSIS = 0x01
+    KILL_BACKUP = 0x02
+
     COMMAND_TYPE_FILE_LIST = 'file_list'
     COMMAND_FILE_LIST = 'file_list'
 
@@ -32,10 +36,6 @@ class Backup:
             backup_callback_fn (def): The callback function to call post backup.
             uicolor (Color): The UI color instance to reference for styling (default None).
         """
-
-        # IDEA: Give Backup clas its own kill function to replace killable thread
-        #     with kill flag. This kill function can also handle resetting analysis
-        #     and run functions and variables.
 
         self.totals = {
             'master': 0,
@@ -1176,3 +1176,22 @@ class Backup:
         """
 
         return self.analysis_running or self.backup_running
+
+    def kill(self, request: int = None):
+        """ Kill the analysis and running backup.
+
+        Args:
+            request (int): The kill request to make (optional, default KILL_ALL).
+        """
+
+        # Set parameter defaults
+        if request is None:
+            request = Backup.KILL_ALL
+
+        if request == Backup.KILL_ALL:
+            self.analysis_killed = True
+            self.run_killed = True
+        elif request == Backup.KILL_ANALYSIS:
+            self.analysis_killed = True
+        elif request == Backup.KILL_BACKUP:
+            self.run_killed = True

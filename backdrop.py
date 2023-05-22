@@ -341,9 +341,8 @@ def request_kill_analysis():
     """Kill a running analysis."""
 
     statusbar_action.configure(text='Stopping analysis')
-    thread_manager.kill('Backup Analysis')
     if backup:
-        backup.analysis_killed = True
+        backup.kill(Backup.KILL_ANALYSIS)
 
 def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
@@ -1182,9 +1181,8 @@ def cleanup_handler(signal_received, frame):
         logging.error('SIGINT or Ctrl-C detected. Exiting gracefully...')
 
         if thread_manager.is_alive('Backup'):
-            thread_manager.kill('Backup')
             if backup:
-                backup.run_killed = True
+                backup.kill()
 
             if thread_manager.is_alive('Backup'):
                 force_non_graceful_cleanup = True
@@ -1726,9 +1724,8 @@ if __name__ == '__main__':
         """Kill a running backup."""
 
         statusbar_action.configure(text='Stopping backup')
-        thread_manager.kill('Backup')
         if backup:
-            backup.run_killed = True
+            backup.kill(Backup.KILL_BACKUP)
 
     def update_ui_component(status: int, data=None):
         """Update UI elements with given data..
@@ -2611,9 +2608,8 @@ if __name__ == '__main__':
             exit()
 
         if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
-            thread_manager.kill('Backup')
             if backup:
-                backup.run_killed = True
+                backup.kill()
             root_window.quit()
             exit()
 
