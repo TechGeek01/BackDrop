@@ -217,7 +217,7 @@ def update_backup_eta_timer(progress_info):
         backup_eta_label.configure(text='Please start a backup to show ETA', fg=root_window.uicolor.NORMAL)
     elif backup.status == Status.BACKUP_BACKUP_RUNNING:
         # Total is copy source, verify dest, so total data is 2 * copy
-        total_to_copy = progress_info['total']['total'] - progress_info['delete_total']
+        total_to_copy = progress_info['total']['total'] - progress_info['total']['delete_total']
 
         running_time = datetime.now() - backup.get_backup_start_time()
         if total_to_copy > 0:
