@@ -34,12 +34,7 @@ class Backup:
             uicolor (Color): The UI color instance to reference for styling (default None).
         """
 
-        self.totals = {
-            'delete': 0,
-            'running': 0,
-            'buffer': 0
-        }
-
+        # FIXME: When aborting and restarting backup without restarting analysis, new progress is added to existing progress, instead of existing progress being set to 0
         self.progress = {
             'analysis': [],  # (list, file path)
             'buffer': {
@@ -58,7 +53,8 @@ class Backup:
                 'files': [],
                 'failed': []
             },
-            'total': 0  # (int) Total for calculating progress percentage
+            'total': 0,  # (int) Total for calculating progress percentage
+            'delete_total': 0
         }
 
         self.confirm_wipe_existing_drives = False
@@ -939,7 +935,7 @@ class Backup:
             # Increment master totals
             # Double copy total to account for both copy and verify operations
             self.progress['total'] += 2 * drive_total['copy'] + drive_total['delete']
-            self.totals['delete'] += drive_total['delete']
+            self.progress['delete_total'] += drive_total['delete']
 
             if file_summary:
                 show_file_info.append((self.DRIVE_VID_INFO[drive]['name'], '\n'.join(file_summary)))
@@ -1023,7 +1019,6 @@ class Backup:
         # Write config file to drives
         self.write_config_to_disks()
 
-        self.totals['buffer'] = 0
         self.progress['current'] = 0
 
         timer_started = False
@@ -1142,8 +1137,7 @@ class Backup:
                 'analysis': self.progress['since_last_update']['analysis'].copy(),
                 'files': self.progress['since_last_update']['files'].copy(),
                 'failed': self.progress['since_last_update']['failed'].copy()
-            },
-            'buffer': self.totals['buffer']
+            }
         }
 
         self.add_progress_delta_to_total()

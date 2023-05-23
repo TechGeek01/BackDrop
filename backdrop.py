@@ -142,8 +142,6 @@ def display_backup_progress(copied, total, display_filename=None, operation=None
         display_index (int): The index to display the item in the GUI (optional).
     """
 
-    backup_totals = backup.totals
-
     if copied > total:
         copied = total
 
@@ -156,8 +154,6 @@ def display_backup_progress(copied, total, display_filename=None, operation=None
     if display_index is not None:
         cmd_info_blocks = backup.cmd_info_blocks
 
-        backup_totals['buffer'] = copied
-
         if operation == Status.FILE_OPERATION_DELETE:
             progress.set(current=backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=root_window.uicolor.NORMAL)
@@ -167,10 +163,6 @@ def display_backup_progress(copied, total, display_filename=None, operation=None
         elif operation == Status.FILE_OPERATION_VERIFY:
             progress.set(current=backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.BLUE)
-
-    # FIXME: Make all failed file copies add the relevant progress chunk to the progress bar
-    if copied >= total:
-        backup_totals['running'] += backup_totals['buffer']
 
 def get_backup_killflag():
     """Get backup thread kill flag status."""
@@ -212,22 +204,24 @@ def display_backup_summary_chunk(title, payload: tuple, reset: bool = None):
         tk.Label(summary_frame, text=item[1], fg=text_color, justify='left').grid(row=i, column=2, sticky='w')
 
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
-def update_backup_eta_timer():
-    """Update the backup timer to show ETA."""
+def update_backup_eta_timer(progress_info):
+    """Update the backup timer to show ETA.
+
+    Args:
+        progress_info: The progress of the current backup
+    """
 
     if backup.status == Status.BACKUP_ANALYSIS_RUNNING or backup.status == Status.BACKUP_ANALYSIS_FINISHED:
         backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=root_window.uicolor.NORMAL)
     elif backup.status == Status.BACKUP_IDLE or backup.status == Status.BACKUP_ANALYSIS_ABORTED:
         backup_eta_label.configure(text='Please start a backup to show ETA', fg=root_window.uicolor.NORMAL)
     elif backup.status == Status.BACKUP_BACKUP_RUNNING:
-        backup_totals = backup.totals
-
         # Total is copy source, verify dest, so total data is 2 * copy
-        total_to_copy = backup.progress['total'] - backup.totals['delete']
+        total_to_copy = progress_info['total']['total'] - progress_info['delete_total']
 
         running_time = datetime.now() - backup.get_backup_start_time()
         if total_to_copy > 0:
-            percent_copied = (backup_totals['running'] + backup_totals['buffer'] - backup_totals['delete']) / total_to_copy
+            percent_copied = progress_info['total']['current'] / total_to_copy
         else:
             percent_copied = 0
 
@@ -2282,7 +2276,7 @@ if __name__ == '__main__':
                 progress.stop_indeterminate()
 
             # Update ETA timer
-            update_backup_eta_timer()
+            update_backup_eta_timer(backup_progress)
 
             # Update analysis file lists
             for (file_list, filename) in backup_progress['delta']['analysis']:
@@ -2303,7 +2297,6 @@ if __name__ == '__main__':
             update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, filename if filename is not None else '')
 
             # Update copied files
-            backup_totals = backup.totals
             buffer = backup_progress['total']['buffer']
 
             if buffer['copied'] > buffer['total']:
@@ -2323,8 +2316,6 @@ if __name__ == '__main__':
             #     stopping after aborting the backup
             if display_index is not None:
                 cmd_info_blocks = backup.cmd_info_blocks
-
-                backup_totals['buffer'] = buffer['copied']
 
                 # FIXME: Progress bar jumps after completing backup, as though
                 #     the progress or total changes when the backup completes
