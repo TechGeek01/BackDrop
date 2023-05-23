@@ -34,7 +34,6 @@ class Backup:
             uicolor (Color): The UI color instance to reference for styling (default None).
         """
 
-        # FIXME: When aborting and restarting backup without restarting analysis, new progress is added to existing progress, instead of existing progress being set to 0
         self.progress = {
             'analysis': [],  # (list, file path)
             'buffer': {
@@ -1020,6 +1019,18 @@ class Backup:
         self.write_config_to_disks()
 
         self.progress['current'] = 0
+        self.progress['current_file'] = None
+        self.progress['files'] = []
+        self.progress['failed'] = []
+        self.progress['since_last_update']['files'] = []
+        self.progress['since_last_update']['failed'] = []
+        self.progress['buffer'] = {
+            'copied': 0,
+            'total': 0,
+            'display_filename': None,
+            'operation': None,
+            'display_index': None
+        }
 
         timer_started = False
 
