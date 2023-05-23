@@ -2267,108 +2267,113 @@ if __name__ == '__main__':
     def update_ui_during_backup():
         """Update the user interface using a RepeatedTimer."""
 
-        if backup:
-            backup_progress = backup.get_progress_updates()
+        if not backup:
+            return
 
-            if backup.status == Status.BACKUP_ANALYSIS_RUNNING:
-                progress.start_indeterminate()
-            else:
-                progress.stop_indeterminate()
+        backup_progress = backup.get_progress_updates()
 
-            # Update ETA timer
-            update_backup_eta_timer(backup_progress)
+        if backup.status == Status.BACKUP_ANALYSIS_RUNNING:
+            progress.start_indeterminate()
+        else:
+            progress.stop_indeterminate()
 
-            # Update analysis file lists
-            for (file_list, filename) in backup_progress['delta']['analysis']:
-                update_file_detail_lists(file_list, {filename})
+        # Update ETA timer
+        update_backup_eta_timer(backup_progress)
 
-            # Update working file for copies
-            if backup_progress['total']['current_file'] is not None:
-                filename, size, operation, display_index = backup_progress['total']['current_file']
+        # Update analysis file lists
+        analysis_dict = {}
+        for file_list, filename in backup_progress['delta']['analysis']:
+            analysis_dict.setdefault(file_list, set()).add(filename)
+        for file_list, filenames in analysis_dict.items():
+            update_file_detail_lists(file_list, filenames)
 
-                # Update file details info block
-                cmd_info_blocks = backup.cmd_info_blocks
-                if display_index is not None and display_index in cmd_info_blocks:
-                    cmd_info_blocks[display_index].configure('current_file', text=filename if filename is not None else '', fg=root_window.uicolor.NORMAL)
-            else:
-                filename, display_index = (None, None)
+        # Update working file for copies
+        if backup_progress['total']['current_file'] is not None:
+            filename, size, operation, display_index = backup_progress['total']['current_file']
 
-            # Update status bar
-            update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, filename if filename is not None else '')
+            # Update file details info block
+            cmd_info_blocks = backup.cmd_info_blocks
+            if display_index is not None and display_index in cmd_info_blocks:
+                cmd_info_blocks[display_index].configure('current_file', text=filename if filename is not None else '', fg=root_window.uicolor.NORMAL)
+        else:
+            filename, display_index = (None, None)
 
-            # Update copied files
-            buffer = backup_progress['total']['buffer']
+        # Update status bar
+        update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, filename if filename is not None else '')
 
-            if buffer['copied'] > buffer['total']:
-                buffer['copied'] = buffer['total']
+        # Update copied files
+        buffer = backup_progress['total']['buffer']
 
-            if buffer['total'] > 0:
-                percent_copied = buffer['copied'] / buffer['total'] * 100
-            else:
-                percent_copied = 100
+        if buffer['copied'] > buffer['total']:
+            buffer['copied'] = buffer['total']
 
-            # If display index has been specified, write progress to GUI
-            # URGENT: Fix updates stopping in status bar and file detail blocks
-            #     after many operations have been completed
-            # URGENT: When aborting backup after many operations, files continue copying
-            #     This seems to be related to time. The longer the backups have
-            #     been running, the more operations in continues to do before
-            #     stopping after aborting the backup
-            if display_index is not None:
-                cmd_info_blocks = backup.cmd_info_blocks
+        if buffer['total'] > 0:
+            percent_copied = buffer['copied'] / buffer['total'] * 100
+        else:
+            percent_copied = 100
 
-                # FIXME: Progress bar jumps after completing backup, as though
-                #     the progress or total changes when the backup completes
-                progress.set(current=backup.progress['current'], total=backup.progress['total'])
+        # If display index has been specified, write progress to GUI
+        # URGENT: Fix updates stopping in status bar and file detail blocks
+        #     after many operations have been completed
+        # URGENT: When aborting backup after many operations, files continue copying
+        #     This seems to be related to time. The longer the backups have
+        #     been running, the more operations in continues to do before
+        #     stopping after aborting the backup
+        if display_index is not None:
+            cmd_info_blocks = backup.cmd_info_blocks
 
-                cmd_info_blocks[display_index].configure('current_file', text=buffer['display_filename'], fg=root_window.uicolor.NORMAL)
-                if buffer['operation'] == Status.FILE_OPERATION_DELETE:
-                    cmd_info_blocks[display_index].configure('progress', text=f"Deleted {buffer['display_filename']}", fg=root_window.uicolor.NORMAL)
-                elif buffer['operation'] == Status.FILE_OPERATION_COPY:
-                    cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.NORMAL)
-                elif buffer['operation'] == Status.FILE_OPERATION_VERIFY:
-                    cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.BLUE)
+            # FIXME: Progress bar jumps after completing backup, as though
+            #     the progress or total changes when the backup completes
+            progress.set(current=backup.progress['current'], total=backup.progress['total'])
 
-            # Update file detail lists on deletes and copies
-            for file in backup_progress['delta']['files']:
-                filename, filesize, operation, display_index = file
+            cmd_info_blocks[display_index].configure('current_file', text=buffer['display_filename'], fg=root_window.uicolor.NORMAL)
+            if buffer['operation'] == Status.FILE_OPERATION_DELETE:
+                cmd_info_blocks[display_index].configure('progress', text=f"Deleted {buffer['display_filename']}", fg=root_window.uicolor.NORMAL)
+            elif buffer['operation'] == Status.FILE_OPERATION_COPY:
+                cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.NORMAL)
+            elif buffer['operation'] == Status.FILE_OPERATION_VERIFY:
+                cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.BLUE)
 
-                if operation == Status.FILE_OPERATION_DELETE:
-                    display_backup_progress(
-                        copied=filesize,
-                        total=filesize,
-                        display_filename=filename.split(os.path.sep)[-1],
-                        operation=operation,
-                        display_index=display_index
-                    )
+        # Update file detail lists on deletes and copies
+        for file in backup_progress['delta']['files']:
+            filename, filesize, operation, display_index = file
 
-                    if not os.path.exists(filename):
-                        update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, {filename})
-                    else:
-                        update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, {filename})
-                        backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
-                elif operation == Status.FILE_OPERATION_COPY:
-                    update_file_detail_lists(FileUtils.LIST_SUCCESS, {filename})
+            if operation == Status.FILE_OPERATION_DELETE:
+                display_backup_progress(
+                    copied=filesize,
+                    total=filesize,
+                    display_filename=filename.split(os.path.sep)[-1],
+                    operation=operation,
+                    display_index=display_index
+                )
 
-            for file in backup_progress['delta']['failed']:
-                filename, filesize, operation, display_index = file
+                if not os.path.exists(filename):
+                    update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, {filename})
+                else:
+                    update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, {filename})
+                    backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
+            elif operation == Status.FILE_OPERATION_COPY:
+                update_file_detail_lists(FileUtils.LIST_SUCCESS, {filename})
 
-                if operation == Status.FILE_OPERATION_DELETE:
-                    display_backup_progress(
-                        copied=filesize,
-                        total=filesize,
-                        display_filename=filename.split(os.path.sep)[-1],
-                        operation=operation,
-                        display_index=display_index,
-                    )
+        for file in backup_progress['delta']['failed']:
+            filename, filesize, operation, display_index = file
 
-                    if os.path.exists(filename):
-                        update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, {filename})
-                        backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
-                    else:
-                        update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, {filename})
-                elif operation == Status.FILE_OPERATION_COPY:
-                    update_file_detail_lists(FileUtils.LIST_FAIL, {filename})
+            if operation == Status.FILE_OPERATION_DELETE:
+                display_backup_progress(
+                    copied=filesize,
+                    total=filesize,
+                    display_filename=filename.split(os.path.sep)[-1],
+                    operation=operation,
+                    display_index=display_index,
+                )
+
+                if os.path.exists(filename):
+                    update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, {filename})
+                    backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
+                else:
+                    update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, {filename})
+            elif operation == Status.FILE_OPERATION_COPY:
+                update_file_detail_lists(FileUtils.LIST_FAIL, {filename})
 
     def update_ui_post_backup(command=None):
         """Update the UI after the backup finishes.
