@@ -289,51 +289,63 @@ class Backup:
         share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
         all_share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
 
-        # Get hash list for all drives
-        bad_hash_files = []
-        self.file_hashes = {drive['name']: {} for drive in self.config['destinations']}
-        special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
-        for drive in self.config['destinations']:
-            drive_hash_file_path = os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
+        def scan_hash_files():
+            """Scan hash files, and build hash list for files.
 
-            if os.path.isfile(drive_hash_file_path):
-                write_trimmed_changes = False
-                with open(drive_hash_file_path, 'rb') as f:
-                    try:
-                        # Load hash list, and filter out ignored folders
-                        hash_list = pickle.load(f)
-                        new_hash_list = {}
-                        for file_name, hash_val in hash_list.items():
-                            filename_chunks = file_name.split('/')
+            Returns:
+                dict: The hash data to be used during analysis.
+            """
 
-                            if filename_chunks[0] not in special_ignore_list:
-                                if os.path.isfile(os.path.join(drive['name'], file_name)):
-                                    new_hash_list[os.path.sep.join(filename_chunks)]: hash_val
+            special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
+            hash_data = {drive['name']: {} for drive in self.config['destinations']}
+            bad_hash_files = []
 
-                        # If trimmed list is shorter, new changes have to be written to the file
-                        if len(new_hash_list) < len(hash_list):
-                            write_trimmed_changes = True
+            for drive in self.config['destinations']:
+                drive_hash_file_path = os.path.join(drive['name'], self.BACKUP_CONFIG_DIR, self.BACKUP_HASH_FILE)
 
-                        self.file_hashes[drive['name']] = new_hash_list
-                    except Exception:
-                        # Hash file is corrupt
-                        bad_hash_files.append(drive_hash_file_path)
+                if os.path.isfile(drive_hash_file_path):
+                    write_trimmed_changes = False
+                    with open(drive_hash_file_path, 'rb') as f:
+                        try:
+                            # Load hash list, and filter out ignored folders
+                            hash_list = pickle.load(f)
+                            new_hash_list = {}
+                            for file_name, hash_val in hash_list.items():
+                                filename_chunks = file_name.split('/')
 
-                # If trimmed list is different length than original, write changes to file
-                if write_trimmed_changes:
+                                if filename_chunks[0] not in special_ignore_list:
+                                    if os.path.isfile(os.path.join(drive['name'], file_name)):
+                                        new_hash_list[os.path.join(filename_chunks)]: hash_val
+
+                            # If trimmed list is shorter, new changes have to be written to the file
+                            if len(new_hash_list) < len(hash_list):
+                                write_trimmed_changes = True
+
+                            hash_data[drive['name']] = new_hash_list
+                        except Exception:
+                            # Hash file is corrupt
+                            bad_hash_files.append(drive_hash_file_path)
+
+                    # If trimmed list is different length than original, write changes to file
+                    if write_trimmed_changes:
+                        with open(drive_hash_file_path, 'wb') as f:
+                            pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in new_hash_list.items()}, f)
+                else:
+                    # Hash file doesn't exist, so create it
+                    if not os.path.exists(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR)):
+                        os.makedirs(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR))
                     with open(drive_hash_file_path, 'wb') as f:
-                        pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in new_hash_list.items()}, f)
-            else:
-                # Hash file doesn't exist, so create it
-                if not os.path.exists(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR)):
-                    os.makedirs(os.path.join(drive['name'], self.BACKUP_CONFIG_DIR))
-                with open(drive_hash_file_path, 'wb') as f:
+                        pickle.dump({}, f)
+
+            # If there are missing or corrupted pickle files, write empty data
+            for file in bad_hash_files:
+                with open(file, 'wb') as f:
                     pickle.dump({}, f)
 
-        # If there are missing or corrupted pickle files, write empty data
-        for file in bad_hash_files:
-            with open(file, 'wb') as f:
-                pickle.dump({}, f)
+            return hash_data
+
+        # Get hash list for all drives
+        self.file_hashes = scan_hash_files()
 
         drive_info = []
         drive_share_list = {}
@@ -848,6 +860,61 @@ class Backup:
 
             return file_list
 
+        def start_building_file_lists():
+            for drive, shares in drive_share_list.items():
+                if self.analysis_killed:
+                    break
+
+                modified_file_list = build_delta_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])
+
+                delete_items = modified_file_list['delete']
+                if delete_items:
+                    self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']] = delete_items
+
+                    purge_command_list.append({
+                        'enabled': True,
+                        'displayIndex': len(purge_command_list) + 1,
+                        'type': Backup.COMMAND_TYPE_FILE_LIST,
+                        'drive': self.DRIVE_VID_INFO[drive]['name'],
+                        'size': sum((size for drive, file, size in delete_items)),
+                        'list': {os.path.join(drive, file) for drive, file, size in delete_items},
+                        'payload': delete_items,
+                        'mode': Status.FILE_OPERATION_DELETE
+                    })
+
+                # Build list of files to replace
+                replace_items = list(modified_file_list['replace'])
+                replace_items.sort(key=lambda x: x[1])
+                if replace_items:
+                    self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']] = replace_items
+
+                    copy_command_list.append({
+                        'enabled': True,
+                        'displayIndex': len(purge_command_list) + 1,
+                        'type': Backup.COMMAND_TYPE_FILE_LIST,
+                        'drive': self.DRIVE_VID_INFO[drive]['name'],
+                        'size': sum((source_size for drive, share, file, source_size, dest_size in replace_items)),
+                        'list': [os.path.join(drive, share, file) for drive, share, file, source_size, dest_size in replace_items],
+                        'payload': replace_items,
+                        'mode': Status.FILE_OPERATION_UPDATE
+                    })
+
+                # Build list of new files to copy
+                new_items = build_new_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])['new']
+                if new_items:
+                    self.new_file_list[self.DRIVE_VID_INFO[drive]['name']] = new_items
+
+                    copy_command_list.append({
+                        'enabled': True,
+                        'displayIndex': len(purge_command_list) + 1,
+                        'type': Backup.COMMAND_TYPE_FILE_LIST,
+                        'drive': self.DRIVE_VID_INFO[drive]['name'],
+                        'size': sum((size for drive, share, file, size in new_items)),
+                        'list': {os.path.join(drive, share, file) for (drive, share, file, size) in new_items},
+                        'payload': new_items,
+                        'mode': Status.FILE_OPERATION_COPY
+                    })
+
         # Build list of files/dirs to delete and replace
         self.delete_file_list = {}
         self.replace_file_list = {}
@@ -855,59 +922,7 @@ class Backup:
         purge_command_list = []
         copy_command_list = []
         logging.debug('Delta file lists starting...')
-        for drive, shares in drive_share_list.items():
-            if self.analysis_killed:
-                break
-
-            modified_file_list = build_delta_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])
-
-            delete_items = modified_file_list['delete']
-            if delete_items:
-                self.delete_file_list[self.DRIVE_VID_INFO[drive]['name']] = delete_items
-
-                purge_command_list.append({
-                    'enabled': True,
-                    'displayIndex': len(purge_command_list) + 1,
-                    'type': Backup.COMMAND_TYPE_FILE_LIST,
-                    'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'size': sum((size for drive, file, size in delete_items)),
-                    'list': {os.path.join(drive, file) for drive, file, size in delete_items},
-                    'payload': delete_items,
-                    'mode': Status.FILE_OPERATION_DELETE
-                })
-
-            # Build list of files to replace
-            replace_items = list(modified_file_list['replace'])
-            replace_items.sort(key=lambda x: x[1])
-            if replace_items:
-                self.replace_file_list[self.DRIVE_VID_INFO[drive]['name']] = replace_items
-
-                copy_command_list.append({
-                    'enabled': True,
-                    'displayIndex': len(purge_command_list) + 1,
-                    'type': Backup.COMMAND_TYPE_FILE_LIST,
-                    'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'size': sum((source_size for drive, share, file, source_size, dest_size in replace_items)),
-                    'list': [os.path.join(drive, share, file) for drive, share, file, source_size, dest_size in replace_items],
-                    'payload': replace_items,
-                    'mode': Status.FILE_OPERATION_UPDATE
-                })
-
-            # Build list of new files to copy
-            new_items = build_new_file_list(self.DRIVE_VID_INFO[drive]['name'], '', shares, drive_exclusions[self.DRIVE_VID_INFO[drive]['name']])['new']
-            if new_items:
-                self.new_file_list[self.DRIVE_VID_INFO[drive]['name']] = new_items
-
-                copy_command_list.append({
-                    'enabled': True,
-                    'displayIndex': len(purge_command_list) + 1,
-                    'type': Backup.COMMAND_TYPE_FILE_LIST,
-                    'drive': self.DRIVE_VID_INFO[drive]['name'],
-                    'size': sum((size for drive, share, file, size in new_items)),
-                    'list': {os.path.join(drive, share, file) for (drive, share, file, size) in new_items},
-                    'payload': new_items,
-                    'mode': Status.FILE_OPERATION_COPY
-                })
+        start_building_file_lists()
         logging.debug('Delta file lists finished')
 
         # Gather and summarize totals for analysis summary
