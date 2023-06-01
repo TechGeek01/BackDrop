@@ -164,8 +164,12 @@ def display_backup_progress(copied, total, display_filename=None, operation=None
             progress.set(current=backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.BLUE)
 
-def get_backup_killflag():
-    """Get backup thread kill flag status."""
+def get_backup_killflag() -> bool:
+    """Get backup thread kill flag status.
+
+    Returns:
+        bool: The kill flag of the backup thread.
+    """
     return thread_manager.threadlist['Backup']['killFlag']
 
 def display_backup_summary_chunk(title, payload: tuple, reset: bool = None):
@@ -237,7 +241,7 @@ def update_backup_eta_timer(progress_info):
     elif backup.status == Status.BACKUP_BACKUP_FINISHED:
         backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup.get_backup_start_time()).split('.')[0]}", fg=root_window.uicolor.FINISHED)
 
-def display_backup_command_info(display_command_list: list):
+def display_backup_command_info(display_command_list: list) -> list:
     """Enumerate the display widget with command info after a backup analysis.
 
     Args:
@@ -346,7 +350,7 @@ def start_backup_analysis():
 
     thread_manager.start(ThreadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
-def get_source_drive_list():
+def get_source_drive_list() -> list:
     """Get the list of available source drives.
 
     Returns:
@@ -925,7 +929,7 @@ def gui_select_from_config():
 
             dest_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_dest_in_background)
 
-def get_share_path_from_name(share):
+def get_share_path_from_name(share) -> str:
     """Get a share path from a share name.
 
     Args:
@@ -1185,7 +1189,7 @@ def verify_data_integrity(drive_list):
     global verification_running
     global verification_failed_list
 
-    def get_file_hash(filename):
+    def get_file_hash(filename) -> str:
         """Get the hash of a file.
 
         Args:

@@ -23,13 +23,13 @@ class UpdateHandler:
 
         self.update_callback = update_callback
 
-    def __get_latest_version(self):
+    def __get_latest_version(self) -> dict:
         """Get the latest version of the program.
 
         Returns:
             dict: Update information.
-            dict.latest (String): The latest version.
-            dict.download (String[]): A list of URLs for all assets.
+                latest (String): The latest version.
+                download (String[]): A list of URLs for all assets.
         """
 
         if self.allow_prereleases:
@@ -56,12 +56,12 @@ class UpdateHandler:
 
         Returns:
             dict: The version components parsed.
-                dict.major (int): Major version.
-                dict.minor (int): Minor version.
-                dict.patch (int): Patch version.
-                dict.dev (dict): Development version.
-                dict.dev.stage (String): Development stage.
-                dict.dev.count (int): Development version.
+                major (int): Major version.
+                minor (int): Minor version.
+                patch (int): Patch version.
+                dev (dict): Development version.
+                    stage (String): Development stage.
+                    count (int): Development version.
         """
 
         m = re.search(r'(\d+)\.(\d+)\.(\d+)(?:-([A_Za-z]+)\.(\d+))?', version_string)
@@ -154,15 +154,15 @@ class UpdateHandler:
         # Latest is newer dev version
         return False
 
-    def check(self):
+    def check(self) -> dict:
         """Check for updates.
 
         Returns:
             dict: The update info
-            dict.current_version (String): The curent version string.
-            dict.updateAvailable (bool): Whether or not an update is available.
-            dict.latestVersion (String): The latest version.
-            dict.download (String[]): A list of downloads for each latest asset.
+                current_version (String): The curent version string.
+                updateAvailable (bool): Whether or not an update is available.
+                latestVersion (String): The latest version.
+                download (String[]): A list of downloads for each latest asset.
         """
 
         if self.status_change_fn is not None:

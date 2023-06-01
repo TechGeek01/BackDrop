@@ -8,7 +8,7 @@ class ThreadManager:
     KILLABLE = 0x02     # Thread can be killed with a flag
     REPLACEABLE = 0x03  # Like SINGLE, but instead of blocking, kill and restart
 
-    def is_alive(self, thread_name):
+    def is_alive(self, thread_name) -> threading.Thread:
         """Check if a thread by a given name is active.
 
         Args:
@@ -47,7 +47,7 @@ class ThreadManager:
         self._gc_thread = threading.Thread(target=thread_garbage_collect, name='ThreadManager_GC', daemon=True)
         self._gc_thread.start()
 
-    def start(self, thread_type, is_progress_thread: bool = None, callback=None, *args, **kwargs):
+    def start(self, thread_type, is_progress_thread: bool = None, callback=None, *args, **kwargs) -> str:
         """Create and start a thread if one doesn't already exist.
 
         Args:
@@ -59,7 +59,7 @@ class ThreadManager:
 
         Returns:
             String: If a thread is successfully created, the thread name is returned.
-            bool: False if an active thread exists with that name.
+            None: If an active thread exists with that name, return None.
         """
 
         if is_progress_thread is None:
@@ -155,7 +155,7 @@ class ThreadManager:
             self.threadlist[thread_name]['thread'].start()
             return thread_name
 
-        return False
+        return None
 
     def kill(self, name):
         """Kill a KILLABLE or REPLACEABLE thread by name.
@@ -175,11 +175,11 @@ class ThreadManager:
             self.threadlist[name]['killFlag'] = True
             self.threadlist[name]['callback']()
 
-    def get_progress_threads(self):
+    def get_progress_threads(self) -> list:
         """List the progress-influencing threads that are running.
 
         Returns:
-            list: The list of thread instances that control the progress bar.
+            threading.Thread[]: The list of thread instances that control the progress bar.
         """
 
         self.progress_threads = [thread for thread in self.progress_threads if thread.is_alive()]

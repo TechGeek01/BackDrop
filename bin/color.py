@@ -20,7 +20,7 @@ class Color:
 
     COLORACCENT = GREEN
 
-    def combine_hex_color(self, rgb1, rgb2, ratio2: float):
+    def combine_hex_color(self, rgb1, rgb2, ratio2: float) -> str:
         """Combine two hex colors with a ratio of the second.
 
         Args:
@@ -106,7 +106,7 @@ class Color:
         Color.STOPPED = Color.RED
         Color.PENDING = Color.FADED
 
-    def is_dark_mode(self):
+    def is_dark_mode(self) -> bool:
         """Check whether the color pallete is set to dark mode or not.
 
         Returns:

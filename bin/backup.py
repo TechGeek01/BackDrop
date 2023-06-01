@@ -12,9 +12,10 @@ from bin.config import Config
 from bin.status import Status
 
 class Backup:
-    KILL_ALL = 0x00
-    KILL_ANALYSIS = 0x01
-    KILL_BACKUP = 0x02
+    # 0xf - Kill modes
+    KILL_ALL = 0xf0
+    KILL_ANALYSIS = 0xf1
+    KILL_BACKUP = 0xf2
 
     COMMAND_TYPE_FILE_LIST = 'file_list'
     COMMAND_FILE_LIST = 'file_list'
@@ -88,8 +89,12 @@ class Backup:
         self.analysis_callback_fn = analysis_callback_fn
         self.backup_callback_fn = backup_callback_fn
 
-    def get_kill_flag(self):
-        """Get the kill flag status for the backup."""
+    def get_kill_flag(self) -> bool:
+        """Get the kill flag status for the backup.
+
+        Returns:
+            bool: Whether or not the backup run has been killed.
+        """
 
         return self.run_killed
 
@@ -159,7 +164,7 @@ class Backup:
         elif status == Status.FILE_OPERATION_FAILED:
             self.progress['since_last_update']['failed'].append(file)
 
-    def do_copy_fn(self, src, dest, drive_path, display_index: int = None):
+    def do_copy_fn(self, src, dest, drive_path, display_index: int = None) -> dict:
         """Start a do_copy() call and report to the GUI.
 
         Args:
@@ -191,7 +196,7 @@ class Backup:
             get_backup_killflag=self.get_kill_flag
         )
 
-    def sanity_check(self):
+    def sanity_check(self) -> bool:
         """Check to make sure everything is correct before a backup.
 
         Before running a backup, or an analysis, both shares and drives need to be
@@ -241,7 +246,7 @@ class Backup:
 
         return True
 
-    def get_share_source_path(self, share):
+    def get_share_source_path(self, share) -> str:
         """Convert a share name into a share path.
 
         Args:
@@ -264,8 +269,8 @@ class Backup:
 
         Args:
             shares (dict[]): The list of selected shares.
-            shares.name (String): The name of the share.
-            shares.size (int): The size in bytes of the share.
+                name (String): The name of the share.
+                size (int): The size in bytes of the share.
             drives (tuple(String)): The list of selected drives.
 
         This function is run in a new thread, but is only run if the backup config is valid.
@@ -287,13 +292,17 @@ class Backup:
         self.progress['total'] = 0
 
         share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
-        all_share_info = {share['dest_name']: share['size'] for share in self.config['sources']}
+        all_share_info = share_info.copy()
 
-        def scan_hash_files():
+        def scan_hash_files() -> dict:
             """Scan hash files, and build hash list for files.
 
             Returns:
                 dict: The hash data to be used during analysis.
+                    Key (String): The drive being referenced.
+                    Value (dict): The hash list:
+                        Key (String): The filename to hash.
+                        Value (String): The hash of the file.
             """
 
             special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
@@ -400,7 +409,7 @@ class Backup:
 
             for chunk in range(0, math.ceil(SOURCE_LIST_LENGTH / SOURCE_LIST_CHUNK_SIZE)):
                 if self.analysis_killed:
-                    break  # while len(processed_small_sources) < len(total_small_sources):
+                    break
 
                 # Trim the list of small files to those that aren't already processed
                 small_source_list = {source: size for (source, size) in total_small_sources if source not in processed_small_sources}
@@ -472,7 +481,7 @@ class Backup:
             used_space = sum(all_share_info[share] for share in drive_share_list[drive['vid']])
             drive_info[i]['free'] -= used_space
 
-        def split_share(share):
+        def split_share(share) -> list:
             """Recurse into a share or directory, and split the contents.
 
             Args:
@@ -480,11 +489,11 @@ class Backup:
 
             Returns:
                 dict[]: A list of shares to be split
-                dict.share (String): The share to split
-                dict.files (dict): The list of drive splits.
-                    Key (String) is a drive volume ID,
-                    Value (String[]) is a list of filenames for a given drive.
-                dict.exclusions (String[]): The list of files to exclude from the split.
+                    share (String): The share to split
+                    files (dict): The list of drive splits.
+                        Key (String) is a drive volume ID,
+                        Value (String[]) is a list of filenames for a given drive.
+                    exclusions (String[]): The list of files to exclude from the split.
             """
 
             # Enumerate list for tracking what shares go where
@@ -508,7 +517,7 @@ class Backup:
                 pass
 
             if self.analysis_killed:
-                return
+                return []
 
             # For splitting shares, sort by largest free space first
             drive_info.sort(reverse=True, key=lambda x: x['free'])
@@ -645,14 +654,14 @@ class Backup:
             if self.analysis_killed:
                 break
 
-        def recurse_file_list(directory):
+        def recurse_file_list(directory) -> set:
             """Get a complete list of files in a directory.
 
             Args:
                 directory (String): The directory to check.
 
             Returns:
-                set: The file list.
+                set: The list of filenames in the directory.
             """
 
             if self.analysis_killed:
@@ -684,10 +693,9 @@ class Backup:
                 exclusions (String[]): The list of files and folders to exclude.
 
             Returns:
-                {
-                    'delete' (set(tuple)): (drive, path, size).
-                    'replace' (set(tuple)): (drive, share, path, source_path, size).
-                }
+                dict: The file lists for deleting and replacing.
+                    delete (set(tuple)): (drive, path, size).
+                    replace (set(tuple)): (drive, share, path, source_path, size).
             """
 
             special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
@@ -780,9 +788,8 @@ class Backup:
                 exclusions (String[]): The list of files and folders to exclude.
 
             Returns:
-                {
-                    'new' (set(tuple)): (drive, share, path, size).
-                }
+                dict: The file list for new files.
+                    new (set(tuple)): (drive, share, path, size).
             """
 
             def scan_share_source_for_new_files(drive, share, path, exclusions: list, all_shares: set) -> dict:
@@ -797,9 +804,8 @@ class Backup:
                         avoid recursing into split shares.
 
                 Returns:
-                    {
-                        'new' (set(tuple)): (drive, share, path, size).
-                    }
+                    dict: The file list for new files.
+                        new (set(tuple)): (drive, share, path, size).
                 """
 
                 file_list = {
@@ -861,6 +867,8 @@ class Backup:
             return file_list
 
         def start_building_file_lists():
+            """Build the lists of files to be copied, modified, and deleted."""
+
             for drive, shares in drive_share_list.items():
                 if self.analysis_killed:
                     break
@@ -1166,7 +1174,7 @@ class Backup:
         self.progress['since_last_update']['files'].clear()
         self.progress['since_last_update']['failed'].clear()
 
-    def get_progress_updates(self):
+    def get_progress_updates(self) -> dict:
         """Get the current progress of the backup, and file lists since the
         last update. Then, reset the last update progress.
 
@@ -1197,7 +1205,7 @@ class Backup:
 
         return current_progress
 
-    def get_backup_start_time(self):
+    def get_backup_start_time(self) -> datetime:
         """
         Returns:
             datetime: The time the backup started. (default 0)
@@ -1205,7 +1213,7 @@ class Backup:
 
         return self.backup_start_time
 
-    def is_running(self):
+    def is_running(self) -> bool:
         """
         Returns:
             bool: Whether or not the backup is actively running something.

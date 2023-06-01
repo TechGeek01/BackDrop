@@ -17,7 +17,7 @@ class FileUtils:
 
     READINTO_BUFSIZE = 1024 * 1024 * 2  # differs from shutil.COPY_BUFSIZE on platforms != Windows
 
-def human_filesize(num: int, suffix=None):
+def human_filesize(num: int, suffix=None) -> str:
     """Convert a number of bytes to a human readable format.
 
     Args:
@@ -63,7 +63,7 @@ def get_directory_size(directory) -> int:
         return 0
     return total
 
-def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_callback, fd_callback, get_backup_killflag):
+def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_callback, fd_callback, get_backup_killflag) -> tuple:
     """Copy a source binary file to a destination.
 
     Args:
@@ -179,7 +179,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     else:
         return None
 
-def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get_backup_killflag, display_index: int = None):
+def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get_backup_killflag, display_index: int = None) -> dict:
     """Copy a source to a destination.
 
     Args:
@@ -194,6 +194,8 @@ def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get
 
     Returns:
         dict: A list of file hashes for each file copied
+            Key (String): The filename to hash.
+            Value (String): The hash of the file.
     """
 
     new_hash_list = {}
