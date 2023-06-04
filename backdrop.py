@@ -152,8 +152,6 @@ def display_backup_progress(copied, total, display_filename=None, operation=None
 
     # If display index has been specified, write progress to GUI
     if display_index is not None:
-        cmd_info_blocks = backup.cmd_info_blocks
-
         if operation == Status.FILE_OPERATION_DELETE:
             progress.set(current=backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=root_window.uicolor.NORMAL)
@@ -248,9 +246,11 @@ def display_backup_command_info(display_command_list: list) -> list:
         display_command_list (list): The command list to pull data from.
     """
 
+    global cmd_info_blocks
+
     content_tab_frame.tab['details']['content'].empty()
 
-    backup.cmd_info_blocks = []
+    cmd_info_blocks = []
     for i, item in enumerate(display_command_list):
         if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
             if item['mode'] == Status.FILE_OPERATION_DELETE:
@@ -288,7 +288,7 @@ def display_backup_command_info(display_command_list: list) -> list:
             backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
             backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
 
-        backup.cmd_info_blocks.append(backup_summary_block)
+        cmd_info_blocks.append(backup_summary_block)
 
 def backup_reset_ui():
     """Reset the UI when we run a backup analysis."""
@@ -1137,10 +1137,10 @@ def start_backup():
     progress.set(current=0, total=backup.progress['total'])
 
     for cmd in backup.command_list:
-        backup.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=root_window.uicolor.PENDING)
+        cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=root_window.uicolor.PENDING)
         if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
             backup.cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=root_window.uicolor.PENDING)
-        backup.cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=root_window.uicolor.PENDING)
+        cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=root_window.uicolor.PENDING)
 
     thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
@@ -2295,7 +2295,6 @@ if __name__ == '__main__':
             filename, size, operation, display_index = backup_progress['total']['current_file']
 
             # Update file details info block
-            cmd_info_blocks = backup.cmd_info_blocks
             if display_index is not None and display_index in cmd_info_blocks:
                 cmd_info_blocks[display_index].configure('current_file', text=filename if filename is not None else '', fg=root_window.uicolor.NORMAL)
         else:
@@ -2328,8 +2327,6 @@ if __name__ == '__main__':
         #     been running, the more operations in continues to do before
         #     stopping after aborting the backup
         if display_index is not None:
-            cmd_info_blocks = backup.cmd_info_blocks
-
             # FIXME: Progress bar jumps after completing backup, as though
             #     the progress or total changes when the backup completes
             progress.set(current=backup.progress['current'], total=backup.progress['total'])
@@ -2397,11 +2394,11 @@ if __name__ == '__main__':
         if command is not None:
             display_index = command['displayIndex']
             if backup.status == Status.BACKUP_BACKUP_ABORTED and backup.progress['current'] < backup.progress['total']:
-                backup.cmd_info_blocks[display_index].state.configure(text='Aborted', fg=root_window.uicolor.STOPPED)
-                backup.cmd_info_blocks[display_index].configure('progress', text='Aborted', fg=root_window.uicolor.STOPPED)
+                cmd_info_blocks[display_index].state.configure(text='Aborted', fg=root_window.uicolor.STOPPED)
+                cmd_info_blocks[display_index].configure('progress', text='Aborted', fg=root_window.uicolor.STOPPED)
             else:
-                backup.cmd_info_blocks[display_index].state.configure(text='Done', fg=root_window.uicolor.FINISHED)
-                backup.cmd_info_blocks[display_index].configure('progress', text='Done', fg=root_window.uicolor.FINISHED)
+                cmd_info_blocks[display_index].state.configure(text='Done', fg=root_window.uicolor.FINISHED)
+                cmd_info_blocks[display_index].configure('progress', text='Done', fg=root_window.uicolor.FINISHED)
 
         # If backup stopped, 
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
