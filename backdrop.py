@@ -342,7 +342,6 @@ def start_backup_analysis():
         config=config,
         backup_config_dir=BACKUP_CONFIG_DIR,
         backup_config_file=BACKUP_CONFIG_FILE,
-        uicolor=root_window.uicolor,  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
         analysis_pre_callback_fn=update_ui_pre_analysis,
         analysis_callback_fn=update_ui_post_analysis,
         backup_callback_fn=update_ui_post_backup
@@ -2301,6 +2300,11 @@ if __name__ == '__main__':
                 cmd_info_blocks[display_index].configure('current_file', text=filename if filename is not None else '', fg=root_window.uicolor.NORMAL)
         else:
             filename, display_index = (None, None)
+
+        # Update backup status for each command info block
+        if backup_progress['total']['command_display_index'] is not None:
+            cmd_info_blocks[backup_progress['total']['command_display_index']].state.configure(text='Running', fg=root_window.uicolor.RUNNING)
+            backup.progress['command_display_index'] = None
 
         # Update status bar
         update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, filename if filename is not None else '')

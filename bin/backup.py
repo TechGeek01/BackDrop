@@ -22,7 +22,7 @@ class Backup:
 
     def __init__(self, config: dict, backup_config_dir, backup_config_file,
                  analysis_pre_callback_fn, analysis_callback_fn,
-                 backup_callback_fn, uicolor=None):
+                 backup_callback_fn):
         """Configure a backup to be run on a set of drives.
 
         Args:
@@ -32,7 +32,6 @@ class Backup:
             analysis_pre_callback_fn (def): The callback function to call before analysis.
             analysis_callback_fn (def): The callback function to call post analysis.
             backup_callback_fn (def): The callback function to call post backup.
-            uicolor (Color): The UI color instance to reference for styling (default None).
         """
 
         self.progress = {
@@ -44,6 +43,7 @@ class Backup:
                 'operation': None,
                 'display_index': None
             },
+            'command_display_index': None,  # The current command within a running backup
             'current': 0,  # (int) Current progress
             'current_file': None,  # (filemane, filesize, operation, display_index)
             'failed': [],  # (filemane, filesize, operation, display_index)
@@ -84,7 +84,6 @@ class Backup:
         self.analysis_killed = False
         self.run_killed = False
 
-        self.uicolor = uicolor
         self.analysis_pre_callback_fn = analysis_pre_callback_fn
         self.analysis_callback_fn = analysis_callback_fn
         self.backup_callback_fn = backup_callback_fn
@@ -1075,7 +1074,7 @@ class Backup:
 
         for cmd in self.command_list:
             if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
-                self.cmd_info_blocks[cmd['displayIndex']].state.configure(text='Running', fg=self.uicolor.RUNNING)
+                self.progress['command_display_index'] = cmd['displayIndex']
 
                 if not timer_started:
                     timer_started = True
