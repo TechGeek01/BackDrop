@@ -1,3 +1,12 @@
+""" This module handles the UI, and starting the main program.
+
+BackDrop is intended to be used as a data backup solution, to assist in
+logically copying files from point A to point B. This is complete with
+verification, and many other organization and integrity features.
+"""
+
+__version__ = '4.0.0-alpha2'
+
 import platform
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, font as tkfont, filedialog
@@ -1398,7 +1407,7 @@ def display_update_screen(update_info: dict):
     current_version_frame = tk.Frame(update_window.main_frame)
     current_version_frame.pack()
     tk.Label(current_version_frame, text='Current Version:', font=(None, 14)).pack(side='left')
-    tk.Label(current_version_frame, text=APP_VERSION, font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
+    tk.Label(current_version_frame, text=__version__, font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
 
     latest_version_frame = tk.Frame(update_window.main_frame)
     latest_version_frame.pack(pady=(2, 12))
@@ -1479,9 +1488,6 @@ if __name__ == '__main__':
     if not platform.system() in [PLATFORM_WINDOWS, PLATFORM_LINUX]:
         logging.error('This operating system is not supported')
         exit()
-
-    # Set meta info
-    APP_VERSION = '4.0.0-alpha2'
 
     # Set constants
     SYS_PLATFORM = platform.system()
@@ -2382,7 +2388,7 @@ if __name__ == '__main__':
     }
 
     update_handler = UpdateHandler(
-        current_version=APP_VERSION,
+        current_version=__version__,
         allow_prereleases=config['allow_prereleases'],
         status_change_fn=update_status_bar_update,
         update_callback=check_for_updates
@@ -2999,7 +3005,7 @@ if __name__ == '__main__':
 
     image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if root_window.dark_mode else ''}.png")))
     tk.Label(branding_frame, image=image_logo).pack(side='left')
-    tk.Label(branding_frame, text=f"v{APP_VERSION}", font=(None, 10), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
+    tk.Label(branding_frame, text=f"v{__version__}", font=(None, 10), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
 
     # Keyboard listener
     listener = keyboard.Listener(
