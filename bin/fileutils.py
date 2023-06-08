@@ -179,6 +179,39 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     else:
         return None
 
+def get_file_hash(filename, kill_flag) -> str:
+    """Get the hash of a file.
+
+    Args:
+        filename (String): The file to get the hash of.
+        kill_flag (function): The function to get a kill flag.
+
+    Returns:
+        String: The blake3 hash of the file if readable. None otherwise.
+    """
+
+    buffer_size = FileUtils.READINTO_BUFSIZE
+
+    # Optimize the buffer for small files
+    buffer_size = min(buffer_size, os.path.getsize(filename))
+    if buffer_size == 0:
+        buffer_size = 1024
+
+    h = blake3()
+    b = bytearray(buffer_size)
+    mv = memoryview(b)
+
+    with open(filename, 'rb', buffering=0) as f:
+        for n in iter(lambda: f.readinto(mv), 0):
+            if kill_flag():  # TODO: Refactor this into separate function
+                break
+            h.update(mv[:n])
+
+    if kill_flag():
+        return ''
+
+    return h.hexdigest()
+
 def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get_backup_killflag, display_index: int = None) -> dict:
     """Copy a source to a destination.
 

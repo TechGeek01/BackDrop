@@ -5,7 +5,6 @@ import shutil
 import os
 import subprocess
 import webbrowser
-from blake3 import blake3
 import ctypes
 from signal import signal, SIGINT
 from datetime import datetime
@@ -21,7 +20,7 @@ if platform.system() == 'Windows':
     import wmi
 import logging
 
-from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_delete
+from bin.fileutils import FileUtils, human_filesize, get_directory_size, get_file_hash, do_delete
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.progress import Progress
@@ -1188,38 +1187,6 @@ def verify_data_integrity(drive_list):
     global verification_running
     global verification_failed_list
 
-    def get_file_hash(filename) -> str:
-        """Get the hash of a file.
-
-        Args:
-            filename (String): The file to get the hash of.
-
-        Returns:
-            String: The blake3 hash of the file if readable. None otherwise.
-        """
-
-        buffer_size = 1024 * 1024
-
-        # Optimize the buffer for small files
-        buffer_size = min(buffer_size, os.path.getsize(filename))
-        if buffer_size == 0:
-            buffer_size = 1024
-
-        h = blake3()
-        b = bytearray(buffer_size)
-        mv = memoryview(b)
-
-        with open(filename, 'rb', buffering=0) as f:
-            for n in iter(lambda: f.readinto(mv), 0):
-                if thread_manager.threadlist['Data Verification']['killFlag']:  # TODO: Refactor this into separate function
-                    break
-                h.update(mv[:n])
-
-        if thread_manager.threadlist['Data Verification']['killFlag']:
-            return ''
-
-        return h.hexdigest()
-
     def recurse_for_hash(path, drive, hash_file_path):
         """Recurse a given path and check hashes.
 
@@ -1236,7 +1203,7 @@ def verify_data_integrity(drive_list):
                     # If entry is a file, hash it, and check for a computed hash
                     statusbar_details.configure(text=entry.path)
 
-                    file_hash = get_file_hash(entry.path)
+                    file_hash = get_file_hash(entry.path, lambda: thread_manager.threadlist['Data Verification']['killFlag'])
 
                     if thread_manager.threadlist['Data Verification']['killFlag']:
                         break
