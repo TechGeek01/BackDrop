@@ -2442,7 +2442,7 @@ if __name__ == '__main__':
         height=WINDOW_MIN_HEIGHT,
         center=True,
         status_bar=True,
-        dark_mode=prefs.get('ui', 'dark_mode', False, data_type=Config.BOOLEAN)
+        dark_mode=prefs.get('ui', 'dark_mode', True, data_type=Config.BOOLEAN)
     )
 
     appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
@@ -2497,17 +2497,7 @@ if __name__ == '__main__':
         ]})
     ])
 
-    if not root_window.dark_mode:
-        BUTTON_NORMAL_COLOR = '#ccc'
-        BUTTON_TEXT_COLOR = '#000'
-        BUTTON_ACTIVE_COLOR = '#d7d7d7'
-        BUTTON_PRESSED_COLOR = '#c8c8c8'
-        BUTTON_DISABLED_COLOR = '#ddd'
-        BUTTON_DISABLED_TEXT_COLOR = '#777'
-
-        DANGER_BUTTON_DISABLED_COLOR = '#900'
-        DANGER_BUTTON_DISABLED_TEXT_COLOR = '#caa'
-    else:
+    if root_window.dark_mode:
         BUTTON_NORMAL_COLOR = '#585858'
         BUTTON_TEXT_COLOR = '#fff'
         BUTTON_ACTIVE_COLOR = '#666'
@@ -2517,6 +2507,16 @@ if __name__ == '__main__':
 
         DANGER_BUTTON_DISABLED_COLOR = '#700'
         DANGER_BUTTON_DISABLED_TEXT_COLOR = '#988'
+    else:
+        BUTTON_NORMAL_COLOR = '#ccc'
+        BUTTON_TEXT_COLOR = '#000'
+        BUTTON_ACTIVE_COLOR = '#d7d7d7'
+        BUTTON_PRESSED_COLOR = '#c8c8c8'
+        BUTTON_DISABLED_COLOR = '#ddd'
+        BUTTON_DISABLED_TEXT_COLOR = '#777'
+
+        DANGER_BUTTON_DISABLED_COLOR = '#900'
+        DANGER_BUTTON_DISABLED_TEXT_COLOR = '#caa'
 
     tk_style.map(
         'TButton',
