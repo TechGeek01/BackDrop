@@ -1176,7 +1176,7 @@ def cleanup_handler(signal_received, frame):
 
     exit(0)
 
-# TODO: Move file verification to backup class
+# TODO: Move file verification to Backup class
 def verify_data_integrity(drive_list):
     """Verify itegrity of files on destination drives by checking hashes.
 
@@ -1241,7 +1241,7 @@ def verify_data_integrity(drive_list):
                         hash_list[drive][path_stub] = file_hash
                         with open(drive_hash_file_path, 'wb') as f:
                             pickle.dump({'/'.join(file_name.split(os.path.sep)): hash_val for file_name, hash_val in hash_list[drive].items()}, f)
-                elif entry.is_dir() and path_stub not in special_ignore_list:
+                elif entry.is_dir() and path_stub not in SPECIAL_IGNORE_LIST:
                     # If entry is path, recurse into it
                     recurse_for_hash(entry.path, drive, hash_file_path)
 
@@ -1280,9 +1280,6 @@ def verify_data_integrity(drive_list):
         # Get hash list for all drives
         bad_hash_files = []
         hash_list = {drive: {} for drive in drive_list}
-        special_ignore_list = [BACKUP_CONFIG_DIR]
-        if SYS_PLATFORM == PLATFORM_WINDOWS:
-            special_ignore_list.extend(['$RECYCLE.BIN', 'System Volume Information'])
         for drive in drive_list:
             drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
 
@@ -1291,7 +1288,7 @@ def verify_data_integrity(drive_list):
                 with open(drive_hash_file_path, 'rb') as f:
                     try:
                         drive_hash_list = pickle.load(f)
-                        new_hash_list = {file_name: hash_val for file_name, hash_val in drive_hash_list.items() if file_name.split('/')[0] not in special_ignore_list}
+                        new_hash_list = {file_name: hash_val for file_name, hash_val in drive_hash_list.items() if file_name.split('/')[0] not in SPECIAL_IGNORE_LIST}
                         new_hash_list = {os.path.sep.join(file_name.split('/')): hash_val for file_name, hash_val in new_hash_list.items() if os.path.isfile(os.path.join(drive, file_name))}
 
                         # If trimmed list is shorter, new changes have to be written to the file
@@ -1494,27 +1491,20 @@ if __name__ == '__main__':
         DRIVE_TYPE_LOCAL = DRIVE_TYPE_FIXED  # TODO: Make this a proper thing instead of reusing one local value
         DRIVE_TYPE_REMOTE = win32file.DRIVE_REMOTE
         DRIVE_TYPE_RAMDISK = win32file.DRIVE_RAMDISK
-    else:
+
+        SYSTEM_DRIVE = f'{os.getenv("SystemDrive")[0]}:'
+        APPDATA_FOLDER = f'{os.getenv("LocalAppData")}/BackDrop'
+
+        # Set params to allow ANSI escapes for color
+        k = ctypes.windll.kernel32
+        k.SetConsoleMode(k.GetStdHandle(-11), 7)
+    elif SYS_PLATFORM == PLATFORM_LINUX:
         DRIVE_TYPE_REMOVABLE = 2
         DRIVE_TYPE_FIXED = 3
         DRIVE_TYPE_LOCAL = DRIVE_TYPE_FIXED
         DRIVE_TYPE_REMOTE = 4
         DRIVE_TYPE_RAMDISK = 6
-    READINTO_BUFSIZE = FileUtils.READINTO_BUFSIZE  # differs from shutil.COPY_BUFSIZE on platforms != Windows
 
-    # Set defaults
-    prev_source_selection = []
-    prev_selection = 0
-    prev_dest_selection = []
-    force_non_graceful_cleanup = False
-    verification_running = False
-    verification_failed_list = []
-    update_window = None
-
-    if SYS_PLATFORM == PLATFORM_WINDOWS:
-        SYSTEM_DRIVE = f'{os.getenv("SystemDrive")[0]}:'
-        APPDATA_FOLDER = f'{os.getenv("LocalAppData")}/BackDrop'
-    elif SYS_PLATFORM == PLATFORM_LINUX:
         # Get system drive by querying mount points
         out = subprocess.run('mount | grep "on / type"' + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'",
                              stdout=subprocess.PIPE,
@@ -1530,13 +1520,25 @@ if __name__ == '__main__':
             USER_HOME_VAR += os.getenv('SUDO_USER')
         APPDATA_FOLDER = f"{os.path.expanduser(USER_HOME_VAR)}/.config/BackDrop"
 
+    # Set defaults
+    prev_source_selection = []
+    prev_selection = 0
+    prev_dest_selection = []
+    force_non_graceful_cleanup = False
+    verification_running = False
+    verification_failed_list = []
+    update_window = None
+
     # Set app defaults
-    BACKUP_CONFIG_DIR = '.backdrop'
+    BACKUP_CONFIG_DIR = '.backdrop'  # TODO: Should these backup constants be moved to the Backup class?
     BACKUP_CONFIG_FILE = 'backup.ini'
     BACKUP_HASH_FILE = 'hashes.pkl'
     PREFERENCES_CONFIG_FILE = 'preferences.ini'
     PORTABLE_PREFERENCES_CONFIG_FILE = 'backdrop.ini'
     WINDOW_ELEMENT_PADDING = 16
+
+    # TODO: Move SPECIAL_IGNORE_LIST and verification to Backup class
+    SPECIAL_IGNORE_LIST = [BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
 
     PORTABLE_CONFIG_FILE_PATH = os.path.join(os.getcwd(), PORTABLE_PREFERENCES_CONFIG_FILE)
 
@@ -1568,11 +1570,6 @@ if __name__ == '__main__':
     signal(SIGINT, cleanup_handler)
 
     thread_manager = ThreadManager()
-
-    # If running on Windows, set params to allow ANSI escapes for color
-    if os.name == 'nt':
-        k = ctypes.windll.kernel32
-        k.SetConsoleMode(k.GetStdHandle(-11), 7)
 
     keypresses = {
         'AltL': False,
@@ -2412,12 +2409,10 @@ if __name__ == '__main__':
         dark_mode=prefs.get('ui', 'dark_mode', True, data_type=Config.BOOLEAN)
     )
 
-    appicon_image = ImageTk.PhotoImage(Image.open(resource_path('media/icon.png')))
-
     if SYS_PLATFORM == PLATFORM_WINDOWS:
         root_window.iconbitmap(resource_path('media/icon.ico'))
     elif SYS_PLATFORM == PLATFORM_LINUX:
-        root_window.iconphoto(True, appicon_image)
+        root_window.iconphoto(True, ImageTk.PhotoImage(Image.open(resource_path('media/icon.png'))))
 
     default_font = tkfont.nametofont("TkDefaultFont")
     default_font.configure(size=9)
@@ -2681,15 +2676,14 @@ if __name__ == '__main__':
     tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize', 'name'), style='custom.Treeview')
     if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
         tree_source_display_cols = ('size')
+
+        SOURCE_TEXT_COL_WIDTH = 170
+        SOURCE_NAME_COL_WIDTH = 170
     elif settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
         tree_source_display_cols = ('name', 'size')
 
-    if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-        SOURCE_TEXT_COL_WIDTH = 200  # Windows 120
-        SOURCE_NAME_COL_WIDTH = 140  # Windows 220
-    else:
-        SOURCE_TEXT_COL_WIDTH = 170
-        SOURCE_NAME_COL_WIDTH = 170
+        SOURCE_TEXT_COL_WIDTH = 200
+        SOURCE_NAME_COL_WIDTH = 140
 
     tree_source.heading('#0', text='Path')
     tree_source.column('#0', width=SOURCE_TEXT_COL_WIDTH)

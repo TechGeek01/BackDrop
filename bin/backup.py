@@ -78,6 +78,8 @@ class Backup:
         self.BACKUP_CONFIG_FILE = backup_config_file
         self.BACKUP_HASH_FILE = 'hashes.pkl'
 
+        self.SPECIAL_IGNORE_LIST = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
+
         self.file_hashes = {drive['name']: {} for drive in self.config['destinations']}
 
         self.analysis_killed = False
@@ -303,7 +305,6 @@ class Backup:
                         Value (String): The hash of the file.
             """
 
-            special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
             hash_data = {drive['name']: {} for drive in self.config['destinations']}
             bad_hash_files = []
 
@@ -320,7 +321,7 @@ class Backup:
                             for file_name, hash_val in hash_list.items():
                                 filename_chunks = file_name.split('/')
 
-                                if filename_chunks[0] not in special_ignore_list:
+                                if filename_chunks[0] not in self.SPECIAL_IGNORE_LIST:
                                     if os.path.isfile(os.path.join(drive['name'], file_name)):
                                         new_hash_list[os.path.join(filename_chunks)]: hash_val
 
@@ -696,7 +697,6 @@ class Backup:
                     replace (set(tuple)): (drive, share, path, source_path, size).
             """
 
-            special_ignore_list = [self.BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
             file_list = {
                 'delete': set(),
                 'replace': set()
@@ -716,7 +716,7 @@ class Backup:
                     stub_path = entry.path[len(drive):].strip(os.path.sep)
 
                     # Skip over the config folder, and OS special folders
-                    if stub_path in special_ignore_list:
+                    if stub_path in self.SPECIAL_IGNORE_LIST:
                         continue
 
                     file_stat = entry.stat()

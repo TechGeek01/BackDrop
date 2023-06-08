@@ -86,10 +86,8 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     pre_callback()
     operation = Status.FILE_OPERATION_COPY
 
-    buffer_size = FileUtils.READINTO_BUFSIZE
-
     # Optimize the buffer for small files
-    buffer_size = min(buffer_size, os.path.getsize(source_filename))
+    buffer_size = min(FileUtils.READINTO_BUFSIZE, os.path.getsize(source_filename))
     if buffer_size == 0:
         buffer_size = 1024
 
@@ -190,10 +188,8 @@ def get_file_hash(filename, kill_flag) -> str:
         String: The blake3 hash of the file if readable. None otherwise.
     """
 
-    buffer_size = FileUtils.READINTO_BUFSIZE
-
     # Optimize the buffer for small files
-    buffer_size = min(buffer_size, os.path.getsize(filename))
+    buffer_size = min(FileUtils.READINTO_BUFSIZE, os.path.getsize(filename))
     if buffer_size == 0:
         buffer_size = 1024
 
