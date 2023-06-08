@@ -1139,7 +1139,7 @@ def start_backup():
     for cmd in backup.command_list:
         cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=root_window.uicolor.PENDING)
         if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
-            backup.cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=root_window.uicolor.PENDING)
+            cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=root_window.uicolor.PENDING)
         cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=root_window.uicolor.PENDING)
 
     thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
