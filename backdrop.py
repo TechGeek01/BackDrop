@@ -77,7 +77,7 @@ def on_release(key):
     if not keypresses['AltL'] and not keypresses['AltR'] and not keypresses['AltGr']:
         keypresses['Alt'] = False
 
-def update_file_detail_lists(list_name, files):
+def update_file_detail_lists(list_name: str, files: set):
     """Update the file lists for the detail file view.
 
     Args:
@@ -114,13 +114,17 @@ def update_file_detail_lists(list_name, files):
         # Update copy list scrollable
         filenames = '\n'.join([filename.split(os.path.sep)[-1] for filename in files])
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_DELETE_SUCCESS]:
-            tk.Label(file_details_copied.frame, text=filenames, fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
+            tk.Label(file_details_copied.frame, text=filenames,
+                     fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED,
+                     justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
             file_details_copied_counter.configure(text=len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS]))
 
             # Remove all but the most recent 250 items for performance reasons
             file_details_copied.show_items(250)
         else:
-            tk.Label(file_details_failed.frame, text=filenames, fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
+            tk.Label(file_details_failed.frame, text=filenames,
+                     fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED,
+                     justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
             file_details_failed_counter.configure(text=len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL]))
 
             # Update counter in status bar
@@ -134,14 +138,14 @@ def update_file_detail_lists(list_name, files):
 
 backup_error_log = []
 
-def display_backup_progress(copied, total, display_filename=None, operation=None, display_index: int = None):
+def display_backup_progress(copied: int, total: int, display_filename: str = None, operation: int = None, display_index: int = None):
     """Display the copy progress of a transfer
 
     Args:
         copied (int): the number of bytes copied.
         total (int): The total file size.
         display_filename (String): The filename to display inthe GUI (optional).
-        operation (String): The mode to display the progress in (optional).
+        operation (int): The mode to display the progress in (optional).
         display_index (int): The index to display the item in the GUI (optional).
     """
 
@@ -173,7 +177,7 @@ def get_backup_killflag() -> bool:
     """
     return thread_manager.threadlist['Backup']['killFlag']
 
-def display_backup_summary_chunk(title, payload: tuple, reset: bool = None):
+def display_backup_summary_chunk(title: str, payload: list, reset: bool = None):
     """Display a chunk of a backup analysis summary to the user.
 
     Args:
@@ -209,11 +213,11 @@ def display_backup_summary_chunk(title, payload: tuple, reset: bool = None):
         tk.Label(summary_frame, text=item[1], fg=text_color, justify='left').grid(row=i, column=2, sticky='w')
 
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
-def update_backup_eta_timer(progress_info):
+def update_backup_eta_timer(progress_info: dict):
     """Update the backup timer to show ETA.
 
     Args:
-        progress_info: The progress of the current backup
+        progress_info (dict): The progress of the current backup
     """
 
     if backup.status == Status.BACKUP_ANALYSIS_RUNNING or backup.status == Status.BACKUP_ANALYSIS_FINISHED:
@@ -503,7 +507,7 @@ def load_source_in_background():
 
     thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
 
-def change_source_drive(selection):
+def change_source_drive(selection: str):
     """Change the source drive to pull shares from to a new selection.
 
     Args:
@@ -555,7 +559,7 @@ def select_source():
     global source_select_bind
     global backup
 
-    def update_share_size(item):
+    def update_share_size(item: str):
         """Update share info for a given share.
 
         Args:
@@ -931,7 +935,7 @@ def gui_select_from_config():
 
             dest_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_dest_in_background)
 
-def get_share_path_from_name(share) -> str:
+def get_share_path_from_name(share: str) -> str:
     """Get a share path from a share name.
 
     Args:
@@ -948,7 +952,7 @@ def get_share_path_from_name(share) -> str:
         reference_list = {prefs.get('source_names', mountpoint, default=''): mountpoint for mountpoint in source_avail_drive_list if prefs.get('source_names', mountpoint, '')}
         return reference_list[share]
 
-def load_config_from_file(filename):
+def load_config_from_file(filename: str):
     """Read a config file, and set the current config based off of it.
 
     Args:
@@ -1181,7 +1185,7 @@ def cleanup_handler(signal_received, frame):
     exit(0)
 
 # TODO: Move file verification to Backup class
-def verify_data_integrity(drive_list):
+def verify_data_integrity(drive_list: list):
     """Verify itegrity of files on destination drives by checking hashes.
 
     Args:
@@ -1191,7 +1195,7 @@ def verify_data_integrity(drive_list):
     global verification_running
     global verification_failed_list
 
-    def recurse_for_hash(path, drive, hash_file_path):
+    def recurse_for_hash(path: str, drive: str, hash_file_path: str):
         """Recurse a given path and check hashes.
 
         Args:
@@ -2200,7 +2204,7 @@ if __name__ == '__main__':
         update_ui_component(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
         update_ui_component(Status.UPDATEUI_ANALYSIS_START)
 
-    def update_ui_post_analysis(files_payload, summary_payload):
+    def update_ui_post_analysis(files_payload: list, summary_payload: list):
         """Update the UI after an analysis has been run.
 
         Args:
