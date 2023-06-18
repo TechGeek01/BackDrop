@@ -77,7 +77,6 @@ def on_release(key):
     if not keypresses['AltL'] and not keypresses['AltR'] and not keypresses['AltGr']:
         keypresses['Alt'] = False
 
-
 def update_file_detail_lists(list_name, files):
     """Update the file lists for the detail file view.
 
@@ -90,11 +89,10 @@ def update_file_detail_lists(list_name, files):
     if not files:
         return
 
-    for filename in files:
-        file_detail_list[list_name].append({
-            'displayName': filename.split(os.path.sep)[-1],
-            'filename': filename
-        })
+    file_detail_list[list_name].extend([{
+        'displayName': filename.split(os.path.sep)[-1],
+        'filename': filename
+    } for filename in files])
 
     if list_name == FileUtils.LIST_TOTAL_DELETE:
         file_details_pending_delete_counter.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
@@ -103,12 +101,9 @@ def update_file_detail_lists(list_name, files):
         file_details_pending_copy_counter.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
         file_details_pending_copy_counter_total.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
     elif list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
-        # Remove file from delete list
+        # Remove file from pending list
         file_detail_list_name = FileUtils.LIST_TOTAL_COPY if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else FileUtils.LIST_TOTAL_DELETE
-        filename_list = [file['filename'] for file in file_detail_list[file_detail_list_name]]
-        for filename in files:
-            if filename in filename_list:
-                del file_detail_list[file_detail_list_name][filename_list.index(filename)]
+        file_detail_list[file_detail_list_name] = [file for file in file_detail_list[file_detail_list_name] if file['filename'] not in files]
 
         # Update file counter
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
@@ -119,13 +114,13 @@ def update_file_detail_lists(list_name, files):
         # Update copy list scrollable
         filenames = '\n'.join([filename.split(os.path.sep)[-1] for filename in files])
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_DELETE_SUCCESS]:
-            tk.Label(file_details_copied.frame, text=filenames, fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+            tk.Label(file_details_copied.frame, text=filenames, fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
             file_details_copied_counter.configure(text=len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS]))
 
             # Remove all but the most recent 250 items for performance reasons
             file_details_copied.show_items(250)
         else:
-            tk.Label(file_details_failed.frame, text=filenames, fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, anchor='w').pack(fill='x', expand=True)
+            tk.Label(file_details_failed.frame, text=filenames, fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED, justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
             file_details_failed_counter.configure(text=len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL]))
 
             # Update counter in status bar
@@ -1670,6 +1665,8 @@ if __name__ == '__main__':
     def request_kill_backup():
         """Kill a running backup."""
 
+        # FIXME: Timer shows aborted, but does not stop counting when aborting backup
+        # FIXME: When aborting backup, file detail block shows "done" instead of "aborted"
         statusbar_action.configure(text='Stopping backup')
         if backup:
             backup.kill(Backup.KILL_BACKUP)
@@ -2290,12 +2287,6 @@ if __name__ == '__main__':
             percent_copied = 100
 
         # If display index has been specified, write progress to GUI
-        # URGENT: Fix updates stopping in status bar and file detail blocks
-        #     after many operations have been completed
-        # URGENT: When aborting backup after many operations, files continue copying
-        #     This seems to be related to time. The longer the backups have
-        #     been running, the more operations in continues to do before
-        #     stopping after aborting the backup
         if display_index is not None:
             # FIXME: Progress bar jumps after completing backup, as though
             #     the progress or total changes when the backup completes
@@ -2310,10 +2301,18 @@ if __name__ == '__main__':
                 cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.BLUE)
 
         # Update file detail lists on deletes and copies
+        delta_file_lists = {
+            FileUtils.LIST_SUCCESS: set(),
+            FileUtils.LIST_DELETE_SUCCESS: set(),
+            FileUtils.LIST_FAIL: set(),
+            FileUtils.LIST_DELETE_FAIL: set()
+        }
         for file in backup_progress['delta']['files']:
             filename, filesize, operation, display_index = file
 
-            if operation == Status.FILE_OPERATION_DELETE:
+            if operation == Status.FILE_OPERATION_COPY:
+                delta_file_lists[FileUtils.LIST_SUCCESS].add(filename)
+            elif operation == Status.FILE_OPERATION_DELETE:
                 display_backup_progress(
                     copied=filesize,
                     total=filesize,
@@ -2323,17 +2322,16 @@ if __name__ == '__main__':
                 )
 
                 if not os.path.exists(filename):
-                    update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, {filename})
+                    delta_file_lists[FileUtils.LIST_DELETE_SUCCESS].add(filename)
                 else:
-                    update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, {filename})
+                    delta_file_lists[FileUtils.LIST_DELETE_FAIL].add(filename)
                     backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
-            elif operation == Status.FILE_OPERATION_COPY:
-                update_file_detail_lists(FileUtils.LIST_SUCCESS, {filename})
-
         for file in backup_progress['delta']['failed']:
             filename, filesize, operation, display_index = file
 
-            if operation == Status.FILE_OPERATION_DELETE:
+            if operation == Status.FILE_OPERATION_COPY:
+                delta_file_lists[FileUtils.LIST_FAIL].add(filename)
+            elif operation == Status.FILE_OPERATION_DELETE:
                 display_backup_progress(
                     copied=filesize,
                     total=filesize,
@@ -2342,13 +2340,11 @@ if __name__ == '__main__':
                     display_index=display_index,
                 )
 
-                if os.path.exists(filename):
-                    update_file_detail_lists(FileUtils.LIST_DELETE_FAIL, {filename})
-                    backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
-                else:
-                    update_file_detail_lists(FileUtils.LIST_DELETE_SUCCESS, {filename})
-            elif operation == Status.FILE_OPERATION_COPY:
-                update_file_detail_lists(FileUtils.LIST_FAIL, {filename})
+                delta_file_lists[FileUtils.LIST_DELETE_FAIL].add(filename)
+                backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
+
+        for (list_name, file_list) in delta_file_lists.items():
+            update_file_detail_lists(list_name, file_list)
 
     def update_ui_post_backup(command=None):
         """Update the UI after the backup finishes.
