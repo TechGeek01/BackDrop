@@ -2312,10 +2312,13 @@ if __name__ == '__main__':
             FileUtils.LIST_DELETE_FAIL: set()
         }
         for file in backup_progress['delta']['files']:
-            filename, filesize, operation, display_index = file
+            filename, filesize, operation, display_index = file['file']
 
             if operation == Status.FILE_OPERATION_COPY:
-                delta_file_lists[FileUtils.LIST_SUCCESS].add(filename)
+                if file['success']:
+                    delta_file_lists[FileUtils.LIST_SUCCESS].add(filename)
+                else:
+                    delta_file_lists[FileUtils.LIST_FAIL].add(filename)
             elif operation == Status.FILE_OPERATION_DELETE:
                 display_backup_progress(
                     copied=filesize,
@@ -2330,22 +2333,6 @@ if __name__ == '__main__':
                 else:
                     delta_file_lists[FileUtils.LIST_DELETE_FAIL].add(filename)
                     backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
-        for file in backup_progress['delta']['failed']:
-            filename, filesize, operation, display_index = file
-
-            if operation == Status.FILE_OPERATION_COPY:
-                delta_file_lists[FileUtils.LIST_FAIL].add(filename)
-            elif operation == Status.FILE_OPERATION_DELETE:
-                display_backup_progress(
-                    copied=filesize,
-                    total=filesize,
-                    display_filename=filename.split(os.path.sep)[-1],
-                    operation=operation,
-                    display_index=display_index,
-                )
-
-                delta_file_lists[FileUtils.LIST_DELETE_FAIL].add(filename)
-                backup_error_log.append({'file': filename, 'mode': Status.FILE_OPERATION_DELETE, 'error': 'File or path does not exist'})
 
         for (list_name, file_list) in delta_file_lists.items():
             update_file_detail_lists(list_name, file_list)

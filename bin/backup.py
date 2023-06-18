@@ -45,13 +45,11 @@ class Backup:
             },
             'command_display_index': None,  # The current command within a running backup
             'current': 0,  # (int) Current progress
-            'current_file': None,  # (filemane, filesize, operation, display_index)
-            'failed': [],  # (filemane, filesize, operation, display_index)
-            'files': [],  # (filemane, filesize, operation, display_index)
+            'current_file': None,  # (filename, filesize, operation, display index)
+            'files': [],  # (filename, filesize, operation, display index)
             'since_last_update': {  # Buffer for tracking delta UI updates
                 'analysis': [],  # (list, file path)
-                'files': [],
-                'failed': []
+                'files': []
             },
             'total': 0,  # (int) Total for calculating progress percentage
             'delete_total': 0
@@ -159,10 +157,10 @@ class Backup:
         """
 
         self.progress['buffer']['copied'] = 0
-        if status == Status.FILE_OPERATION_SUCCESS:
-            self.progress['since_last_update']['files'].append(file)
-        elif status == Status.FILE_OPERATION_FAILED:
-            self.progress['since_last_update']['failed'].append(file)
+        self.progress['since_last_update']['files'].append({
+            'file': file,
+            'success': status == Status.FILE_OPERATION_SUCCESS
+        })
 
     def do_copy_fn(self, src, dest, drive_path, display_index: int = None) -> dict:
         """Start a do_copy() call and report to the GUI.
@@ -1058,9 +1056,7 @@ class Backup:
         self.progress['current'] = 0
         self.progress['current_file'] = None
         self.progress['files'] = []
-        self.progress['failed'] = []
         self.progress['since_last_update']['files'] = []
-        self.progress['since_last_update']['failed'] = []
         self.progress['buffer'] = {
             'copied': 0,
             'total': 0,
@@ -1165,12 +1161,10 @@ class Backup:
         # Add buffer to total
         self.progress['analysis'].extend(self.progress['since_last_update']['analysis'])
         self.progress['files'].extend(self.progress['since_last_update']['files'])
-        self.progress['failed'].extend(self.progress['since_last_update']['failed'])
 
         # Clear buffer
         self.progress['since_last_update']['analysis'].clear()
         self.progress['since_last_update']['files'].clear()
-        self.progress['since_last_update']['failed'].clear()
 
     def get_progress_updates(self) -> dict:
         """Get the current progress of the backup, and file lists since the
@@ -1183,18 +1177,16 @@ class Backup:
         current_progress = {
             'delta': {
                 'analysis': self.progress['since_last_update']['analysis'].copy(),
-                'files': self.progress['since_last_update']['files'].copy(),
-                'failed': self.progress['since_last_update']['failed'].copy()
+                'files': self.progress['since_last_update']['files'].copy()
             }
         }
 
         self.add_progress_delta_to_total()
 
         # Set progress to all processed files
-        self.progress['current'] = sum([filesize for (filename, filesize, operation, display_index) in self.progress['files'] if operation == Status.FILE_OPERATION_DELETE])
-        self.progress['current'] += sum([2 * filesize for (filename, filesize, operation, display_index) in self.progress['files'] if operation == Status.FILE_OPERATION_COPY])
-        self.progress['current'] += sum([filesize for (filename, filesize, operation, display_index) in self.progress['failed'] if operation == Status.FILE_OPERATION_DELETE])
-        self.progress['current'] += sum([2 * filesize for (filename, filesize, operation, display_index) in self.progress['failed'] if operation == Status.FILE_OPERATION_COPY])
+        file_list = [file['file'] for file in self.progress['files']]
+        self.progress['current'] = sum([filesize for (filename, filesize, operation, display_index) in file_list if operation == Status.FILE_OPERATION_DELETE])
+        self.progress['current'] += sum([2 * filesize for (filename, filesize, operation, display_index) in file_list if operation == Status.FILE_OPERATION_COPY])
 
         # Add copy buffer to progress total
         self.progress['current'] += self.progress['buffer']['copied']
