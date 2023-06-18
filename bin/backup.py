@@ -6,6 +6,7 @@ import shutil
 import pickle
 import logging
 import math
+import time
 
 from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_delete, do_copy
 from bin.config import Config
@@ -159,7 +160,8 @@ class Backup:
         self.progress['buffer']['copied'] = 0
         self.progress['since_last_update']['files'].append({
             'file': file,
-            'success': status == Status.FILE_OPERATION_SUCCESS
+            'success': status == Status.FILE_OPERATION_SUCCESS,
+            'timestamp': time.time()
         })
 
     def do_copy_fn(self, src, dest, drive_path, display_index: int = None) -> dict:

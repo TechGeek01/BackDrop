@@ -5,7 +5,7 @@ logically copying files from point A to point B. This is complete with
 verification, and many other organization and integrity features.
 """
 
-__version__ = '4.0.0-alpha2'
+__version__ = '4.0.0-beta1'
 
 import platform
 import tkinter as tk
@@ -2311,7 +2311,7 @@ if __name__ == '__main__':
             FileUtils.LIST_FAIL: set(),
             FileUtils.LIST_DELETE_FAIL: set()
         }
-        for file in backup_progress['delta']['files']:
+        for file in sorted(backup_progress['delta']['files'], key = lambda x: x['timestamp']):
             filename, filesize, operation, display_index = file['file']
 
             if operation == Status.FILE_OPERATION_COPY:
