@@ -10,6 +10,7 @@ __version__ = '4.0.0-beta1'
 import platform
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, font as tkfont, filedialog
+import wx
 import shutil
 import os
 import subprocess
@@ -2392,6 +2393,18 @@ if __name__ == '__main__':
     WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
     if prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
         WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+
+    app = wx.App()
+    main_frame = wx.Frame(
+        parent=None,
+        title='This is a test',
+        size=wx.Size(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+    )
+    app.SetTopWindow(main_frame)
+    main_frame.CreateToolBar()
+    main_frame.CreateStatusBar()
+    main_frame.Show()
+    app.MainLoop()
 
     root_window = RootWindow(
         title='BackDrop - Data Backup Tool',
