@@ -2397,12 +2397,51 @@ if __name__ == '__main__':
     app = wx.App()
     main_frame = wx.Frame(
         parent=None,
-        title='This is a test',
+        title='BackDrop - Data Backup Tool',
         size=wx.Size(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
     )
     app.SetTopWindow(main_frame)
-    main_frame.CreateToolBar()
-    main_frame.CreateStatusBar()
+
+    root_panel = wx.Panel(main_frame)
+    root_panel.SetBackgroundColour(wx.Colour(0x33, 0x33, 0x33))
+    root_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
+    root_panel.Fit()
+    root_panel.GetParent().SendSizeEvent()
+    root_sizer = wx.GridBagSizer(vgap=10, hgap=10)
+
+    source_panel = wx.Panel(root_panel)
+    source_panel.SetBackgroundColour(wx.Colour(255, 0, 0))
+    detail_panel = wx.Panel(root_panel)
+    detail_panel.SetBackgroundColour(wx.Colour(255, 255, 0))
+    file_list_panel = wx.Panel(root_panel)
+    file_list_panel.SetBackgroundColour(wx.Colour(0, 255, 0))
+
+    progress_bar = wx.Gauge(root_panel, style = wx.GA_SMOOTH | wx.GA_PROGRESS)
+
+    controls_sizer = wx.BoxSizer()
+    controls_sizer.Add(wx.TextCtrl(root_panel, -1, 'Test 1'), 1, wx.EXPAND)
+    controls_sizer.Add(wx.TextCtrl(root_panel, -1, 'Test 2'), 1, wx.EXPAND)
+
+    branding_sizer = wx.BoxSizer()
+    branding_sizer.Add(wx.StaticBitmap(root_panel, -1, wx.Bitmap(wx.Image('media/logo_ui_light.png', wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
+    branding_version_text = wx.StaticText(root_panel, -1, f'v{__version__}')
+    branding_version_text.SetForegroundColour(wx.Colour(0xaa, 0xaa, 0xaa))
+    branding_sizer.Add(branding_version_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
+
+    root_sizer.Add(source_panel, (0, 0), flag = wx.EXPAND | wx.ALL)
+    root_sizer.Add(detail_panel, (1, 0), (3, 1), flag = wx.EXPAND | wx.ALL)
+    root_sizer.Add(file_list_panel, (0, 1), (2, 1), flag = wx.EXPAND | wx.ALL)
+    root_sizer.Add(controls_sizer, (2, 1), flag = wx.EXPAND | wx.ALL)
+    root_sizer.Add(branding_sizer, (3, 1), flag = wx.EXPAND | wx.ALL)
+    root_sizer.Add(progress_bar, (4, 0), (1, 2), flag = wx.EXPAND | wx.ALL)
+
+    root_sizer.AddGrowableRow(1)
+    root_sizer.AddGrowableCol(1)
+
+    box = wx.BoxSizer()
+    box.Add(root_sizer, 1, wx.EXPAND | wx.ALL, 10)
+
+    root_panel.SetSizerAndFit(box)
     main_frame.Show()
     app.MainLoop()
 
