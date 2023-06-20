@@ -2419,8 +2419,10 @@ if __name__ == '__main__':
     progress_bar = wx.Gauge(root_panel, style = wx.GA_SMOOTH | wx.GA_PROGRESS)
 
     controls_sizer = wx.BoxSizer()
-    controls_sizer.Add(wx.TextCtrl(root_panel, -1, 'Test 1'), 1, wx.EXPAND)
-    controls_sizer.Add(wx.TextCtrl(root_panel, -1, 'Test 2'), 1, wx.EXPAND)
+    start_analysis_btn = wx.Button(root_panel, -1, label = 'Analyze')
+    start_backup_btn = wx.Button(root_panel, -1, label = 'Run Backup')
+    controls_sizer.Add(start_analysis_btn, 0)
+    controls_sizer.Add(start_backup_btn, 0, wx.LEFT, 5)
 
     branding_sizer = wx.BoxSizer()
     branding_sizer.Add(wx.StaticBitmap(root_panel, -1, wx.Bitmap(wx.Image('media/logo_ui_light.png', wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
@@ -2431,8 +2433,8 @@ if __name__ == '__main__':
     root_sizer.Add(source_panel, (0, 0), flag = wx.EXPAND | wx.ALL)
     root_sizer.Add(detail_panel, (1, 0), (3, 1), flag = wx.EXPAND | wx.ALL)
     root_sizer.Add(file_list_panel, (0, 1), (2, 1), flag = wx.EXPAND | wx.ALL)
-    root_sizer.Add(controls_sizer, (2, 1), flag = wx.EXPAND | wx.ALL)
-    root_sizer.Add(branding_sizer, (3, 1), flag = wx.EXPAND | wx.ALL)
+    root_sizer.Add(controls_sizer, (2, 1), flag = wx.ALIGN_CENTER_HORIZONTAL)
+    root_sizer.Add(branding_sizer, (3, 1), flag = wx.ALIGN_CENTER_HORIZONTAL)
     root_sizer.Add(progress_bar, (4, 0), (1, 2), flag = wx.EXPAND | wx.ALL)
 
     root_sizer.AddGrowableRow(1)
