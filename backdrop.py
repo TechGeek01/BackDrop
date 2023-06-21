@@ -2425,9 +2425,17 @@ if __name__ == '__main__':
     source_tree.AddColumn('Size')
     source_tree.SetMainColumn(0)
 
+    source_src_selection_info_sizer = wx.BoxSizer()
+    source_src_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Selected:'), 0)
+    source_src_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'None'), 0, wx.LEFT, 5)
+    source_src_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
+    source_src_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Total:'), 0)
+    source_src_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = '~None'), 0, wx.LEFT, 5)
+
     source_src_sizer = wx.BoxSizer(wx.VERTICAL)
     source_src_sizer.Add(source_src_control_sizer, 0)
     source_src_sizer.Add(source_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    source_src_sizer.Add(source_src_selection_info_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
 
     # Destination controls
     source_dest_control_sizer = wx.BoxSizer()
@@ -2441,9 +2449,20 @@ if __name__ == '__main__':
     dest_tree.AddColumn('Config')
     dest_tree.SetMainColumn(0)
 
+    source_dest_selection_info_sizer = wx.BoxSizer()
+    source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Config:'), 0)
+    source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'None'), 0, wx.LEFT, 5)
+    source_dest_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
+    source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Selected:'), 0)
+    source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = '~None'), 0, wx.LEFT, 5)
+    source_dest_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
+    source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Avail:'), 0)
+    source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = human_filesize(0)), 0, wx.LEFT, 5)
+
     source_dest_sizer = wx.BoxSizer(wx.VERTICAL)
     source_dest_sizer.Add(source_dest_control_sizer, 0)
     source_dest_sizer.Add(dest_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    source_dest_sizer.Add(source_dest_selection_info_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
 
     # Source and dest panel
     source_sizer = wx.BoxSizer()
