@@ -2508,21 +2508,27 @@ if __name__ == '__main__':
     file_details_success_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Success'), 0)
     file_details_success_header_sizer.Add(wx.StaticText(root_panel, -1, label = '(Click to copy)'), 0, wx.LEFT, 5)
 
-    file_details_success_list = wx.ScrolledWindow(root_panel, -1, name = 'Success file list')
+    file_details_success_panel = wx.ScrolledWindow(root_panel, -1, name = 'Success file list')
+    file_details_success_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
+    file_details_success_sizer = wx.BoxSizer(wx.VERTICAL)
+    file_details_success_panel.SetSizer(summary_details_sizer)
 
     file_details_failed_header_sizer = wx.BoxSizer()
     file_details_failed_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Failed'), 0)
     file_details_failed_header_sizer.Add(wx.StaticText(root_panel, -1, label = '(Click to copy)'), 0, wx.LEFT, 5)
 
-    file_details_failed_list = wx.ScrolledWindow(root_panel, -1, name = 'Failed file list')
+    file_details_failed_panel = wx.ScrolledWindow(root_panel, -1, name = 'Failed file list')
+    file_details_failed_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
+    file_details_failed_sizer = wx.BoxSizer(wx.VERTICAL)
+    file_details_failed_panel.SetSizer(summary_details_sizer)
 
     file_list_sizer = wx.BoxSizer(wx.VERTICAL)
     file_list_sizer.Add(file_details_pending_header_sizer, 0, wx.EXPAND)
     file_list_sizer.Add(file_details_pending_sizer, 0, wx.EXPAND)
     file_list_sizer.Add(file_details_success_header_sizer, 0, wx.TOP, ITEM_UI_PADDING)
-    file_list_sizer.Add(file_details_success_list, 2, wx.EXPAND)
+    file_list_sizer.Add(file_details_success_panel, 2, wx.EXPAND)
     file_list_sizer.Add(file_details_failed_header_sizer, 0, wx.TOP, ITEM_UI_PADDING)
-    file_list_sizer.Add(file_details_failed_list, 1, wx.EXPAND)
+    file_list_sizer.Add(file_details_failed_panel, 1, wx.EXPAND)
 
     progress_bar = wx.Gauge(root_panel, style = wx.GA_SMOOTH | wx.GA_PROGRESS)
 
