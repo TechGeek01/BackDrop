@@ -2455,6 +2455,9 @@ if __name__ == '__main__':
     source_dest_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
     source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Avail:'), 0)
     source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = human_filesize(0)), 0, wx.LEFT, 5)
+    source_dest_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
+    split_mode_status = wx.ToggleButton(root_panel, -1, label = 'Split mode')
+    source_dest_selection_info_sizer.Add(split_mode_status, 0)
 
     source_dest_sizer = wx.BoxSizer(wx.VERTICAL)
     source_dest_sizer.Add(source_dest_control_sizer, 0)
