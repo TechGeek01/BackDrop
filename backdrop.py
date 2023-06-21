@@ -11,6 +11,7 @@ import platform
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, font as tkfont, filedialog
 import wx
+import wx.lib.gizmos as gizmos
 import shutil
 import os
 import subprocess
@@ -2389,6 +2390,7 @@ if __name__ == '__main__':
     MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == PLATFORM_WINDOWS else 140
     SINGLE_SOURCE_TEXT_COL_WIDTH = 170
     SINGLE_SOURCE_NAME_COL_WIDTH = 170
+    ITEM_UI_PADDING = 10
 
     WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
     if prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
@@ -2402,19 +2404,53 @@ if __name__ == '__main__':
     )
     app.SetTopWindow(main_frame)
 
+    # Root panel stuff
     root_panel = wx.Panel(main_frame)
     root_panel.SetBackgroundColour(wx.Colour(0x33, 0x33, 0x33))
     root_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
     root_panel.Fit()
     root_panel.GetParent().SendSizeEvent()
-    root_sizer = wx.GridBagSizer(vgap=10, hgap=10)
+    root_sizer = wx.GridBagSizer(vgap=ITEM_UI_PADDING, hgap=ITEM_UI_PADDING)
 
-    source_panel = wx.Panel(root_panel)
-    source_panel.SetBackgroundColour(wx.Colour(255, 0, 0))
     detail_panel = wx.Panel(root_panel)
     detail_panel.SetBackgroundColour(wx.Colour(255, 255, 0))
     file_list_panel = wx.Panel(root_panel)
     file_list_panel.SetBackgroundColour(wx.Colour(0, 255, 0))
+
+    # Source controls
+    source_src_control_sizer = wx.BoxSizer()
+    source_src_control_sizer.Add(wx.Button(root_panel, -1, label = 'Testing'), 0)
+    source_src_control_sizer.Add(wx.Button(root_panel, -1, label = 'Browse', name = 'Browse source'), 0, wx.LEFT, ITEM_UI_PADDING)
+
+    source_tree = gizmos.TreeListCtrl(root_panel, -1, name = 'Source tree')
+    source_tree.AddColumn('Path')
+    source_tree.AddColumn('Size')
+    source_tree.SetMainColumn(0)
+
+    source_src_sizer = wx.BoxSizer(wx.VERTICAL)
+    source_src_sizer.Add(source_src_control_sizer, 0)
+    source_src_sizer.Add(source_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+
+    # Destination controls
+    source_dest_control_sizer = wx.BoxSizer()
+    source_dest_control_sizer.Add(wx.StaticText(root_panel, -1, label = 'Hold ALT when selecting a drive to ignore config files'), 0)
+    source_dest_control_sizer.Add(wx.Button(root_panel, -1, label = 'Browse', name = 'Browse destination'), 0, wx.LEFT, ITEM_UI_PADDING)
+
+    dest_tree = gizmos.TreeListCtrl(root_panel, -1, name = 'Destination tree')
+    dest_tree.AddColumn('Path')
+    dest_tree.AddColumn('Name')
+    dest_tree.AddColumn('Size')
+    dest_tree.AddColumn('Config')
+    dest_tree.SetMainColumn(0)
+
+    source_dest_sizer = wx.BoxSizer(wx.VERTICAL)
+    source_dest_sizer.Add(source_dest_control_sizer, 0)
+    source_dest_sizer.Add(dest_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+
+    # Source and dest panel
+    source_sizer = wx.BoxSizer()
+    source_sizer.Add(source_src_sizer, 0)
+    source_sizer.Add(source_dest_sizer, 0, wx.LEFT, ITEM_UI_PADDING)
 
     progress_bar = wx.Gauge(root_panel, style = wx.GA_SMOOTH | wx.GA_PROGRESS)
 
