@@ -2432,7 +2432,7 @@ if __name__ == '__main__':
     source_src_sizer = wx.BoxSizer(wx.VERTICAL)
     source_src_sizer.Add(source_src_control_sizer, 0)
     source_src_sizer.Add(source_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
-    source_src_sizer.Add(source_src_selection_info_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
+    source_src_sizer.Add(source_src_selection_info_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, ITEM_UI_PADDING)
 
     # Destination controls
     source_dest_control_sizer = wx.BoxSizer()
@@ -2462,7 +2462,7 @@ if __name__ == '__main__':
     source_dest_sizer = wx.BoxSizer(wx.VERTICAL)
     source_dest_sizer.Add(source_dest_control_sizer, 0)
     source_dest_sizer.Add(dest_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
-    source_dest_sizer.Add(source_dest_selection_info_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
+    source_dest_sizer.Add(source_dest_selection_info_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, ITEM_UI_PADDING)
 
     # Source and dest panel
     source_sizer = wx.BoxSizer()
