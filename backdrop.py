@@ -2414,8 +2414,6 @@ if __name__ == '__main__':
 
     detail_panel = wx.Panel(root_panel)
     detail_panel.SetBackgroundColour(wx.Colour(255, 255, 0))
-    file_list_panel = wx.Panel(root_panel)
-    file_list_panel.SetBackgroundColour(wx.Colour(0, 255, 0))
 
     # Source controls
     source_src_control_sizer = wx.BoxSizer()
@@ -2452,13 +2450,50 @@ if __name__ == '__main__':
     source_sizer.Add(source_src_sizer, 0)
     source_sizer.Add(source_dest_sizer, 0, wx.LEFT, ITEM_UI_PADDING)
 
+    # FIle list panel
+    file_details_pending_header_sizer = wx.BoxSizer()
+    file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Files to delete'), 0)
+    file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = '(Click to copy)'), 0, wx.LEFT, 5)
+    file_details_pending_header_sizer.Add((-1, -1), 1, wx.EXPAND)
+    file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = '(Click to copy)'), 0)
+    file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Files to copy'), 0, wx.LEFT, 5)
+
+    file_details_pending_sizer = wx.BoxSizer()
+    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = '0'), 0)
+    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = 'of'), 0, wx.LEFT | wx.RIGHT, 5)
+    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = '0'), 0)
+    file_details_pending_sizer.Add((-1, -1), 1, wx.EXPAND)
+    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = '0'), 0)
+    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = 'of'), 0, wx.LEFT | wx.RIGHT, 5)
+    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = '0'), 0)
+
+    file_details_success_header_sizer = wx.BoxSizer()
+    file_details_success_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Success'), 0)
+    file_details_success_header_sizer.Add(wx.StaticText(root_panel, -1, label = '(Click to copy)'), 0, wx.LEFT, 5)
+
+    file_details_success_list = wx.ScrolledWindow(root_panel, -1, name = 'Success file list')
+
+    file_details_failed_header_sizer = wx.BoxSizer()
+    file_details_failed_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Failed'), 0)
+    file_details_failed_header_sizer.Add(wx.StaticText(root_panel, -1, label = '(Click to copy)'), 0, wx.LEFT, 5)
+
+    file_details_failed_list = wx.ScrolledWindow(root_panel, -1, name = 'Failed file list')
+
+    file_list_sizer = wx.BoxSizer(wx.VERTICAL)
+    file_list_sizer.Add(file_details_pending_header_sizer, 0, wx.EXPAND)
+    file_list_sizer.Add(file_details_pending_sizer, 0, wx.EXPAND)
+    file_list_sizer.Add(file_details_success_header_sizer, 0, wx.TOP, ITEM_UI_PADDING)
+    file_list_sizer.Add(file_details_success_list, 2, wx.EXPAND)
+    file_list_sizer.Add(file_details_failed_header_sizer, 0, wx.TOP, ITEM_UI_PADDING)
+    file_list_sizer.Add(file_details_failed_list, 1, wx.EXPAND)
+
     progress_bar = wx.Gauge(root_panel, style = wx.GA_SMOOTH | wx.GA_PROGRESS)
 
     controls_sizer = wx.BoxSizer()
     start_analysis_btn = wx.Button(root_panel, -1, label = 'Analyze')
     start_backup_btn = wx.Button(root_panel, -1, label = 'Run Backup')
     controls_sizer.Add(start_analysis_btn, 0)
-    controls_sizer.Add(start_backup_btn, 0, wx.LEFT, 5)
+    controls_sizer.Add(start_backup_btn, 0, wx.LEFT, ITEM_UI_PADDING)
 
     branding_sizer = wx.BoxSizer()
     branding_sizer.Add(wx.StaticBitmap(root_panel, -1, wx.Bitmap(wx.Image('media/logo_ui_light.png', wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
@@ -2466,12 +2501,12 @@ if __name__ == '__main__':
     branding_version_text.SetForegroundColour(wx.Colour(0xaa, 0xaa, 0xaa))
     branding_sizer.Add(branding_version_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
 
-    root_sizer.Add(source_panel, (0, 0), flag = wx.EXPAND | wx.ALL)
-    root_sizer.Add(detail_panel, (1, 0), (3, 1), flag = wx.EXPAND | wx.ALL)
-    root_sizer.Add(file_list_panel, (0, 1), (2, 1), flag = wx.EXPAND | wx.ALL)
+    root_sizer.Add(source_sizer, (0, 0), flag = wx.EXPAND)
+    root_sizer.Add(detail_panel, (1, 0), (3, 1), flag = wx.EXPAND)
+    root_sizer.Add(file_list_sizer, (0, 1), (2, 1), flag = wx.EXPAND)
     root_sizer.Add(controls_sizer, (2, 1), flag = wx.ALIGN_CENTER_HORIZONTAL)
     root_sizer.Add(branding_sizer, (3, 1), flag = wx.ALIGN_CENTER_HORIZONTAL)
-    root_sizer.Add(progress_bar, (4, 0), (1, 2), flag = wx.EXPAND | wx.ALL)
+    root_sizer.Add(progress_bar, (4, 0), (1, 2), flag = wx.EXPAND)
 
     root_sizer.AddGrowableRow(1)
     root_sizer.AddGrowableCol(1)
