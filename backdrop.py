@@ -2412,9 +2412,6 @@ if __name__ == '__main__':
     root_panel.GetParent().SendSizeEvent()
     root_sizer = wx.GridBagSizer(vgap=ITEM_UI_PADDING, hgap=ITEM_UI_PADDING)
 
-    detail_panel = wx.Panel(root_panel)
-    detail_panel.SetBackgroundColour(wx.Colour(255, 255, 0))
-
     # Source controls
     source_src_control_sizer = wx.BoxSizer()
     source_src_control_sizer.Add(wx.Button(root_panel, -1, label = 'Testing'), 0)
@@ -2469,6 +2466,27 @@ if __name__ == '__main__':
     source_sizer.Add(source_src_sizer, 0)
     source_sizer.Add(source_dest_sizer, 0, wx.LEFT, ITEM_UI_PADDING)
 
+    # Backup summary panel
+    backup_eta_label = wx.StaticText(root_panel, -1, label = 'Please start a backup to show ETA')
+    summary_notebook = wx.Notebook(root_panel, -1)
+
+    summary_summary_panel = wx.ScrolledWindow(summary_notebook, -1)
+    summary_summary_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
+    summary_summary_sizer = wx.BoxSizer(wx.VERTICAL)
+    summary_summary_panel.SetSizer(summary_summary_sizer)
+    summary_details_panel = wx.ScrolledWindow(summary_notebook, -1)
+    summary_details_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
+    summary_details_sizer = wx.BoxSizer(wx.VERTICAL)
+    summary_details_panel.SetSizer(summary_details_sizer)
+    summary_notebook.AddPage(summary_summary_panel, 'Backup Summary')
+    summary_notebook.AddPage(summary_details_panel, 'Backup Details')
+    summary_sizer = wx.BoxSizer(wx.VERTICAL)
+    summary_sizer.Add(backup_eta_label, 0, wx.ALIGN_CENTER_HORIZONTAL)
+    summary_sizer.Add(summary_notebook, 1, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+
+    summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label = "This area will summarize the backup that's been configured."), 0)
+    summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label = 'Please start a backup analysis to generate a summary.'), 0, wx.TOP, 5)
+
     # FIle list panel
     file_details_pending_header_sizer = wx.BoxSizer()
     file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Files to delete'), 0)
@@ -2521,7 +2539,7 @@ if __name__ == '__main__':
     branding_sizer.Add(branding_version_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
 
     root_sizer.Add(source_sizer, (0, 0), flag = wx.EXPAND)
-    root_sizer.Add(detail_panel, (1, 0), (3, 1), flag = wx.EXPAND)
+    root_sizer.Add(summary_sizer, (1, 0), (3, 1), flag = wx.EXPAND)
     root_sizer.Add(file_list_sizer, (0, 1), (2, 1), flag = wx.EXPAND)
     root_sizer.Add(controls_sizer, (2, 1), flag = wx.ALIGN_CENTER_HORIZONTAL)
     root_sizer.Add(branding_sizer, (3, 1), flag = wx.ALIGN_CENTER_HORIZONTAL)
