@@ -2408,15 +2408,15 @@ if __name__ == '__main__':
     FONT_DEFAULT = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
                            weight=wx.FONTWEIGHT_NORMAL, underline=False,
                            faceName ='', encoding=wx.FONTENCODING_DEFAULT)
-    FONT_FILE_DETAIL_COUNTER = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
-                                       weight=wx.FONTWEIGHT_NORMAL, underline=False,
-                                       faceName ='', encoding=wx.FONTENCODING_DEFAULT)
-    FONT_FILE_DETAIL_COUNTER_BOLD = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
-                                            weight=wx.FONTWEIGHT_BOLD, underline=False,
-                                            faceName ='', encoding=wx.FONTENCODING_DEFAULT)
-    FONT_FILE_DETAIL_COUNTER_LARGE = wx.Font(28, family=wx.FONTFAMILY_DEFAULT, style=0,
-                                             weight=wx.FONTWEIGHT_NORMAL, underline=False,
-                                             faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_LARGE = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
+                         weight=wx.FONTWEIGHT_NORMAL, underline=False,
+                         faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_HEADING = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
+                           weight=wx.FONTWEIGHT_BOLD, underline=False,
+                           faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_GIANT = wx.Font(28, family=wx.FONTFAMILY_DEFAULT, style=0,
+                         weight=wx.FONTWEIGHT_NORMAL, underline=False,
+                         faceName ='', encoding=wx.FONTENCODING_DEFAULT)
 
     main_frame = wx.Frame(
         parent=None,
@@ -2477,7 +2477,7 @@ if __name__ == '__main__':
     source_dest_control_sizer.Add((-1, -1), 1, wx.EXPAND)
     source_dest_control_sizer.Add(wx.Button(root_panel, -1, label='Browse', name='Browse destination'), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
 
-    settings_dest_mode = Config.DEST_MODE_DRIVES
+    settings_dest_mode = Config.DEST_MODE_DRIVES  # URGENT: This is a stub to fix a missing implementation
 
     DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == PLATFORM_WINDOWS else 150
     DEST_TREE_COLWIDTH_VID = 140 if settings_dest_mode == Config.DEST_MODE_PATHS else 90
@@ -2566,7 +2566,7 @@ if __name__ == '__main__':
     # FIle list panel
     file_details_pending_header_sizer = wx.BoxSizer()
     file_details_delete_text = wx.StaticText(root_panel, -1, label='Files to delete', name='Files to delete header label')
-    file_details_delete_text.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_delete_text.SetFont(FONT_HEADING)
     file_details_pending_header_sizer.Add(file_details_delete_text, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
     file_details_delete_copy_text = wx.StaticText(root_panel, -1, label='(Click to copy)', name='Files to delete header clipboard label')
     file_details_delete_copy_text.SetForegroundColour(Color.TEXT_FADED)
@@ -2576,44 +2576,44 @@ if __name__ == '__main__':
     file_details_copy_copy_text.SetForegroundColour(Color.TEXT_FADED)
     file_details_pending_header_sizer.Add(file_details_copy_copy_text, 0, wx.ALIGN_BOTTOM | wx.RIGHT, 5)
     file_details_copy_text = wx.StaticText(root_panel, -1, label='Files to copy', name='Files to copy header label')
-    file_details_copy_text.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_copy_text.SetFont(FONT_HEADING)
     file_details_pending_header_sizer.Add(file_details_copy_text, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
 
     file_details_pending_sizer = wx.BoxSizer()
     file_details_pending_delete_counter = wx.StaticText(root_panel, -1, label='0', name='Pending delete counter')
-    file_details_pending_delete_counter.SetFont(FONT_FILE_DETAIL_COUNTER_LARGE)
+    file_details_pending_delete_counter.SetFont(FONT_GIANT)
     file_details_pending_sizer.Add(file_details_pending_delete_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
     file_details_pending_delete_of = wx.StaticText(root_panel, -1, label='of', name='Pending delete "of"')
-    file_details_pending_delete_of.SetFont(FONT_FILE_DETAIL_COUNTER)
+    file_details_pending_delete_of.SetFont(FONT_LARGE)
     file_details_pending_delete_of.SetForegroundColour(Color.TEXT_FADED)
     file_details_pending_sizer.Add(file_details_pending_delete_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
     file_details_pending_delete_counter_total = wx.StaticText(root_panel, -1, label='0', name='Pending delete total')
-    file_details_pending_delete_counter_total.SetFont(FONT_FILE_DETAIL_COUNTER)
+    file_details_pending_delete_counter_total.SetFont(FONT_LARGE)
     file_details_pending_delete_counter_total.SetForegroundColour(Color.TEXT_FADED)
     file_details_pending_sizer.Add(file_details_pending_delete_counter_total, 0, wx.ALIGN_BOTTOM)
     file_details_pending_sizer.Add((-1, -1), 1, wx.EXPAND)
     file_details_pending_copy_counter = wx.StaticText(root_panel, -1, label='0', name='Pending copy counter')
-    file_details_pending_copy_counter.SetFont(FONT_FILE_DETAIL_COUNTER_LARGE)
+    file_details_pending_copy_counter.SetFont(FONT_GIANT)
     file_details_pending_sizer.Add(file_details_pending_copy_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
     file_details_pending_copy_of = wx.StaticText(root_panel, -1, label='of', name='Pending copy "of"')
-    file_details_pending_copy_of.SetFont(FONT_FILE_DETAIL_COUNTER)
+    file_details_pending_copy_of.SetFont(FONT_LARGE)
     file_details_pending_copy_of.SetForegroundColour(Color.TEXT_FADED)
     file_details_pending_sizer.Add(file_details_pending_copy_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
     file_details_pending_copy_counter_total = wx.StaticText(root_panel, -1, label='0', name='Pending copy total')
-    file_details_pending_copy_counter_total.SetFont(FONT_FILE_DETAIL_COUNTER)
+    file_details_pending_copy_counter_total.SetFont(FONT_LARGE)
     file_details_pending_copy_counter_total.SetForegroundColour(Color.TEXT_FADED)
     file_details_pending_sizer.Add(file_details_pending_copy_counter_total, 0, wx.ALIGN_BOTTOM)
 
     file_details_success_header_sizer = wx.BoxSizer()
     file_details_success_header = wx.StaticText(root_panel, -1, label='Successful', name='Success file list header')
-    file_details_success_header.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_success_header.SetFont(FONT_HEADING)
     file_details_success_header_sizer.Add(file_details_success_header, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
     file_details_success_copy_text = wx.StaticText(root_panel, -1, label='(Click to copy)', name='Success file list clipboard header')
     file_details_success_copy_text.SetForegroundColour(Color.TEXT_FADED)
     file_details_success_header_sizer.Add(file_details_success_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
     file_details_success_header_sizer.Add((-1, -1), 1, wx.EXPAND)
     file_details_success_count = wx.StaticText(root_panel, -1, label='0', name='Success file list count')
-    file_details_success_count.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_success_count.SetFont(FONT_HEADING)
     file_details_success_header_sizer.Add(file_details_success_count, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
 
     file_details_success_panel = wx.ScrolledWindow(root_panel, -1, name='Success file list')
@@ -2623,14 +2623,14 @@ if __name__ == '__main__':
 
     file_details_failed_header_sizer = wx.BoxSizer()
     file_details_failed_header = wx.StaticText(root_panel, -1, label='Failed', name='Failed file list header')
-    file_details_failed_header.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_failed_header.SetFont(FONT_HEADING)
     file_details_failed_header_sizer.Add(file_details_failed_header, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
     file_details_failed_copy_text = wx.StaticText(root_panel, -1, label='(Click to copy)', name='Failed file list clipboard header')
     file_details_failed_copy_text.SetForegroundColour(Color.TEXT_FADED)
     file_details_failed_header_sizer.Add(file_details_failed_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
     file_details_failed_header_sizer.Add((-1, -1), 1, wx.EXPAND)
     file_details_failed_count = wx.StaticText(root_panel, -1, label='0', name='Failed file list count')
-    file_details_failed_count.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_failed_count.SetFont(FONT_HEADING)
     file_details_failed_header_sizer.Add(file_details_failed_count, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
 
     file_details_failed_panel = wx.ScrolledWindow(root_panel, -1, name='Failed file list')
