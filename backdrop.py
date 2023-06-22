@@ -2437,10 +2437,10 @@ if __name__ == '__main__':
     # Source controls
     source_src_control_sizer = wx.BoxSizer()
     source_src_control_label = wx.StaticText(root_panel, -1, label='Testing', name='Test source text')
-    source_src_control_sizer.Add(source_src_control_label, 0)
+    source_src_control_sizer.Add(source_src_control_label, 0, wx.ALIGN_CENTER_VERTICAL)
     source_src_control_sizer.Add((-1, -1), 1, wx.EXPAND)
     source_src_control_browse_btn = wx.Button(root_panel, -1, label='Browse', name='Browse source')
-    source_src_control_sizer.Add(source_src_control_browse_btn, 0, wx.LEFT, ITEM_UI_PADDING)
+    source_src_control_sizer.Add(source_src_control_browse_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
 
     source_tree = gizmos.TreeListCtrl(root_panel, -1, size=(280, -1), name='Source tree')
     source_tree.AddColumn('Path')
