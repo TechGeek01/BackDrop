@@ -5,7 +5,7 @@ logically copying files from point A to point B. This is complete with
 verification, and many other organization and integrity features.
 """
 
-__version__ = '4.0.0-beta1'
+__version__ = '4.0.0-alpha2'
 
 import platform
 import tkinter as tk
@@ -2681,59 +2681,59 @@ if __name__ == '__main__':
 
     # File menu
     file_menu = wx.Menu()
-    file_menu.Append(101, '&Open Backup Config...\tCtrl+O')
-    file_menu.Append(102, '&Save Backup Config\tCtrl+S')
-    file_menu.Append(103, 'Save Backup Config &As...\tCtrl+Shift+S')
+    file_menu.Append(101, '&Open Backup Config...\tCtrl+O', 'Open a previously created backup config')
+    file_menu.Append(102, '&Save Backup Config\tCtrl+S', 'Save the current config to backup config file on the selected destinations')
+    file_menu.Append(103, 'Save Backup Config &As...\tCtrl+Shift+S', 'Save the current config to a backup config file')
     file_menu.AppendSeparator()
     file_menu.Append(104, 'E&xit')
     menu_bar.Append(file_menu, '&File')
 
     # Selection menu
     selection_menu = wx.Menu()
-    selection_menu.Append(201, 'Source Network Drives', kind=wx.ITEM_CHECK)
-    selection_menu.Append(202, 'Source Local Drives', kind=wx.ITEM_CHECK)
-    selection_menu.Append(203, 'Destination Network Drives', kind=wx.ITEM_CHECK)
-    selection_menu.Append(204, 'Destination Local Drives', kind=wx.ITEM_CHECK)
+    selection_menu.Append(201, 'Source Network Drives', 'Enable network drives as sources', kind=wx.ITEM_CHECK)
+    selection_menu.Append(202, 'Source Local Drives', 'Enable local drives as sources', kind=wx.ITEM_CHECK)
+    selection_menu.Append(203, 'Destination Network Drives', 'Enable network drives as destinations', kind=wx.ITEM_CHECK)
+    selection_menu.Append(204, 'Destination Local Drives', 'Enable local drives as destinations', kind=wx.ITEM_CHECK)
     selection_menu.AppendSeparator()
     selection_source_mode_menu = wx.Menu()
-    selection_source_mode_menu.Append(2051, 'Single drive, select subfolders', kind=wx.ITEM_RADIO)
-    selection_source_mode_menu.Append(2052, 'Multi drive, select drives', kind=wx.ITEM_RADIO)
-    selection_source_mode_menu.Append(2053, 'Single path, select subfolders', kind=wx.ITEM_RADIO)
-    selection_source_mode_menu.Append(2054, 'Multi path, select paths', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(2051, 'Single drive, select subfolders', 'Select subfolders from a drive to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(2052, 'Multi drive, select drives', 'Select one or more drives to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(2053, 'Single path, select subfolders', 'Specify a path, and select subfolders to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(2054, 'Multi path, select paths', 'Specify one or more paths to use as sources', kind=wx.ITEM_RADIO)
     selection_menu.AppendSubMenu(selection_source_mode_menu, '&Source Mode')
     selection_dest_mode_menu = wx.Menu()
-    selection_dest_mode_menu.Append(2061, 'Drives')
-    selection_dest_mode_menu.Append(2062, 'Paths')
+    selection_dest_mode_menu.Append(2061, 'Drives', 'Select one or more drives as destinations')
+    selection_dest_mode_menu.Append(2062, 'Paths', 'Specify one or more paths as destinations')
     selection_menu.AppendSubMenu(selection_dest_mode_menu, '&Destination Mode')
     menu_bar.Append(selection_menu, '&Selection')
 
     # View menu
     view_menu = wx.Menu()
-    view_menu.Append(301, 'Refresh Source\tCtrl+F5')
-    view_menu.Append(302, '&Refresh Destination\tF5')
+    view_menu.Append(301, 'Refresh Source\tCtrl+F5', 'Refresh the list of sources shown')
+    view_menu.Append(302, '&Refresh Destination\tF5', 'Refresh the list of destinations shown')
     view_menu.AppendSeparator()
-    view_menu.Append(303, 'Backup Error Log\tCtrl+E')
+    view_menu.Append(303, 'Backup Error Log\tCtrl+E', 'Show the backup error log')
     menu_bar.Append(view_menu, '&View')
 
     # Actions menu
     actions_menu = wx.Menu()
-    actions_menu.Append(401, '&Verify Data Integrity on Selected Destinations')
-    actions_menu.Append(402, 'Delete Config from Selected Destinations')
+    actions_menu.Append(401, '&Verify Data Integrity on Selected Destinations', 'Verify files on selected destinations against the saved hash to check for errors')
+    actions_menu.Append(402, 'Delete Config from Selected Destinations', 'Delete the saved backup config from the selected destinations')
     menu_bar.Append(actions_menu, '&Actions')
 
     # Preferences menu
     preferences_menu = wx.Menu()
     preferences_verification_menu = wx.Menu()
-    preferences_verification_menu.Append(5011, 'Verify Known Files', kind=wx.ITEM_CHECK)
-    preferences_verification_menu.Append(5012, 'Verify All Files', kind=wx.ITEM_CHECK)
+    preferences_verification_menu.Append(5011, 'Verify Known Files', 'Verify files with known hashes, skip unknown files', kind=wx.ITEM_CHECK)
+    preferences_verification_menu.Append(5012, 'Verify All Files', 'Verify files with known hashes, compute and save the hash of unknown files', kind=wx.ITEM_CHECK)
     preferences_menu.AppendSubMenu(preferences_verification_menu, '&Data Integrity Verification')
-    preferences_menu.Append(502, 'Enable Dark Mode (requires restart)')
+    preferences_menu.Append(502, 'Enable Dark Mode (requires restart)', 'Enable or disable dark mode')
     menu_bar.Append(preferences_menu, '&Preferences')
 
     # Help menu
     help_menu = wx.Menu()
-    help_menu.Append(601, 'Check for Updates')
-    help_menu.Append(602, 'Allow Prereleases', kind=wx.ITEM_CHECK)
+    help_menu.Append(601, 'Check for Updates', 'Check for program updates, and prompt to download them, if there are any')
+    help_menu.Append(602, 'Allow Prereleases', 'Allow prerelease versions when checking for updates', kind=wx.ITEM_CHECK)
     menu_bar.Append(help_menu, '&Help')
 
     main_frame.SetMenuBar(menu_bar)
