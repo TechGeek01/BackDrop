@@ -47,6 +47,7 @@ class Color:
     TEXT_INFO = wx.Colour(0x39, 0xce, 0xe1)
 
     BACKGROUND = wx.Colour(0x33, 0x33, 0x33)
+    STATUS_BAR = wx.Colour(0x4a, 0x4a, 0x4a)
 
 def on_press(key):
     """Do things when keys are pressed.
@@ -2663,6 +2664,28 @@ if __name__ == '__main__':
     branding_version_sizer.Add((-1, 12), 0)
     branding_sizer.Add(branding_version_sizer, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
 
+    # Status bar
+    STATUS_BAR_PADDING = 8
+    status_bar = wx.Panel(root_panel, size=(-1, 20))
+    status_bar.SetBackgroundColour(Color.STATUS_BAR)
+    status_bar.SetForegroundColour(Color.TEXT_DEFAULT)
+    status_bar_sizer = wx.BoxSizer()
+    status_bar_selection = wx.StaticText(status_bar, -1, label='No selection', name='Status bar selection')  # URGENT: Make this update with function
+    status_bar_sizer.Add(status_bar_selection, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    status_bar_action = wx.StaticText(status_bar, -1, label='Idle', name='Status bar action')  # URGENT: Make this update with function
+    status_bar_sizer.Add(status_bar_action, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')  # URGENT: Make this update with function
+    status_bar_error_count.SetForegroundColour(Color.TEXT_FADED)
+    status_bar_sizer.Add(status_bar_error_count, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    status_bar_sizer.Add((-1, -1), 1, wx.EXPAND)
+    status_bar_updates = wx.StaticText(status_bar, -1, label='', name='Status bar error count')  # URGENT: Make this update with function
+    status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
+    status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
+    status_bar_outer_sizer.Add(status_bar_sizer, 0, wx.EXPAND)
+    status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
+    status_bar.SetSizer(status_bar_outer_sizer)
+
     root_sizer.Add(source_sizer, (0, 0), flag=wx.EXPAND)
     root_sizer.Add(summary_sizer, (1, 0), (3, 1), flag=wx.EXPAND)
     root_sizer.Add(file_list_sizer, (0, 1), (2, 1), flag=wx.EXPAND)
@@ -2673,8 +2696,9 @@ if __name__ == '__main__':
     root_sizer.AddGrowableRow(1)
     root_sizer.AddGrowableCol(1)
 
-    box = wx.BoxSizer()
+    box = wx.BoxSizer(wx.VERTICAL)
     box.Add(root_sizer, 1, wx.EXPAND | wx.ALL, 10)
+    box.Add(status_bar, 0, wx.EXPAND)
 
     # Menu stuff
     menu_bar = wx.MenuBar()
