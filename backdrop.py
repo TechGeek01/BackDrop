@@ -2523,15 +2523,19 @@ if __name__ == '__main__':
 
     # FIle list panel
     file_details_pending_header_sizer = wx.BoxSizer()
-    file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Files to delete'), 0)
+    file_details_delete_text = wx.StaticText(root_panel, -1, label = 'Files to delete')
+    file_details_delete_text.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_pending_header_sizer.Add(file_details_delete_text, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
     file_details_delete_copy_text = wx.StaticText(root_panel, -1, label = '(Click to copy)')
     file_details_delete_copy_text.SetForegroundColour(Color.TEXT_FADED)
-    file_details_pending_header_sizer.Add(file_details_delete_copy_text, 0, wx.LEFT, 5)
+    file_details_pending_header_sizer.Add(file_details_delete_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
     file_details_pending_header_sizer.Add((-1, -1), 1, wx.EXPAND)
     file_details_copy_copy_text = wx.StaticText(root_panel, -1, label = '(Click to copy)')
     file_details_copy_copy_text.SetForegroundColour(Color.TEXT_FADED)
-    file_details_pending_header_sizer.Add(file_details_copy_copy_text, 0)
-    file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Files to copy'), 0, wx.LEFT, 5)
+    file_details_pending_header_sizer.Add(file_details_copy_copy_text, 0, wx.ALIGN_BOTTOM | wx.RIGHT, 5)
+    file_details_copy_text = wx.StaticText(root_panel, -1, label = 'Files to copy')
+    file_details_copy_text.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_pending_header_sizer.Add(file_details_copy_text, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
 
     file_details_pending_sizer = wx.BoxSizer()
     file_details_pending_delete_counter = wx.StaticText(root_panel, -1, label = '0')
