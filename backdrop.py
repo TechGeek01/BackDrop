@@ -41,6 +41,12 @@ from bin.update import UpdateHandler
 from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame, resource_path
 from bin.status import Status
 
+class Color:
+    TEXT_DEFAULT = wx.Colour(0xff, 0xff, 0xff)
+    TEXT_FADED = wx.Colour(0x8e, 0x8e, 0x8e)
+
+    BACKGROUND = wx.Colour(0x33, 0x33, 0x33)
+
 def on_press(key):
     """Do things when keys are pressed.
 
@@ -2397,17 +2403,32 @@ if __name__ == '__main__':
         WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
 
     app = wx.App()
+
+    FONT_DEFAULT = wx.Font(9, family = wx.FONTFAMILY_DEFAULT, style = 0,
+                           weight = wx.FONTWEIGHT_NORMAL, underline = False,
+                           faceName ='', encoding = wx.FONTENCODING_DEFAULT)
+    FONT_FILE_DETAIL_COUNTER = wx.Font(11, family = wx.FONTFAMILY_DEFAULT, style = 0,
+                                       weight = wx.FONTWEIGHT_NORMAL, underline = False,
+                                       faceName ='', encoding = wx.FONTENCODING_DEFAULT)
+    FONT_FILE_DETAIL_COUNTER_BOLD = wx.Font(11, family = wx.FONTFAMILY_DEFAULT, style = 0,
+                                            weight = wx.FONTWEIGHT_BOLD, underline = False,
+                                            faceName ='', encoding = wx.FONTENCODING_DEFAULT)
+    FONT_FILE_DETAIL_COUNTER_LARGE = wx.Font(28, family = wx.FONTFAMILY_DEFAULT, style = 0,
+                                             weight = wx.FONTWEIGHT_NORMAL, underline = False,
+                                             faceName ='', encoding = wx.FONTENCODING_DEFAULT)
+
     main_frame = wx.Frame(
         parent=None,
         title='BackDrop - Data Backup Tool',
         size=wx.Size(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
     )
+    main_frame.SetFont(FONT_DEFAULT)
     app.SetTopWindow(main_frame)
 
     # Root panel stuff
     root_panel = wx.Panel(main_frame)
-    root_panel.SetBackgroundColour(wx.Colour(0x33, 0x33, 0x33))
-    root_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
+    root_panel.SetBackgroundColour(Color.BACKGROUND)
+    root_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     root_panel.Fit()
     root_panel.GetParent().SendSizeEvent()
     root_sizer = wx.GridBagSizer(vgap=ITEM_UI_PADDING, hgap=ITEM_UI_PADDING)
@@ -2424,10 +2445,14 @@ if __name__ == '__main__':
 
     source_src_selection_info_sizer = wx.BoxSizer()
     source_src_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Selected:'), 0)
-    source_src_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'None'), 0, wx.LEFT, 5)
+    source_selected_space = wx.StaticText(root_panel, -1, label = 'None')
+    source_selected_space.SetForegroundColour(Color.TEXT_FADED)
+    source_src_selection_info_sizer.Add(source_selected_space, 0, wx.LEFT, 5)
     source_src_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
     source_src_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Total:'), 0)
-    source_src_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = '~None'), 0, wx.LEFT, 5)
+    source_total_space = wx.StaticText(root_panel, -1, label = '~None')
+    source_total_space.SetForegroundColour(Color.TEXT_FADED)
+    source_src_selection_info_sizer.Add(source_total_space, 0, wx.LEFT, 5)
 
     source_src_sizer = wx.BoxSizer(wx.VERTICAL)
     source_src_sizer.Add(source_src_control_sizer, 0)
@@ -2448,13 +2473,19 @@ if __name__ == '__main__':
 
     source_dest_selection_info_sizer = wx.BoxSizer()
     source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Config:'), 0)
-    source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'None'), 0, wx.LEFT, 5)
+    config_selected_space = wx.StaticText(root_panel, -1, label = 'None')
+    config_selected_space.SetForegroundColour(Color.TEXT_FADED)
+    source_dest_selection_info_sizer.Add(config_selected_space, 0, wx.LEFT, 5)
     source_dest_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
     source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Selected:'), 0)
-    source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = '~None'), 0, wx.LEFT, 5)
+    dest_selected_space = wx.StaticText(root_panel, -1, label = 'None')
+    dest_selected_space.SetForegroundColour(Color.TEXT_FADED)
+    source_dest_selection_info_sizer.Add(dest_selected_space, 0, wx.LEFT, 5)
     source_dest_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
     source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = 'Avail:'), 0)
-    source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label = human_filesize(0)), 0, wx.LEFT, 5)
+    dest_total_space = wx.StaticText(root_panel, -1, label = human_filesize(0))
+    dest_total_space.SetForegroundColour(Color.TEXT_FADED)
+    source_dest_selection_info_sizer.Add(dest_total_space, 0, wx.LEFT, 5)
     source_dest_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
     split_mode_status = wx.ToggleButton(root_panel, -1, label = 'Split mode')
     source_dest_selection_info_sizer.Add(split_mode_status, 0)
@@ -2474,11 +2505,11 @@ if __name__ == '__main__':
     summary_notebook = wx.Notebook(root_panel, -1)
 
     summary_summary_panel = wx.ScrolledWindow(summary_notebook, -1)
-    summary_summary_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
+    summary_summary_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     summary_summary_sizer = wx.BoxSizer(wx.VERTICAL)
     summary_summary_panel.SetSizer(summary_summary_sizer)
     summary_details_panel = wx.ScrolledWindow(summary_notebook, -1)
-    summary_details_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
+    summary_details_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     summary_details_sizer = wx.BoxSizer(wx.VERTICAL)
     summary_details_panel.SetSizer(summary_details_sizer)
     summary_notebook.AddPage(summary_summary_panel, 'Backup Summary')
@@ -2493,44 +2524,80 @@ if __name__ == '__main__':
     # FIle list panel
     file_details_pending_header_sizer = wx.BoxSizer()
     file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Files to delete'), 0)
-    file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = '(Click to copy)'), 0, wx.LEFT, 5)
+    file_details_delete_copy_text = wx.StaticText(root_panel, -1, label = '(Click to copy)')
+    file_details_delete_copy_text.SetForegroundColour(Color.TEXT_FADED)
+    file_details_pending_header_sizer.Add(file_details_delete_copy_text, 0, wx.LEFT, 5)
     file_details_pending_header_sizer.Add((-1, -1), 1, wx.EXPAND)
-    file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = '(Click to copy)'), 0)
+    file_details_copy_copy_text = wx.StaticText(root_panel, -1, label = '(Click to copy)')
+    file_details_copy_copy_text.SetForegroundColour(Color.TEXT_FADED)
+    file_details_pending_header_sizer.Add(file_details_copy_copy_text, 0)
     file_details_pending_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Files to copy'), 0, wx.LEFT, 5)
 
     file_details_pending_sizer = wx.BoxSizer()
-    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = '0'), 0)
-    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = 'of'), 0, wx.LEFT | wx.RIGHT, 5)
-    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = '0'), 0)
+    file_details_pending_delete_counter = wx.StaticText(root_panel, -1, label = '0')
+    file_details_pending_delete_counter.SetFont(FONT_FILE_DETAIL_COUNTER_LARGE)
+    file_details_pending_sizer.Add(file_details_pending_delete_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
+    file_details_pending_delete_of = wx.StaticText(root_panel, -1, label = 'of')
+    file_details_pending_delete_of.SetFont(FONT_FILE_DETAIL_COUNTER)
+    file_details_pending_delete_of.SetForegroundColour(Color.TEXT_FADED)
+    file_details_pending_sizer.Add(file_details_pending_delete_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
+    file_details_pending_delete_counter_total = wx.StaticText(root_panel, -1, label = '0')
+    file_details_pending_delete_counter_total.SetFont(FONT_FILE_DETAIL_COUNTER)
+    file_details_pending_delete_counter_total.SetForegroundColour(Color.TEXT_FADED)
+    file_details_pending_sizer.Add(file_details_pending_delete_counter_total, 0, wx.ALIGN_BOTTOM)
     file_details_pending_sizer.Add((-1, -1), 1, wx.EXPAND)
-    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = '0'), 0)
-    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = 'of'), 0, wx.LEFT | wx.RIGHT, 5)
-    file_details_pending_sizer.Add(wx.StaticText(root_panel, -1, label = '0'), 0)
+    file_details_pending_copy_counter = wx.StaticText(root_panel, -1, label = '0')
+    file_details_pending_copy_counter.SetFont(FONT_FILE_DETAIL_COUNTER_LARGE)
+    file_details_pending_sizer.Add(file_details_pending_copy_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
+    file_details_pending_copy_of = wx.StaticText(root_panel, -1, label = 'of')
+    file_details_pending_copy_of.SetFont(FONT_FILE_DETAIL_COUNTER)
+    file_details_pending_copy_of.SetForegroundColour(Color.TEXT_FADED)
+    file_details_pending_sizer.Add(file_details_pending_copy_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
+    file_details_pending_copy_counter_total = wx.StaticText(root_panel, -1, label = '0')
+    file_details_pending_copy_counter_total.SetFont(FONT_FILE_DETAIL_COUNTER)
+    file_details_pending_copy_counter_total.SetForegroundColour(Color.TEXT_FADED)
+    file_details_pending_sizer.Add(file_details_pending_copy_counter_total, 0, wx.ALIGN_BOTTOM)
 
     file_details_success_header_sizer = wx.BoxSizer()
-    file_details_success_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Success'), 0)
-    file_details_success_header_sizer.Add(wx.StaticText(root_panel, -1, label = '(Click to copy)'), 0, wx.LEFT, 5)
+    file_details_success_header = wx.StaticText(root_panel, -1, label = 'Successful')
+    file_details_success_header.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_success_header_sizer.Add(file_details_success_header, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
+    file_details_success_copy_text = wx.StaticText(root_panel, -1, label = '(Click to copy)')
+    file_details_success_copy_text.SetForegroundColour(Color.TEXT_FADED)
+    file_details_success_header_sizer.Add(file_details_success_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
+    file_details_success_header_sizer.Add((-1, -1), 1, wx.EXPAND)
+    file_details_success_count = wx.StaticText(root_panel, -1, label = '0')
+    file_details_success_count.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_success_header_sizer.Add(file_details_success_count, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
 
     file_details_success_panel = wx.ScrolledWindow(root_panel, -1, name = 'Success file list')
-    file_details_success_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
+    file_details_success_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     file_details_success_sizer = wx.BoxSizer(wx.VERTICAL)
     file_details_success_panel.SetSizer(summary_details_sizer)
 
     file_details_failed_header_sizer = wx.BoxSizer()
-    file_details_failed_header_sizer.Add(wx.StaticText(root_panel, -1, label = 'Failed'), 0)
-    file_details_failed_header_sizer.Add(wx.StaticText(root_panel, -1, label = '(Click to copy)'), 0, wx.LEFT, 5)
+    file_details_failed_header = wx.StaticText(root_panel, -1, label = 'Failed')
+    file_details_failed_header.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_failed_header_sizer.Add(file_details_failed_header, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
+    file_details_failed_copy_text = wx.StaticText(root_panel, -1, label = '(Click to copy)')
+    file_details_failed_copy_text.SetForegroundColour(Color.TEXT_FADED)
+    file_details_failed_header_sizer.Add(file_details_failed_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
+    file_details_failed_header_sizer.Add((-1, -1), 1, wx.EXPAND)
+    file_details_failed_count = wx.StaticText(root_panel, -1, label = '0')
+    file_details_failed_count.SetFont(FONT_FILE_DETAIL_COUNTER_BOLD)
+    file_details_failed_header_sizer.Add(file_details_failed_count, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
 
     file_details_failed_panel = wx.ScrolledWindow(root_panel, -1, name = 'Failed file list')
-    file_details_failed_panel.SetForegroundColour(wx.Colour(0xff, 0xff, 0xff))
+    file_details_failed_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     file_details_failed_sizer = wx.BoxSizer(wx.VERTICAL)
     file_details_failed_panel.SetSizer(summary_details_sizer)
 
     file_list_sizer = wx.BoxSizer(wx.VERTICAL)
     file_list_sizer.Add(file_details_pending_header_sizer, 0, wx.EXPAND)
     file_list_sizer.Add(file_details_pending_sizer, 0, wx.EXPAND)
-    file_list_sizer.Add(file_details_success_header_sizer, 0, wx.TOP, ITEM_UI_PADDING)
+    file_list_sizer.Add(file_details_success_header_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
     file_list_sizer.Add(file_details_success_panel, 2, wx.EXPAND)
-    file_list_sizer.Add(file_details_failed_header_sizer, 0, wx.TOP, ITEM_UI_PADDING)
+    file_list_sizer.Add(file_details_failed_header_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
     file_list_sizer.Add(file_details_failed_panel, 1, wx.EXPAND)
 
     progress_bar = wx.Gauge(root_panel, style = wx.GA_SMOOTH | wx.GA_PROGRESS)
@@ -2544,8 +2611,11 @@ if __name__ == '__main__':
     branding_sizer = wx.BoxSizer()
     branding_sizer.Add(wx.StaticBitmap(root_panel, -1, wx.Bitmap(wx.Image('media/logo_ui_light.png', wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
     branding_version_text = wx.StaticText(root_panel, -1, f'v{__version__}')
-    branding_version_text.SetForegroundColour(wx.Colour(0xaa, 0xaa, 0xaa))
-    branding_sizer.Add(branding_version_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
+    branding_version_text.SetForegroundColour(Color.TEXT_FADED)
+    branding_version_sizer = wx.BoxSizer(wx.VERTICAL)
+    branding_version_sizer.Add(branding_version_text, 0)
+    branding_version_sizer.Add((-1, 12), 0)
+    branding_sizer.Add(branding_version_sizer, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
 
     root_sizer.Add(source_sizer, (0, 0), flag = wx.EXPAND)
     root_sizer.Add(summary_sizer, (1, 0), (3, 1), flag = wx.EXPAND)
