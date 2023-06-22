@@ -2676,9 +2676,76 @@ if __name__ == '__main__':
     box = wx.BoxSizer()
     box.Add(root_sizer, 1, wx.EXPAND | wx.ALL, 10)
 
+    # Menu stuff
+    menu_bar = wx.MenuBar()
+
+    # File menu
+    file_menu = wx.Menu()
+    file_menu.Append(101, '&Open Backup Config...\tCtrl+O')
+    file_menu.Append(102, '&Save Backup Config\tCtrl+S')
+    file_menu.Append(103, 'Save Backup Config &As...\tCtrl+Shift+S')
+    file_menu.AppendSeparator()
+    file_menu.Append(104, 'E&xit')
+    menu_bar.Append(file_menu, '&File')
+
+    # Selection menu
+    selection_menu = wx.Menu()
+    selection_menu.Append(201, 'Source Network Drives', kind=wx.ITEM_CHECK)
+    selection_menu.Append(202, 'Source Local Drives', kind=wx.ITEM_CHECK)
+    selection_menu.Append(203, 'Destination Network Drives', kind=wx.ITEM_CHECK)
+    selection_menu.Append(204, 'Destination Local Drives', kind=wx.ITEM_CHECK)
+    selection_menu.AppendSeparator()
+    selection_source_mode_menu = wx.Menu()
+    selection_source_mode_menu.Append(2051, 'Single drive, select subfolders', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(2052, 'Multi drive, select drives', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(2053, 'Single path, select subfolders', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(2054, 'Multi path, select paths', kind=wx.ITEM_RADIO)
+    selection_menu.AppendSubMenu(selection_source_mode_menu, '&Source Mode')
+    selection_dest_mode_menu = wx.Menu()
+    selection_dest_mode_menu.Append(2061, 'Drives')
+    selection_dest_mode_menu.Append(2062, 'Paths')
+    selection_menu.AppendSubMenu(selection_dest_mode_menu, '&Destination Mode')
+    menu_bar.Append(selection_menu, '&Selection')
+
+    # View menu
+    view_menu = wx.Menu()
+    view_menu.Append(301, 'Refresh Source\tCtrl+F5')
+    view_menu.Append(302, '&Refresh Destination\tF5')
+    view_menu.AppendSeparator()
+    view_menu.Append(303, 'Backup Error Log\tCtrl+E')
+    menu_bar.Append(view_menu, '&View')
+
+    # Actions menu
+    actions_menu = wx.Menu()
+    actions_menu.Append(401, '&Verify Data Integrity on Selected Destinations')
+    actions_menu.Append(402, 'Delete Config from Selected Destinations')
+    menu_bar.Append(actions_menu, '&Actions')
+
+    # Preferences menu
+    preferences_menu = wx.Menu()
+    preferences_verification_menu = wx.Menu()
+    preferences_verification_menu.Append(5011, 'Verify Known Files', kind=wx.ITEM_CHECK)
+    preferences_verification_menu.Append(5012, 'Verify All Files', kind=wx.ITEM_CHECK)
+    preferences_menu.AppendSubMenu(preferences_verification_menu, '&Data Integrity Verification')
+    preferences_menu.Append(502, 'Enable Dark Mode (requires restart)')
+    menu_bar.Append(preferences_menu, '&Preferences')
+
+    # Help menu
+    help_menu = wx.Menu()
+    help_menu.Append(601, 'Check for Updates')
+    help_menu.Append(602, 'Allow Prereleases', kind=wx.ITEM_CHECK)
+    menu_bar.Append(help_menu, '&Help')
+
+    main_frame.SetMenuBar(menu_bar)
+
     root_panel.SetSizerAndFit(box)
     main_frame.Show()
     app.MainLoop()
+
+    #########################
+    # LEFTOVER tkinter BITS #
+    # TODO: REMOVE THIS!    #
+    #########################
 
     root_window = RootWindow(
         title='BackDrop - Data Backup Tool',
@@ -2887,7 +2954,6 @@ if __name__ == '__main__':
     view_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
     view_menu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=load_source_in_background)
     view_menu.add_command(label='Refresh Destination', underline=0, accelerator='F5', command=load_dest_in_background)
-    show_file_details_pane = tk.BooleanVar()
     view_menu.add_separator()
     view_menu.add_command(label='Backup Error Log', accelerator='Ctrl+E', command=show_backup_error_log)
     menubar.add_cascade(label='View', underline=0, menu=view_menu)
@@ -3303,3 +3369,7 @@ if __name__ == '__main__':
 
     root_window.protocol('WM_DELETE_WINDOW', on_close)
     root_window.mainloop()
+
+    #############################
+    # END LEFTOVER tkinter BITS #
+    #############################
