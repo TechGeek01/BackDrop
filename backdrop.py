@@ -255,9 +255,11 @@ def update_backup_eta_timer(progress_info: dict):
     """
 
     if backup.status == Status.BACKUP_ANALYSIS_RUNNING or backup.status == Status.BACKUP_ANALYSIS_FINISHED:
-        backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=root_window.uicolor.NORMAL)
+        backup_eta_label.SetLabel('Analysis in progress. Please wait...')
+        backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
     elif backup.status == Status.BACKUP_IDLE or backup.status == Status.BACKUP_ANALYSIS_ABORTED:
-        backup_eta_label.configure(text='Please start a backup to show ETA', fg=root_window.uicolor.NORMAL)
+        backup_eta_label.SetLabel('Please start a backup to show ETA')
+        backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
     elif backup.status == Status.BACKUP_BACKUP_RUNNING:
         # Total is copy source, verify dest, so total data is 2 * copy
         total_to_copy = progress_info['total']['total'] - progress_info['total']['delete_total']
@@ -274,11 +276,14 @@ def update_backup_eta_timer(progress_info: dict):
             # Show infinity symbol if no calculated ETA
             remaining_time = '\u221e'
 
-        backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining", fg=root_window.uicolor.NORMAL)
+        backup_eta_label.SetLabel(f'{str(running_time).split(".")[0]} elapsed \u27f6 {str(remaining_time).split(".")[0]} remaining')
+        backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
     elif backup.status == Status.BACKUP_BACKUP_ABORTED:
-        backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup.get_backup_start_time()).split('.')[0]}", fg=root_window.uicolor.STOPPED)
+        backup_eta_label.SetLabel(f'Backup aborted in {str(datetime.now() - backup.get_backup_start_time()).split(".")[0]}')
+        backup_eta_label.SetForegroundColour(Color.FAILED)
     elif backup.status == Status.BACKUP_BACKUP_FINISHED:
-        backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup.get_backup_start_time()).split('.')[0]}", fg=root_window.uicolor.FINISHED)
+        backup_eta_label.SetLabel(f'Backup completed successfully in {str(datetime.now() - backup.get_backup_start_time()).split(".")[0]}')
+        backup_eta_label.SetForegroundColour(Color.FINISHED)
 
 def display_backup_command_info(display_command_list: list) -> list:
     """Enumerate the display widget with command info after a backup analysis.
@@ -3308,10 +3313,6 @@ if __name__ == '__main__':
     content_tab_frame.tab['details']['width'] = content_tab_frame.tab['details']['content'].winfo_width()
     content_tab_frame.change_tab('summary')
     content_tab_frame.tab['summary']['width'] = content_tab_frame.tab['summary']['content'].winfo_width()
-
-    # Backup ETA (tab gutter)
-    backup_eta_label = tk.Label(content_tab_frame.gutter, text='Please start a backup to show ETA')
-    backup_eta_label.pack()
 
     # Right side frame
     tk.Grid.columnconfigure(root_window.main_frame, 3, weight=1)
