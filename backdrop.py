@@ -45,6 +45,7 @@ class Color:
     TEXT_DEFAULT = wx.Colour(0xff, 0xff, 0xff)
     TEXT_FADED = wx.Colour(0x8e, 0x8e, 0x8e)
     TEXT_INFO = wx.Colour(0x39, 0xce, 0xe1)
+    TEXT_ERROR = wx.Colour(0xff, 0x55, 0x33)
 
     BACKGROUND = wx.Colour(0x33, 0x33, 0x33)
     STATUS_BAR = wx.Colour(0x4a, 0x4a, 0x4a)
@@ -1668,15 +1669,16 @@ if __name__ == '__main__':
         """
 
         STATUS_TEXT_MAP = {
-            Status.UPDATE_CHECKING: ['Checking for updates', root_window.uicolor.NORMAL],
-            Status.UPDATE_AVAILABLE: ['Update available!', root_window.uicolor.INFOTEXT],
-            Status.UPDATE_UP_TO_DATE: ['Up to date', root_window.uicolor.NORMAL],
-            Status.UPDATE_FAILED: ['Update failed', root_window.uicolor.FAILED]
+            Status.UPDATE_CHECKING: ['Checking for updates', Color.TEXT_DEFAULT],
+            Status.UPDATE_AVAILABLE: ['Update available!', Color.TEXT_INFO],
+            Status.UPDATE_UP_TO_DATE: ['Up to date', Color.TEXT_DEFAULT],
+            Status.UPDATE_FAILED: ['Update failed', Color.TEXT_ERROR]
         }
 
         # Set status
         if status in STATUS_TEXT_MAP.keys():
-            statusbar_update.configure(text=STATUS_TEXT_MAP[status][0], fg=STATUS_TEXT_MAP[status][1])
+            status_bar_updates.SetLabel(STATUS_TEXT_MAP[status][0])
+            status_bar_updates.SetForegroundColour(STATUS_TEXT_MAP[status][1])
 
     def request_kill_backup():
         """Kill a running backup."""
@@ -2691,6 +2693,7 @@ if __name__ == '__main__':
         status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     # URGENT: Make status bar update thing open the dialog if there are updatesa
     status_bar_updates = wx.StaticText(status_bar, -1, label='Checking for updates', name='Status bar update indicator')  # URGENT: Make this update with function
+    status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: display_update_screen(update_info))
     status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
     status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
@@ -2773,6 +2776,14 @@ if __name__ == '__main__':
     menu_bar.Append(help_menu, '&Help')
 
     main_frame.SetMenuBar(menu_bar)
+
+    # Check for updates on startup
+    thread_manager.start(
+        ThreadManager.SINGLE,
+        target=update_handler.check,
+        name='Update Check',
+        daemon=True
+    )
 
     root_panel.SetSizerAndFit(box)
     main_frame.Show()
@@ -3377,14 +3388,6 @@ if __name__ == '__main__':
     load_source_in_background()
     # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or REPLACEABLE?
     thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
-
-    # Check for updates on startup
-    thread_manager.start(
-        ThreadManager.SINGLE,
-        target=update_handler.check,
-        name='Update Check',
-        daemon=True
-    )
 
     ui_update_scheduler = RepeatedTimer(0.25, update_ui_during_backup)
 
