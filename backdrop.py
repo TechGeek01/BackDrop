@@ -2403,6 +2403,17 @@ if __name__ == '__main__':
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
 
+    def on_close():
+        if not thread_manager.is_alive('Backup'):
+            main_frame.Close()
+            exit()
+
+        if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
+            if backup:
+                backup.kill()
+            main_frame.Close()
+            exit()
+
     LOGGING_LEVEL = logging.INFO
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
     logging.basicConfig(level=LOGGING_LEVEL, format=LOGGING_FORMAT)
@@ -2771,7 +2782,7 @@ if __name__ == '__main__':
     file_menu.Append(102, '&Save Backup Config\tCtrl+S', 'Save the current config to backup config file on the selected destinations')
     file_menu.Append(103, 'Save Backup Config &As...\tCtrl+Shift+S', 'Save the current config to a backup config file')
     file_menu.AppendSeparator()
-    file_menu.Append(104, 'E&xit')
+    file_menu_exit = file_menu.Append(104, 'E&xit', 'Terminate the program')
     menu_bar.Append(file_menu, '&File')
 
     # Selection menu
@@ -2823,6 +2834,9 @@ if __name__ == '__main__':
     menu_bar.Append(help_menu, '&Help')
 
     main_frame.SetMenuBar(menu_bar)
+
+    # Menu item bindings
+    main_frame.Bind(wx.EVT_MENU, lambda e: on_close(), file_menu_exit)
 
     # Keyboard listener
     listener = keyboard.Listener(
@@ -2980,17 +2994,6 @@ if __name__ == '__main__':
     ])
     tk_style.configure('custom.Progressbar', padding=4, background=root_window.uicolor.COLORACCENT, bordercolor=root_window.uicolor.BGACCENT3, borderwidth=0, troughcolor=root_window.uicolor.BG, lightcolor=root_window.uicolor.COLORACCENT, darkcolor=root_window.uicolor.COLORACCENT)
 
-    def on_close():
-        if not thread_manager.is_alive('Backup'):
-            root_window.quit()
-            exit()
-
-        if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
-            if backup:
-                backup.kill()
-            root_window.quit()
-            exit()
-
     # Add menu bar
     menubar = tk.Menu(root_window)
 
@@ -2999,8 +3002,6 @@ if __name__ == '__main__':
     file_menu.add_command(label='Open Backup Config...', underline=0, accelerator='Ctrl+O', command=open_config_file)
     file_menu.add_command(label='Save Backup Config', underline=0, accelerator='Ctrl+S', command=save_config_file)
     file_menu.add_command(label='Save Backup Config As...', underline=19, accelerator='Ctrl+Shift+S', command=save_config_file_as)
-    file_menu.add_separator()
-    file_menu.add_command(label='Exit', underline=1, command=on_close)
     menubar.add_cascade(label='File', underline=0, menu=file_menu)
 
     # Selection menu
