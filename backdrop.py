@@ -2776,13 +2776,20 @@ if __name__ == '__main__':
     box.Add(status_bar, 0, wx.EXPAND)
 
     # Menu stuff
+    ID_OPEN_CONFIG = wx.NewIdRef()
+    ID_SAVE_CONFIG = wx.NewIdRef()
+    ID_SAVE_CONFIG_AS = wx.NewIdRef()
+    ID_REFRESH_SOURCE = wx.NewIdRef()
+    ID_REFRESH_DEST = wx.NewIdRef()
+    ID_SHOW_ERROR_LOG = wx.NewIdRef()
+
     menu_bar = wx.MenuBar()
 
     # File menu
     file_menu = wx.Menu()
-    file_menu.Append(101, '&Open Backup Config...\tCtrl+O', 'Open a previously created backup config')
-    file_menu.Append(102, '&Save Backup Config\tCtrl+S', 'Save the current config to backup config file on the selected destinations')
-    file_menu.Append(103, 'Save Backup Config &As...\tCtrl+Shift+S', 'Save the current config to a backup config file')
+    file_menu.Append(ID_OPEN_CONFIG, '&Open Backup Config...\tCtrl+O', 'Open a previously created backup config')
+    file_menu.Append(ID_SAVE_CONFIG, '&Save Backup Config\tCtrl+S', 'Save the current config to backup config file on the selected destinations')
+    file_menu.Append(ID_SAVE_CONFIG_AS, 'Save Backup Config &As...\tCtrl+Shift+S', 'Save the current config to a backup config file')
     file_menu.AppendSeparator()
     file_menu_exit = file_menu.Append(104, 'E&xit', 'Terminate the program')
     menu_bar.Append(file_menu, '&File')
@@ -2808,10 +2815,10 @@ if __name__ == '__main__':
 
     # View menu
     view_menu = wx.Menu()
-    view_menu.Append(301, 'Refresh Source\tCtrl+F5', 'Refresh the list of sources shown')
-    view_menu.Append(302, '&Refresh Destination\tF5', 'Refresh the list of destinations shown')
+    view_menu.Append(ID_REFRESH_SOURCE, 'Refresh Source\tCtrl+F5', 'Refresh the list of sources shown')
+    view_menu.Append(ID_REFRESH_DEST, '&Refresh Destination\tF5', 'Refresh the list of destinations shown')
     view_menu.AppendSeparator()
-    view_menu.Append(303, 'Backup Error Log\tCtrl+E', 'Show the backup error log')
+    view_menu.Append(ID_SHOW_ERROR_LOG, 'Backup Error Log\tCtrl+E', 'Show the backup error log')
     menu_bar.Append(view_menu, '&View')
 
     # Actions menu
@@ -2836,6 +2843,23 @@ if __name__ == '__main__':
     menu_bar.Append(help_menu, '&Help')
 
     main_frame.SetMenuBar(menu_bar)
+
+    # Key bindings
+    accelerators = [wx.AcceleratorEntry() for x in range(6)]
+    accelerators[0].Set(wx.ACCEL_CTRL, ord('O'), ID_OPEN_CONFIG)
+    accelerators[1].Set(wx.ACCEL_CTRL, ord('S'), ID_SAVE_CONFIG)
+    accelerators[2].Set(wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('S'), ID_SAVE_CONFIG_AS)
+    accelerators[3].Set(wx.ACCEL_CTRL, wx.WXK_F5, ID_REFRESH_SOURCE)
+    accelerators[4].Set(wx.ACCEL_NORMAL, wx.WXK_F5, ID_REFRESH_DEST)
+    accelerators[5].Set(wx.ACCEL_CTRL, ord('E'), ID_SHOW_ERROR_LOG)
+    main_frame.SetAcceleratorTable(wx.AcceleratorTable(accelerators))
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: print('Open'), id=ID_OPEN_CONFIG)
+    main_frame.Bind(wx.EVT_MENU, lambda e: print('Save'), id=ID_SAVE_CONFIG)
+    main_frame.Bind(wx.EVT_MENU, lambda e: print('Save as'), id=ID_SAVE_CONFIG_AS)
+    main_frame.Bind(wx.EVT_MENU, lambda e: print('Refresh source'), id=ID_REFRESH_SOURCE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: print('Refresh dest'), id=ID_REFRESH_DEST)
+    main_frame.Bind(wx.EVT_MENU, lambda e: print('Error log'), id=ID_SHOW_ERROR_LOG)
 
     # Menu item bindings
     main_frame.Bind(wx.EVT_MENU, lambda e: on_close(), file_menu_exit)
