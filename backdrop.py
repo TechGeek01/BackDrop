@@ -2651,9 +2651,12 @@ if __name__ == '__main__':
 
     controls_sizer = wx.BoxSizer()
     start_analysis_btn = wx.Button(root_panel, -1, label='Analyze', name='Analysis button')
-    start_backup_btn = wx.Button(root_panel, -1, label='Run Backup', name='Backup button')
     controls_sizer.Add(start_analysis_btn, 0)
+    start_backup_btn = wx.Button(root_panel, -1, label='Run Backup', name='Backup button')
     controls_sizer.Add(start_backup_btn, 0, wx.LEFT, ITEM_UI_PADDING)
+    halt_verification_btn = wx.Button(root_panel, -1, label='Halt Verification', name='Halt verification button')
+    halt_verification_btn.Disable()
+    controls_sizer.Add(halt_verification_btn, 0, wx.LEFT, ITEM_UI_PADDING)
 
     branding_sizer = wx.BoxSizer()
     branding_sizer.Add(wx.StaticBitmap(root_panel, -1, wx.Bitmap(wx.Image('media/logo_ui_light.png', wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
