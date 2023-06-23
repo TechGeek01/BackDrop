@@ -2681,7 +2681,9 @@ if __name__ == '__main__':
     status_bar_error_count.SetForegroundColour(Color.TEXT_FADED)
     status_bar_sizer.Add(status_bar_error_count, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_sizer.Add((-1, -1), 1, wx.EXPAND)
-    status_bar_updates = wx.StaticText(status_bar, -1, label='', name='Status bar error count')  # URGENT: Make this update with function
+    if PORTABLE_MODE:
+        status_bar_portable_mode = wx.StaticText(status_bar, -1, label='Portable mode')
+        status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
     status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
