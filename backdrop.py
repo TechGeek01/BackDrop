@@ -1815,39 +1815,46 @@ if __name__ == '__main__':
     def save_config_file_as():
         """Save the config file to a specified location."""
 
-        filename = filedialog.asksaveasfilename(initialdir='', initialfile='backup.ini', title='Save drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
+        with wx.FileDialog(main_frame, 'Save drive config', defaultFile='backup.ini',
+                           wildcard='Backup config files|backup.ini|All files (*.*)|*.*',
+                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as file_dialog:
+            # User changed their mind
+            if file_dialog.ShowModal() == wx.ID_CANCEL:
+                return
 
-        if config['sources'] and config['destinations']:
-            share_list = ','.join([item['dest_name'] for item in config['sources']])
-            raw_vid_list = [drive['vid'] for drive in config['destinations']]
-            raw_vid_list.extend(config['missing_drives'].keys())
-            vid_list = ','.join(raw_vid_list)
+            filename = file_dialog.GetPath()
 
-            # Get drive info, and write file
-            new_config_file = Config(filename)
+            if config['sources'] and config['destinations']:
+                share_list = ','.join([item['dest_name'] for item in config['sources']])
+                raw_vid_list = [drive['vid'] for drive in config['destinations']]
+                raw_vid_list.extend(config['missing_drives'].keys())
+                vid_list = ','.join(raw_vid_list)
 
-            # Write shares and VIDs to config file
-            new_config_file.set('selection', 'sources', share_list)
-            new_config_file.set('selection', 'vids', vid_list)
+                # Get drive info, and write file
+                new_config_file = Config(filename)
 
-            # Write info for each drive to its own section
-            for current_drive in config['destinations']:
-                new_config_file.set(current_drive['vid'], 'vid', current_drive['vid'])
-                new_config_file.set(current_drive['vid'], 'serial', current_drive['serial'])
-                new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
+                # Write shares and VIDs to config file
+                new_config_file.set('selection', 'sources', share_list)
+                new_config_file.set('selection', 'vids', vid_list)
 
-            # Write info for missing drives
-            for drive_vid, capacity in config['missing_drives'].items():
-                new_config_file.set(drive_vid, 'vid', drive_vid)
-                new_config_file.set(drive_vid, 'serial', 'Unknown')
-                new_config_file.set(drive_vid, 'capacity', capacity)
+                # Write info for each drive to its own section
+                for current_drive in config['destinations']:
+                    new_config_file.set(current_drive['vid'], 'vid', current_drive['vid'])
+                    new_config_file.set(current_drive['vid'], 'serial', current_drive['serial'])
+                    new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
 
-            wx.MessageBox(
-                message='Backup config saved successfully',
-                caption='Save Backup Config',
-                style=wx.OK | wx.ICON_INFORMATION,
-                parent=main_frame
-            )
+                # Write info for missing drives
+                for drive_vid, capacity in config['missing_drives'].items():
+                    new_config_file.set(drive_vid, 'vid', drive_vid)
+                    new_config_file.set(drive_vid, 'serial', 'Unknown')
+                    new_config_file.set(drive_vid, 'capacity', capacity)
+
+                wx.MessageBox(
+                    message='Backup config saved successfully',
+                    caption='Save Backup Config',
+                    style=wx.OK | wx.ICON_INFORMATION,
+                    parent=main_frame
+                )
 
     def delete_config_file_from_selected_drives():
         """Delete config files from drives in destination selection."""
@@ -2886,8 +2893,8 @@ if __name__ == '__main__':
     main_frame.SetAcceleratorTable(wx.AcceleratorTable(accelerators))
 
     main_frame.Bind(wx.EVT_MENU, lambda e: open_config_file(), id=ID_OPEN_CONFIG)
-    main_frame.Bind(wx.EVT_MENU, lambda e: print('Save'), id=ID_SAVE_CONFIG)
-    main_frame.Bind(wx.EVT_MENU, lambda e: print('Save as'), id=ID_SAVE_CONFIG_AS)
+    main_frame.Bind(wx.EVT_MENU, lambda e: save_config_file(), id=ID_SAVE_CONFIG)
+    main_frame.Bind(wx.EVT_MENU, lambda e: save_config_file_as(), id=ID_SAVE_CONFIG_AS)
     main_frame.Bind(wx.EVT_MENU, lambda e: print('Refresh source'), id=ID_REFRESH_SOURCE)
     main_frame.Bind(wx.EVT_MENU, lambda e: print('Refresh dest'), id=ID_REFRESH_DEST)
     main_frame.Bind(wx.EVT_MENU, lambda e: print('Error log'), id=ID_SHOW_ERROR_LOG)
@@ -3134,8 +3141,6 @@ if __name__ == '__main__':
     menubar.add_cascade(label='Help', underline=0, menu=help_menu)
 
     # Key bindings
-    root_window.bind('<Control-s>', lambda e: save_config_file())
-    root_window.bind('<Control-Shift-S>', lambda e: save_config_file_as())
     root_window.bind('<Control-e>', lambda e: show_backup_error_log())
 
     root_window.config(menu=menubar)
