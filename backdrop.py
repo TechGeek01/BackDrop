@@ -42,10 +42,33 @@ from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock
 from bin.status import Status
 
 class Color:
-    TEXT_DEFAULT = wx.Colour(0xff, 0xff, 0xff)
-    TEXT_FADED = wx.Colour(0x8e, 0x8e, 0x8e)
-    TEXT_INFO = wx.Colour(0x39, 0xce, 0xe1)
-    TEXT_ERROR = wx.Colour(0xff, 0x55, 0x33)
+    BLACK = wx.Colour(0x00, 0x00, 0x00)
+    WHITE = wx.Colour(0xec, 0xec, 0xec)
+    BLUE = wx.Colour(0x00, 0x93, 0xc4)
+    GREEN = wx.Colour(0x6d, 0xb5, 0x00)
+    GOLD = wx.Colour(0xeb, 0xb3, 0x00)
+    RED = wx.Colour(0xff, 0x55, 0x33)
+    GRAY = wx.Colour(0x66, 0x66, 0x66)
+
+    COLORACCENT = GREEN
+
+    TEXT_DEFAULT = WHITE
+    FADED = wx.Colour(0x8e, 0x8e, 0x8e)
+    INFO = wx.Colour(0x3b, 0xce, 0xff)
+    TOOLTIP = INFO
+    ERROR = RED
+
+    ENABLED = GREEN
+    DISABLED = RED
+
+    SUCCESS = GREEN
+    FAILED = RED
+
+    DANGER = RED
+    FINISHED = GREEN
+    RUNNING = BLUE
+    STOPPED = RED
+    PENDING = FADED
 
     BACKGROUND = wx.Colour(0x33, 0x33, 0x33)
     STATUS_BAR = wx.Colour(0x4a, 0x4a, 0x4a)
@@ -1670,9 +1693,9 @@ if __name__ == '__main__':
 
         STATUS_TEXT_MAP = {
             Status.UPDATE_CHECKING: ['Checking for updates', Color.TEXT_DEFAULT],
-            Status.UPDATE_AVAILABLE: ['Update available!', Color.TEXT_INFO],
+            Status.UPDATE_AVAILABLE: ['Update available!', Color.INFO],
             Status.UPDATE_UP_TO_DATE: ['Up to date', Color.TEXT_DEFAULT],
-            Status.UPDATE_FAILED: ['Update failed', Color.TEXT_ERROR]
+            Status.UPDATE_FAILED: ['Update failed', Color.FAILED]
         }
 
         # Set status
@@ -2457,12 +2480,12 @@ if __name__ == '__main__':
     source_src_selection_info_sizer = wx.BoxSizer()
     source_src_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label='Selected:', name='Source meta selected label'), 0, wx.ALIGN_CENTER_VERTICAL)
     source_selected_space = wx.StaticText(root_panel, -1, label='None', name='Source meta selected value')
-    source_selected_space.SetForegroundColour(Color.TEXT_FADED)
+    source_selected_space.SetForegroundColour(Color.FADED)
     source_src_selection_info_sizer.Add(source_selected_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
     source_src_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
     source_src_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label='Total:', name='Source meta total label'), 0, wx.ALIGN_CENTER_VERTICAL)
     source_total_space = wx.StaticText(root_panel, -1, label='~None', name='Source meta total value')
-    source_total_space.SetForegroundColour(Color.TEXT_FADED)
+    source_total_space.SetForegroundColour(Color.FADED)
     source_src_selection_info_sizer.Add(source_total_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
     spacer_button = wx.Button(root_panel, -1, label='', size=(0, -1), name='Spacer dummy button')
     spacer_button.Disable()
@@ -2477,7 +2500,7 @@ if __name__ == '__main__':
     source_dest_control_sizer = wx.BoxSizer()
     source_dest_control_sizer.Add((-1, -1), 1, wx.EXPAND)
     source_dest_tooltip = wx.StaticText(root_panel, -1, label='Hold ALT when selecting a drive to ignore config files', name='Destination select tooltip')
-    source_dest_tooltip.SetForegroundColour(Color.TEXT_INFO)
+    source_dest_tooltip.SetForegroundColour(Color.INFO)
     source_dest_control_sizer.Add(source_dest_tooltip, 0, wx.ALIGN_CENTER_VERTICAL)
     source_dest_control_sizer.Add((-1, -1), 1, wx.EXPAND)
     source_dest_control_sizer.Add(wx.Button(root_panel, -1, label='Browse', name='Browse destination'), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
@@ -2521,17 +2544,17 @@ if __name__ == '__main__':
     source_dest_selection_info_sizer.Add((-1, -1), 1, wx.EXPAND)
     source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label='Config:', name='Destination meta config label'), 0, wx.ALIGN_CENTER_VERTICAL)
     config_selected_space = wx.StaticText(root_panel, -1, label='None', name='Destination meta config value')
-    config_selected_space.SetForegroundColour(Color.TEXT_FADED)
+    config_selected_space.SetForegroundColour(Color.FADED)
     source_dest_selection_info_sizer.Add(config_selected_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
     source_dest_selection_info_sizer.Add((20, -1), 0)
     source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label='Selected:', name='Destination meta selected label'), 0, wx.ALIGN_CENTER_VERTICAL)
     dest_selected_space = wx.StaticText(root_panel, -1, label='None', name='Destination meta selected value')
-    dest_selected_space.SetForegroundColour(Color.TEXT_FADED)
+    dest_selected_space.SetForegroundColour(Color.FADED)
     source_dest_selection_info_sizer.Add(dest_selected_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
     source_dest_selection_info_sizer.Add((20, -1), 0)
     source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label='Avail:', name='Destination meta available label'), 0, wx.ALIGN_CENTER_VERTICAL)
     dest_total_space = wx.StaticText(root_panel, -1, label=human_filesize(0), name='Destination meta available value')
-    dest_total_space.SetForegroundColour(Color.TEXT_FADED)
+    dest_total_space.SetForegroundColour(Color.FADED)
     source_dest_selection_info_sizer.Add(dest_total_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
     source_dest_selection_info_sizer.Add((-1, -1), 1, wx.EXPAND)
     split_mode_status = wx.ToggleButton(root_panel, -1, label='Split mode', name='Split mode toggle button')
@@ -2574,11 +2597,11 @@ if __name__ == '__main__':
     file_details_delete_text.SetFont(FONT_HEADING)
     file_details_pending_header_sizer.Add(file_details_delete_text, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
     file_details_delete_copy_text = wx.StaticText(root_panel, -1, label='(Click to copy)', name='Files to delete header clipboard label')
-    file_details_delete_copy_text.SetForegroundColour(Color.TEXT_FADED)
+    file_details_delete_copy_text.SetForegroundColour(Color.FADED)
     file_details_pending_header_sizer.Add(file_details_delete_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
     file_details_pending_header_sizer.Add((-1, -1), 1, wx.EXPAND)
     file_details_copy_copy_text = wx.StaticText(root_panel, -1, label='(Click to copy)', name='Files to copy header clipboard label')
-    file_details_copy_copy_text.SetForegroundColour(Color.TEXT_FADED)
+    file_details_copy_copy_text.SetForegroundColour(Color.FADED)
     file_details_pending_header_sizer.Add(file_details_copy_copy_text, 0, wx.ALIGN_BOTTOM | wx.RIGHT, 5)
     file_details_copy_text = wx.StaticText(root_panel, -1, label='Files to copy', name='Files to copy header label')
     file_details_copy_text.SetFont(FONT_HEADING)
@@ -2590,11 +2613,11 @@ if __name__ == '__main__':
     file_details_pending_sizer.Add(file_details_pending_delete_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
     file_details_pending_delete_of = wx.StaticText(root_panel, -1, label='of', name='Pending delete "of"')
     file_details_pending_delete_of.SetFont(FONT_LARGE)
-    file_details_pending_delete_of.SetForegroundColour(Color.TEXT_FADED)
+    file_details_pending_delete_of.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_delete_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
     file_details_pending_delete_counter_total = wx.StaticText(root_panel, -1, label='0', name='Pending delete total')
     file_details_pending_delete_counter_total.SetFont(FONT_LARGE)
-    file_details_pending_delete_counter_total.SetForegroundColour(Color.TEXT_FADED)
+    file_details_pending_delete_counter_total.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_delete_counter_total, 0, wx.ALIGN_BOTTOM)
     file_details_pending_sizer.Add((-1, -1), 1, wx.EXPAND)
     file_details_pending_copy_counter = wx.StaticText(root_panel, -1, label='0', name='Pending copy counter')
@@ -2602,11 +2625,11 @@ if __name__ == '__main__':
     file_details_pending_sizer.Add(file_details_pending_copy_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
     file_details_pending_copy_of = wx.StaticText(root_panel, -1, label='of', name='Pending copy "of"')
     file_details_pending_copy_of.SetFont(FONT_LARGE)
-    file_details_pending_copy_of.SetForegroundColour(Color.TEXT_FADED)
+    file_details_pending_copy_of.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_copy_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
     file_details_pending_copy_counter_total = wx.StaticText(root_panel, -1, label='0', name='Pending copy total')
     file_details_pending_copy_counter_total.SetFont(FONT_LARGE)
-    file_details_pending_copy_counter_total.SetForegroundColour(Color.TEXT_FADED)
+    file_details_pending_copy_counter_total.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_copy_counter_total, 0, wx.ALIGN_BOTTOM)
 
     file_details_success_header_sizer = wx.BoxSizer()
@@ -2614,7 +2637,7 @@ if __name__ == '__main__':
     file_details_success_header.SetFont(FONT_HEADING)
     file_details_success_header_sizer.Add(file_details_success_header, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
     file_details_success_copy_text = wx.StaticText(root_panel, -1, label='(Click to copy)', name='Success file list clipboard header')
-    file_details_success_copy_text.SetForegroundColour(Color.TEXT_FADED)
+    file_details_success_copy_text.SetForegroundColour(Color.FADED)
     file_details_success_header_sizer.Add(file_details_success_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
     file_details_success_header_sizer.Add((-1, -1), 1, wx.EXPAND)
     file_details_success_count = wx.StaticText(root_panel, -1, label='0', name='Success file list count')
@@ -2631,7 +2654,7 @@ if __name__ == '__main__':
     file_details_failed_header.SetFont(FONT_HEADING)
     file_details_failed_header_sizer.Add(file_details_failed_header, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
     file_details_failed_copy_text = wx.StaticText(root_panel, -1, label='(Click to copy)', name='Failed file list clipboard header')
-    file_details_failed_copy_text.SetForegroundColour(Color.TEXT_FADED)
+    file_details_failed_copy_text.SetForegroundColour(Color.FADED)
     file_details_failed_header_sizer.Add(file_details_failed_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
     file_details_failed_header_sizer.Add((-1, -1), 1, wx.EXPAND)
     file_details_failed_count = wx.StaticText(root_panel, -1, label='0', name='Failed file list count')
@@ -2665,7 +2688,7 @@ if __name__ == '__main__':
     branding_sizer = wx.BoxSizer()
     branding_sizer.Add(wx.StaticBitmap(root_panel, -1, wx.Bitmap(wx.Image('media/logo_ui_light.png', wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
     branding_version_text = wx.StaticText(root_panel, -1, f'v{__version__}')
-    branding_version_text.SetForegroundColour(Color.TEXT_FADED)
+    branding_version_text.SetForegroundColour(Color.FADED)
     branding_version_sizer = wx.BoxSizer(wx.VERTICAL)
     branding_version_sizer.Add(branding_version_text, 0)
     branding_version_sizer.Add((-1, 12), 0)
@@ -2685,7 +2708,7 @@ if __name__ == '__main__':
     update_status_bar_action(Status.IDLE)
     # URGENT: Make status bar error count open the error log on click
     status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')  # URGENT: Make this update with function
-    status_bar_error_count.SetForegroundColour(Color.TEXT_FADED)
+    status_bar_error_count.SetForegroundColour(Color.FADED)
     status_bar_sizer.Add(status_bar_error_count, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_sizer.Add((-1, -1), 1, wx.EXPAND)
     if PORTABLE_MODE:
