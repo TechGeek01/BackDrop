@@ -2545,6 +2545,22 @@ if __name__ == '__main__':
         dest_tree.SetColumnWidth(3, 50)
     dest_tree.SetMainColumn(0)
 
+    def update_split_mode_label():
+        """ Update the split mode indicator. """
+        if config['splitMode']:
+            split_mode_status.SetLabel('Split mode enabled')
+            split_mode_status.SetForegroundColour(Color.GREEN)
+        else:
+            split_mode_status.SetLabel('Split mode disabled')
+            split_mode_status.SetForegroundColour(Color.FADED)
+
+    def toggle_split_mode():
+        """Handle toggling of split mode based on checkbox value."""
+
+        if (not backup or not backup.is_running()) and not verification_running:
+            config['splitMode'] = not config['splitMode']
+            update_split_mode_label()
+
     source_dest_selection_info_sizer = wx.BoxSizer()
     source_dest_selection_info_sizer.Add((-1, -1), 1, wx.EXPAND)
     source_dest_selection_info_sizer.Add(wx.StaticText(root_panel, -1, label='Config:', name='Destination meta config label'), 0, wx.ALIGN_CENTER_VERTICAL)
@@ -2562,8 +2578,11 @@ if __name__ == '__main__':
     dest_total_space.SetForegroundColour(Color.FADED)
     source_dest_selection_info_sizer.Add(dest_total_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
     source_dest_selection_info_sizer.Add((-1, -1), 1, wx.EXPAND)
-    split_mode_status = wx.ToggleButton(root_panel, -1, label='Split mode', name='Split mode toggle button')
+    split_mode_status = wx.StaticText(root_panel, -1, label='', name='Split mode toggle status')
+    update_split_mode_label()
     source_dest_selection_info_sizer.Add(split_mode_status, 0, wx.ALIGN_CENTER_VERTICAL)
+
+    split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
 
     source_dest_sizer = wx.BoxSizer(wx.VERTICAL)
     source_dest_sizer.Add(source_dest_control_sizer, 0, wx.EXPAND)
@@ -3176,19 +3195,6 @@ if __name__ == '__main__':
     dest_mode_frame = tk.Frame(root_window.main_frame)
     dest_mode_frame.grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
 
-    def toggle_split_mode(event):
-        """Handle toggling of split mode based on checkbox value."""
-
-        if (not backup or not backup.is_running()) and not verification_running:
-            config['splitMode'] = not config['splitMode']
-
-            if config['splitMode']:
-                split_mode_frame.configure(highlightbackground=root_window.uicolor.GREEN)
-                split_mode_status.configure(style='on.toggle.TLabel')
-            else:
-                split_mode_frame.configure(highlightbackground=root_window.uicolor.FADED)
-                split_mode_status.configure(style='off.toggle.TLabel')
-
     dest_select_normal_frame = tk.Frame(dest_mode_frame)
     dest_select_normal_frame.pack()
     alt_tooltip_normal_frame = tk.Frame(dest_select_normal_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
@@ -3291,11 +3297,6 @@ if __name__ == '__main__':
     drive_total_space.pack(side='left')
     split_mode_frame = tk.Frame(drive_space_frame, highlightbackground=root_window.uicolor.GREEN if config['splitMode'] else root_window.uicolor.FADED, highlightthickness=1)
     split_mode_frame.grid(row=0, column=3, padx=(12, 0), pady=4, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=3)
-    split_mode_status = ttk.Label(split_mode_frame, text='Split mode', style='on.toggle.TLabel' if config['splitMode'] else 'off.toggle.TLabel')
-    split_mode_status.pack(fill='y', expand=1)
-
-    split_mode_frame.bind('<Button-1>', toggle_split_mode)
-    split_mode_status.bind('<Button-1>', toggle_split_mode)
 
     dest_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_dest_in_background)
 
