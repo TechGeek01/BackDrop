@@ -1759,9 +1759,15 @@ if __name__ == '__main__':
     def open_config_file():
         """Open a config file and load it."""
 
-        filename = filedialog.askopenfilename(initialdir='', title='Select drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
-        if filename:
-            load_config_from_file(filename)
+        with wx.FileDialog(main_frame, 'Select drive config', wildcard='Backup config files|backup.ini|All files (*.*)|*.*',
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as file_dialog:
+            # User changed their mind
+            if file_dialog.ShowModal() == wx.ID_CANCEL:
+                return
+
+            filename = file_dialog.GetPath()
+            if filename:
+                load_config_from_file(filename)
 
     def save_config_file():
         """Save the config to selected drives."""
@@ -2879,7 +2885,7 @@ if __name__ == '__main__':
     accelerators[5].Set(wx.ACCEL_CTRL, ord('E'), ID_SHOW_ERROR_LOG)
     main_frame.SetAcceleratorTable(wx.AcceleratorTable(accelerators))
 
-    main_frame.Bind(wx.EVT_MENU, lambda e: print('Open'), id=ID_OPEN_CONFIG)
+    main_frame.Bind(wx.EVT_MENU, lambda e: open_config_file(), id=ID_OPEN_CONFIG)
     main_frame.Bind(wx.EVT_MENU, lambda e: print('Save'), id=ID_SAVE_CONFIG)
     main_frame.Bind(wx.EVT_MENU, lambda e: print('Save as'), id=ID_SAVE_CONFIG_AS)
     main_frame.Bind(wx.EVT_MENU, lambda e: print('Refresh source'), id=ID_REFRESH_SOURCE)
@@ -3128,7 +3134,6 @@ if __name__ == '__main__':
     menubar.add_cascade(label='Help', underline=0, menu=help_menu)
 
     # Key bindings
-    root_window.bind('<Control-o>', lambda e: open_config_file())
     root_window.bind('<Control-s>', lambda e: save_config_file())
     root_window.bind('<Control-Shift-S>', lambda e: save_config_file_as())
     root_window.bind('<Control-e>', lambda e: show_backup_error_log())
