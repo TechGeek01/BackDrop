@@ -2777,6 +2777,12 @@ if __name__ == '__main__':
 
     main_frame.SetMenuBar(menu_bar)
 
+    # Keyboard listener
+    listener = keyboard.Listener(
+        on_press=on_press,
+        on_release=on_release)
+    listener.start()
+
     # Check for updates on startup
     thread_manager.start(
         ThreadManager.SINGLE,
@@ -3378,12 +3384,6 @@ if __name__ == '__main__':
     image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if root_window.dark_mode else ''}.png")))
     tk.Label(branding_frame, image=image_logo).pack(side='left')
     tk.Label(branding_frame, text=f"v{__version__}", font=(None, 10), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
-
-    # Keyboard listener
-    listener = keyboard.Listener(
-        on_press=on_press,
-        on_release=on_release)
-    listener.start()
 
     load_source_in_background()
     # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or REPLACEABLE?
