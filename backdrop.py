@@ -3351,11 +3351,6 @@ if __name__ == '__main__':
     file_details_failed = ScrollableFrame(backup_file_details_frame)
     file_details_failed.grid(row=5, column=0, columnspan=2, sticky='nsew')
 
-    # Set grid weights
-    tk.Grid.rowconfigure(backup_file_details_frame, 3, weight=2)
-    tk.Grid.rowconfigure(backup_file_details_frame, 5, weight=1)
-    tk.Grid.columnconfigure(backup_file_details_frame, (0, 1), weight=1)
-
     # Set click to copy key bindings
     file_details_pending_delete_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
     file_details_pending_delete_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
@@ -3378,12 +3373,7 @@ if __name__ == '__main__':
     start_backup_btn.pack(side='left', padx=4)
     halt_verification_btn = ttk.Button(backup_action_button_frame, text='Halt Verification', width=0, command=lambda: thread_manager.kill('Data Verification'), style='danger.TButton')
 
-    branding_frame = tk.Frame(right_side_frame)
-    branding_frame.pack(padx=WINDOW_ELEMENT_PADDING / 2)
-
-    image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if root_window.dark_mode else ''}.png")))
-    tk.Label(branding_frame, image=image_logo).pack(side='left')
-    tk.Label(branding_frame, text=f"v{__version__}", font=(None, 10), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
+    # Keyboard listener was here #
 
     load_source_in_background()
     # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or REPLACEABLE?
