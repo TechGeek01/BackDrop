@@ -1611,6 +1611,7 @@ if __name__ == '__main__':
     backup = None
     command_list = []
 
+    # FIXME: Find a way to catch SIGINT in wxPython
     signal(SIGINT, cleanup_handler)
 
     thread_manager = ThreadManager()
@@ -2403,6 +2404,7 @@ if __name__ == '__main__':
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
 
+    # URGENT: This crashes with a recursion depth error on is_alive
     def on_close():
         if not thread_manager.is_alive('Backup'):
             main_frame.Close()
@@ -2837,6 +2839,9 @@ if __name__ == '__main__':
 
     # Menu item bindings
     main_frame.Bind(wx.EVT_MENU, lambda e: on_close(), file_menu_exit)
+
+    # Catch close event for graceful exit
+    main_frame.Bind(wx.EVT_CLOSE, lambda e: on_close())
 
     # Keyboard listener
     listener = keyboard.Listener(
