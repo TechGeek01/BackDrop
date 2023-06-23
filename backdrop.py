@@ -1634,7 +1634,7 @@ if __name__ == '__main__':
 
         # Set status
         if status in STATUS_TEXT_MAP.keys():
-            statusbar_selection.configure(text=STATUS_TEXT_MAP[status])
+            status_bar_selection.SetLabel(STATUS_TEXT_MAP[status])
 
     def update_status_bar_action(status: int):
         """Update the status bar action status.
@@ -1644,19 +1644,21 @@ if __name__ == '__main__':
         """
 
         if status == Status.IDLE:
-            statusbar_action.configure(text='Idle')
+            status_bar_action.SetLabel('Idle')
         elif status == Status.BACKUP_ANALYSIS_RUNNING:
-            statusbar_action.configure(text='Analysis running')
+            status_bar_action.SetLabel('Analysis running')
         elif status == Status.BACKUP_READY_FOR_BACKUP:
-            backup_eta_label.configure(text='Analysis finished, ready for backup', fg=root_window.uicolor.NORMAL)
+            backup_eta_label.SetLabel('Analysis finished, ready for backup')
+            backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
         elif status == Status.BACKUP_READY_FOR_ANALYSIS:
-            backup_eta_label.configure(text='Please start a backup to show ETA', fg=root_window.uicolor.NORMAL)
+            backup_eta_label.SetLabel('Please start a backup to show ETA')
+            backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
         elif status == Status.BACKUP_BACKUP_RUNNING:
-            statusbar_action.configure(text='Backup running')
+            status_bar_action.SetLabel('Backup running')
         elif status == Status.BACKUP_HALT_REQUESTED:
-            statusbar_action.configure(text='Stopping backup')
+            status_bar_action.SetLabel('Stopping backup')
         elif status == Status.VERIFICATION_RUNNING:
-            statusbar_action.configure(text='Data verification running')
+            status_bar_action.SetLabel('Data verification running')
 
     def update_status_bar_update(status: int):
         """Update the status bar update message.
@@ -2673,10 +2675,13 @@ if __name__ == '__main__':
     status_bar.SetBackgroundColour(Color.STATUS_BAR)
     status_bar.SetForegroundColour(Color.TEXT_DEFAULT)
     status_bar_sizer = wx.BoxSizer()
-    status_bar_selection = wx.StaticText(status_bar, -1, label='No selection', name='Status bar selection')  # URGENT: Make this update with function
+    status_bar_selection = wx.StaticText(status_bar, -1, label='', name='Status bar selection')
     status_bar_sizer.Add(status_bar_selection, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
-    status_bar_action = wx.StaticText(status_bar, -1, label='Idle', name='Status bar action')  # URGENT: Make this update with function
+    update_status_bar_selection()
+    status_bar_action = wx.StaticText(status_bar, -1, label='', name='Status bar action')
     status_bar_sizer.Add(status_bar_action, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    update_status_bar_action(Status.IDLE)
+    # URGENT: Make status bar error count open the error log on click
     status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')  # URGENT: Make this update with function
     status_bar_error_count.SetForegroundColour(Color.TEXT_FADED)
     status_bar_sizer.Add(status_bar_error_count, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
@@ -2684,6 +2689,8 @@ if __name__ == '__main__':
     if PORTABLE_MODE:
         status_bar_portable_mode = wx.StaticText(status_bar, -1, label='Portable mode')
         status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    # URGENT: Make status bar update thing open the dialog if there are updatesa
+    status_bar_updates = wx.StaticText(status_bar, -1, label='Checking for updates', name='Status bar update indicator')  # URGENT: Make this update with function
     status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
     status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
@@ -2785,6 +2792,7 @@ if __name__ == '__main__':
         dark_mode=prefs.get('ui', 'dark_mode', True, data_type=Config.BOOLEAN)
     )
 
+    # Set icon for window itself
     if SYS_PLATFORM == PLATFORM_WINDOWS:
         root_window.iconbitmap(resource_path('media/icon.ico'))
     elif SYS_PLATFORM == PLATFORM_LINUX:
@@ -2797,24 +2805,8 @@ if __name__ == '__main__':
     menu_font = tkfont.nametofont("TkMenuFont")
     menu_font.configure(size=9)
 
-    # Selection and backup status, left side
-    statusbar_selection = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
-    statusbar_selection.grid(row=0, column=0, padx=6)
-    update_status_bar_selection()
-    statusbar_action = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
-    statusbar_action.grid(row=0, column=1, padx=6)
-    update_status_bar_action(Status.IDLE)
-    statusbar_counter_btn = ttk.Button(root_window.status_bar_frame, text='0 failed', width=0, command=show_backup_error_log, state='disabled', style='danger.statusbar.TButton')
-    statusbar_counter_btn.grid(row=0, column=2, ipadx=3, padx=3)
-    statusbar_details = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
-    statusbar_details.grid(row=0, column=3, padx=6)
-
     # Portable mode indicator and update status, right side
-    if PORTABLE_MODE:
-        statusbar_portablemode = tk.Label(root_window.status_bar_frame, text='Portable mode', bg=root_window.uicolor.STATUS_BAR)
-        statusbar_portablemode.grid(row=0, column=99, padx=6)
     statusbar_update = tk.Label(root_window.status_bar_frame, text='', bg=root_window.uicolor.STATUS_BAR)
-    statusbar_update.grid(row=0, column=100, padx=6)
     statusbar_update.bind('<Button-1>', lambda e: display_update_screen(update_info))
 
     # Set some default styling
