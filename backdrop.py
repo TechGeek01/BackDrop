@@ -9,7 +9,7 @@ __version__ = '4.0.0-alpha2'
 
 import platform
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog, font as tkfont, filedialog
+from tkinter import ttk, simpledialog, font as tkfont, filedialog
 import wx
 import wx.lib.gizmos as gizmos
 import shutil
@@ -951,7 +951,12 @@ def gui_select_from_config():
         split_warning_missing_drive_count.configure(text=str(MISSING_DRIVE_COUNT))
         dest_split_warning_frame.grid(row=3, column=0, columnspan=3, sticky='nsew', pady=(0, WINDOW_ELEMENT_PADDING), ipady=WINDOW_ELEMENT_PADDING / 4)
 
-        messagebox.showwarning(MISSING_VID_ALERT_TITLE, MISSING_VID_ALERT_MESSAGE)
+        wx.MessageBox(
+            message=MISSING_VID_ALERT_MESSAGE,
+            caption=MISSING_VID_ALERT_TITLE,
+            style=wx.ICON_WARNING,
+            parent=main_frame
+        )
 
     # Only redo the selection if the config data is different from the current
     # selection (that is, the drive we selected to load a config is not the only
@@ -1794,7 +1799,12 @@ if __name__ == '__main__':
             # Since config files on drives changed, refresh the destination list
             load_dest_in_background()
 
-            messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully')
+            wx.MessageBox(
+                message='Backup config saved successfully',
+                caption='Save Backup Config',
+                style=wx.OK | wx.ICON_INFORMATION,
+                parent=main_frame
+            )
 
     def save_config_file_as():
         """Save the config file to a specified location."""
@@ -1826,7 +1836,12 @@ if __name__ == '__main__':
                 new_config_file.set(drive_vid, 'serial', 'Unknown')
                 new_config_file.set(drive_vid, 'capacity', capacity)
 
-            messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully')
+            wx.MessageBox(
+                message='Backup config saved successfully',
+                caption='Save Backup Config',
+                style=wx.OK | wx.ICON_INFORMATION,
+                parent=main_frame
+            )
 
     def delete_config_file_from_selected_drives():
         """Delete config files from drives in destination selection."""
@@ -1836,7 +1851,12 @@ if __name__ == '__main__':
 
         if drive_list:
             # Ask for confirmation before deleting
-            if messagebox.askyesno('Delete config files?', 'Are you sure you want to delete the config files from the selected drives?'):
+            if wx.MessageBox(
+                message='Are you sure you want to delete the config files from the selected drives?',
+                caption='Delete config files?',
+                style=wx.YES_NO,
+                parent=main_frame
+            ) == wx.YES:
                 # Delete config file on each drive
                 [os.remove(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) for drive in drive_list]
 
@@ -2410,7 +2430,12 @@ if __name__ == '__main__':
             main_frame.Close()
             exit()
 
-        if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
+        if wx.MessageBox(
+            message="There's still a background process running. Are you sure you want to kill it?",
+            caption='Quit?',
+            style=wx.OK | wx.CANCEL,
+            parent=main_frame
+        ) == wx.OK:
             if backup:
                 backup.kill()
             main_frame.Close()
