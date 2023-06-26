@@ -1,3 +1,4 @@
+import wx
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
@@ -7,9 +8,39 @@ import ctypes
 import clipboard
 import time
 
-from bin.color import Color
-
 WINDOW_ELEMENT_PADDING = 16
+
+class Color:
+    BLACK = wx.Colour(0x00, 0x00, 0x00)
+    WHITE = wx.Colour(0xec, 0xec, 0xec)
+    BLUE = wx.Colour(0x00, 0x93, 0xc4)
+    GREEN = wx.Colour(0x6d, 0xb5, 0x00)
+    GOLD = wx.Colour(0xeb, 0xb3, 0x00)
+    RED = wx.Colour(0xff, 0x55, 0x33)
+    GRAY = wx.Colour(0x66, 0x66, 0x66)
+
+    COLORACCENT = GREEN
+
+    TEXT_DEFAULT = WHITE
+    FADED = wx.Colour(0x8e, 0x8e, 0x8e)
+    INFO = wx.Colour(0x3b, 0xce, 0xff)
+    TOOLTIP = INFO
+    ERROR = RED
+
+    ENABLED = GREEN
+    DISABLED = RED
+
+    SUCCESS = GREEN
+    FAILED = RED
+
+    DANGER = RED
+    FINISHED = GREEN
+    RUNNING = BLUE
+    STOPPED = RED
+    PENDING = FADED
+
+    BACKGROUND = wx.Colour(0x33, 0x33, 0x33)
+    STATUS_BAR = wx.Colour(0x4a, 0x4a, 0x4a)
 
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller."""
@@ -366,7 +397,7 @@ class BackupDetailBlock(tk.Frame):
         self.enabled = enabled
         self.backup = backup
         self.uicolor = uicolor
-        self.dark_mode = uicolor.is_dark_mode()
+        self.dark_mode = True
         self.right_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if self.dark_mode else ''}.png")))
         self.down_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if self.dark_mode else ''}.png")))
 
@@ -474,60 +505,64 @@ class BackupDetailBlock(tk.Frame):
         def configure(self, *args, **kwargs):
             self.content.configure(*args, **kwargs)
 
-class DetailBlock(tk.Frame):
-    HEADER_FONT = (None, 9, 'bold')
-    TEXT_FONT = (None, 9)
-
+class DetailBlock(wx.BoxSizer):
     TITLE = 'title'
     CONTENT = 'content'
 
-    def __init__(self, parent, title, uicolor, enabled: bool = True):
+    def __init__(self, parent, title, text_font, bold_font, enabled: bool = True):
         """Create an expandable detail block to display info.
 
         Args:
             parent (tk.*): The parent widget.
             title (String): The bold title to display.
-            uicolor (Color): The UI pallete instance.
+            text_font (wx.Font): The font to use for the text.
+            bold_font (wx.Font): The font to use for the headings.
             enabled (bool): Whether or not this block is enabled.
         """
 
+        wx.BoxSizer.__init__(self, orient=wx.VERTICAL)
+
         self.enabled = enabled
-        self.uicolor = uicolor
-        self.dark_mode = uicolor.is_dark_mode()
-        self.right_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if self.dark_mode else ''}.png")))
-        self.down_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if self.dark_mode else ''}.png")))
+        self.parent = parent
+        self.TEXT_FONT = text_font
+        self.BOLD_FONT = bold_font
+        self.expanded = False
+        self.dark_mode = True
+        self.right_arrow = wx.Bitmap(wx.Image(f'media/right_nav{"_light" if self.dark_mode else ""}.png', wx.BITMAP_TYPE_ANY))
+        self.down_arrow = wx.Bitmap(wx.Image(f'media/down_nav{"_light" if self.dark_mode else ""}.png', wx.BITMAP_TYPE_ANY))
 
         self.lines = {}
 
-        tk.Frame.__init__(self, parent)
-        self.pack_propagate(0)
-        self.grid_columnconfigure(1, weight=1)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.arrow = tk.Label(self, image=self.right_arrow)
-        self.header_frame = tk.Frame(self)
-        self.header = tk.Label(self.header_frame, text=title, font=DetailBlock.HEADER_FONT, fg=self.uicolor.NORMAL if self.enabled else self.uicolor.FADED)
+        self.header_sizer = wx.BoxSizer()
+        self.arrow = wx.StaticBitmap(self.parent, -1, self.right_arrow)
+        self.header_sizer.Add(self.arrow, 0)
+        self.header = wx.StaticText(self.parent, -1, label=title)
+        self.header.SetFont(self.BOLD_FONT)
+        self.header.SetForegroundColour(Color.TEXT_DEFAULT if self.enabled else Color.FADED)
+        self.header_sizer.Add(self.header, 0)
+        self.sizer.Add(self.header_sizer, 0)
 
-        self.content = tk.Frame(self)
-
-        self.arrow.grid(row=0, column=0)
-        self.header_frame.grid(row=0, column=1, sticky='w')
-        self.header.pack(side='left')
+        self.content = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.content, 0)
+        self.content.Hide(self)
 
         # Bind click for expanding and collapsing
-        self.arrow.bind('<Button-1>', lambda e: self.toggle())
-        self.header.bind('<Button-1>', lambda e: self.toggle())
+        self.arrow.Bind(wx.EVT_LEFT_DOWN, lambda e: self.toggle())
+        self.header.Bind(wx.EVT_LEFT_DOWN, lambda e: self.toggle())
 
     def toggle(self):
         """Toggle expanding content of a block."""
 
-        if not self.content.grid_info():
+        if not self.expanded:
             # Collapsed turns into expanded
-            self.arrow.configure(image=self.down_arrow)
-            self.content.grid(row=1, column=1, sticky='w')
+            self.arrow.SetBitmap(self.down_arrow)
+            self.content.Hide()
         else:
             # Expanded turns into collapsed
-            self.arrow.configure(image=self.right_arrow)
-            self.content.grid_forget()
+            self.arrow.SetBitmap(self.right_arrow)
+            self.content.Show()
 
     def add_line(self, line_name, title, content, *args, **kwargs):
         """Add a line to the block content.
@@ -538,8 +573,8 @@ class DetailBlock(tk.Frame):
             content (String): The content to display.
         """
 
-        self.lines[line_name] = self.InfoLine(self.content, title, content, self.uicolor, *args, **kwargs)
-        self.lines[line_name].pack(anchor='w')
+        self.lines[line_name] = self.InfoLine(self.parent, title, content, bold_font=self.BOLD_FONT, text_font=self.TEXT_FONT, *args, **kwargs)
+        self.sizer.Add(self.lines[line_name], 0)
 
     def add_copy_line(self, line_name, title, content, clipboard_data, *args, **kwargs):
         """Add a line to the block content.
@@ -550,46 +585,80 @@ class DetailBlock(tk.Frame):
             content (String): The content to display.
         """
 
-        self.lines[line_name] = self.InfoLine(self.content, title, content, self.uicolor, clipboard_data, *args, **kwargs)
-        self.lines[line_name].pack(anchor='w')
+        self.lines[line_name] = self.InfoLine(self.parent, title, content, bold_font=self.BOLD_FONT, text_font=self.TEXT_FONT, clipboard_data=clipboard_data, *args, **kwargs)
+        self.sizer.Add(self.lines[line_name], 0)
 
-    def configure(self, line_name, *args, **kwargs):
+    def SetForegroundColour(self, line_name: str, *args, **kwargs):
+        """Set the foreground color of an info line.
+
+        Args:
+            line_name (String): The line name to change.
+        """
+
         if line_name in self.lines.keys():
-            self.lines[line_name].configure(*args, **kwargs)
+            self.header.SetForegroundColour(*args, **kwargs)
 
-    class InfoLine(tk.Frame):
-        def __init__(self, parent, title, content, uicolor, clipboard_data=None, *args, **kwargs):
+    def SetFont(self, line_name: str, *args, **kwargs):
+        """Set the font of an info line.
+
+        Args:
+            line_name (String): The line name to change.
+        """
+
+        if line_name in self.lines.keys():
+            self.header.SetFont(*args, **kwargs)
+
+    def get_sizer(self):
+        """Get the DetailBlock sizer."""
+        return self.sizer
+
+    class InfoLine(wx.BoxSizer):
+        def __init__(self, parent, title, content, bold_font, text_font, clipboard_data=None, *args, **kwargs):
             """Create an info line for use in DisplayBlock classes.
 
             Args:
                 parent (tk.*): The parent widget).
                 title (String): The line title.
                 content (String): The content to display.
-                uicolor (Color): The UI pallete instance.
+                bold_font (wx.Font): The font to be used for the header.
+                text_font (wx.Font): The font to be used for the text.
                 clipboard_data (String): The data to copy to clipboard if line
                     is a copy line (default: None).
             """
 
-            tk.Frame.__init__(self, parent)
+            wx.BoxSizer.__init__(self)
 
-            self.uicolor = uicolor
+            self.parent = parent
+            self.BOLD_FONT = bold_font
+            self.TEXT_FONT = text_font
 
-            self.title = tk.Label(self, text=f"{title}:", font=DetailBlock.HEADER_FONT)
+            self.title = wx.StaticText(self.parent, -1, label=f"{title}:")
+            self.title.SetFont(self.BOLD_FONT)
             if clipboard_data is not None and clipboard_data:
-                self.tooltip = tk.Label(self, text='(Click to copy)', font=DetailBlock.TEXT_FONT, fg=self.uicolor.FADED)
+                self.tooltip = wx.StaticText(self.parent, -1, label='(Click to copy)')
+                self.tooltip.SetFont(self.TEXT_FONT)
+                self.tooltip.SetForegroundColour(Color.FADED)
                 self.clipboard_data = clipboard_data
-            self.content = tk.Label(self, text=content, font=DetailBlock.TEXT_FONT, *args, **kwargs)
+            self.content = wx.StaticText(self.parent, -1, label=content)
+            self.content.SetFont(self.TEXT_FONT)
 
-            self.title.pack(side='left')
+            self.Add(self.title, 0)
             if clipboard_data is not None and clipboard_data:
-                self.tooltip.pack(side='left')
-            self.content.pack(side='left')
+                self.Add(self.tooltip, 0)
+            self.Add(self.content, 0)
 
             # Set up keyboard binding for copies
             if clipboard_data is not None and clipboard_data:
-                self.title.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
-                self.tooltip.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
-                self.content.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
+                self.title.Bind(wx.EVT_LEFT_DOWN, lambda e: clipboard.copy(self.clipboard_data))
+                self.tooltip.Bind(wx.EVT_LEFT_DOWN, lambda e: clipboard.copy(self.clipboard_data))
+                self.content.Bind(wx.EVT_LEFT_DOWN, lambda e: clipboard.copy(self.clipboard_data))
 
-        def configure(self, *args, **kwargs):
-            self.content.configure(*args, **kwargs)
+        def SetForegroundColour(self, *args, **kwargs):
+            """Set the foreground color of the line."""
+
+            self.header.SetForegroundColour(*args, **kwargs)
+
+        def SetFont(self, *args, **kwargs):
+            """Set the font of the line."""
+
+            self.header.SetFont(*args, **kwargs)

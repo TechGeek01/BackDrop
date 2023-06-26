@@ -1883,7 +1883,7 @@ if __name__ == '__main__':
 
         global window_backup_error_log
 
-        if window_backup_error_log is None or not window_backup_error_log.winfo_exists():
+        backup_error_log_log_sizer.Clear()
             # Initialize window
             window_backup_error_log = AppWindow(
                 root=root_window,
@@ -1900,22 +1900,25 @@ if __name__ == '__main__':
             if SYS_PLATFORM == PLATFORM_WINDOWS:
                 window_backup_error_log.iconbitmap(resource_path('media/icon.ico'))
 
-            tk.Label(window_backup_error_log.main_frame, text='Error Log', font=(None, 20)).grid(row=0, column=0, sticky='ew', pady=WINDOW_ELEMENT_PADDING / 2)
-            errorlog_error_list_frame = ScrollableFrame(window_backup_error_log.main_frame)
-            errorlog_error_list_frame.grid(row=1, column=0, sticky='nsew')
+        for error in backup_error_log:
+            error_summary_block = DetailBlock(
+                parent=backup_error_log_frame,
+                title=error['file'].split(os.path.sep)[-1],
+                text_font=FONT_DEFAULT,
+                bold_font=FONT_BOLD
+            )
 
-            for error in backup_error_log:
-                error_summary_block = DetailBlock(
-                    parent=errorlog_error_list_frame.frame,
+            error_summary_block.add_line('file_name', 'Filename', error['file'])
+            error_summary_block.add_line('operation', 'Operation', error['mode'])
+            error_summary_block.add_line('error', 'Error', error['error'])
                     title=error['file'].split(os.path.sep)[-1],
                     uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
                 )
 
-                error_summary_block.add_line('file_name', 'Filename', error['file'])
-                error_summary_block.add_line('operation', 'Operation', error['mode'])
-                error_summary_block.add_line('error', 'Error', error['error'])
+            backup_error_log_log_sizer.Add(error_summary_block, 0)
 
-                error_summary_block.pack(anchor='w', expand=1)
+        main_frame.Disable()
+        backup_error_log_frame.Show()
 
     def browse_for_source():
         """Browse for a source path, and either make it the source, or add to the list."""
@@ -2492,6 +2495,9 @@ if __name__ == '__main__':
     FONT_DEFAULT = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
                            weight=wx.FONTWEIGHT_NORMAL, underline=False,
                            faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_BOLD = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
+                        weight=wx.FONTWEIGHT_BOLD, underline=False,
+                        faceName ='', encoding=wx.FONTENCODING_DEFAULT)
     FONT_LARGE = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
                          weight=wx.FONTWEIGHT_NORMAL, underline=False,
                          faceName ='', encoding=wx.FONTENCODING_DEFAULT)
@@ -2509,6 +2515,46 @@ if __name__ == '__main__':
     )
     main_frame.SetFont(FONT_DEFAULT)
     app.SetTopWindow(main_frame)
+
+    def backup_error_log_on_close(event):
+        """Handle closing the backup error log window."""
+
+        print('Error log close')
+
+        main_frame.Enable()
+        main_frame.Show()
+        event.Skip()
+
+    backup_error_log_frame = wx.Frame(
+        parent=None,
+        title='Backup Error Log',
+        size=wx.Size(650, 450)
+    )
+    backup_error_log_frame.SetFont(FONT_DEFAULT)
+
+    backup_error_log_panel = wx.Panel(backup_error_log_frame)
+    backup_error_log_panel.SetBackgroundColour(Color.BACKGROUND)
+    backup_error_log_panel.SetForegroundColour(Color.TEXT_DEFAULT)
+    backup_error_log_panel.Fit()
+    backup_error_log_panel.GetParent().SendSizeEvent()
+    backup_error_log_sizer = wx.BoxSizer(wx.VERTICAL)
+
+    backup_error_log_header = wx.StaticText(backup_error_log_panel, -1, label='Backup Error Log', name='Backup error log heading')
+    backup_error_log_header.SetFont(FONT_HEADING)
+    backup_error_log_sizer.Add(backup_error_log_header, 0, wx.ALIGN_CENTER_HORIZONTAL)
+
+    backup_error_log_log_panel = wx.ScrolledWindow(backup_error_log_panel, -1, name='Backup error log panel')
+    backup_error_log_log_panel.SetForegroundColour(Color.TEXT_DEFAULT)
+    backup_error_log_log_sizer = wx.BoxSizer(wx.VERTICAL)
+    backup_error_log_log_panel.SetSizer(backup_error_log_log_sizer)
+    backup_error_log_sizer.Add(backup_error_log_log_sizer, 1, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+
+    backup_error_log_box = wx.BoxSizer()
+    backup_error_log_box.Add(backup_error_log_sizer, 1, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
+
+    backup_error_log_panel.SetSizerAndFit(backup_error_log_box)
+
+    backup_error_log_frame.Bind(wx.EVT_CLOSE, backup_error_log_on_close)
 
     # Root panel stuff
     root_panel = wx.Panel(main_frame)
@@ -2897,7 +2943,7 @@ if __name__ == '__main__':
     main_frame.Bind(wx.EVT_MENU, lambda e: save_config_file_as(), id=ID_SAVE_CONFIG_AS)
     main_frame.Bind(wx.EVT_MENU, lambda e: print('Refresh source'), id=ID_REFRESH_SOURCE)
     main_frame.Bind(wx.EVT_MENU, lambda e: print('Refresh dest'), id=ID_REFRESH_DEST)
-    main_frame.Bind(wx.EVT_MENU, lambda e: print('Error log'), id=ID_SHOW_ERROR_LOG)
+    main_frame.Bind(wx.EVT_MENU, lambda e: show_backup_error_log(), id=ID_SHOW_ERROR_LOG)
 
     # Menu item bindings
     main_frame.Bind(wx.EVT_MENU, lambda e: on_close(), file_menu_exit)
@@ -3139,9 +3185,6 @@ if __name__ == '__main__':
     settings_allow_prerelease_updates = tk.BooleanVar(value=config['allow_prereleases'])
     help_menu.add_checkbutton(label='Allow Prereleases', onvalue=True, offvalue=False, variable=settings_allow_prerelease_updates, command=lambda: prefs.set('ui', 'allow_prereleases', settings_allow_prerelease_updates.get()))
     menubar.add_cascade(label='Help', underline=0, menu=help_menu)
-
-    # Key bindings
-    root_window.bind('<Control-e>', lambda e: show_backup_error_log())
 
     root_window.config(menu=menubar)
 
