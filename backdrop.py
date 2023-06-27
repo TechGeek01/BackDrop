@@ -2443,7 +2443,6 @@ if __name__ == '__main__':
     # URGENT: This crashes with a recursion depth error on is_alive
     def on_close():
         if not thread_manager.is_alive('Backup'):
-            main_frame.Close()
             exit()
 
         if wx.MessageBox(
@@ -2454,7 +2453,6 @@ if __name__ == '__main__':
         ) == wx.OK:
             if backup:
                 backup.kill()
-            main_frame.Close()
             exit()
 
     LOGGING_LEVEL = logging.INFO
@@ -2519,11 +2517,14 @@ if __name__ == '__main__':
     def backup_error_log_on_close(event):
         """Handle closing the backup error log window."""
 
-        print('Error log close')
-
         main_frame.Enable()
         main_frame.Show()
-        event.Skip()
+        
+        if event.CanVeto():
+            event.Veto()
+            backup_error_log_frame.Hide()
+        else:
+            backup_error_log_frame.Destroy()
 
     backup_error_log_frame = wx.Frame(
         parent=None,
