@@ -509,7 +509,7 @@ class DetailBlock(wx.BoxSizer):
     TITLE = 'title'
     CONTENT = 'content'
 
-    def __init__(self, parent, title, text_font, bold_font, enabled: bool = True):
+    def __init__(self, parent, title: str, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
         """Create an expandable detail block to display info.
 
         Args:
@@ -533,20 +533,21 @@ class DetailBlock(wx.BoxSizer):
 
         self.lines = {}
 
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
-
         self.header_sizer = wx.BoxSizer()
         self.arrow = wx.StaticBitmap(self.parent, -1, self.right_arrow)
-        self.header_sizer.Add(self.arrow, 0)
+        self.header_sizer.Add(self.arrow, 0, wx.TOP, 3)
         self.header = wx.StaticText(self.parent, -1, label=title)
         self.header.SetFont(self.BOLD_FONT)
         self.header.SetForegroundColour(Color.TEXT_DEFAULT if self.enabled else Color.FADED)
-        self.header_sizer.Add(self.header, 0)
-        self.sizer.Add(self.header_sizer, 0)
+        self.header_sizer.Add(self.header, 0, wx.LEFT, 5)
+        self.Add(self.header_sizer, 0)
 
-        self.content = wx.BoxSizer(wx.VERTICAL)
-        self.sizer.Add(self.content, 0)
-        self.content.Hide(self)
+        self.content = wx.Panel(self.parent, name='DetailBlock content panel')
+        self.content.Hide()
+        self.content.SetForegroundColour(Color.TEXT_DEFAULT if self.enabled else Color.FADED)
+        self.content_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.content.SetSizer(self.content_sizer)
+        self.Add(self.content, 0)
 
         # Bind click for expanding and collapsing
         self.arrow.Bind(wx.EVT_LEFT_DOWN, lambda e: self.toggle())
@@ -557,36 +558,33 @@ class DetailBlock(wx.BoxSizer):
 
         if not self.expanded:
             # Collapsed turns into expanded
+            self.expanded = True
+
             self.arrow.SetBitmap(self.down_arrow)
-            self.content.Hide()
+            self.content.Show()
+            self.Layout()
+            self.parent.Layout()
         else:
             # Expanded turns into collapsed
+            self.expanded = False
+
             self.arrow.SetBitmap(self.right_arrow)
-            self.content.Show()
+            self.content.Hide()
+            self.Layout()
+            self.parent.Layout()
 
-    def add_line(self, line_name, title, content, *args, **kwargs):
+    def add_line(self, line_name: str, title: str, content: str, clipboard_data: str = None, *args, **kwargs):
         """Add a line to the block content.
 
         Args:
             line_name (String): The name of the line for later reference.
             title (String): The line title.
             content (String): The content to display.
+            clipboard_data (String): The clipboard data to copy when clicked (optional).
         """
 
-        self.lines[line_name] = self.InfoLine(self.parent, title, content, bold_font=self.BOLD_FONT, text_font=self.TEXT_FONT, *args, **kwargs)
-        self.sizer.Add(self.lines[line_name], 0)
-
-    def add_copy_line(self, line_name, title, content, clipboard_data, *args, **kwargs):
-        """Add a line to the block content.
-
-        Args:
-            line_name (String): The name of the line for later reference.
-            title (String): The line title.
-            content (String): The content to display.
-        """
-
-        self.lines[line_name] = self.InfoLine(self.parent, title, content, bold_font=self.BOLD_FONT, text_font=self.TEXT_FONT, clipboard_data=clipboard_data, *args, **kwargs)
-        self.sizer.Add(self.lines[line_name], 0)
+        self.lines[line_name] = self.InfoLine(self.content, title, content, bold_font=self.BOLD_FONT, text_font=self.TEXT_FONT, clipboard_data=clipboard_data, *args, **kwargs)
+        self.content_sizer.Add(self.lines[line_name], 0)
 
     def SetForegroundColour(self, line_name: str, *args, **kwargs):
         """Set the foreground color of an info line.
@@ -608,12 +606,8 @@ class DetailBlock(wx.BoxSizer):
         if line_name in self.lines.keys():
             self.header.SetFont(*args, **kwargs)
 
-    def get_sizer(self):
-        """Get the DetailBlock sizer."""
-        return self.sizer
-
     class InfoLine(wx.BoxSizer):
-        def __init__(self, parent, title, content, bold_font, text_font, clipboard_data=None, *args, **kwargs):
+        def __init__(self, parent, title: str, content: str, bold_font: wx.Font, text_font: wx.Font, clipboard_data: str = None, *args, **kwargs):
             """Create an info line for use in DisplayBlock classes.
 
             Args:
@@ -634,18 +628,18 @@ class DetailBlock(wx.BoxSizer):
 
             self.title = wx.StaticText(self.parent, -1, label=f"{title}:")
             self.title.SetFont(self.BOLD_FONT)
+            self.Add(self.title, 0)
+
             if clipboard_data is not None and clipboard_data:
                 self.tooltip = wx.StaticText(self.parent, -1, label='(Click to copy)')
                 self.tooltip.SetFont(self.TEXT_FONT)
                 self.tooltip.SetForegroundColour(Color.FADED)
                 self.clipboard_data = clipboard_data
+                self.Add(self.tooltip, 0, wx.LEFT, 5)
+
             self.content = wx.StaticText(self.parent, -1, label=content)
             self.content.SetFont(self.TEXT_FONT)
-
-            self.Add(self.title, 0)
-            if clipboard_data is not None and clipboard_data:
-                self.Add(self.tooltip, 0)
-            self.Add(self.content, 0)
+            self.Add(self.content, 0, wx.LEFT, 5)
 
             # Set up keyboard binding for copies
             if clipboard_data is not None and clipboard_data:

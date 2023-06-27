@@ -1884,21 +1884,6 @@ if __name__ == '__main__':
         global window_backup_error_log
 
         backup_error_log_log_sizer.Clear()
-            # Initialize window
-            window_backup_error_log = AppWindow(
-                root=root_window,
-                title='Backup Error Log',
-                width=650,
-                height=450,
-                center=True,
-                resizable=(False, False)
-            )
-
-            window_backup_error_log.main_frame.grid_columnconfigure(0, weight=1)
-            window_backup_error_log.main_frame.grid_rowconfigure(1, weight=1)
-
-            if SYS_PLATFORM == PLATFORM_WINDOWS:
-                window_backup_error_log.iconbitmap(resource_path('media/icon.ico'))
 
         for error in backup_error_log:
             error_summary_block = DetailBlock(
@@ -1911,9 +1896,6 @@ if __name__ == '__main__':
             error_summary_block.add_line('file_name', 'Filename', error['file'])
             error_summary_block.add_line('operation', 'Operation', error['mode'])
             error_summary_block.add_line('error', 'Error', error['error'])
-                    title=error['file'].split(os.path.sep)[-1],
-                    uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
-                )
 
             backup_error_log_log_sizer.Add(error_summary_block, 0)
 
@@ -2509,7 +2491,8 @@ if __name__ == '__main__':
     main_frame = wx.Frame(
         parent=None,
         title='BackDrop - Data Backup Tool',
-        size=wx.Size(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+        size=wx.Size(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT),
+        name='Main window frame'
     )
     main_frame.SetFont(FONT_DEFAULT)
     app.SetTopWindow(main_frame)
@@ -2529,11 +2512,12 @@ if __name__ == '__main__':
     backup_error_log_frame = wx.Frame(
         parent=None,
         title='Backup Error Log',
-        size=wx.Size(650, 450)
+        size=wx.Size(650, 450),
+        name='Backup error log frame'
     )
     backup_error_log_frame.SetFont(FONT_DEFAULT)
 
-    backup_error_log_panel = wx.Panel(backup_error_log_frame)
+    backup_error_log_panel = wx.Panel(backup_error_log_frame, name='Backup error log root panel')
     backup_error_log_panel.SetBackgroundColour(Color.BACKGROUND)
     backup_error_log_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     backup_error_log_panel.Fit()
@@ -2544,11 +2528,11 @@ if __name__ == '__main__':
     backup_error_log_header.SetFont(FONT_HEADING)
     backup_error_log_sizer.Add(backup_error_log_header, 0, wx.ALIGN_CENTER_HORIZONTAL)
 
-    backup_error_log_log_panel = wx.ScrolledWindow(backup_error_log_panel, -1, name='Backup error log panel')
+    backup_error_log_log_panel = wx.ScrolledWindow(backup_error_log_panel, -1, name='Backup error log ScrolledWindow')
     backup_error_log_log_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     backup_error_log_log_sizer = wx.BoxSizer(wx.VERTICAL)
     backup_error_log_log_panel.SetSizer(backup_error_log_log_sizer)
-    backup_error_log_sizer.Add(backup_error_log_log_sizer, 1, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    backup_error_log_sizer.Add(backup_error_log_log_panel, 1, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
 
     backup_error_log_box = wx.BoxSizer()
     backup_error_log_box.Add(backup_error_log_sizer, 1, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
@@ -2558,7 +2542,7 @@ if __name__ == '__main__':
     backup_error_log_frame.Bind(wx.EVT_CLOSE, backup_error_log_on_close)
 
     # Root panel stuff
-    root_panel = wx.Panel(main_frame)
+    root_panel = wx.Panel(main_frame, name='Main window root panel')
     root_panel.SetBackgroundColour(Color.BACKGROUND)
     root_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     root_panel.Fit()
