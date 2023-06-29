@@ -1883,11 +1883,14 @@ if __name__ == '__main__':
 
         global window_backup_error_log
 
+        # TODO: Move this error log building to the UI update function.
+        # This would let the UI update thread handle appending, and have this function
+        # only deal with showing the window itself.
         backup_error_log_log_sizer.Clear()
 
         for error in backup_error_log:
             error_summary_block = DetailBlock(
-                parent=backup_error_log_frame,
+                parent=backup_error_log_log_panel,
                 title=error['file'].split(os.path.sep)[-1],
                 text_font=FONT_DEFAULT,
                 bold_font=FONT_BOLD
@@ -2528,7 +2531,8 @@ if __name__ == '__main__':
     backup_error_log_header.SetFont(FONT_HEADING)
     backup_error_log_sizer.Add(backup_error_log_header, 0, wx.ALIGN_CENTER_HORIZONTAL)
 
-    backup_error_log_log_panel = wx.ScrolledWindow(backup_error_log_panel, -1, name='Backup error log ScrolledWindow')
+    backup_error_log_log_panel = wx.ScrolledWindow(backup_error_log_panel, -1, style=wx.VSCROLL, name='Backup error log ScrolledWindow')
+    backup_error_log_log_panel.SetScrollbars(20, 20, 50, 50)
     backup_error_log_log_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     backup_error_log_log_sizer = wx.BoxSizer(wx.VERTICAL)
     backup_error_log_log_panel.SetSizer(backup_error_log_log_sizer)

@@ -564,6 +564,7 @@ class DetailBlock(wx.BoxSizer):
             self.content.Show()
             self.Layout()
             self.parent.Layout()
+            self.parent.GetParent().Layout()
         else:
             # Expanded turns into collapsed
             self.expanded = False
@@ -572,6 +573,7 @@ class DetailBlock(wx.BoxSizer):
             self.content.Hide()
             self.Layout()
             self.parent.Layout()
+            self.parent.GetParent().Layout()
 
     def add_line(self, line_name: str, title: str, content: str, clipboard_data: str = None, *args, **kwargs):
         """Add a line to the block content.
