@@ -1415,57 +1415,27 @@ def verify_data_integrity(drive_list: list):
         statusbar_details.configure(text='')
         update_status_bar_action(Status.IDLE)
 
-def display_update_screen(update_info: dict):
+def show_update_window(update_info: dict):
     """Display information about updates.
 
     Args:
         update_info (dict): The update info returned by the UpdateHandler.
     """
 
-    global update_window
+    global update_frame
+    global update_icon_sizer
 
-    if not update_info['updateAvailable'] or (update_window and update_window.winfo_exists()):
+    if not update_info['updateAvailable'] or update_frame.IsShown():
         return
 
-    update_window = AppWindow(
-        root=root_window,
-        title='Update Available',
-        width=600,
-        height=300,
-        center=True,
-        center_content=True,
-        resizable=(False, False),
-        modal=True
-    )
-
-    if SYS_PLATFORM == PLATFORM_WINDOWS:
-        update_window.iconbitmap(resource_path('media/icon.ico'))
-
-    update_header = tk.Label(update_window.main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=root_window.uicolor.INFOTEXTDARK)
-    update_header.pack()
-
-    update_text = tk.Label(update_window.main_frame, text='An update to BackDrop is available. Please update to get the latest features and fixes.', font=(None, 10))
-    update_text.pack(pady=16)
-
-    current_version_frame = tk.Frame(update_window.main_frame)
-    current_version_frame.pack()
-    tk.Label(current_version_frame, text='Current Version:', font=(None, 14)).pack(side='left')
-    tk.Label(current_version_frame, text=__version__, font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
-
-    latest_version_frame = tk.Frame(update_window.main_frame)
-    latest_version_frame.pack(pady=(2, 12))
-    tk.Label(latest_version_frame, text='Latest Version:', font=(None, 14)).pack(side='left')
-    tk.Label(latest_version_frame, text=update_info['latestVersion'], font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
-
-    download_frame = tk.Frame(update_window.main_frame)
-    download_frame.pack()
-
-    download_source_frame = tk.Frame(update_window.main_frame)
-    download_source_frame.pack()
-    tk.Label(download_source_frame, text='Or, check out the source on').pack(side='left')
-    github_link = tk.Label(download_source_frame, text='GitHub', fg=root_window.uicolor.INFOTEXT)
-    github_link.pack(side='left')
-    github_link.bind('<Button-1>', lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
+    icon_windows = wx.Bitmap(wx.Image(f"media/windows{'_light' if dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
+    icon_windows_color = wx.Bitmap(wx.Image('media/windows_color.png', wx.BITMAP_TYPE_ANY))
+    icon_zip = wx.Bitmap(wx.Image(f"media/zip{'_light' if dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
+    icon_zip_color = wx.Bitmap(wx.Image('media/zip_color.png', wx.BITMAP_TYPE_ANY))
+    icon_debian = wx.Bitmap(wx.Image(f"media/debian{'_light' if dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
+    icon_debian_color = wx.Bitmap(wx.Image('media/debian_color.png', wx.BITMAP_TYPE_ANY))
+    icon_targz = wx.Bitmap(wx.Image(f"media/targz{'_light' if dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
+    icon_targz_color = wx.Bitmap(wx.Image('media/targz_color.png', wx.BITMAP_TYPE_ANY))
 
     icon_info = {
         'backdrop.exe': {
@@ -1487,27 +1457,37 @@ def display_update_screen(update_info: dict):
             }
         }
     }
-    download_map = {url.split('/')[-1].lower(): url for url in update_info['download']}
+    if update_info and 'download' in update_info.keys():
+        download_map = {url.split('/')[-1].lower(): url for url in update_info['download']}
 
-    for file_type, info in icon_info.items():
-        if file_type in download_map.keys():
-            download_btn = tk.Label(download_frame, image=info['flat_icon'])
-            download_btn.pack(side='left', padx=(12, 4))
-            download_btn.bind('<Enter>', lambda e, icon=info['color_icon']: e.widget.configure(image=icon))
-            download_btn.bind('<Leave>', lambda e, icon=info['flat_icon']: e.widget.configure(image=icon))
-            download_btn.bind('<Button-1>', lambda e, url=download_map[file_type]: webbrowser.open_new(url))
+        update_icon_sizer.Clear()
 
-            # Add supplemental icon if download is available
-            if 'supplemental' in icon_info[file_type].keys() or info['supplemental']['name'] in download_map.keys():
-                download_btn = tk.Label(download_frame, image=info['supplemental']['flat_icon'])
-                download_btn.pack(side='left', padx=(0, 4))
-                download_btn.bind('<Enter>', lambda e, icon=info['supplemental']['color_icon']: e.widget.configure(image=icon))
-                download_btn.bind('<Leave>', lambda e, icon=info['supplemental']['flat_icon']: e.widget.configure(image=icon))
-                download_btn.bind('<Button-1>', lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
+        icon_count = 0
+        for file_type, info in icon_info.items():
+            if file_type in download_map.keys():
+                icon_count += 1
 
-    update_window.transient(root_window)
-    update_window.grab_set()
-    root_window.wm_attributes('-disabled', True)
+                # If icon isn't first icon, add spacer
+                if icon_count > 1:
+                    update_icon_sizer.Add((12, -1), 0)
+
+                download_btn = wx.StaticBitmap(update_panel, -1, info['flat_icon'])
+                update_icon_sizer.Add(download_btn, 0, wx.ALIGN_BOTTOM)
+                download_btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, icon=info['color_icon']: e.GetEventObject().SetBitmap(icon))
+                download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=info['flat_icon']: e.GetEventObject().SetBitmap(icon))
+                download_btn.Bind(wx.EVT_LEFT_DOWN, lambda e, url=download_map[file_type]: webbrowser.open_new(url))
+
+                # # Add supplemental icon if download is available
+                if 'supplemental' in icon_info[file_type].keys() or info['supplemental']['name'] in download_map.keys():
+                    download_btn = wx.StaticBitmap(update_panel, -1, info['supplemental']['flat_icon'])
+                    update_icon_sizer.Add(download_btn, 0, wx.ALIGN_BOTTOM | wx.LEFT, 4)
+                    download_btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, icon=info['supplemental']['color_icon']: e.GetEventObject().SetBitmap(icon))
+                    download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=info['supplemental']['flat_icon']: e.GetEventObject().SetBitmap(icon))
+                    download_btn.Bind(wx.EVT_LEFT_DOWN, lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
+
+        # update_icon_sizer.Layout()
+        main_frame.Disable()
+        update_frame.Show()
 
 def check_for_updates(info: dict):
     """Process the update information provided by the UpdateHandler class.
@@ -1521,7 +1501,7 @@ def check_for_updates(info: dict):
     update_info = info
 
     if info['updateAvailable']:
-        display_update_screen(info)
+        show_update_window(info)
 
 if __name__ == '__main__':
     PLATFORM_WINDOWS = 'Windows'
@@ -2453,6 +2433,8 @@ if __name__ == '__main__':
         FileUtils.LIST_FAIL: []
     }
 
+    dark_mode = True
+
     update_handler = UpdateHandler(
         current_version=__version__,
         allow_prereleases=config['allow_prereleases'],
@@ -2481,7 +2463,10 @@ if __name__ == '__main__':
     FONT_BOLD = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
                         weight=wx.FONTWEIGHT_BOLD, underline=False,
                         faceName ='', encoding=wx.FONTENCODING_DEFAULT)
-    FONT_LARGE = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
+    FONT_MEDIUM = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
+                          weight=wx.FONTWEIGHT_NORMAL, underline=False,
+                          faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_LARGE = wx.Font(16, family=wx.FONTFAMILY_DEFAULT, style=0,
                          weight=wx.FONTWEIGHT_NORMAL, underline=False,
                          faceName ='', encoding=wx.FONTENCODING_DEFAULT)
     FONT_HEADING = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
@@ -2490,6 +2475,9 @@ if __name__ == '__main__':
     FONT_GIANT = wx.Font(28, family=wx.FONTFAMILY_DEFAULT, style=0,
                          weight=wx.FONTWEIGHT_NORMAL, underline=False,
                          faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_UPDATE_AVAILABLE = wx.Font(36, family=wx.FONTFAMILY_DEFAULT, style=0,
+                                    weight=wx.FONTWEIGHT_BOLD, underline=False,
+                                    faceName ='', encoding=wx.FONTENCODING_DEFAULT)
 
     main_frame = wx.Frame(
         parent=None,
@@ -2511,6 +2499,18 @@ if __name__ == '__main__':
             backup_error_log_frame.Hide()
         else:
             backup_error_log_frame.Destroy()
+
+    def update_on_close(event):
+        """Handle closing the backup error log window."""
+
+        main_frame.Enable()
+        main_frame.Show()
+        
+        if event.CanVeto():
+            event.Veto()
+            update_frame.Hide()
+        else:
+            update_frame.Destroy()
 
     backup_error_log_frame = wx.Frame(
         parent=None,
@@ -2540,10 +2540,68 @@ if __name__ == '__main__':
 
     backup_error_log_box = wx.BoxSizer()
     backup_error_log_box.Add(backup_error_log_sizer, 1, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
-
     backup_error_log_panel.SetSizerAndFit(backup_error_log_box)
 
     backup_error_log_frame.Bind(wx.EVT_CLOSE, backup_error_log_on_close)
+
+    update_frame = wx.Frame(
+        parent=None,
+        title='Update Available',
+        size=wx.Size(600, 370),  # Should be 600x300, compensating for title bar with 320
+        name='Update frame'
+    )
+    update_frame.SetFont(FONT_DEFAULT)
+
+    update_panel = wx.Panel(update_frame, name='Update root panel')
+    update_panel.SetBackgroundColour(Color.BACKGROUND)
+    update_panel.SetForegroundColour(Color.TEXT_DEFAULT)
+    update_panel.Fit()
+    update_panel.GetParent().SendSizeEvent()
+    update_sizer = wx.BoxSizer(wx.VERTICAL)
+
+    update_header = wx.StaticText(update_panel, -1, label='Update Available!', name='Update available heading')
+    update_header.SetFont(FONT_UPDATE_AVAILABLE)
+    update_header.SetForegroundColour(Color.INFO)
+    update_sizer.Add(update_header, 0, wx.ALIGN_CENTER_HORIZONTAL)
+    update_description = wx.StaticText(update_panel, -1, label='An update to BackDrop is available. Please update to get the latest features and fixes.', name='Update description text')
+    update_sizer.Add(update_description, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 20)
+
+    update_version_sizer = wx.BoxSizer()
+    update_version_header_sizer = wx.BoxSizer(wx.VERTICAL)
+    update_version_current_header = wx.StaticText(update_panel, -1, label='Current: ', name='Update current version header')
+    update_version_current_header.SetFont(FONT_LARGE)
+    update_version_header_sizer.Add(update_version_current_header, 0, wx.ALIGN_RIGHT)
+    update_version_latest_header = wx.StaticText(update_panel, -1, label='Latest: ', name='Update latest version header')
+    update_version_latest_header.SetFont(FONT_LARGE)
+    update_version_header_sizer.Add(update_version_latest_header, 0, wx.ALIGN_RIGHT | wx.TOP, 5)
+    update_version_sizer.Add(update_version_header_sizer, 0)
+    update_version_text_sizer = wx.BoxSizer(wx.VERTICAL)
+    update_current_version_text = wx.StaticText(update_panel, -1, label=__version__, name='Update current version text')
+    update_current_version_text.SetFont(FONT_LARGE)
+    update_current_version_text.SetForegroundColour(Color.FADED)
+    update_version_text_sizer.Add(update_current_version_text, 0)
+    update_latest_version_text = wx.StaticText(update_panel, -1, label='Unknown', name='Update latest version text')
+    update_latest_version_text.SetFont(FONT_LARGE)
+    update_latest_version_text.SetForegroundColour(Color.FADED)
+    update_version_text_sizer.Add(update_latest_version_text, 0, wx.TOP, 5)
+    update_version_sizer.Add(update_version_text_sizer, 0)
+    update_sizer.Add(update_version_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
+
+    update_icon_sizer = wx.BoxSizer()
+    update_sizer.Add(update_icon_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 20)
+
+    update_download_source_sizer = wx.BoxSizer()
+    update_download_source_sizer.Add(wx.StaticText(update_panel, -1, label='Or, check out the source on ', name='Update frame GitHub description'), 0)
+    github_link = wx.StaticText(update_panel, -1, label='GitHub', name='Update frame GitHub link')
+    github_link.Bind(wx.EVT_LEFT_DOWN, lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
+    update_download_source_sizer.Add(github_link, 0)
+    update_sizer.Add(update_download_source_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
+
+    update_box = wx.BoxSizer()
+    update_box.Add(update_sizer, 1, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
+    update_panel.SetSizerAndFit(update_box)
+
+    update_frame.Bind(wx.EVT_CLOSE, update_on_close)
 
     # Root panel stuff
     root_panel = wx.Panel(main_frame, name='Main window root panel')
@@ -2724,11 +2782,11 @@ if __name__ == '__main__':
     file_details_pending_delete_counter.SetFont(FONT_GIANT)
     file_details_pending_sizer.Add(file_details_pending_delete_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
     file_details_pending_delete_of = wx.StaticText(root_panel, -1, label='of', name='Pending delete "of"')
-    file_details_pending_delete_of.SetFont(FONT_LARGE)
+    file_details_pending_delete_of.SetFont(FONT_MEDIUM)
     file_details_pending_delete_of.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_delete_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
     file_details_pending_delete_counter_total = wx.StaticText(root_panel, -1, label='0', name='Pending delete total')
-    file_details_pending_delete_counter_total.SetFont(FONT_LARGE)
+    file_details_pending_delete_counter_total.SetFont(FONT_MEDIUM)
     file_details_pending_delete_counter_total.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_delete_counter_total, 0, wx.ALIGN_BOTTOM)
     file_details_pending_sizer.Add((-1, -1), 1, wx.EXPAND)
@@ -2736,11 +2794,11 @@ if __name__ == '__main__':
     file_details_pending_copy_counter.SetFont(FONT_GIANT)
     file_details_pending_sizer.Add(file_details_pending_copy_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
     file_details_pending_copy_of = wx.StaticText(root_panel, -1, label='of', name='Pending copy "of"')
-    file_details_pending_copy_of.SetFont(FONT_LARGE)
+    file_details_pending_copy_of.SetFont(FONT_MEDIUM)
     file_details_pending_copy_of.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_copy_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
     file_details_pending_copy_counter_total = wx.StaticText(root_panel, -1, label='0', name='Pending copy total')
-    file_details_pending_copy_counter_total.SetFont(FONT_LARGE)
+    file_details_pending_copy_counter_total.SetFont(FONT_MEDIUM)
     file_details_pending_copy_counter_total.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_copy_counter_total, 0, wx.ALIGN_BOTTOM)
 
@@ -2830,7 +2888,7 @@ if __name__ == '__main__':
         status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     # URGENT: Make status bar update thing open the dialog if there are updatesa
     status_bar_updates = wx.StaticText(status_bar, -1, label='Checking for updates', name='Status bar update indicator')  # URGENT: Make this update with function
-    status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: display_update_screen(update_info))
+    status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
     status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
     status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
@@ -2950,16 +3008,12 @@ if __name__ == '__main__':
         on_release=on_release)
     listener.start()
 
-    # Check for updates on startup
-    thread_manager.start(
-        ThreadManager.SINGLE,
-        target=update_handler.check,
-        name='Update Check',
-        daemon=True
-    )
-
     root_panel.SetSizerAndFit(box)
     main_frame.Show()
+
+    # Check for updates on startup
+    update_handler.check()
+
     app.MainLoop()
 
     #########################
@@ -2991,7 +3045,6 @@ if __name__ == '__main__':
 
     # Portable mode indicator and update status, right side
     statusbar_update = tk.Label(root_window.status_bar_frame, text='', bg=root_window.uicolor.STATUS_BAR)
-    statusbar_update.bind('<Button-1>', lambda e: display_update_screen(update_info))
 
     # Set some default styling
     tk_style = ttk.Style()
@@ -3180,15 +3233,6 @@ if __name__ == '__main__':
     menubar.add_cascade(label='Help', underline=0, menu=help_menu)
 
     root_window.config(menu=menubar)
-
-    icon_windows = ImageTk.PhotoImage(Image.open(resource_path(f"media/windows{'_light' if root_window.dark_mode else ''}.png")))
-    icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media/windows_color.png')))
-    icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media/zip{'_light' if root_window.dark_mode else ''}.png")))
-    icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media/zip_color.png')))
-    icon_debian = ImageTk.PhotoImage(Image.open(resource_path(f"media/debian{'_light' if root_window.dark_mode else ''}.png")))
-    icon_debian_color = ImageTk.PhotoImage(Image.open(resource_path('media/debian_color.png')))
-    icon_targz = ImageTk.PhotoImage(Image.open(resource_path(f"media/targz{'_light' if root_window.dark_mode else ''}.png")))
-    icon_targz_color = ImageTk.PhotoImage(Image.open(resource_path('media/targz_color.png')))
 
     # Progress/status values
     progress_bar = ttk.Progressbar(root_window.main_frame, maximum=100, style='custom.Progressbar')
