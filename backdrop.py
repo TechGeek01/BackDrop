@@ -1694,6 +1694,8 @@ if __name__ == '__main__':
             status_bar_updates.SetLabel(STATUS_TEXT_MAP[status][0])
             status_bar_updates.SetForegroundColour(STATUS_TEXT_MAP[status][1])
 
+            status_bar_updates.GetParent().Layout()
+
     def request_kill_backup():
         """Kill a running backup."""
 
