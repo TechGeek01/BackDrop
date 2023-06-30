@@ -2473,7 +2473,7 @@ if __name__ == '__main__':
     FONT_GIANT = wx.Font(28, family=wx.FONTFAMILY_DEFAULT, style=0,
                          weight=wx.FONTWEIGHT_NORMAL, underline=False,
                          faceName ='', encoding=wx.FONTENCODING_DEFAULT)
-    FONT_UPDATE_AVAILABLE = wx.Font(36, family=wx.FONTFAMILY_DEFAULT, style=0,
+    FONT_UPDATE_AVAILABLE = wx.Font(32, family=wx.FONTFAMILY_DEFAULT, style=0,
                                     weight=wx.FONTWEIGHT_BOLD, underline=False,
                                     faceName ='', encoding=wx.FONTENCODING_DEFAULT)
 
