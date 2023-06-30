@@ -1858,12 +1858,8 @@ if __name__ == '__main__':
                 # Since config files on drives changed, refresh the destination list
                 load_dest_in_background()
 
-    window_backup_error_log = None
-
     def show_backup_error_log():
         """Show the backup error log."""
-
-        global window_backup_error_log
 
         # TODO: Move this error log building to the UI update function.
         # This would let the UI update thread handle appending, and have this function
