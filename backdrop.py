@@ -38,40 +38,8 @@ from bin.progress import Progress
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import RootWindow, ModalWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame, resource_path
 from bin.status import Status
-
-class Color:
-    BLACK = wx.Colour(0x00, 0x00, 0x00)
-    WHITE = wx.Colour(0xec, 0xec, 0xec)
-    BLUE = wx.Colour(0x00, 0x93, 0xc4)
-    GREEN = wx.Colour(0x6d, 0xb5, 0x00)
-    GOLD = wx.Colour(0xeb, 0xb3, 0x00)
-    RED = wx.Colour(0xff, 0x55, 0x33)
-    GRAY = wx.Colour(0x66, 0x66, 0x66)
-
-    COLORACCENT = GREEN
-
-    TEXT_DEFAULT = WHITE
-    FADED = wx.Colour(0x8e, 0x8e, 0x8e)
-    INFO = wx.Colour(0x3b, 0xce, 0xff)
-    TOOLTIP = INFO
-    ERROR = RED
-
-    ENABLED = GREEN
-    DISABLED = RED
-
-    SUCCESS = GREEN
-    FAILED = RED
-
-    DANGER = RED
-    FINISHED = GREEN
-    RUNNING = BLUE
-    STOPPED = RED
-    PENDING = FADED
-
-    BACKGROUND = wx.Colour(0x33, 0x33, 0x33)
-    STATUS_BAR = wx.Colour(0x4a, 0x4a, 0x4a)
 
 def on_press(key):
     """Do things when keys are pressed.
