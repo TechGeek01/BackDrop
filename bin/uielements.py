@@ -53,9 +53,9 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
-class ModalWindow(wx.Frame):
-    def __init__(self, parent=None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, *args, **kwargs):
-        """Create a modal window.
+class RootWindow(wx.Frame):
+    def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, *args, **kwargs):
+        """Create a window.
 
         Args:
             parent: The parent of the resulting frame.
@@ -71,26 +71,10 @@ class ModalWindow(wx.Frame):
             parent=parent,
             title=title,
             size=size,
-            name=name
+            name=name,
+            *args,
+            **kwargs
         )
-
-        self.Bind(wx.EVT_CLOSE, self.on_close)
-
-    def on_close(self, event):
-        self.parent.Enable()
-        self.parent.Show()
-
-        if event.CanVeto():
-            event.Veto()
-            self.Hide()
-        else:
-            self.Destroy()
-
-    def ShowModal(self):
-        """Show the modal."""
-
-        self.parent.Disable()
-        self.Show()
 
     def Panel(self, name: str = None, background: wx.Colour = None, foreground: wx.Colour = None):
         """Create the base wx.Panel for the Frame.
@@ -112,84 +96,44 @@ class ModalWindow(wx.Frame):
         self.root_panel.Fit()
         self.SendSizeEvent()
 
-class RootWindow(tk.Tk):
-    def __init__(self, title, width: int, height: int, center: bool = None, resizable=None, status_bar: bool = None, dark_mode: bool = None, *args, **kwargs):
-        # TODO: Get icons working to be passed into RootWindow class
-        # TODO: Add option to give RootWindow a scrollbar
-        # TODO: Add option to give RootWindow status bar
-
-        """Create a root window.
+class ModalWindow(RootWindow):
+    def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, *args, **kwargs):
+        """Create a modal window.
 
         Args:
-            title (String): The window title.
-            width (int): The window width.
-            height (int): The window height.
-            center (bool): Whether to center the window on the parent
-                (optional).
-            resizable (tuple): Whether to let the window be resized in
-                width or height.
-            status_bar (bool): Whether to add a status bar to the window
-                (optional).
-            dark_mode (bool): Whether to use dark mode (optional).
+            parent: The parent of the resulting frame.
+            title (String): The title of the window.
+            size (wx.Size): The size of the window.
+            name (String): The name to give the frame.
         """
 
-        if center is None:
-            center = False
-        if resizable is None:
-            resizable = (True, True)
-        if status_bar is None:
-            status_bar = False
-        if dark_mode is None:
-            dark_mode = False
+        RootWindow.__init__(
+            self,
+            parent=parent,
+            title=title,
+            size=size,
+            name=name,
+            *args,
+            **kwargs
+        )
 
-        (resize_width, resize_height) = resizable
+        self.Bind(wx.EVT_CLOSE, self.on_close)
 
-        tk.Tk.__init__(self, *args, **kwargs)
-        self.title(title)
-        self.minsize(width, height)
-        self.geometry(f'{width}x{height}')
-        self.resizable(resize_width, resize_height)
+    def on_close(self, event):
+        self.parent.Enable()
+        self.parent.Show()
 
-        if center:
-            self.center()
+        if event.CanVeto():
+            event.Veto()
+            self.Hide()
+        else:
+            self.Destroy()
 
-        # Create and set uicolor instance for application windows
-        self.uicolor = Color(self, dark_mode)
-        if self.uicolor.is_dark_mode():
-            self.tk_setPalette(background=self.uicolor.BG)
+    def ShowModal(self):
+        """Show the modal."""
 
-        self.dark_mode = self.uicolor.is_dark_mode()
-
-        # Set up window frame
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-        self.main_frame = tk.Frame(self)
-        self.main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
-
-        # Set up status bar
-        if status_bar:
-            self.status_bar_frame = tk.Frame(self, bg=self.uicolor.STATUS_BAR)
-            self.status_bar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
-            self.status_bar_frame.columnconfigure(50, weight=1)  # Let column 51 fill width, used like a spacer to have both left- and right-aligned text
-
-    def center(self):
-        """Center the root window on a screen.
-        """
-
-        self.update_idletasks()
-        WIDTH = self.winfo_width()
-        FRAME_WIDTH = self.winfo_rootx() - self.winfo_x()
-        WIN_WIDTH = WIDTH + 2 * FRAME_WIDTH
-        HEIGHT = self.winfo_height()
-        TITLEBAR_HEIGHT = self.winfo_rooty() - self.winfo_y()
-        WIN_HEIGHT = HEIGHT + TITLEBAR_HEIGHT + FRAME_WIDTH
-
-        # Set position and center on screen
-        x = self.winfo_screenwidth() // 2 - WIN_WIDTH // 2
-        y = self.winfo_screenheight() // 2 - WIN_HEIGHT // 2
-
-        self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, x, y))
-        self.deiconify()
+        self.parent.Disable()
+        self.Show()
 
 class AppWindow(tk.Toplevel):
     def __init__(self, root, title, width: int, height: int, center: bool = None, center_content: bool = None, resizable=None, status_bar: bool = None, modal: bool = None, *args, **kwargs):
