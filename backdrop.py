@@ -2943,7 +2943,6 @@ if __name__ == '__main__':
         on_release=on_release)
     listener.start()
 
-    root_panel.SetSizerAndFit(box)
     main_frame.root_panel.SetSizerAndFit(box)
     main_frame.Show()
 
