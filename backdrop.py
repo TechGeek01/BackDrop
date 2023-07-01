@@ -2446,7 +2446,8 @@ if __name__ == '__main__':
         parent=None,
         title='BackDrop - Data Backup Tool',
         size=wx.Size(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT),
-        name='Main window frame'
+        name='Main window frame',
+        icon=wx.Icon('media/icon.ico')
     )
     main_frame.SetFont(FONT_DEFAULT)
     app.SetTopWindow(main_frame)
@@ -2964,12 +2965,6 @@ if __name__ == '__main__':
         status_bar=True,
         dark_mode=prefs.get('ui', 'dark_mode', True, data_type=Config.BOOLEAN)
     )
-
-    # Set icon for window itself
-    if SYS_PLATFORM == PLATFORM_WINDOWS:
-        root_window.iconbitmap(resource_path('media/icon.ico'))
-    elif SYS_PLATFORM == PLATFORM_LINUX:
-        root_window.iconphoto(True, ImageTk.PhotoImage(Image.open(resource_path('media/icon.png'))))
 
     default_font = tkfont.nametofont("TkDefaultFont")
     default_font.configure(size=9)

@@ -54,7 +54,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 class RootWindow(wx.Frame):
-    def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, *args, **kwargs):
+    def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
         """Create a window.
 
         Args:
@@ -62,9 +62,11 @@ class RootWindow(wx.Frame):
             title (String): The title of the window.
             size (wx.Size): The size of the window.
             name (String): The name to give the frame.
+            icon (wx.Icon): The icon to apply to the window (optional).
         """
 
         self.parent = parent
+        self.icon = icon
 
         wx.Frame.__init__(
             self,
@@ -75,6 +77,9 @@ class RootWindow(wx.Frame):
             *args,
             **kwargs
         )
+
+        if icon is not None:
+            self.SetIcon(icon)
 
     def Panel(self, name: str = None, background: wx.Colour = None, foreground: wx.Colour = None):
         """Create the base wx.Panel for the Frame.
@@ -97,7 +102,7 @@ class RootWindow(wx.Frame):
         self.SendSizeEvent()
 
 class ModalWindow(RootWindow):
-    def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, *args, **kwargs):
+    def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
         """Create a modal window.
 
         Args:
@@ -105,7 +110,10 @@ class ModalWindow(RootWindow):
             title (String): The title of the window.
             size (wx.Size): The size of the window.
             name (String): The name to give the frame.
+            icon (wx.Icon): The icon to apply to the window (optional).
         """
+
+        self.icon = icon
 
         RootWindow.__init__(
             self,
@@ -113,9 +121,15 @@ class ModalWindow(RootWindow):
             title=title,
             size=size,
             name=name,
+            icon=icon,
             *args,
             **kwargs
         )
+
+        if icon is not None:
+            self.SetIcon(icon)
+        elif parent is not None and parent.icon is not None:  # If no icon is specified, inherit from parent if the parent has an icon
+            self.SetIcon(parent.icon)
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
