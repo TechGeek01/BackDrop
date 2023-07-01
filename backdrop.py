@@ -38,7 +38,7 @@ from bin.progress import Progress
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame, resource_path
+from bin.uielements import ModalWindow, RootWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame, resource_path
 from bin.status import Status
 
 class Color:
@@ -1471,7 +1471,7 @@ def show_update_window(update_info: dict):
                 if icon_count > 1:
                     update_icon_sizer.Add((12, -1), 0)
 
-                download_btn = wx.StaticBitmap(update_panel, -1, info['flat_icon'])
+                download_btn = wx.StaticBitmap(update_frame.root_panel, -1, info['flat_icon'])
                 update_icon_sizer.Add(download_btn, 0, wx.ALIGN_BOTTOM)
                 download_btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, icon=info['color_icon']: e.GetEventObject().SetBitmap(icon))
                 download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=info['flat_icon']: e.GetEventObject().SetBitmap(icon))
@@ -1479,15 +1479,13 @@ def show_update_window(update_info: dict):
 
                 # # Add supplemental icon if download is available
                 if 'supplemental' in icon_info[file_type].keys() or info['supplemental']['name'] in download_map.keys():
-                    download_btn = wx.StaticBitmap(update_panel, -1, info['supplemental']['flat_icon'])
+                    download_btn = wx.StaticBitmap(update_frame.root_panel, -1, info['supplemental']['flat_icon'])
                     update_icon_sizer.Add(download_btn, 0, wx.ALIGN_BOTTOM | wx.LEFT, 4)
                     download_btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, icon=info['supplemental']['color_icon']: e.GetEventObject().SetBitmap(icon))
                     download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=info['supplemental']['flat_icon']: e.GetEventObject().SetBitmap(icon))
                     download_btn.Bind(wx.EVT_LEFT_DOWN, lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
 
-        # update_icon_sizer.Layout()
-        main_frame.Disable()
-        update_frame.Show()
+        update_frame.ShowModal()
 
 def check_for_updates(info: dict):
     """Process the update information provided by the UpdateHandler class.
@@ -1880,8 +1878,7 @@ if __name__ == '__main__':
 
             backup_error_log_log_sizer.Add(error_summary_block, 0)
 
-        main_frame.Disable()
-        backup_error_log_frame.Show()
+        backup_error_log_frame.ShowModal()
 
     def browse_for_source():
         """Browse for a source path, and either make it the source, or add to the list."""
@@ -2486,50 +2483,26 @@ if __name__ == '__main__':
     main_frame.SetFont(FONT_DEFAULT)
     app.SetTopWindow(main_frame)
 
-    def backup_error_log_on_close(event):
-        """Handle closing the backup error log window."""
-
-        main_frame.Enable()
-        main_frame.Show()
-        
-        if event.CanVeto():
-            event.Veto()
-            backup_error_log_frame.Hide()
-        else:
-            backup_error_log_frame.Destroy()
-
-    def update_on_close(event):
-        """Handle closing the backup error log window."""
-
-        main_frame.Enable()
-        main_frame.Show()
-        
-        if event.CanVeto():
-            event.Veto()
-            update_frame.Hide()
-        else:
-            update_frame.Destroy()
-
-    backup_error_log_frame = wx.Frame(
-        parent=None,
+    backup_error_log_frame = ModalWindow(
+        parent=main_frame,
         title='Backup Error Log',
         size=wx.Size(650, 450),
         name='Backup error log frame'
     )
     backup_error_log_frame.SetFont(FONT_DEFAULT)
 
-    backup_error_log_panel = wx.Panel(backup_error_log_frame, name='Backup error log root panel')
-    backup_error_log_panel.SetBackgroundColour(Color.BACKGROUND)
-    backup_error_log_panel.SetForegroundColour(Color.TEXT_DEFAULT)
-    backup_error_log_panel.Fit()
-    backup_error_log_panel.GetParent().SendSizeEvent()
+    backup_error_log_frame.Panel(
+        name='Backup error log root panel',
+        background=Color.BACKGROUND,
+        foreground=Color.TEXT_DEFAULT
+    )
     backup_error_log_sizer = wx.BoxSizer(wx.VERTICAL)
 
-    backup_error_log_header = wx.StaticText(backup_error_log_panel, -1, label='Backup Error Log', name='Backup error log heading')
+    backup_error_log_header = wx.StaticText(backup_error_log_frame.root_panel, -1, label='Backup Error Log', name='Backup error log heading')
     backup_error_log_header.SetFont(FONT_HEADING)
     backup_error_log_sizer.Add(backup_error_log_header, 0, wx.ALIGN_CENTER_HORIZONTAL)
 
-    backup_error_log_log_panel = wx.ScrolledWindow(backup_error_log_panel, -1, style=wx.VSCROLL, name='Backup error log panel')
+    backup_error_log_log_panel = wx.ScrolledWindow(backup_error_log_frame.root_panel, -1, style=wx.VSCROLL, name='Backup error log panel')
     backup_error_log_log_panel.SetScrollbars(20, 20, 50, 50)
     backup_error_log_log_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     backup_error_log_log_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -2538,47 +2511,45 @@ if __name__ == '__main__':
 
     backup_error_log_box = wx.BoxSizer()
     backup_error_log_box.Add(backup_error_log_sizer, 1, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
-    backup_error_log_panel.SetSizerAndFit(backup_error_log_box)
+    backup_error_log_frame.root_panel.SetSizerAndFit(backup_error_log_box)
 
-    backup_error_log_frame.Bind(wx.EVT_CLOSE, backup_error_log_on_close)
-
-    update_frame = wx.Frame(
-        parent=None,
+    update_frame = ModalWindow(
+        parent=main_frame,
         title='Update Available',
         size=wx.Size(600, 370),  # Should be 600x300, compensating for title bar with 320
         name='Update frame'
     )
     update_frame.SetFont(FONT_DEFAULT)
 
-    update_panel = wx.Panel(update_frame, name='Update root panel')
-    update_panel.SetBackgroundColour(Color.BACKGROUND)
-    update_panel.SetForegroundColour(Color.TEXT_DEFAULT)
-    update_panel.Fit()
-    update_panel.GetParent().SendSizeEvent()
+    update_frame.Panel(
+        name='Update root panel',
+        background=Color.BACKGROUND,
+        foreground=Color.TEXT_DEFAULT
+    )
     update_sizer = wx.BoxSizer(wx.VERTICAL)
 
-    update_header = wx.StaticText(update_panel, -1, label='Update Available!', name='Update available heading')
+    update_header = wx.StaticText(update_frame.root_panel, -1, label='Update Available!', name='Update available heading')
     update_header.SetFont(FONT_UPDATE_AVAILABLE)
     update_header.SetForegroundColour(Color.INFO)
     update_sizer.Add(update_header, 0, wx.ALIGN_CENTER_HORIZONTAL)
-    update_description = wx.StaticText(update_panel, -1, label='An update to BackDrop is available. Please update to get the latest features and fixes.', name='Update description text')
+    update_description = wx.StaticText(update_frame.root_panel, -1, label='An update to BackDrop is available. Please update to get the latest features and fixes.', name='Update description text')
     update_sizer.Add(update_description, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 20)
 
     update_version_sizer = wx.BoxSizer()
     update_version_header_sizer = wx.BoxSizer(wx.VERTICAL)
-    update_version_current_header = wx.StaticText(update_panel, -1, label='Current: ', name='Update current version header')
+    update_version_current_header = wx.StaticText(update_frame.root_panel, -1, label='Current: ', name='Update current version header')
     update_version_current_header.SetFont(FONT_LARGE)
     update_version_header_sizer.Add(update_version_current_header, 0, wx.ALIGN_RIGHT)
-    update_version_latest_header = wx.StaticText(update_panel, -1, label='Latest: ', name='Update latest version header')
+    update_version_latest_header = wx.StaticText(update_frame.root_panel, -1, label='Latest: ', name='Update latest version header')
     update_version_latest_header.SetFont(FONT_LARGE)
     update_version_header_sizer.Add(update_version_latest_header, 0, wx.ALIGN_RIGHT | wx.TOP, 5)
     update_version_sizer.Add(update_version_header_sizer, 0)
     update_version_text_sizer = wx.BoxSizer(wx.VERTICAL)
-    update_current_version_text = wx.StaticText(update_panel, -1, label=__version__, name='Update current version text')
+    update_current_version_text = wx.StaticText(update_frame.root_panel, -1, label=__version__, name='Update current version text')
     update_current_version_text.SetFont(FONT_LARGE)
     update_current_version_text.SetForegroundColour(Color.FADED)
     update_version_text_sizer.Add(update_current_version_text, 0)
-    update_latest_version_text = wx.StaticText(update_panel, -1, label='Unknown', name='Update latest version text')
+    update_latest_version_text = wx.StaticText(update_frame.root_panel, -1, label='Unknown', name='Update latest version text')
     update_latest_version_text.SetFont(FONT_LARGE)
     update_latest_version_text.SetForegroundColour(Color.FADED)
     update_version_text_sizer.Add(update_latest_version_text, 0, wx.TOP, 5)
@@ -2589,17 +2560,15 @@ if __name__ == '__main__':
     update_sizer.Add(update_icon_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 20)
 
     update_download_source_sizer = wx.BoxSizer()
-    update_download_source_sizer.Add(wx.StaticText(update_panel, -1, label='Or, check out the source on ', name='Update frame GitHub description'), 0)
-    github_link = wx.StaticText(update_panel, -1, label='GitHub', name='Update frame GitHub link')
+    update_download_source_sizer.Add(wx.StaticText(update_frame.root_panel, -1, label='Or, check out the source on ', name='Update frame GitHub description'), 0)
+    github_link = wx.StaticText(update_frame.root_panel, -1, label='GitHub', name='Update frame GitHub link')
     github_link.Bind(wx.EVT_LEFT_DOWN, lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
     update_download_source_sizer.Add(github_link, 0)
     update_sizer.Add(update_download_source_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
 
     update_box = wx.BoxSizer()
     update_box.Add(update_sizer, 1, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
-    update_panel.SetSizerAndFit(update_box)
-
-    update_frame.Bind(wx.EVT_CLOSE, update_on_close)
+    update_frame.root_panel.SetSizerAndFit(update_box)
 
     # Root panel stuff
     root_panel = wx.Panel(main_frame, name='Main window root panel')

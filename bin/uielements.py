@@ -53,6 +53,65 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
+class ModalWindow(wx.Frame):
+    def __init__(self, parent=None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, *args, **kwargs):
+        """Create a modal window.
+
+        Args:
+            parent: The parent of the resulting frame.
+            title (String): The title of the window.
+            size (wx.Size): The size of the window.
+            name (String): The name to give the frame.
+        """
+
+        self.parent = parent
+
+        wx.Frame.__init__(
+            self,
+            parent=parent,
+            title=title,
+            size=size,
+            name=name
+        )
+
+        self.Bind(wx.EVT_CLOSE, self.on_close)
+
+    def on_close(self, event):
+        self.parent.Enable()
+        self.parent.Show()
+
+        if event.CanVeto():
+            event.Veto()
+            self.Hide()
+        else:
+            self.Destroy()
+
+    def ShowModal(self):
+        """Show the modal."""
+
+        self.parent.Disable()
+        self.Show()
+
+    def Panel(self, name: str = None, background: wx.Colour = None, foreground: wx.Colour = None):
+        """Create the base wx.Panel for the Frame.
+
+        Args:
+            name (String): The name of the panel (optional).
+            background (wx.Colour): The background color of the panel (optional).
+            foreground (wx.Colour): The foreground color of the panel (optional).
+        """
+
+        self.root_panel = wx.Panel(self, name=name)
+
+        if background is not None:
+            self.root_panel.SetBackgroundColour(background)
+
+        if foreground is not None:
+            self.root_panel.SetForegroundColour(foreground)
+
+        self.root_panel.Fit()
+        self.SendSizeEvent()
+
 class RootWindow(tk.Tk):
     def __init__(self, title, width: int, height: int, center: bool = None, resizable=None, status_bar: bool = None, dark_mode: bool = None, *args, **kwargs):
         # TODO: Get icons working to be passed into RootWindow class
