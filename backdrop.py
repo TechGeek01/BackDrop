@@ -3058,6 +3058,10 @@ if __name__ == '__main__':
     file_details_failed_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
     file_details_failed_count.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
 
+    start_analysis_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup_analysis())
+    start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup())
+    halt_verification_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: thread_manager.kill('Data Verification'))
+
     status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
 
     # Catch close event for graceful exit
@@ -3237,16 +3241,10 @@ if __name__ == '__main__':
     content_tab_frame.tab['summary']['width'] = content_tab_frame.tab['summary']['content'].winfo_width()
 
     # Right side frame was here #
+    # Control buttons were here #
 
     # Add placeholder to backup analysis
     reset_analysis_output()
-    backup_action_button_frame = tk.Frame(right_side_frame)
-    backup_action_button_frame.pack(padx=WINDOW_ELEMENT_PADDING, pady=WINDOW_ELEMENT_PADDING / 2)
-    start_analysis_btn = ttk.Button(backup_action_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
-    start_analysis_btn.pack(side='left', padx=4)
-    start_backup_btn = ttk.Button(backup_action_button_frame, text='Run Backup', width=0, command=start_backup, state='disabled')
-    start_backup_btn.pack(side='left', padx=4)
-    halt_verification_btn = ttk.Button(backup_action_button_frame, text='Halt Verification', width=0, command=lambda: thread_manager.kill('Data Verification'), style='danger.TButton')
 
     # Keyboard listener was here #
 
