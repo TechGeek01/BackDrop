@@ -2964,6 +2964,17 @@ if __name__ == '__main__':
     dest_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_dest_right_click_menu())
     split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
 
+    file_details_delete_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
+    file_details_delete_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
+    file_details_copy_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
+    file_details_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
+    file_details_success_header.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+    file_details_success_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+    file_details_success_count.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+    file_details_failed_header.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+    file_details_failed_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+    file_details_failed_count.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+
     status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
 
     # Catch close event for graceful exit
