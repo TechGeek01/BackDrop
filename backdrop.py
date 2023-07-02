@@ -2638,8 +2638,6 @@ if __name__ == '__main__':
     update_split_mode_label()
     source_dest_selection_info_sizer.Add(split_mode_status, 0, wx.ALIGN_CENTER_VERTICAL)
 
-    split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
-
     source_dest_sizer = wx.BoxSizer(wx.VERTICAL)
     source_dest_sizer.Add(source_dest_control_sizer, 0, wx.EXPAND)
     source_dest_sizer.Add(dest_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
@@ -2799,7 +2797,6 @@ if __name__ == '__main__':
         status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     # URGENT: Make status bar update thing open the dialog if there are updatesa
     status_bar_updates = wx.StaticText(status_bar, -1, label='Checking for updates', name='Status bar update indicator')  # URGENT: Make this update with function
-    status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
     status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
     status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
@@ -2822,16 +2819,12 @@ if __name__ == '__main__':
     box.Add(status_bar, 0, wx.EXPAND)
 
     # Menu stuff
-    ID_OPEN_CONFIG = wx.NewIdRef()
-    ID_SAVE_CONFIG = wx.NewIdRef()
-    ID_SAVE_CONFIG_AS = wx.NewIdRef()
-    ID_REFRESH_SOURCE = wx.NewIdRef()
-    ID_REFRESH_DEST = wx.NewIdRef()
-    ID_SHOW_ERROR_LOG = wx.NewIdRef()
-
     menu_bar = wx.MenuBar()
 
     # File menu
+    ID_OPEN_CONFIG = wx.NewIdRef()
+    ID_SAVE_CONFIG = wx.NewIdRef()
+    ID_SAVE_CONFIG_AS = wx.NewIdRef()
     file_menu = wx.Menu()
     file_menu.Append(ID_OPEN_CONFIG, '&Open Backup Config...\tCtrl+O', 'Open a previously created backup config')
     file_menu.Append(ID_SAVE_CONFIG, '&Save Backup Config\tCtrl+S', 'Save the current config to backup config file on the selected destinations')
@@ -2894,6 +2887,9 @@ if __name__ == '__main__':
     menu_bar.Append(selection_menu, '&Selection')
 
     # View menu
+    ID_REFRESH_SOURCE = wx.NewIdRef()
+    ID_REFRESH_DEST = wx.NewIdRef()
+    ID_SHOW_ERROR_LOG = wx.NewIdRef()
     view_menu = wx.Menu()
     view_menu.Append(ID_REFRESH_SOURCE, 'Refresh Source\tCtrl+F5', 'Refresh the list of sources shown')
     view_menu.Append(ID_REFRESH_DEST, '&Refresh Destination\tF5', 'Refresh the list of destinations shown')
@@ -2934,7 +2930,12 @@ if __name__ == '__main__':
 
     main_frame.SetMenuBar(menu_bar)
 
-    # Click bindings
+    # Menu item bindings
+    main_frame.Bind(wx.EVT_MENU, lambda e: open_config_file(), id=ID_OPEN_CONFIG)
+    main_frame.Bind(wx.EVT_MENU, lambda e: save_config_file(), id=ID_SAVE_CONFIG)
+    main_frame.Bind(wx.EVT_MENU, lambda e: save_config_file_as(), id=ID_SAVE_CONFIG_AS)
+    main_frame.Bind(wx.EVT_MENU, lambda e: on_close(), file_menu_exit)
+
     main_frame.Bind(wx.EVT_MENU, lambda e: change_source_type(DRIVE_TYPE_REMOTE), id=ID_MENU_SOURCE_NETWORK_DRIVE)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_source_type(DRIVE_TYPE_LOCAL), id=ID_MENU_SOURCE_LOCAL_DRIVE)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_destination_type(DRIVE_TYPE_REMOTE), id=ID_MENU_DEST_NETWORK_DRIVE)
@@ -2943,6 +2944,10 @@ if __name__ == '__main__':
     main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_MULTI_DRIVE), id=ID_MENU_SOURCE_MODE_MULTI_DRIVE)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_SINGLE_PATH), id=ID_MENU_SOURCE_MODE_SINGLE_PATH)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_MULTI_PATH), id=ID_MENU_SOURCE_MODE_MULTI_PATH)
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: load_source_in_background(), id=ID_REFRESH_SOURCE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: load_dest_in_background(), id=ID_REFRESH_DEST)
+    main_frame.Bind(wx.EVT_MENU, lambda e: show_backup_error_log(), id=ID_SHOW_ERROR_LOG)
 
     # Key bindings
     accelerators = [wx.AcceleratorEntry() for x in range(6)]
@@ -2954,15 +2959,10 @@ if __name__ == '__main__':
     accelerators[5].Set(wx.ACCEL_CTRL, ord('E'), ID_SHOW_ERROR_LOG)
     main_frame.SetAcceleratorTable(wx.AcceleratorTable(accelerators))
 
-    main_frame.Bind(wx.EVT_MENU, lambda e: open_config_file(), id=ID_OPEN_CONFIG)
-    main_frame.Bind(wx.EVT_MENU, lambda e: save_config_file(), id=ID_SAVE_CONFIG)
-    main_frame.Bind(wx.EVT_MENU, lambda e: save_config_file_as(), id=ID_SAVE_CONFIG_AS)
-    main_frame.Bind(wx.EVT_MENU, lambda e: print('Refresh source'), id=ID_REFRESH_SOURCE)
-    main_frame.Bind(wx.EVT_MENU, lambda e: print('Refresh dest'), id=ID_REFRESH_DEST)
-    main_frame.Bind(wx.EVT_MENU, lambda e: show_backup_error_log(), id=ID_SHOW_ERROR_LOG)
+    # Mouse bindings
+    split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
 
-    # Menu item bindings
-    main_frame.Bind(wx.EVT_MENU, lambda e: on_close(), file_menu_exit)
+    status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
 
     # Catch close event for graceful exit
     main_frame.Bind(wx.EVT_CLOSE, lambda e: on_close())
