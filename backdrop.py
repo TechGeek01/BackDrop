@@ -2567,6 +2567,7 @@ if __name__ == '__main__':
     update_download_source_sizer = wx.BoxSizer()
     update_download_source_sizer.Add(wx.StaticText(update_frame.root_panel, -1, label='Or, check out the source on ', name='Update frame GitHub description'), 0)
     github_link = wx.StaticText(update_frame.root_panel, -1, label='GitHub', name='Update frame GitHub link')
+    github_link.SetForegroundColour(Color.INFO)
     github_link.Bind(wx.EVT_LEFT_DOWN, lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
     update_download_source_sizer.Add(github_link, 0)
     update_sizer.Add(update_download_source_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
