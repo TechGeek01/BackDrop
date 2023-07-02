@@ -29,6 +29,7 @@ if platform.system() == 'Windows':
     import win32api
     import win32file
     import wmi
+import wx.lib.inspection
 import logging
 
 from bin.fileutils import FileUtils, human_filesize, get_directory_size, get_file_hash, do_delete
@@ -2344,6 +2345,10 @@ if __name__ == '__main__':
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
 
+    def show_widget_inspector():
+        """Show the widget inspection tool."""
+        wx.lib.inspection.InspectionTool().Show()
+
     # URGENT: This crashes with a recursion depth error on is_alive
     def on_close():
         if not thread_manager.is_alive('Backup'):
@@ -2919,11 +2924,17 @@ if __name__ == '__main__':
     preferences_menu_dark_mode.Check(dark_mode)
     menu_bar.Append(preferences_menu, '&Preferences')
 
+    # Debug menu
+    ID_SHOW_WIDGET_INSPECTION = wx.NewIdRef()
+    debug_menu = wx.Menu()
+    debug_menu.Append(ID_SHOW_WIDGET_INSPECTION, 'Show &Widget Inspection Tool\tF6', 'Show the widget inspection tool')
+    menu_bar.Append(debug_menu, '&Debug')
+
     # Help menu
     help_menu = wx.Menu()
-    help_menu.Append(601, 'Check for Updates', 'Check for program updates, and prompt to download them, if there are any')
+    help_menu.Append(701, 'Check for Updates', 'Check for program updates, and prompt to download them, if there are any')
     settings_allow_prerelease_updates = prefs.get('ui', 'allow_prereleases', default=False, data_type=Config.BOOLEAN)
-    help_menu_allow_prerelease_updates = wx.MenuItem(help_menu, 602, 'Allow Prereleases', 'Allow prerelease versions when checking for updates', kind=wx.ITEM_CHECK)
+    help_menu_allow_prerelease_updates = wx.MenuItem(help_menu, 702, 'Allow Prereleases', 'Allow prerelease versions when checking for updates', kind=wx.ITEM_CHECK)
     help_menu.Append(help_menu_allow_prerelease_updates)
     help_menu_allow_prerelease_updates.Check(settings_allow_prerelease_updates)
     menu_bar.Append(help_menu, '&Help')
@@ -2949,14 +2960,17 @@ if __name__ == '__main__':
     main_frame.Bind(wx.EVT_MENU, lambda e: load_dest_in_background(), id=ID_REFRESH_DEST)
     main_frame.Bind(wx.EVT_MENU, lambda e: show_backup_error_log(), id=ID_SHOW_ERROR_LOG)
 
+    main_frame.Bind(wx.EVT_MENU, lambda e: show_widget_inspector(), id=ID_SHOW_WIDGET_INSPECTION)
+
     # Key bindings
-    accelerators = [wx.AcceleratorEntry() for x in range(6)]
+    accelerators = [wx.AcceleratorEntry() for x in range(7)]
     accelerators[0].Set(wx.ACCEL_CTRL, ord('O'), ID_OPEN_CONFIG)
     accelerators[1].Set(wx.ACCEL_CTRL, ord('S'), ID_SAVE_CONFIG)
     accelerators[2].Set(wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('S'), ID_SAVE_CONFIG_AS)
     accelerators[3].Set(wx.ACCEL_CTRL, wx.WXK_F5, ID_REFRESH_SOURCE)
     accelerators[4].Set(wx.ACCEL_NORMAL, wx.WXK_F5, ID_REFRESH_DEST)
     accelerators[5].Set(wx.ACCEL_CTRL, ord('E'), ID_SHOW_ERROR_LOG)
+    accelerators[6].Set(wx.ACCEL_NORMAL, wx.WXK_F6, ID_SHOW_WIDGET_INSPECTION)
     main_frame.SetAcceleratorTable(wx.AcceleratorTable(accelerators))
 
     # Mouse bindings
