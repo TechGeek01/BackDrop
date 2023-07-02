@@ -2047,42 +2047,32 @@ if __name__ == '__main__':
 
         load_source_in_background()
 
-    def change_dest_mode():
-        """Change the mode for destination selection."""
+    def change_dest_mode(selection):
+        """Change the mode for destination selection.
+
+        Args:
+            selection: The selected destination mode to change to.
+        """
 
         global dest_right_click_bind
         global PREV_DEST_MODE
 
+        global settings_dest_mode
+
         # If backup is running, ignore request to change
         if backup and backup.is_running():
-            settings_destMode.set(PREV_DEST_MODE)
+            selection_dest_mode_menu_paths.Check(settings_dest_mode == Config.DEST_MODE_PATHS)
+            selection_dest_mode_menu_drives.Check(settings_dest_mode == Config.DEST_MODE_DRIVES)
             return
 
         # If analysis is valid, invalidate it
         reset_analysis_output()
 
-        prefs.set('selection', 'dest_mode', settings_destMode.get())
+        settings_dest_mode = selection
+        prefs.set('selection', 'dest_mode', selection)
+        config['dest_mode'] = selection
 
-        if settings_destMode.get() == Config.DEST_MODE_DRIVES:
-            tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
-            tree_dest.heading('vid', text='Volume ID')
-            tree_dest.column('vid', width=90)
-            tree_dest['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
-
-            tree_dest.unbind('<Button-3>', dest_right_click_bind)
-
-            config['dest_mode'] = settings_destMode.get()
-            PREV_DEST_MODE = settings_destMode.get()
-        elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-            tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
-            tree_dest.column('vid', width=140)
-            tree_dest.heading('vid', text='Name')
-            tree_dest['displaycolumns'] = ('vid', 'size', 'configfile')
-
-            dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
-
-            config['dest_mode'] = settings_destMode.get()
-            PREV_DEST_MODE = settings_destMode.get()
+        redraw_dest_tree()
 
         if not thread_manager.is_alive('Refresh Destination'):
             thread_manager.start(ThreadManager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
@@ -2368,6 +2358,38 @@ if __name__ == '__main__':
             source_tree.SetColumnWidth(SOURCE_COL_NAME, 170)
             source_tree.SetColumnWidth(SOURCE_COL_SIZE, 80)
 
+    def redraw_dest_tree():
+        """Redraw the destination tree by reading preferences and setting columns
+        and sizes.
+        """
+
+        DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == PLATFORM_WINDOWS else 150
+        DEST_TREE_COLWIDTH_VID = 140 if settings_dest_mode == Config.DEST_MODE_PATHS else 90
+        DEST_TREE_COLWIDTH_SERIAL = 150 if SYS_PLATFORM == PLATFORM_WINDOWS else 50
+
+        if settings_dest_mode == Config.DEST_MODE_DRIVES:
+            DEST_TREE_WIDTH = DEST_TREE_COLWIDTH_DRIVE + 80 + 50 + DEST_TREE_COLWIDTH_VID + DEST_TREE_COLWIDTH_SERIAL
+        elif settings_dest_mode == Config.DEST_MODE_PATHS:
+            DEST_TREE_WIDTH = DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50 + DEST_TREE_COLWIDTH_VID + 80 + 50
+
+        dest_tree.SetSize(DEST_TREE_WIDTH, -1)
+        dest_tree.GetParent().Layout()
+
+        if settings_dest_mode == Config.DEST_MODE_DRIVES:
+            dest_tree.SetColumnWidth(DEST_COL_PATH, DEST_TREE_COLWIDTH_DRIVE)
+            dest_tree.SetColumnWidth(DEST_COL_NAME, 0)
+            dest_tree.SetColumnWidth(DEST_COL_SIZE, 80)
+            dest_tree.SetColumnWidth(DEST_COL_CONFIG, 50)
+            dest_tree.SetColumnWidth(DEST_COL_VID, DEST_TREE_COLWIDTH_VID)
+            dest_tree.SetColumnWidth(DEST_COL_SERIAL, DEST_TREE_COLWIDTH_SERIAL)
+        elif settings_dest_mode == Config.DEST_MODE_PATHS:
+            dest_tree.SetColumnWidth(DEST_COL_PATH, DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
+            dest_tree.SetColumnWidth(DEST_COL_NAME, DEST_TREE_COLWIDTH_VID)
+            dest_tree.SetColumnWidth(DEST_COL_SIZE, 80)
+            dest_tree.SetColumnWidth(DEST_COL_CONFIG, 50)
+            dest_tree.SetColumnWidth(DEST_COL_VID, 0)
+            dest_tree.SetColumnWidth(DEST_COL_SERIAL, 0)
+
     def show_widget_inspector():
         """Show the widget inspection tool."""
         wx.lib.inspection.InspectionTool().Show()
@@ -2613,38 +2635,28 @@ if __name__ == '__main__':
     source_dest_control_sizer.Add((-1, -1), 1, wx.EXPAND)
     source_dest_control_sizer.Add(wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse destination'), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
 
-    DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == PLATFORM_WINDOWS else 150
-    DEST_TREE_COLWIDTH_VID = 140 if settings_dest_mode == Config.DEST_MODE_PATHS else 90
-    DEST_TREE_COLWIDTH_SERIAL = 150 if SYS_PLATFORM == PLATFORM_WINDOWS else 50
+    DEST_COL_PATH = 0
+    DEST_COL_NAME = 1
+    DEST_COL_SIZE = 2
+    DEST_COL_CONFIG = 3
+    DEST_COL_VID = 4
+    DEST_COL_SERIAL = 5
+    DEST_COL_RAWSIZE = 6
 
-    if settings_dest_mode == Config.DEST_MODE_DRIVES:
-        DEST_TREE_SIZE = DEST_TREE_COLWIDTH_DRIVE + 80 + 50 + DEST_TREE_COLWIDTH_VID + DEST_TREE_COLWIDTH_SERIAL
-    else:
-        DEST_TREE_SIZE = DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50 + DEST_TREE_COLWIDTH_VID + 80 + 50
+    # FIXME: Remove size in dest tree constructor when SetSize works
+    dest_tree = gizmos.TreeListCtrl(main_frame.root_panel, -1, size=(420, -1), name='Destination tree')
 
-    dest_tree = gizmos.TreeListCtrl(main_frame.root_panel, -1, size=(DEST_TREE_SIZE, -1), name='Destination tree')
-
-    if settings_dest_mode == Config.DEST_MODE_DRIVES:
-        dest_tree.AddColumn('Drive')
-        dest_tree.SetColumnWidth(0, DEST_TREE_COLWIDTH_DRIVE)
-        dest_tree.AddColumn('Size')
-        dest_tree.SetColumnWidth(1, 80)
-        dest_tree.AddColumn('Config')
-        dest_tree.SetColumnWidth(2, 50)
-        dest_tree.AddColumn('Volume ID')
-        dest_tree.SetColumnWidth(3, DEST_TREE_COLWIDTH_VID)
-        dest_tree.AddColumn('Serial')
-        dest_tree.SetColumnWidth(4, DEST_TREE_COLWIDTH_SERIAL)
-    elif settings_dest_mode == Config.DEST_MODE_PATHS:
-        dest_tree.AddColumn('Path')
-        dest_tree.SetColumnWidth(0, DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
-        dest_tree.AddColumn('Name')
-        dest_tree.SetColumnWidth(1, DEST_TREE_COLWIDTH_VID)
-        dest_tree.AddColumn('Size')
-        dest_tree.SetColumnWidth(2, 80)
-        dest_tree.AddColumn('Config')
-        dest_tree.SetColumnWidth(3, 50)
+    dest_tree.AddColumn('Path')
+    dest_tree.AddColumn('Name')
+    dest_tree.AddColumn('Size')
+    dest_tree.AddColumn('Config')
+    dest_tree.AddColumn('Volume ID')
+    dest_tree.AddColumn('Serial')
+    dest_tree.AddColumn('Raw Size')
+    dest_tree.SetColumnWidth(DEST_COL_RAWSIZE, 0)
     dest_tree.SetMainColumn(0)
+
+    redraw_dest_tree()
 
     def update_split_mode_label():
         """ Update the split mode indicator. """
@@ -2886,6 +2898,8 @@ if __name__ == '__main__':
     ID_MENU_SOURCE_MODE_MULTI_DRIVE = wx.NewIdRef()
     ID_MENU_SOURCE_MODE_SINGLE_PATH = wx.NewIdRef()
     ID_MENU_SOURCE_MODE_MULTI_PATH = wx.NewIdRef()
+    ID_MENU_DEST_MODE_DRIVES = wx.NewIdRef()
+    ID_MENU_DEST_MODE_PATHS = wx.NewIdRef()
     selection_menu = wx.Menu()
     selection_menu_show_drives_source_network = wx.MenuItem(selection_menu, ID_MENU_SOURCE_NETWORK_DRIVE, 'Source Network Drives', 'Enable network drives as sources', kind=wx.ITEM_CHECK)
     selection_menu.Append(selection_menu_show_drives_source_network)
@@ -2915,10 +2929,10 @@ if __name__ == '__main__':
     selection_source_mode_menu_multi_path.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_PATH)
     selection_menu.AppendSubMenu(selection_source_mode_menu, '&Source Mode')
     selection_dest_mode_menu = wx.Menu()
-    selection_dest_mode_menu_drives = wx.MenuItem(selection_dest_mode_menu, 2061, 'Drives', 'Select one or more drives as destinations', kind=wx.ITEM_RADIO)
+    selection_dest_mode_menu_drives = wx.MenuItem(selection_dest_mode_menu, ID_MENU_DEST_MODE_DRIVES, 'Drives', 'Select one or more drives as destinations', kind=wx.ITEM_RADIO)
     selection_dest_mode_menu.Append(selection_dest_mode_menu_drives)
     selection_dest_mode_menu_drives.Check(settings_dest_mode == Config.DEST_MODE_DRIVES)
-    selection_dest_mode_menu_paths = wx.MenuItem(selection_dest_mode_menu, 2062, 'Paths', 'Specify one or more paths as destinations', kind=wx.ITEM_RADIO)
+    selection_dest_mode_menu_paths = wx.MenuItem(selection_dest_mode_menu, ID_MENU_DEST_MODE_PATHS, 'Paths', 'Specify one or more paths as destinations', kind=wx.ITEM_RADIO)
     selection_dest_mode_menu.Append(selection_dest_mode_menu_paths)
     selection_dest_mode_menu_paths.Check(settings_dest_mode == Config.DEST_MODE_PATHS)
     selection_menu.AppendSubMenu(selection_dest_mode_menu, '&Destination Mode')
@@ -2986,6 +3000,8 @@ if __name__ == '__main__':
     main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_MULTI_DRIVE), id=ID_MENU_SOURCE_MODE_MULTI_DRIVE)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_SINGLE_PATH), id=ID_MENU_SOURCE_MODE_SINGLE_PATH)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_MULTI_PATH), id=ID_MENU_SOURCE_MODE_MULTI_PATH)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_dest_mode(Config.DEST_MODE_DRIVES), id=ID_MENU_DEST_MODE_DRIVES)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_dest_mode(Config.DEST_MODE_PATHS), id=ID_MENU_DEST_MODE_PATHS)
 
     main_frame.Bind(wx.EVT_MENU, lambda e: load_source_in_background(), id=ID_REFRESH_SOURCE)
     main_frame.Bind(wx.EVT_MENU, lambda e: load_dest_in_background(), id=ID_REFRESH_DEST)
