@@ -2043,6 +2043,8 @@ if __name__ == '__main__':
         prefs.set('selection', 'source_mode', selection)
         config['source_mode'] == selection
 
+        redraw_source_tree()
+
         load_source_in_background()
 
     def change_dest_mode():
@@ -2344,6 +2346,28 @@ if __name__ == '__main__':
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
 
+    def redraw_source_tree():
+        """Redraw the source tree by reading preferences and setting columns and
+        sizes.
+        """
+
+        if settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
+            SOURCE_TREE_SIZE = (280, -1)
+        elif settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+            SOURCE_TREE_SIZE = (420, -1)
+
+        source_tree.SetSize(SOURCE_TREE_SIZE)
+        source_tree.GetParent().Layout()
+
+        if settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
+            source_tree.SetColumnWidth(SOURCE_COL_PATH, 200)
+            source_tree.SetColumnWidth(SOURCE_COL_NAME, 0)
+            source_tree.SetColumnWidth(SOURCE_COL_SIZE, 80)
+        elif settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+            source_tree.SetColumnWidth(SOURCE_COL_PATH, 170)
+            source_tree.SetColumnWidth(SOURCE_COL_NAME, 170)
+            source_tree.SetColumnWidth(SOURCE_COL_SIZE, 80)
+
     def show_widget_inspector():
         """Show the widget inspection tool."""
         wx.lib.inspection.InspectionTool().Show()
@@ -2545,12 +2569,21 @@ if __name__ == '__main__':
     source_src_control_browse_btn = wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse source')
     source_src_control_sizer.Add(source_src_control_browse_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
 
-    source_tree = gizmos.TreeListCtrl(main_frame.root_panel, -1, size=(280, -1), name='Source tree')
+    SOURCE_COL_PATH = 0
+    SOURCE_COL_NAME = 1
+    SOURCE_COL_SIZE = 2
+    SOURCE_COL_RAWSIZE = 3
+
+    # FIXME: Remove size in source tree constructor when SetSize works
+    source_tree = gizmos.TreeListCtrl(main_frame.root_panel, -1, size=(420, -1), style=0, agwStyle=gizmos.TR_DEFAULT_STYLE | gizmos.TR_FULL_ROW_HIGHLIGHT, name='Source tree')
     source_tree.AddColumn('Path')
-    source_tree.SetColumnWidth(0, 200)
+    source_tree.AddColumn('Name')
     source_tree.AddColumn('Size')
-    source_tree.SetColumnWidth(1, 80)
+    source_tree.AddColumn('Raw Size')
+    source_tree.SetColumnWidth(SOURCE_COL_RAWSIZE, 0)
     source_tree.SetMainColumn(0)
+
+    redraw_source_tree()
 
     source_src_selection_info_sizer = wx.BoxSizer()
     source_src_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Selected:', name='Source meta selected label'), 0, wx.ALIGN_CENTER_VERTICAL)
@@ -3312,8 +3345,6 @@ if __name__ == '__main__':
 
     source_warning = tk.Label(root_window.main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=root_window.uicolor.ERROR, fg=root_window.uicolor.BLACK)
 
-    root_window.bind('<Control-F5>', lambda x: load_source_in_background())
-
     tree_dest_frame = tk.Frame(root_window.main_frame)
     tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
 
@@ -3366,8 +3397,6 @@ if __name__ == '__main__':
     tree_dest_scrollbar = ttk.Scrollbar(tree_dest_frame, orient='vertical', command=tree_dest.yview)
     tree_dest_scrollbar.pack(side='left', fill='y')
     tree_dest.configure(yscrollcommand=tree_dest_scrollbar.set)
-
-    root_window.bind('<F5>', lambda x: load_dest_in_background())
 
     # Dest tree right click menu
     dest_right_click_menu = tk.Menu(tree_source, tearoff=0)
