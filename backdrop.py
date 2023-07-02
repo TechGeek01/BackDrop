@@ -545,13 +545,12 @@ def change_source_drive(selection: str):
         load_dest_in_background()
 
 def reset_analysis_output():
-    content_tab_frame.tab['summary']['content'].empty()
-    content_tab_frame.tab['details']['content'].empty()
 
-    tk.Label(content_tab_frame.tab['summary']['content'].frame, text='This area will summarize the backup that\'s been configured.',
-             wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
-    tk.Label(content_tab_frame.tab['summary']['content'].frame, text='Please start a backup analysis to generate a summary.',
-             wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
+    summary_summary_sizer.Clear()
+
+    summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label="This area will summarize the backup that's been configured.", name='Backup summary placeholder tooltip 1'), 0)
+    summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label='Please start a backup analysis to generate a summary.', name='Backup summary placeholder tooltip 2'), 0, wx.TOP, 5)
+    summary_summary_panel.Layout()
 
 # IDEA: @Calculate total space of all @shares in background
 def select_source():
@@ -2125,20 +2124,22 @@ if __name__ == '__main__':
             toggle_type (int): The drive type to toggle.
         """
 
-        global PREV_LOCAL_SOURCE_DRIVE
-        global PREV_NETWORK_SOURCE_DRIVE
+        global settings_show_drives_source_network
+        global settings_show_drives_source_local
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
-            settings_showDrives_source_local.set(PREV_LOCAL_SOURCE_DRIVE)
-            settings_showDrives_source_network.set(PREV_NETWORK_SOURCE_DRIVE)
+            if toggle_type == DRIVE_TYPE_LOCAL:
+                selection_menu_show_drives_source_local.Check(settings_show_drives_source_local)
+            elif toggle_type == DRIVE_TYPE_REMOTE:
+                selection_menu_show_drives_source_network.Check(settings_show_drives_source_network)
             return
 
         # If analysis is valid, invalidate it
         reset_analysis_output()
 
-        selected_local = settings_showDrives_source_local.get()
-        selected_network = settings_showDrives_source_network.get()
+        selected_network = selection_menu_show_drives_source_network.IsChecked()
+        selected_local = selection_menu_show_drives_source_local.IsChecked()
 
         # If both selections are unchecked, the last one has just been unchecked
         # In this case, re-check it, so that there's always some selection
@@ -2147,14 +2148,15 @@ if __name__ == '__main__':
         # find a proper solution for this...
         if not selected_local and not selected_network:
             if toggle_type == DRIVE_TYPE_LOCAL:
-                settings_showDrives_source_local.set(True)
+                selection_menu_show_drives_source_local.Check(True)
             elif toggle_type == DRIVE_TYPE_REMOTE:
-                settings_showDrives_source_network.set(True)
+                selection_menu_show_drives_source_network.Check(True)
 
-        PREV_LOCAL_SOURCE_DRIVE = settings_showDrives_source_local.get()
-        PREV_NETWORK_SOURCE_DRIVE = settings_showDrives_source_network.get()
-        prefs.set('selection', 'source_network_drives', settings_showDrives_source_network.get())
-        prefs.set('selection', 'source_local_drives', settings_showDrives_source_local.get())
+        # Set preferences
+        settings_show_drives_source_network = selection_menu_show_drives_source_network.IsChecked()
+        settings_show_drives_source_local = selection_menu_show_drives_source_local.IsChecked()
+        prefs.set('selection', 'source_network_drives', settings_show_drives_source_network)
+        prefs.set('selection', 'source_local_drives', settings_show_drives_source_local)
 
         load_source_in_background()
 
@@ -2165,33 +2167,39 @@ if __name__ == '__main__':
             toggle_type (int): The drive type to toggle.
         """
 
-        global PREV_LOCAL_DEST_DRIVE
-        global PREV_NETWORK_DEST_DRIVE
+        global settings_show_drives_destination_network
+        global settings_show_drives_destination_local
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
-            settings_showDrives_dest_local.set(PREV_LOCAL_DEST_DRIVE)
-            settings_showDrives_dest_network.set(PREV_NETWORK_DEST_DRIVE)
+            if toggle_type == DRIVE_TYPE_LOCAL:
+                selection_menu_show_drives_destination_local.Check(settings_show_drives_destination_local)
+            elif toggle_type == DRIVE_TYPE_REMOTE:
+                selection_menu_show_drives_destination_network.Check(settings_show_drives_destination_network)
             return
 
         # If analysis is valid, invalidate it
         reset_analysis_output()
 
-        selected_local = settings_showDrives_dest_local.get()
-        selected_network = settings_showDrives_dest_network.get()
+        selected_local = selection_menu_show_drives_destination_local.IsChecked()
+        selected_network = selection_menu_show_drives_destination_network.IsChecked()
 
         # If both selections are unchecked, the last one has just been unchecked
         # In this case, re-check it, so that there's always some selection
+        # TODO: This currently uses the fixed type to indicate local drives, but
+        # will be used to select both fixed and removable drives. Should probably
+        # find a proper solution for this...
         if not selected_local and not selected_network:
             if toggle_type == DRIVE_TYPE_LOCAL:
-                settings_showDrives_dest_local.set(True)
+                selection_menu_show_drives_destination_local.Check(True)
             elif toggle_type == DRIVE_TYPE_REMOTE:
-                settings_showDrives_dest_network.set(True)
+                selection_menu_show_drives_destination_network.Check(True)
 
-        PREV_LOCAL_DEST_DRIVE = settings_showDrives_dest_local.get()
-        PREV_NETWORK_DEST_DRIVE = settings_showDrives_dest_network.get()
-        prefs.set('selection', 'destination_network_drives', settings_showDrives_dest_network.get())
-        prefs.set('selection', 'destination_local_drives', settings_showDrives_dest_local.get())
+        # Set preferences
+        settings_show_drives_destination_network = selection_menu_show_drives_destination_network.IsChecked()
+        settings_show_drives_destination_local = selection_menu_show_drives_destination_local.IsChecked()
+        prefs.set('selection', 'destination_network_drives', settings_show_drives_destination_network)
+        prefs.set('selection', 'destination_local_drives', settings_show_drives_destination_local)
 
         load_dest_in_background()
 
@@ -2694,8 +2702,7 @@ if __name__ == '__main__':
     summary_sizer.Add(backup_eta_label, 0, wx.ALIGN_CENTER_HORIZONTAL)
     summary_sizer.Add(summary_notebook, 1, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
 
-    summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label="This area will summarize the backup that's been configured.", name='Backup summary placeholder tooltip 1'), 0)
-    summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label='Please start a backup analysis to generate a summary.', name='Backup summary placeholder tooltip 2'), 0, wx.TOP, 5)
+    reset_analysis_output()
 
     # FIle list panel
     file_details_pending_header_sizer = wx.BoxSizer()
@@ -2866,23 +2873,27 @@ if __name__ == '__main__':
     menu_bar.Append(file_menu, '&File')
 
     # Selection menu
+    ID_MENU_SOURCE_NETWORK_DRIVE = wx.NewIdRef()
+    ID_MENU_SOURCE_LOCAL_DRIVE = wx.NewIdRef()
+    ID_MENU_DEST_NETWORK_DRIVE = wx.NewIdRef()
+    ID_MENU_DEST_LOCAL_DRIVE = wx.NewIdRef()
     selection_menu = wx.Menu()
     settings_show_drives_source_network = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
-    selection_menu_show_drives_source_network = wx.MenuItem(selection_menu, 201, 'Source Network Drives', 'Enable network drives as sources', kind=wx.ITEM_CHECK)
+    selection_menu_show_drives_source_network = wx.MenuItem(selection_menu, ID_MENU_SOURCE_NETWORK_DRIVE, 'Source Network Drives', 'Enable network drives as sources', kind=wx.ITEM_CHECK)
     selection_menu.Append(selection_menu_show_drives_source_network)
-    selection_menu_show_drives_source_network.Check(prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN))
+    selection_menu_show_drives_source_network.Check(settings_show_drives_source_network)
     settings_show_drives_source_local = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
-    selection_menu_show_drives_source_local = wx.MenuItem(selection_menu, 202, 'Source Local Drives', 'Enable local drives as sources', kind=wx.ITEM_CHECK)
+    selection_menu_show_drives_source_local = wx.MenuItem(selection_menu, ID_MENU_SOURCE_LOCAL_DRIVE, 'Source Local Drives', 'Enable local drives as sources', kind=wx.ITEM_CHECK)
     selection_menu.Append(selection_menu_show_drives_source_local)
-    selection_menu_show_drives_source_local.Check(prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN))
+    selection_menu_show_drives_source_local.Check(settings_show_drives_source_local)
     settings_show_drives_destination_network = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
-    selection_menu_show_drives_destination_network = wx.MenuItem(selection_menu, 203, 'Destination Network Drives', 'Enable network drives as destinations', kind=wx.ITEM_CHECK)
+    selection_menu_show_drives_destination_network = wx.MenuItem(selection_menu, ID_MENU_DEST_NETWORK_DRIVE, 'Destination Network Drives', 'Enable network drives as destinations', kind=wx.ITEM_CHECK)
     selection_menu.Append(selection_menu_show_drives_destination_network)
-    selection_menu_show_drives_destination_network.Check(prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
+    selection_menu_show_drives_destination_network.Check(settings_show_drives_destination_network)
     settings_show_drives_destination_local = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
-    selection_menu_show_drives_destination_local = wx.MenuItem(selection_menu, 204, 'Destination Local Drives', 'Enable local drives as destinations', kind=wx.ITEM_CHECK)
+    selection_menu_show_drives_destination_local = wx.MenuItem(selection_menu, ID_MENU_DEST_LOCAL_DRIVE, 'Destination Local Drives', 'Enable local drives as destinations', kind=wx.ITEM_CHECK)
     selection_menu.Append(selection_menu_show_drives_destination_local)
-    selection_menu_show_drives_destination_local.Check(prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
+    selection_menu_show_drives_destination_local.Check(settings_show_drives_destination_local)
     selection_menu.AppendSeparator()
     selection_source_mode_menu = wx.Menu()
     settings_source_mode = prefs.get('selection', 'source_mode')
@@ -2950,6 +2961,12 @@ if __name__ == '__main__':
     menu_bar.Append(help_menu, '&Help')
 
     main_frame.SetMenuBar(menu_bar)
+
+    # Click bindings
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_type(DRIVE_TYPE_REMOTE), id=ID_MENU_SOURCE_NETWORK_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_type(DRIVE_TYPE_LOCAL), id=ID_MENU_SOURCE_LOCAL_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_destination_type(DRIVE_TYPE_REMOTE), id=ID_MENU_DEST_NETWORK_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_destination_type(DRIVE_TYPE_LOCAL), id=ID_MENU_DEST_LOCAL_DRIVE)
 
     # Key bindings
     accelerators = [wx.AcceleratorEntry() for x in range(6)]
@@ -3133,14 +3150,10 @@ if __name__ == '__main__':
     selection_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
     settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN))
     settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN))
-    PREV_NETWORK_SOURCE_DRIVE = settings_showDrives_source_network.get()
-    PREV_LOCAL_SOURCE_DRIVE = settings_showDrives_source_local.get()
     selection_menu.add_checkbutton(label='Source Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=lambda: change_source_type(DRIVE_TYPE_REMOTE))
     selection_menu.add_checkbutton(label='Source Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=lambda: change_source_type(DRIVE_TYPE_LOCAL))
     settings_showDrives_dest_network = tk.BooleanVar(value=prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
     settings_showDrives_dest_local = tk.BooleanVar(value=prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
-    PREV_NETWORK_DEST_DRIVE = settings_showDrives_dest_network.get()
-    PREV_LOCAL_DEST_DRIVE = settings_showDrives_dest_local.get()
     selection_menu.add_checkbutton(label='Destination Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE))
     selection_menu.add_checkbutton(label='Destination Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL))
     selection_menu.add_separator()
