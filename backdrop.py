@@ -2335,6 +2335,18 @@ if __name__ == '__main__':
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
 
+    def change_verification_all_preferences(verify_all: bool = True):
+        """Set verification preferences whether to verify all files or not.
+
+        Args:
+            verify_all (bool): Whether to verify all files (default: True).
+        """
+
+        global settings_verify_all_files
+
+        settings_verify_all_files = verify_all
+        prefs.set('verification', 'verify_all_files', verify_all)
+
     def redraw_source_tree():
         """Redraw the source tree by reading preferences and setting columns and
         sizes.
@@ -2978,12 +2990,14 @@ if __name__ == '__main__':
     menu_bar.Append(actions_menu, '&Actions')
 
     # Preferences menu
+    ID_VERIFY_KNOWN_FILES = wx.NewIdRef()
+    ID_VERIFY_ALL_FILES = wx.NewIdRef()
     preferences_menu = wx.Menu()
     preferences_verification_menu = wx.Menu()
-    preferences_verification_menu_verify_known_files = wx.MenuItem(preferences_verification_menu, 5011, 'Verify Known Files', 'Verify files with known hashes, skip unknown files', kind=wx.ITEM_RADIO)
+    preferences_verification_menu_verify_known_files = wx.MenuItem(preferences_verification_menu, ID_VERIFY_KNOWN_FILES, 'Verify Known Files', 'Verify files with known hashes, skip unknown files', kind=wx.ITEM_RADIO)
     preferences_verification_menu.Append(preferences_verification_menu_verify_known_files)
     preferences_verification_menu_verify_known_files.Check(not settings_verify_all_files)
-    preferences_verification_menu_verify_all_files = wx.MenuItem(preferences_verification_menu, 5012, 'Verify All Files', 'Verify files with known hashes, compute and save the hash of unknown files', kind=wx.ITEM_RADIO)
+    preferences_verification_menu_verify_all_files = wx.MenuItem(preferences_verification_menu, ID_VERIFY_ALL_FILES, 'Verify All Files', 'Verify files with known hashes, compute and save the hash of unknown files', kind=wx.ITEM_RADIO)
     preferences_verification_menu.Append(preferences_verification_menu_verify_all_files)
     preferences_verification_menu_verify_all_files.Check(settings_verify_all_files)
     preferences_menu.AppendSubMenu(preferences_verification_menu, '&Data Integrity Verification')
@@ -3028,6 +3042,9 @@ if __name__ == '__main__':
     main_frame.Bind(wx.EVT_MENU, lambda e: load_source_in_background(), id=ID_REFRESH_SOURCE)
     main_frame.Bind(wx.EVT_MENU, lambda e: load_dest_in_background(), id=ID_REFRESH_DEST)
     main_frame.Bind(wx.EVT_MENU, lambda e: show_backup_error_log(), id=ID_SHOW_ERROR_LOG)
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_verification_all_preferences(False), id=ID_VERIFY_KNOWN_FILES)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_verification_all_preferences(True), id=ID_VERIFY_ALL_FILES)
 
     main_frame.Bind(wx.EVT_MENU, lambda e: show_widget_inspector(), id=ID_SHOW_WIDGET_INSPECTION)
 
@@ -3112,11 +3129,6 @@ if __name__ == '__main__':
 
     # Preferences menu
     preferences_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    settings_verifyAllFiles = tk.BooleanVar(value=prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN))
-    preferences_verification_menu.add_checkbutton(label='Verify Known Files', onvalue=False, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
-    preferences_verification_menu.add_checkbutton(label='Verify All Files', onvalue=True, offvalue=True, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
-    preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
     settings_darkModeEnabled = tk.BooleanVar(value=dark_mode)
     preferences_menu.add_checkbutton(label='Enable Dark Mode (requires restart)', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', dark_mode))
     menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
