@@ -23,7 +23,6 @@ import re
 import pickle
 import clipboard
 from pynput import keyboard
-from PIL import Image, ImageTk
 if platform.system() == 'Windows':
     import pythoncom
     import win32api
@@ -2423,6 +2422,16 @@ if __name__ == '__main__':
                                     weight=wx.FONTWEIGHT_BOLD, underline=False,
                                     faceName ='', encoding=wx.FONTENCODING_DEFAULT)
 
+    # Load settings from preferences
+    settings_show_drives_source_network = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
+    settings_show_drives_source_local = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
+    settings_show_drives_destination_network = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
+    settings_show_drives_destination_local = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
+    settings_source_mode = prefs.get('selection', 'source_mode')
+    settings_dest_mode = prefs.get('selection', 'dest_mode')
+    settings_verify_all_files = prefs.get('verification', 'verify_all_files', default=True, data_type=Config.BOOLEAN)
+    settings_allow_prerelease_updates = prefs.get('ui', 'allow_prereleases', default=False, data_type=Config.BOOLEAN)
+
     main_frame = RootWindow(
         parent=None,
         title='BackDrop - Data Backup Tool',
@@ -2571,8 +2580,6 @@ if __name__ == '__main__':
     source_dest_control_sizer.Add((-1, -1), 1, wx.EXPAND)
     source_dest_control_sizer.Add(wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse destination'), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
 
-    settings_dest_mode = Config.DEST_MODE_DRIVES  # URGENT: This is a stub to fix a missing implementation
-
     DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == PLATFORM_WINDOWS else 150
     DEST_TREE_COLWIDTH_VID = 140 if settings_dest_mode == Config.DEST_MODE_PATHS else 90
     DEST_TREE_COLWIDTH_SERIAL = 150 if SYS_PLATFORM == PLATFORM_WINDOWS else 50
@@ -2650,8 +2657,8 @@ if __name__ == '__main__':
 
     # Source and dest panel
     source_sizer = wx.BoxSizer()
-    source_sizer.Add(source_src_sizer, 0)
-    source_sizer.Add(source_dest_sizer, 0, wx.LEFT, ITEM_UI_PADDING)
+    source_sizer.Add(source_src_sizer, 0, wx.EXPAND)
+    source_sizer.Add(source_dest_sizer, 0, wx.EXPAND | wx.LEFT, ITEM_UI_PADDING)
 
     # Backup summary panel
     backup_eta_label = wx.StaticText(main_frame.root_panel, -1, label='Please start a backup to show ETA', name='Backup ETA label')
@@ -2800,7 +2807,6 @@ if __name__ == '__main__':
     if PORTABLE_MODE:
         status_bar_portable_mode = wx.StaticText(status_bar, -1, label='Portable mode')
         status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
-    # URGENT: Make status bar update thing open the dialog if there are updatesa
     status_bar_updates = wx.StaticText(status_bar, -1, label='Checking for updates', name='Status bar update indicator')  # URGENT: Make this update with function
     status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -2848,25 +2854,20 @@ if __name__ == '__main__':
     ID_MENU_SOURCE_MODE_SINGLE_PATH = wx.NewIdRef()
     ID_MENU_SOURCE_MODE_MULTI_PATH = wx.NewIdRef()
     selection_menu = wx.Menu()
-    settings_show_drives_source_network = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
     selection_menu_show_drives_source_network = wx.MenuItem(selection_menu, ID_MENU_SOURCE_NETWORK_DRIVE, 'Source Network Drives', 'Enable network drives as sources', kind=wx.ITEM_CHECK)
     selection_menu.Append(selection_menu_show_drives_source_network)
     selection_menu_show_drives_source_network.Check(settings_show_drives_source_network)
-    settings_show_drives_source_local = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
     selection_menu_show_drives_source_local = wx.MenuItem(selection_menu, ID_MENU_SOURCE_LOCAL_DRIVE, 'Source Local Drives', 'Enable local drives as sources', kind=wx.ITEM_CHECK)
     selection_menu.Append(selection_menu_show_drives_source_local)
     selection_menu_show_drives_source_local.Check(settings_show_drives_source_local)
-    settings_show_drives_destination_network = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
     selection_menu_show_drives_destination_network = wx.MenuItem(selection_menu, ID_MENU_DEST_NETWORK_DRIVE, 'Destination Network Drives', 'Enable network drives as destinations', kind=wx.ITEM_CHECK)
     selection_menu.Append(selection_menu_show_drives_destination_network)
     selection_menu_show_drives_destination_network.Check(settings_show_drives_destination_network)
-    settings_show_drives_destination_local = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
     selection_menu_show_drives_destination_local = wx.MenuItem(selection_menu, ID_MENU_DEST_LOCAL_DRIVE, 'Destination Local Drives', 'Enable local drives as destinations', kind=wx.ITEM_CHECK)
     selection_menu.Append(selection_menu_show_drives_destination_local)
     selection_menu_show_drives_destination_local.Check(settings_show_drives_destination_local)
     selection_menu.AppendSeparator()
     selection_source_mode_menu = wx.Menu()
-    settings_source_mode = prefs.get('selection', 'source_mode')
     selection_source_mode_menu_single_drive = wx.MenuItem(selection_source_mode_menu, ID_MENU_SOURCE_MODE_SINGLE_DRIVE, 'Single drive, select subfolders', 'Select subfolders from a drive to use as sources', kind=wx.ITEM_RADIO)
     selection_source_mode_menu.Append(selection_source_mode_menu_single_drive)
     selection_source_mode_menu_single_drive.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE)
@@ -2881,7 +2882,6 @@ if __name__ == '__main__':
     selection_source_mode_menu_multi_path.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_PATH)
     selection_menu.AppendSubMenu(selection_source_mode_menu, '&Source Mode')
     selection_dest_mode_menu = wx.Menu()
-    settings_dest_mode = prefs.get('selection', 'dest_mode')
     selection_dest_mode_menu_drives = wx.MenuItem(selection_dest_mode_menu, 2061, 'Drives', 'Select one or more drives as destinations', kind=wx.ITEM_RADIO)
     selection_dest_mode_menu.Append(selection_dest_mode_menu_drives)
     selection_dest_mode_menu_drives.Check(settings_dest_mode == Config.DEST_MODE_DRIVES)
@@ -2911,7 +2911,6 @@ if __name__ == '__main__':
     # Preferences menu
     preferences_menu = wx.Menu()
     preferences_verification_menu = wx.Menu()
-    settings_verify_all_files = prefs.get('verification', 'verify_all_files', default=True, data_type=Config.BOOLEAN)
     preferences_verification_menu_verify_known_files = wx.MenuItem(preferences_verification_menu, 5011, 'Verify Known Files', 'Verify files with known hashes, skip unknown files', kind=wx.ITEM_RADIO)
     preferences_verification_menu.Append(preferences_verification_menu_verify_known_files)
     preferences_verification_menu_verify_known_files.Check(not settings_verify_all_files)
@@ -2933,7 +2932,6 @@ if __name__ == '__main__':
     # Help menu
     help_menu = wx.Menu()
     help_menu.Append(701, 'Check for Updates', 'Check for program updates, and prompt to download them, if there are any')
-    settings_allow_prerelease_updates = prefs.get('ui', 'allow_prereleases', default=False, data_type=Config.BOOLEAN)
     help_menu_allow_prerelease_updates = wx.MenuItem(help_menu, 702, 'Allow Prereleases', 'Allow prerelease versions when checking for updates', kind=wx.ITEM_CHECK)
     help_menu.Append(help_menu_allow_prerelease_updates)
     help_menu_allow_prerelease_updates.Check(settings_allow_prerelease_updates)
