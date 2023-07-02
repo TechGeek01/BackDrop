@@ -1395,13 +1395,13 @@ def show_update_window(update_info: dict):
     if not update_info['updateAvailable'] or update_frame.IsShown():
         return
 
-    icon_windows = wx.Bitmap(wx.Image(f"media/windows{'_light' if dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
+    icon_windows = wx.Bitmap(wx.Image(f"media/windows{'_light' if settings_dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
     icon_windows_color = wx.Bitmap(wx.Image('media/windows_color.png', wx.BITMAP_TYPE_ANY))
-    icon_zip = wx.Bitmap(wx.Image(f"media/zip{'_light' if dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
+    icon_zip = wx.Bitmap(wx.Image(f"media/zip{'_light' if settings_dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
     icon_zip_color = wx.Bitmap(wx.Image('media/zip_color.png', wx.BITMAP_TYPE_ANY))
-    icon_debian = wx.Bitmap(wx.Image(f"media/debian{'_light' if dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
+    icon_debian = wx.Bitmap(wx.Image(f"media/debian{'_light' if settings_dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
     icon_debian_color = wx.Bitmap(wx.Image('media/debian_color.png', wx.BITMAP_TYPE_ANY))
-    icon_targz = wx.Bitmap(wx.Image(f"media/targz{'_light' if dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
+    icon_targz = wx.Bitmap(wx.Image(f"media/targz{'_light' if settings_dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
     icon_targz_color = wx.Bitmap(wx.Image('media/targz_color.png', wx.BITMAP_TYPE_ANY))
 
     icon_info = {
@@ -2335,6 +2335,7 @@ if __name__ == '__main__':
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
 
+    # FIXME: can a function like this be generalized to set a setting and preferences?
     def change_verification_all_preferences(verify_all: bool = True):
         """Set verification preferences whether to verify all files or not.
 
@@ -2346,6 +2347,18 @@ if __name__ == '__main__':
 
         settings_verify_all_files = verify_all
         prefs.set('verification', 'verify_all_files', verify_all)
+
+    def change_dark_mode_preferences(dark_mode: bool = True):
+        """Set dark mode preferences.
+
+        Args:
+            dark_mode (bool): Whether to enable dark mode (default: True).
+        """
+
+        global settings_dark_mode
+
+        settings_dark_mode = dark_mode
+        prefs.set('ui', 'dark_mode', dark_mode)
 
     def redraw_source_tree():
         """Redraw the source tree by reading preferences and setting columns and
@@ -2433,8 +2446,16 @@ if __name__ == '__main__':
         FileUtils.LIST_FAIL: []
     }
 
-    # FIXME: Fix dark mode, and make this not be a stub
-    dark_mode = True
+    # Load settings from preferences
+    settings_show_drives_source_network = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
+    settings_show_drives_source_local = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
+    settings_show_drives_destination_network = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
+    settings_show_drives_destination_local = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
+    settings_source_mode = prefs.get('selection', 'source_mode')
+    settings_dest_mode = prefs.get('selection', 'dest_mode')
+    settings_verify_all_files = prefs.get('verification', 'verify_all_files', default=True, data_type=Config.BOOLEAN)
+    settings_dark_mode = prefs.get('ui', 'dark_mode', default=True, data_type=Config.BOOLEAN)
+    settings_allow_prerelease_updates = prefs.get('ui', 'allow_prereleases', default=False, data_type=Config.BOOLEAN)
 
     update_handler = UpdateHandler(
         current_version=__version__,
@@ -2443,7 +2464,7 @@ if __name__ == '__main__':
         update_callback=check_for_updates
     )
 
-    if dark_mode:
+    if settings_dark_mode:
         BUTTON_NORMAL_COLOR = '#585858'
         BUTTON_TEXT_COLOR = '#fff'
         BUTTON_ACTIVE_COLOR = '#666'
@@ -2500,16 +2521,6 @@ if __name__ == '__main__':
     FONT_UPDATE_AVAILABLE = wx.Font(32, family=wx.FONTFAMILY_DEFAULT, style=0,
                                     weight=wx.FONTWEIGHT_BOLD, underline=False,
                                     faceName ='', encoding=wx.FONTENCODING_DEFAULT)
-
-    # Load settings from preferences
-    settings_show_drives_source_network = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
-    settings_show_drives_source_local = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
-    settings_show_drives_destination_network = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
-    settings_show_drives_destination_local = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
-    settings_source_mode = prefs.get('selection', 'source_mode')
-    settings_dest_mode = prefs.get('selection', 'dest_mode')
-    settings_verify_all_files = prefs.get('verification', 'verify_all_files', default=True, data_type=Config.BOOLEAN)
-    settings_allow_prerelease_updates = prefs.get('ui', 'allow_prereleases', default=False, data_type=Config.BOOLEAN)
 
     main_frame = RootWindow(
         parent=None,
@@ -3003,7 +3014,7 @@ if __name__ == '__main__':
     preferences_menu.AppendSubMenu(preferences_verification_menu, '&Data Integrity Verification')
     preferences_menu_dark_mode = wx.MenuItem(preferences_menu, 502, 'Enable Dark Mode (requires restart)', 'Enable or disable dark mode', kind=wx.ITEM_CHECK)
     preferences_menu.Append(preferences_menu_dark_mode)
-    preferences_menu_dark_mode.Check(dark_mode)
+    preferences_menu_dark_mode.Check(settings_dark_mode)
     menu_bar.Append(preferences_menu, '&Preferences')
 
     # Debug menu
@@ -3045,6 +3056,7 @@ if __name__ == '__main__':
 
     main_frame.Bind(wx.EVT_MENU, lambda e: change_verification_all_preferences(False), id=ID_VERIFY_KNOWN_FILES)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_verification_all_preferences(True), id=ID_VERIFY_ALL_FILES)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_dark_mode_preferences(preferences_menu_dark_mode.IsChecked()))
 
     main_frame.Bind(wx.EVT_MENU, lambda e: show_widget_inspector(), id=ID_SHOW_WIDGET_INSPECTION)
 
@@ -3126,12 +3138,6 @@ if __name__ == '__main__':
     actions_menu.add_command(label='Verify Data Integrity on Selected Destinations', underline=0, command=start_verify_data_from_hash_list)
     actions_menu.add_command(label='Delete Config from Selected Destinations', command=delete_config_file_from_selected_drives)
     menubar.add_cascade(label='Actions', underline=0, menu=actions_menu)
-
-    # Preferences menu
-    preferences_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    settings_darkModeEnabled = tk.BooleanVar(value=dark_mode)
-    preferences_menu.add_checkbutton(label='Enable Dark Mode (requires restart)', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', dark_mode))
-    menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
 
     # Help menu
     help_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
