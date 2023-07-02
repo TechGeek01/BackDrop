@@ -2960,6 +2960,8 @@ if __name__ == '__main__':
     main_frame.SetAcceleratorTable(wx.AcceleratorTable(accelerators))
 
     # Mouse bindings
+    source_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_source_right_click_menu())
+    dest_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_dest_right_click_menu())
     split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
 
     status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
