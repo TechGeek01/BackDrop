@@ -2014,66 +2014,34 @@ if __name__ == '__main__':
         dest_right_click_menu.entryconfig('Delete', command=lambda: delete_dest_item(item))
         dest_right_click_menu.post(event.x_root, event.y_root)
 
-    def change_source_mode():
-        """Change the mode for source selection."""
+    def change_source_mode(selection):
+        """Change the mode for source selection.
 
-        global source_right_click_bind
-        global WINDOW_MIN_WIDTH
-        global PREV_SOURCE_MODE
+        Args:
+            selection: The selected source mode to change to.
+        """
+
+        global settings_source_mode
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
-            settings_sourceMode.set(PREV_SOURCE_MODE)
+            selection_source_mode_menu_single_drive.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE)
+            selection_source_mode_menu_multi_drive.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_DRIVE)
+            selection_source_mode_menu_single_path.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_PATH)
+            selection_source_mode_menu_multi_path.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_PATH)
             return
 
         # If analysis is valid, invalidate it
         reset_analysis_output()
 
-        prefs.set('selection', 'source_mode', settings_sourceMode.get())
-        root_geom = root_window.geometry().split('+')
-        root_size_geom = root_geom[0].split('x')
-        CUR_WIN_WIDTH = int(root_size_geom[0])
-        CUR_WIN_HEIGHT = int(root_size_geom[1])
-        POS_X = int(root_geom[1])
-        POS_Y = int(root_geom[2])
+        prefs.set('selection', 'source_mode', selection)
 
-        if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH] and PREV_SOURCE_MODE not in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-            tree_source.column('#0', width=SINGLE_SOURCE_TEXT_COL_WIDTH)
-            tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
-            tree_source['displaycolumns'] = ('size')
+        if selection == Config.SOURCE_MODE_SINGLE_PATH:
+            config['source_drive'] = last_selected_custom_source
 
-            WINDOW_MIN_WIDTH -= WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-            CUR_WIN_WIDTH -= WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-            root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
-            root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
-
-            # Unbind right click menu
-            try:
-                tree_source.unbind('<Button-3>', source_right_click_bind)
-            except tk._tkinter.TclError:
-                pass
-
-            config['source_mode'] == settings_sourceMode.get()
-            PREV_SOURCE_MODE = settings_sourceMode.get()
-
-            if settings_sourceMode.get() == Config.SOURCE_MODE_SINGLE_PATH:
-                config['source_drive'] = last_selected_custom_source
-        elif settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH] and PREV_SOURCE_MODE not in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-            WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-            CUR_WIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-            root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
-            root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
-
-            tree_source.column('#0', width=MULTI_SOURCE_TEXT_COL_WIDTH)
-            tree_source.column('name', width=MULTI_SOURCE_NAME_COL_WIDTH)
-            tree_source['displaycolumns'] = ('name', 'size')
-
-            # Bind right click menu
-            if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_DRIVE:  # Delete option should only show in custom mode
-                source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
-
-            config['source_mode'] == settings_sourceMode.get()
-            PREV_SOURCE_MODE = settings_sourceMode.get()
+        settings_source_mode = selection
+        prefs.set('selection', 'source_mode', selection)
+        config['source_mode'] == selection
 
         load_source_in_background()
 
@@ -2877,6 +2845,10 @@ if __name__ == '__main__':
     ID_MENU_SOURCE_LOCAL_DRIVE = wx.NewIdRef()
     ID_MENU_DEST_NETWORK_DRIVE = wx.NewIdRef()
     ID_MENU_DEST_LOCAL_DRIVE = wx.NewIdRef()
+    ID_MENU_SOURCE_MODE_SINGLE_DRIVE = wx.NewIdRef()
+    ID_MENU_SOURCE_MODE_MULTI_DRIVE = wx.NewIdRef()
+    ID_MENU_SOURCE_MODE_SINGLE_PATH = wx.NewIdRef()
+    ID_MENU_SOURCE_MODE_MULTI_PATH = wx.NewIdRef()
     selection_menu = wx.Menu()
     settings_show_drives_source_network = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
     selection_menu_show_drives_source_network = wx.MenuItem(selection_menu, ID_MENU_SOURCE_NETWORK_DRIVE, 'Source Network Drives', 'Enable network drives as sources', kind=wx.ITEM_CHECK)
@@ -2897,16 +2869,16 @@ if __name__ == '__main__':
     selection_menu.AppendSeparator()
     selection_source_mode_menu = wx.Menu()
     settings_source_mode = prefs.get('selection', 'source_mode')
-    selection_source_mode_menu_single_drive = wx.MenuItem(selection_source_mode_menu, 2051, 'Single drive, select subfolders', 'Select subfolders from a drive to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu_single_drive = wx.MenuItem(selection_source_mode_menu, ID_MENU_SOURCE_MODE_SINGLE_DRIVE, 'Single drive, select subfolders', 'Select subfolders from a drive to use as sources', kind=wx.ITEM_RADIO)
     selection_source_mode_menu.Append(selection_source_mode_menu_single_drive)
     selection_source_mode_menu_single_drive.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE)
-    selection_source_mode_menu_multi_drive = wx.MenuItem(selection_source_mode_menu, 2052, 'Multi drive, select drives', 'Select one or more drives to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu_multi_drive = wx.MenuItem(selection_source_mode_menu, ID_MENU_SOURCE_MODE_MULTI_DRIVE, 'Multi drive, select drives', 'Select one or more drives to use as sources', kind=wx.ITEM_RADIO)
     selection_source_mode_menu.Append(selection_source_mode_menu_multi_drive)
     selection_source_mode_menu_multi_drive.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_DRIVE)
-    selection_source_mode_menu_single_path = wx.MenuItem(selection_source_mode_menu, 2053, 'Single path, select subfolders', 'Specify a path, and select subfolders to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu_single_path = wx.MenuItem(selection_source_mode_menu, ID_MENU_SOURCE_MODE_SINGLE_PATH, 'Single path, select subfolders', 'Specify a path, and select subfolders to use as sources', kind=wx.ITEM_RADIO)
     selection_source_mode_menu.Append(selection_source_mode_menu_single_path)
     selection_source_mode_menu_single_path.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_PATH)
-    selection_source_mode_menu_multi_path = wx.MenuItem(selection_source_mode_menu, 2054, 'Multi path, select paths', 'Specify one or more paths to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu_multi_path = wx.MenuItem(selection_source_mode_menu, ID_MENU_SOURCE_MODE_MULTI_PATH, 'Multi path, select paths', 'Specify one or more paths to use as sources', kind=wx.ITEM_RADIO)
     selection_source_mode_menu.Append(selection_source_mode_menu_multi_path)
     selection_source_mode_menu_multi_path.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_PATH)
     selection_menu.AppendSubMenu(selection_source_mode_menu, '&Source Mode')
@@ -2967,6 +2939,10 @@ if __name__ == '__main__':
     main_frame.Bind(wx.EVT_MENU, lambda e: change_source_type(DRIVE_TYPE_LOCAL), id=ID_MENU_SOURCE_LOCAL_DRIVE)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_destination_type(DRIVE_TYPE_REMOTE), id=ID_MENU_DEST_NETWORK_DRIVE)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_destination_type(DRIVE_TYPE_LOCAL), id=ID_MENU_DEST_LOCAL_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_SINGLE_DRIVE), id=ID_MENU_SOURCE_MODE_SINGLE_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_MULTI_DRIVE), id=ID_MENU_SOURCE_MODE_MULTI_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_SINGLE_PATH), id=ID_MENU_SOURCE_MODE_SINGLE_PATH)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_MULTI_PATH), id=ID_MENU_SOURCE_MODE_MULTI_PATH)
 
     # Key bindings
     accelerators = [wx.AcceleratorEntry() for x in range(6)]
