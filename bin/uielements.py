@@ -4,7 +4,6 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import sys
 import os
-import ctypes
 import clipboard
 import time
 
@@ -41,17 +40,6 @@ class Color:
 
     BACKGROUND = wx.Colour(0x33, 0x33, 0x33)
     STATUS_BAR = wx.Colour(0x4a, 0x4a, 0x4a)
-
-def resource_path(relative_path):
-    """Get absolute path to resource, works for dev and for PyInstaller."""
-
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
 
 class RootWindow(wx.Frame):
     def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
