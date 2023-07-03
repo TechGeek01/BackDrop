@@ -34,11 +34,10 @@ import logging
 from bin.fileutils import FileUtils, human_filesize, get_directory_size, get_file_hash, do_delete
 from bin.threadmanager import ThreadManager
 from bin.config import Config
-from bin.progress import Progress
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame
+from bin.uielements import Color, RootWindow, ModalWindow, ProgressBar, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame
 from bin.status import Status
 
 def on_press(key):
@@ -162,13 +161,13 @@ def display_backup_progress(copied: int, total: int, display_filename: str = Non
     # If display index has been specified, write progress to GUI
     if display_index is not None:
         if operation == Status.FILE_OPERATION_DELETE:
-            progress.set(current=backup.progress['current'])
+            progress_bar.SetValue(current=backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=root_window.uicolor.NORMAL)
         elif operation == Status.FILE_OPERATION_COPY:
-            progress.set(current=backup.progress['current'])
+            progress_bar.SetValue(current=backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.NORMAL)
         elif operation == Status.FILE_OPERATION_VERIFY:
-            progress.set(current=backup.progress['current'])
+            progress_bar.SetValue(current=backup.progress['current'])
             cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.BLUE)
 
 def get_backup_killflag() -> bool:
@@ -423,7 +422,7 @@ def load_source():
     global PREV_SOURCE_DRIVE
     global source_avail_drive_list
 
-    progress.start_indeterminate()
+    progress_bar.StartIndeterminate()
 
     # Empty tree in case this is being refreshed
     tree_source.delete(*tree_source.get_children())
@@ -504,7 +503,7 @@ def load_source():
         source_select_frame.grid_forget()
         source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
-    progress.stop_indeterminate()
+    progress_bar.StopIndeterminate()
 
 def load_source_in_background():
     """Start a source refresh in a new thread."""
@@ -642,10 +641,10 @@ def select_source():
             start_analysis_btn.configure(state='normal')
             update_status_bar_selection()
 
-        progress.stop_indeterminate()
+        progress_bar.StopIndeterminate()
 
     if not backup or not backup.is_running():
-        progress.start_indeterminate()
+        progress_bar.StartIndeterminate()
 
         # If analysis was run, invalidate it
         reset_analysis_output()
@@ -705,7 +704,7 @@ def select_source():
                 thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
 
         if all_shares_known:
-            progress.stop_indeterminate()
+            progress_bar.StopIndeterminate()
     else:
         # Tree selection locked, so keep selection the same
         try:
@@ -729,7 +728,7 @@ def load_dest():
 
     global dest_drive_master_list
 
-    progress.start_indeterminate()
+    progress_bar.StartIndeterminate()
 
     # Empty tree in case this is being refreshed
     tree_dest.delete(*tree_dest.get_children())
@@ -864,7 +863,7 @@ def load_dest():
 
     drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=root_window.uicolor.NORMAL if total_drive_space_available > 0 else root_window.uicolor.FADED)
 
-    progress.stop_indeterminate()
+    progress_bar.StopIndeterminate()
 
 def load_dest_in_background():
     """Start the loading of the destination drive info in a new thread."""
@@ -1042,7 +1041,7 @@ def select_dest():
 
         return
 
-    progress.start_indeterminate()
+    progress_bar.StartIndeterminate()
 
     # If analysis was run, invalidate it
     reset_analysis_output()
@@ -1112,7 +1111,7 @@ def select_dest():
 
     update_status_bar_selection()
 
-    progress.stop_indeterminate()
+    progress_bar.StopIndeterminate()
 
 def select_dest_in_background(event):
     """Start the drive selection handling in a new thread."""
@@ -1152,7 +1151,8 @@ def start_backup():
 
     update_ui_component(Status.UPDATEUI_BACKUP_START)
     update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
-    progress.set(current=0, total=backup.progress['total'])
+    progress_bar.SetValue(0)
+    progress_bar.SetRange(backup.progress['total'])
 
     for cmd in backup.command_list:
         cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=root_window.uicolor.PENDING)
@@ -1271,7 +1271,7 @@ def verify_data_integrity(drive_list: list):
 
     if not backup or not backup.is_running():
         update_status_bar_action(Status.VERIFICATION_RUNNING)
-        progress.start_indeterminate()
+        progress_bar.StartIndeterminate()
         statusbar_counter_btn.configure(text='0 failed', state='disabled')
         statusbar_details.configure(text='')
 
@@ -1378,7 +1378,7 @@ def verify_data_integrity(drive_list: list):
         verification_running = False
         halt_verification_btn.pack_forget()
 
-        progress.stop_indeterminate()
+        progress_bar.StopIndeterminate()
         statusbar_details.configure(text='')
         update_status_bar_action(Status.IDLE)
 
@@ -2221,9 +2221,9 @@ if __name__ == '__main__':
         backup_progress = backup.get_progress_updates()
 
         if backup.status == Status.BACKUP_ANALYSIS_RUNNING:
-            progress.start_indeterminate()
+            progress_bar.StartIndeterminate()
         else:
-            progress.stop_indeterminate()
+            progress_bar.StopIndeterminate()
 
         # Update ETA timer
         update_backup_eta_timer(backup_progress)
@@ -2268,7 +2268,8 @@ if __name__ == '__main__':
         if display_index is not None:
             # FIXME: Progress bar jumps after completing backup, as though
             #     the progress or total changes when the backup completes
-            progress.set(current=backup.progress['current'], total=backup.progress['total'])
+            progress_bar.SetValue(backup.progress['current'])
+            progress_bar.SetRange(backup.progress['total'])
 
             cmd_info_blocks[display_index].configure('current_file', text=buffer['display_filename'], fg=root_window.uicolor.NORMAL)
             if buffer['operation'] == Status.FILE_OPERATION_DELETE:
@@ -2857,7 +2858,9 @@ if __name__ == '__main__':
     file_list_sizer.Add(file_details_failed_header_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
     file_list_sizer.Add(file_details_failed_panel, 1, wx.EXPAND)
 
-    progress_bar = wx.Gauge(main_frame.root_panel, style=wx.GA_SMOOTH | wx.GA_PROGRESS)
+    progress_bar = ProgressBar(main_frame.root_panel, style=wx.GA_SMOOTH | wx.GA_PROGRESS)
+    progress_bar.SetRange(100)
+    progress_bar.BindThreadManager(thread_manager)
 
     controls_sizer = wx.BoxSizer()
     start_analysis_btn = wx.Button(main_frame.root_panel, -1, label='Analyze', name='Analysis button')
@@ -3156,15 +3159,6 @@ if __name__ == '__main__':
     ##################
     # END MENU STUFF #
     ##################
-
-    # Progress/status values
-    progress_bar = ttk.Progressbar(root_window.main_frame, maximum=100)
-    progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING, 0))
-
-    progress = Progress(
-        progress_bar=progress_bar,
-        thread_manager=thread_manager
-    )
 
     source_avail_drive_list = []
     source_drive_default = tk.StringVar()

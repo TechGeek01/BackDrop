@@ -41,6 +41,17 @@ class Color:
     BACKGROUND = wx.Colour(0x33, 0x33, 0x33)
     STATUS_BAR = wx.Colour(0x4a, 0x4a, 0x4a)
 
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller."""
+
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 class RootWindow(wx.Frame):
     def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
         """Create a window.
@@ -136,6 +147,58 @@ class ModalWindow(RootWindow):
 
         self.parent.Disable()
         self.Show()
+
+class ProgressBar(wx.Gauge):
+    def __init__(self, parent, *args, **kwargs):
+        """Create a progress bar.
+
+        Args:
+            parent: The parent of the progress bar.
+        """
+
+        self.value = 0
+        self.max = None
+        self.is_indeterminate = False
+
+        wx.Gauge.__init__(self, parent, *args, **kwargs)
+
+    def BindThreadManager(self, thread_manager):
+        """Bind a ThreadManager instance to the progress bar.
+
+        Args:
+            thread_manager (ThreadManager): The ThreadManager to bind to.
+        """
+
+        self.__thread_manager = thread_manager
+
+    def StartIndeterminate(self):
+        """Start indeterminate mode."""
+
+        # No need to start if this isn't the first progress thread
+        if len(self.__thread_manager.get_progress_threads()) > 1:
+            return
+
+        # If progress bar is already in indeterminate mode, no need to set it
+        if self.is_indeterminate:
+            return
+
+        self.value = self.GetValue()
+        self.Pulse()
+        self.is_indeterminate = True
+
+    def StopIndeterminate(self):
+        """Stop indeterminate mode."""
+
+        # No need to stop if this isn't the only progress thread
+        if len(self.__thread_manager.get_progress_threads()) > 1:
+            return
+
+        # If progress bar is already in determinate mode, no need to set it
+        if not self.is_indeterminate:
+            return
+
+        self.is_indeterminate = False
+        self.SetValue(self.value)
 
 class ScrollableFrame(tk.Frame):
     def __init__(self, parent, scrollbar=None, *args, **kwargs):
