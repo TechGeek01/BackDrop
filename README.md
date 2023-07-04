@@ -1,5 +1,7 @@
 <p align="center">
-  <img alt="Logo" src="https://github.com/TechGeek01/BackDrop/raw/master/media/logo.png">
+  <img alt="Logo icon" src="https://github.com/TechGeek01/BackDrop/raw/master/media/icon_256.png">
+  <br />
+  <img alt="Logo text" src="https://github.com/TechGeek01/BackDrop/raw/master/media/logo.png">
   <br />
   <a href="https://github.com/TechGeek01/BackDrop/releases/latest"><img alt="undefined" src="https://img.shields.io/github/v/release/TechGeek01/BackDrop"></a>
   <img alt="undefined" src="https://img.shields.io/github/downloads/TechGeek01/BackDrop/total" />
