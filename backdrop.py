@@ -2038,8 +2038,41 @@ if __name__ == '__main__':
 
         prefs.set('selection', 'source_mode', selection)
 
-        if selection == Config.SOURCE_MODE_SINGLE_PATH:
+        if selection == Config.SOURCE_MODE_SINGLE_DRIVE:
+            source_src_control_label.SetLabel('Source: ')
+
+            source_src_control_dropdown.Clear()
+            if not source_src_control_dropdown.IsShown():
+                source_src_control_dropdown.Show()
+
+            if source_src_control_browse_btn.IsShown():
+                source_src_control_browse_btn.Hide()
+        elif selection == Config.SOURCE_MODE_MULTI_DRIVE:
             config['source_drive'] = last_selected_custom_source
+
+            source_src_control_label.SetLabel('Multi-drive mode, browse/selection disabled')
+
+            if source_src_control_dropdown.IsShown():
+                source_src_control_dropdown.Hide()
+
+            if source_src_control_browse_btn.IsShown():
+                source_src_control_browse_btn.Hide()
+        elif selection == Config.SOURCE_MODE_SINGLE_PATH:
+            source_src_control_label.SetLabel(last_selected_custom_source)
+
+            if source_src_control_dropdown.IsShown():
+                source_src_control_dropdown.Hide()
+
+            if not source_src_control_browse_btn.IsShown():
+                source_src_control_browse_btn.Show()
+        elif selection == Config.SOURCE_MODE_MULTI_PATH:
+            source_src_control_label.SetLabel('Custom multi-source mode')
+
+            if source_src_control_dropdown.IsShown():
+                source_src_control_dropdown.Hide()
+
+            if not source_src_control_browse_btn.IsShown():
+                source_src_control_browse_btn.Show()
 
         settings_source_mode = selection
         prefs.set('selection', 'source_mode', selection)
@@ -2631,11 +2664,16 @@ if __name__ == '__main__':
 
     # Source controls
     source_src_control_sizer = wx.BoxSizer()
-    source_src_control_label = wx.StaticText(main_frame.root_panel, -1, label='Testing', name='Test source text')
+    source_src_control_label = wx.StaticText(main_frame.root_panel, -1, label='Source: ', name='Source control label')
     source_src_control_sizer.Add(source_src_control_label, 0, wx.ALIGN_CENTER_VERTICAL)
+    source_src_control_dropdown = wx.ComboBox(main_frame.root_panel, -1, name='Source control ComboBox')
+    source_src_control_sizer.Add(source_src_control_dropdown, 0, wx.ALIGN_CENTER_VERTICAL)
     source_src_control_sizer.Add((-1, -1), 1, wx.EXPAND)
-    source_src_control_browse_btn = wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse source')
+    source_src_control_browse_btn = wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse source button')
     source_src_control_sizer.Add(source_src_control_browse_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
+    source_src_control_spacer_button = wx.Button(main_frame.root_panel, -1, label='', size=(0, -1), name='Spacer dummy button')
+    source_src_control_spacer_button.Disable()
+    source_src_control_sizer.Add(source_src_control_spacer_button, 0, wx.ALIGN_CENTER_VERTICAL)
 
     SOURCE_COL_PATH = 0
     SOURCE_COL_NAME = 1
