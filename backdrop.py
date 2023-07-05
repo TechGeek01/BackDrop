@@ -2092,6 +2092,13 @@ if __name__ == '__main__':
         prefs.set('selection', 'dest_mode', selection)
         config['dest_mode'] = selection
 
+        if selection == Config.DEST_MODE_DRIVES:
+            if source_dest_control_btn.IsShown():
+                source_dest_control_btn.Hide()
+        elif selection == Config.DEST_MODE_PATHS:
+            if not source_src_control_browse_btn.IsShown():
+                source_dest_control_btn.Show()
+
         redraw_dest_tree()
 
         if not thread_manager.is_alive('Refresh Destination'):
@@ -2706,7 +2713,11 @@ if __name__ == '__main__':
     source_dest_tooltip.SetForegroundColour(Color.INFO)
     source_dest_control_sizer.Add(source_dest_tooltip, 0, wx.ALIGN_CENTER_VERTICAL)
     source_dest_control_sizer.Add((-1, -1), 1, wx.EXPAND)
-    source_dest_control_sizer.Add(wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse destination'), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
+    source_dest_control_btn = wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse destination')
+    source_dest_control_sizer.Add(source_dest_control_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
+    source_dest_control_spacer_button = wx.Button(main_frame.root_panel, -1, label='', size=(0, -1), name='Spacer dummy button')
+    source_dest_control_spacer_button.Disable()
+    source_dest_control_sizer.Add(source_dest_control_spacer_button, 0, wx.ALIGN_CENTER_VERTICAL)
 
     DEST_COL_PATH = 0
     DEST_COL_NAME = 1
