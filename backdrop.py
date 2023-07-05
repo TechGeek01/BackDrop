@@ -11,7 +11,6 @@ import platform
 import tkinter as tk
 from tkinter import ttk, simpledialog, font as tkfont, filedialog
 import wx
-import wx.lib.gizmos as gizmos
 import shutil
 import os
 import subprocess
@@ -421,6 +420,7 @@ def load_source():
 
     global PREV_SOURCE_DRIVE
     global source_avail_drive_list
+    global source_drive_default
 
     progress_bar.StartIndeterminate()
 
@@ -2670,7 +2670,7 @@ if __name__ == '__main__':
 
     # FIXME: Remove size in source tree constructor when SetSize works
     source_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, -1), style=wx.LC_REPORT, name='Source tree')
-    # source_tree = gizmos.TreeListCtrl(main_frame.root_panel, -1, size=(420, -1), style=0, agwStyle=gizmos.TR_DEFAULT_STYLE | gizmos.TR_FULL_ROW_HIGHLIGHT, name='Source tree')
+
     source_tree.AppendColumn('Path')
     source_tree.AppendColumn('Name')
     source_tree.AppendColumn('Size')
