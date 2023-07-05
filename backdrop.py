@@ -2529,27 +2529,30 @@ if __name__ == '__main__':
 
     app = wx.App()
 
+    wx.Font.AddPrivateFont('assets/fonts/Roboto-Regular.ttf')
+    wx.Font.AddPrivateFont('assets/fonts/Roboto-Bold.ttf')
+
     FONT_DEFAULT = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
                            weight=wx.FONTWEIGHT_NORMAL, underline=False,
-                           faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+                           faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_BOLD = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
                         weight=wx.FONTWEIGHT_BOLD, underline=False,
-                        faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+                        faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_MEDIUM = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
                           weight=wx.FONTWEIGHT_NORMAL, underline=False,
-                          faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+                          faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_LARGE = wx.Font(16, family=wx.FONTFAMILY_DEFAULT, style=0,
                          weight=wx.FONTWEIGHT_NORMAL, underline=False,
-                         faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+                         faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_HEADING = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
                            weight=wx.FONTWEIGHT_BOLD, underline=False,
-                           faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+                           faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_GIANT = wx.Font(28, family=wx.FONTFAMILY_DEFAULT, style=0,
                          weight=wx.FONTWEIGHT_NORMAL, underline=False,
-                         faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+                         faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_UPDATE_AVAILABLE = wx.Font(32, family=wx.FONTFAMILY_DEFAULT, style=0,
                                     weight=wx.FONTWEIGHT_BOLD, underline=False,
-                                    faceName ='', encoding=wx.FONTENCODING_DEFAULT)
+                                    faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
 
     main_frame = RootWindow(
         parent=None,
