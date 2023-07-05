@@ -2797,11 +2797,13 @@ if __name__ == '__main__':
 
     summary_summary_panel = wx.ScrolledWindow(summary_notebook, -1, style=wx.VSCROLL, name='Backup summary panel')
     summary_summary_panel.SetScrollbars(20, 20, 50, 50)
+    summary_summary_panel.SetBackgroundColour(Color.BACKGROUND)
     summary_summary_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     summary_summary_sizer = wx.BoxSizer(wx.VERTICAL)
     summary_summary_panel.SetSizer(summary_summary_sizer)
     summary_details_panel = wx.ScrolledWindow(summary_notebook, -1, style=wx.VSCROLL, name='Backup detail panel')
     summary_details_panel.SetScrollbars(20, 20, 50, 50)
+    summary_details_panel.SetBackgroundColour(Color.BACKGROUND)
     summary_details_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     summary_details_sizer = wx.BoxSizer(wx.VERTICAL)
     summary_details_panel.SetSizer(summary_details_sizer)
