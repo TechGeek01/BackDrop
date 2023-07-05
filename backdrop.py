@@ -3044,6 +3044,7 @@ if __name__ == '__main__':
     # Preferences menu
     ID_VERIFY_KNOWN_FILES = wx.NewIdRef()
     ID_VERIFY_ALL_FILES = wx.NewIdRef()
+    ID_DARK_MODE = wx.NewIdRef()
     preferences_menu = wx.Menu()
     preferences_verification_menu = wx.Menu()
     preferences_verification_menu_verify_known_files = wx.MenuItem(preferences_verification_menu, ID_VERIFY_KNOWN_FILES, 'Verify Known Files', 'Verify files with known hashes, skip unknown files', kind=wx.ITEM_RADIO)
@@ -3097,7 +3098,7 @@ if __name__ == '__main__':
 
     main_frame.Bind(wx.EVT_MENU, lambda e: change_verification_all_preferences(False), id=ID_VERIFY_KNOWN_FILES)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_verification_all_preferences(True), id=ID_VERIFY_ALL_FILES)
-    main_frame.Bind(wx.EVT_MENU, lambda e: change_dark_mode_preferences(preferences_menu_dark_mode.IsChecked()))
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_dark_mode_preferences(preferences_menu_dark_mode.IsChecked()), id=ID_DARK_MODE)
 
     main_frame.Bind(wx.EVT_MENU, lambda e: show_widget_inspector(), id=ID_SHOW_WIDGET_INSPECTION)
 
