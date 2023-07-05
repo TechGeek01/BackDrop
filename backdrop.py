@@ -2677,6 +2677,9 @@ if __name__ == '__main__':
     source_tree.AppendColumn('Raw Size')
     source_tree.SetColumnWidth(SOURCE_COL_RAWSIZE, 0)
 
+    source_tree.SetBackgroundColour(wx.Colour(0x40, 0x40, 0x40))
+    source_tree.SetTextColour(Color.WHITE)
+
     source_src_selection_info_sizer = wx.BoxSizer()
     source_src_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Selected:', name='Source meta selected label'), 0, wx.ALIGN_CENTER_VERTICAL)
     source_selected_space = wx.StaticText(main_frame.root_panel, -1, label='None', name='Source meta selected value')
@@ -2724,6 +2727,9 @@ if __name__ == '__main__':
     dest_tree.AppendColumn('Serial')
     dest_tree.AppendColumn('Raw Size')
     dest_tree.SetColumnWidth(DEST_COL_RAWSIZE, 0)
+
+    dest_tree.SetBackgroundColour(wx.Colour(0x40, 0x40, 0x40))
+    dest_tree.SetTextColour(Color.WHITE)
 
     redraw_dest_tree()
 
