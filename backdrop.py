@@ -2507,7 +2507,7 @@ if __name__ == '__main__':
         DANGER_BUTTON_DISABLED_COLOR = '#900'
         DANGER_BUTTON_DISABLED_TEXT_COLOR = '#caa'
 
-    WINDOW_BASE_WIDTH = 1200  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
+    WINDOW_BASE_WIDTH = 1300  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
     WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
     WINDOW_MIN_HEIGHT = 700
     MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == PLATFORM_WINDOWS else 200
