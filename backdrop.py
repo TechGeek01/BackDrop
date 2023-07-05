@@ -425,83 +425,61 @@ def load_source():
     progress_bar.StartIndeterminate()
 
     # Empty tree in case this is being refreshed
-    tree_source.delete(*tree_source.get_children())
+    source_tree.DeleteAllItems()
 
-    if not source_warning.grid_info() and not tree_source_frame.grid_info():
-        tree_source_frame.grid(row=1, column=1, sticky='ns')
-        source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+    # if not source_warning.grid_info() and not tree_source_frame.grid_info():
+    #     tree_source_frame.grid(row=1, column=1, sticky='ns')
+    #     source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
 
     source_avail_drive_list = get_source_drive_list()
 
     if source_avail_drive_list or settings_dest_mode in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH]:
         # Display empty selection sizes
-        share_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
-        share_total_space.configure(text='~None', fg=root_window.uicolor.FADED)
+        source_selected_space.SetLabel('None')
+        source_total_space.SetLabel('~ None')
 
-        source_warning.grid_forget()
-        tree_source_frame.grid(row=1, column=1, sticky='ns')
-        source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+        # source_warning.grid_forget()
+        # tree_source_frame.grid(row=1, column=1, sticky='ns')
+        # source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+
+        source_src_control_dropdown.Clear()
 
         selected_source_mode = prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS)
 
         if selected_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE:
             config['source_drive'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
 
-            source_select_custom_single_frame.pack_forget()
-            source_select_custom_multi_frame.pack_forget()
-            source_select_multi_frame.pack_forget()
-            source_select_single_frame.pack()
-
-            source_drive_default.set(config['source_drive'])
+            source_drive_default = config['source_drive']
             PREV_SOURCE_DRIVE = config['source_drive']
-            source_select_menu.config(state='normal')
-            source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
+            source_src_control_dropdown.Append(source_avail_drive_list)
+            source_src_control_dropdown.SetSelection(source_src_control_dropdown.FindString(config['source_drive']))
 
             # Enumerate list of shares in source
             if SYS_PLATFORM == PLATFORM_WINDOWS:
                 config['source_drive'] = config['source_drive'] + os.path.sep
 
             for directory in next(os.walk(config['source_drive']))[1]:
-                tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
+                source_tree.Append((directory, '', 'Unknown', 0))
         elif selected_source_mode == Config.SOURCE_MODE_MULTI_DRIVE:
-            source_select_single_frame.pack_forget()
-            source_select_custom_single_frame.pack_forget()
-            source_select_custom_multi_frame.pack_forget()
-            source_select_multi_frame.pack()
-
             # Enumerate list of shares in source
             for drive in source_avail_drive_list:
                 drive_name = prefs.get('source_names', drive, default='')
-                tree_source.insert(parent='', index='end', text=drive, values=('Unknown', 0, drive_name))
+                source_tree.Append((drive, drive_name, 'Unknown', 0))
         elif selected_source_mode == Config.SOURCE_MODE_SINGLE_PATH:
-            source_select_single_frame.pack_forget()
-            source_select_multi_frame.pack_forget()
-            source_select_custom_multi_frame.pack_forget()
-            source_select_custom_single_frame.pack(fill='x', expand=1)
-
-            if not source_select_frame.grid_info():
-                source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
-
             if config['source_drive'] and os.path.isdir(config['source_drive']):
                 for directory in next(os.walk(config['source_drive']))[1]:
                     # QUESTION: Should files be allowed in custom source?
-                    tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
-        elif selected_source_mode == Config.SOURCE_MODE_MULTI_PATH:
-            source_select_single_frame.pack_forget()
-            source_select_multi_frame.pack_forget()
-            source_select_custom_single_frame.pack_forget()
-            source_select_custom_multi_frame.pack(fill='x', expand=1)
+                    source_tree.Append((directory, '', 'Unknown', 0))
 
-            if not source_select_frame.grid_info():
-                source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
-
+        source_tree.Layout()
+        source_tree.GetParent().Layout()
     elif settings_dest_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_MULTI_DRIVE]:
-        source_drive_default.set('No drives available')
+        source_drive_default = 'No drives available'
 
-        tree_source_frame.grid_forget()
-        source_meta_frame.grid_forget()
-        source_select_frame.grid_forget()
-        source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
+        # tree_source_frame.grid_forget()
+        # source_meta_frame.grid_forget()
+        # source_select_frame.grid_forget()
+        # source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
 
     progress_bar.StopIndeterminate()
 
@@ -2666,7 +2644,7 @@ if __name__ == '__main__':
     source_src_control_sizer = wx.BoxSizer()
     source_src_control_label = wx.StaticText(main_frame.root_panel, -1, label='Source: ', name='Source control label')
     source_src_control_sizer.Add(source_src_control_label, 0, wx.ALIGN_CENTER_VERTICAL)
-    source_src_control_dropdown = wx.ComboBox(main_frame.root_panel, -1, name='Source control ComboBox')
+    source_src_control_dropdown = wx.ComboBox(main_frame.root_panel, -1, style=wx.CB_READONLY, name='Source control ComboBox')
     source_src_control_sizer.Add(source_src_control_dropdown, 0, wx.ALIGN_CENTER_VERTICAL)
     source_src_control_sizer.Add((-1, -1), 1, wx.EXPAND)
     source_src_control_browse_btn = wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse source button')
@@ -2681,15 +2659,13 @@ if __name__ == '__main__':
     SOURCE_COL_RAWSIZE = 3
 
     # FIXME: Remove size in source tree constructor when SetSize works
-    source_tree = gizmos.TreeListCtrl(main_frame.root_panel, -1, size=(420, -1), style=0, agwStyle=gizmos.TR_DEFAULT_STYLE | gizmos.TR_FULL_ROW_HIGHLIGHT, name='Source tree')
-    source_tree.AddColumn('Path')
-    source_tree.AddColumn('Name')
-    source_tree.AddColumn('Size')
-    source_tree.AddColumn('Raw Size')
+    source_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, -1), style=wx.LC_REPORT, name='Source tree')
+    # source_tree = gizmos.TreeListCtrl(main_frame.root_panel, -1, size=(420, -1), style=0, agwStyle=gizmos.TR_DEFAULT_STYLE | gizmos.TR_FULL_ROW_HIGHLIGHT, name='Source tree')
+    source_tree.AppendColumn('Path')
+    source_tree.AppendColumn('Name')
+    source_tree.AppendColumn('Size')
+    source_tree.AppendColumn('Raw Size')
     source_tree.SetColumnWidth(SOURCE_COL_RAWSIZE, 0)
-    source_tree.SetMainColumn(0)
-
-    redraw_source_tree()
 
     source_src_selection_info_sizer = wx.BoxSizer()
     source_src_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Selected:', name='Source meta selected label'), 0, wx.ALIGN_CENTER_VERTICAL)
@@ -3150,6 +3126,18 @@ if __name__ == '__main__':
     # Check for updates on startup
     update_handler.check()
 
+    source_avail_drive_list = []
+    source_drive_default = ''
+
+    # Load UI and configure for preferences
+    change_source_mode(settings_source_mode)
+
+    # Add placeholder to backup analysis
+    reset_analysis_output()
+
+    # Load data
+    load_source_in_background()
+
     app.MainLoop()
 
     #########################
@@ -3199,8 +3187,7 @@ if __name__ == '__main__':
     # END MENU STUFF #
     ##################
 
-    source_avail_drive_list = []
-    source_drive_default = tk.StringVar()
+    # init vars was here #
 
     # Tree frames for tree and scrollbar
     tree_source_frame = tk.Frame(root_window.main_frame)
@@ -3293,13 +3280,11 @@ if __name__ == '__main__':
 
     # Right side frame was here #
     # Control buttons were here #
-
-    # Add placeholder to backup analysis
-    reset_analysis_output()
-
+    # Reset analysis output was here #
     # Keyboard listener was here #
 
-    load_source_in_background()
+    # Load source was here #
+
     # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or REPLACEABLE?
     thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
 
