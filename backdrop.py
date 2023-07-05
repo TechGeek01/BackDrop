@@ -709,12 +709,9 @@ def load_dest():
     progress_bar.StartIndeterminate()
 
     # Empty tree in case this is being refreshed
-    tree_dest.delete(*tree_dest.get_children())
+    dest_tree.DeleteAllItems()
 
     if prefs.get('selection', 'dest_mode', default=Config.DEST_MODE_DRIVES, verify_data=Config.DEST_MODE_OPTIONS) == Config.DEST_MODE_DRIVES:
-        dest_select_custom_frame.pack_forget()
-        dest_select_normal_frame.pack()
-
         if SYS_PLATFORM == PLATFORM_WINDOWS:
             logical_drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
             logical_drive_list = [drive[:2] for drive in logical_drive_list]
@@ -756,7 +753,15 @@ def load_dest():
                             drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                             total_drive_space_available = total_drive_space_available + drive_size
-                            tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+                            dest_tree.Append((
+                                drive,
+                                '',
+                                human_filesize(drive_size),
+                                'Yes' if drive_has_config_file else '',
+                                vsn,
+                                serial,
+                                drive_size
+                            ))
 
                             dest_drive_master_list.append({
                                 'name': drive,
@@ -824,7 +829,15 @@ def load_dest():
                     drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                     total_drive_space_available += drive_size
-                    tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+                    dest_tree.Append((
+                        drive,
+                        '',
+                        human_filesize(drive_size),
+                        'Yes' if drive_has_config_file else '',
+                        vsn,
+                        serial,
+                        drive_size
+                    ))
 
                     dest_drive_master_list.append({
                         'name': drive,
@@ -834,12 +847,9 @@ def load_dest():
                         'hasConfig': drive_has_config_file
                     })
     elif settings_dest_mode == Config.DEST_MODE_PATHS:
-        dest_select_normal_frame.pack_forget()
-        dest_select_custom_frame.pack(fill='x', expand=1)
-
         total_drive_space_available = 0
 
-    drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=root_window.uicolor.NORMAL if total_drive_space_available > 0 else root_window.uicolor.FADED)
+    dest_total_space.SetLabel(human_filesize(total_drive_space_available))
 
     progress_bar.StopIndeterminate()
 
@@ -2704,17 +2714,16 @@ if __name__ == '__main__':
     DEST_COL_RAWSIZE = 6
 
     # FIXME: Remove size in dest tree constructor when SetSize works
-    dest_tree = gizmos.TreeListCtrl(main_frame.root_panel, -1, size=(420, -1), name='Destination tree')
+    dest_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, -1), style=wx.LC_REPORT, name='Destination tree')
 
-    dest_tree.AddColumn('Path')
-    dest_tree.AddColumn('Name')
-    dest_tree.AddColumn('Size')
-    dest_tree.AddColumn('Config')
-    dest_tree.AddColumn('Volume ID')
-    dest_tree.AddColumn('Serial')
-    dest_tree.AddColumn('Raw Size')
+    dest_tree.AppendColumn('Path')
+    dest_tree.AppendColumn('Name')
+    dest_tree.AppendColumn('Size')
+    dest_tree.AppendColumn('Config')
+    dest_tree.AppendColumn('Volume ID')
+    dest_tree.AppendColumn('Serial')
+    dest_tree.AppendColumn('Raw Size')
     dest_tree.SetColumnWidth(DEST_COL_RAWSIZE, 0)
-    dest_tree.SetMainColumn(0)
 
     redraw_dest_tree()
 
@@ -3131,6 +3140,7 @@ if __name__ == '__main__':
 
     # Load UI and configure for preferences
     change_source_mode(settings_source_mode)
+    change_dest_mode(settings_dest_mode)
 
     # Add placeholder to backup analysis
     reset_analysis_output()
