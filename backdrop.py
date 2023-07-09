@@ -37,7 +37,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, ProgressBar, DetailBlock, BackupDetailBlock, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, ProgressBar, DetailBlock, resource_path
 from bin.status import Status
 
 def on_press(key):
@@ -284,7 +284,8 @@ def display_backup_command_info(display_command_list: list) -> list:
 
     global cmd_info_blocks
 
-    content_tab_frame.tab['details']['content'].empty()
+    for child in summary_details_sizer.GetChildren():
+        child.GetWindow().Destroy()
 
     cmd_info_blocks = []
     for i, item in enumerate(display_command_list):
@@ -298,19 +299,19 @@ def display_backup_command_info(display_command_list: list) -> list:
             else:
                 cmd_header_text = f"Work with {len(item['list'])} files on {item['drive']}"
 
-        backup_summary_block = BackupDetailBlock(
-            parent=content_tab_frame.tab['details']['content'].frame,
+        backup_summary_block = DetailBlock(
+            parent=summary_details_panel,
             title=cmd_header_text,
-            backup=backup,
-            uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
+            text_font=FONT_DEFAULT,
+            bold_font=FONT_BOLD
         )
-        backup_summary_block.pack(anchor='w', expand=1)
+        summary_details_sizer.Add(backup_summary_block, -1)
 
         if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
             # Handle list trimming
             list_font = tkfont.Font(family=None, size=10, weight='normal')
             trimmed_file_list = ', '.join(item['list'])[:250]
-            MAX_WIDTH = content_tab_frame.tab['details']['width'] * 0.8
+            MAX_WIDTH = summary_details_sizer.GetWidth() - 50  # Used to be 80%
             actual_file_width = list_font.measure(trimmed_file_list)
 
             if actual_file_width > MAX_WIDTH:
@@ -332,14 +333,16 @@ def backup_reset_ui():
     # Empty backup error log
     backup_error_log.clear()
 
-    # Empty backup summary pane
-    content_tab_frame.tab['summary']['content'].empty()
-
-    # Empty backup operation list pane
-    content_tab_frame.tab['details']['content'].empty()
+    # Empty backup summary and detail panes
+    for child in summary_summary_sizer.GetChildren():
+        child.GetWindow().Destroy()
+    for child in summary_details_sizer.GetChildren():
+        child.GetWindow().Destroy()
 
     # Clear file lists for file details pane
-    [file_detail_list[list_name].clear() for list_name in file_detail_list]
+    for list_name in file_detail_list:
+        for child in file_detail_list[list_name].GetChildren():
+            child.GetWindow.Destroy()
 
     # Reset file details counters
     file_details_pending_delete_counter.SetLabel(label='0')
@@ -359,8 +362,10 @@ def backup_reset_ui():
     file_details_failed_header_sizer.Layout()
 
     # Empty file details list panes
-    file_details_copied.empty()
-    file_details_failed.empty()
+    for child in file_details_success_sizer.GetChildren():
+        child.GetWindow().Destroy()
+    for child in file_details_failed_sizer.GetChildren():
+        child.GetWindow().Destroy()
 
 def request_kill_analysis():
     """Kill a running analysis."""
@@ -2970,7 +2975,7 @@ if __name__ == '__main__':
     file_details_success_panel.SetScrollbars(20, 20, 50, 50)
     file_details_success_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     file_details_success_sizer = wx.BoxSizer(wx.VERTICAL)
-    file_details_success_panel.SetSizer(summary_details_sizer)
+    file_details_success_panel.SetSizer(file_details_success_sizer)
 
     file_details_failed_header_sizer = wx.BoxSizer()
     file_details_failed_header = wx.StaticText(main_frame.root_panel, -1, label='Failed', name='Failed file list header')
@@ -2988,7 +2993,7 @@ if __name__ == '__main__':
     file_details_failed_panel.SetScrollbars(20, 20, 50, 50)
     file_details_failed_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     file_details_failed_sizer = wx.BoxSizer(wx.VERTICAL)
-    file_details_failed_panel.SetSizer(summary_details_sizer)
+    file_details_failed_panel.SetSizer(file_details_failed_sizer)
 
     file_list_sizer = wx.BoxSizer(wx.VERTICAL)
     file_list_sizer.Add(file_details_pending_header_sizer, 0, wx.EXPAND)
