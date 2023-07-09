@@ -539,10 +539,10 @@ def select_source():
     """
 
     global prev_source_selection
-    global source_select_bind
+    global source_selection_total
     global backup
 
-    def update_share_size(item: str):
+    def update_share_size(item: int):
         """Update share info for a given share.
 
         Args:
@@ -550,76 +550,76 @@ def select_source():
         """
 
         # FIXME: This crashes if you change the source drive, and the number of items in the tree changes while it's calculating things
-        share_name = tree_source.item(item, 'text')
+        source_name = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
 
-        if settings_dest_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-            share_path = os.path.join(config['source_drive'], share_name)
-        elif settings_dest_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-            share_path = share_name
+        if settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
+            source_path = os.path.join(config['source_drive'], source_name)
+        elif settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+            source_path = source_name
 
-        share_dir_size = get_directory_size(share_path)
-        tree_source.set(item, 'size', human_filesize(share_dir_size))
-        tree_source.set(item, 'rawsize', share_dir_size)
+        source_dir_size = get_directory_size(source_path)
+        source_tree.SetItem(item, SOURCE_COL_SIZE, label=human_filesize(source_dir_size))
+        source_tree.SetItem(item, SOURCE_COL_RAWSIZE, label=str(source_dir_size))
 
         # After calculating share info, update the meta info
         selected_total = 0
         selected_share_list = []
-        for item in tree_source.selection():
+        selected_item = source_tree.GetFirstSelected()
+        while selected_item != -1:
             # Write selected shares to config
             share_info = {
-                'size': int(tree_source.item(item, 'values')[1])
+                'size': int(source_tree.GetItem(selected_item, SOURCE_COL_RAWSIZE).GetText())
             }
 
-            if settings_dest_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-                share_info['path'] = tree_source.item(item, 'text')
-
-                share_vals = tree_source.item(item, 'values')
+            if settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+                share_info['path'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
 
                 if SYS_PLATFORM == PLATFORM_WINDOWS:
                     # Windows uses drive letters, so default name is letter
-                    default_name = tree_source.item(item, 'text')[0]
+                    default_name = share_info['path'][0]
                 elif SYS_PLATFORM == PLATFORM_LINUX:
                     # Linux uses mount points, so get last dir name
-                    default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
+                    default_name = share_info['path'].split(os.path.sep)[-1]
 
-                share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
+                share_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() if source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() else default_name
             else:
                 # If single drive mode, use share name as dest name
-                share_info['path'] = os.path.join(config['source_drive'], tree_source.item(item, 'text'))
-                share_info['dest_name'] = tree_source.item(item, 'text')
+                share_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
+                share_info['path'] = os.path.join(config['source_drive'], share_info['dest_name'])
 
             selected_share_list.append(share_info)
 
             # Add total space of selection
-            if tree_source.item(item, 'values')[0] != 'Unknown':
+            if source_tree.GetItem(selected_item, SOURCE_COL_SIZE).GetText() != 'Unknown':
                 # Add total space of selection
-                share_size = tree_source.item(item, 'values')[1]
-                selected_total = selected_total + int(share_size)
+                selected_total += int(source_tree.GetItem(selected_item, SOURCE_COL_RAWSIZE).GetText())
 
-        share_selected_space.configure(text=human_filesize(selected_total), fg=root_window.uicolor.NORMAL if selected_total > 0 else root_window.uicolor.FADED)
+            selected_item = source_tree.GetNextSelected(selected_item)
+
+        source_selected_space.SetLabel(human_filesize(selected_total))
+        source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
+        source_selected_space.Layout()
+        source_selected_space.GetParent().Layout()
         config['sources'] = selected_share_list
 
-        share_total = 0
-        is_total_approximate = False
-        total_prefix = ''
-        for item in tree_source.get_children():
-            share_total += int(tree_source.item(item, 'values')[1])
+        share_total = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in range(source_tree.GetItemCount())])
+        human_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in range(source_tree.GetItemCount())]
 
-            # If total is not yet approximate, check if the item hasn't been calculated
-            if not is_total_approximate and tree_source.item(item, 'values')[0] == 'Unknown':
-                is_total_approximate = True
-                total_prefix += '~'
-
-        share_total_space.configure(text=total_prefix + human_filesize(share_total), fg=root_window.uicolor.NORMAL if share_total > 0 else root_window.uicolor.FADED)
+        # Recalculate and display the selected total
+        source_total_space.SetLabel(f'{"~" if "Unknown" in human_size_list else ""}{human_filesize(share_total)}')
+        source_total_space.SetForegroundColour(Color.TEXT_DEFAULT if share_total > 0 else Color.FADED)
+        source_total_space.Layout()
+        source_total_space.GetParent().Layout()
 
         # If everything's calculated, enable analysis button to be clicked
         # IDEA: Is it better to assume calculations are out of date, and always calculate on the fly during analysis?
-        share_size_list = [tree_source.item(item, 'values')[0] for item in tree_source.selection()]
+        share_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in range(source_tree.GetItemCount())]
         if 'Unknown' not in share_size_list:
-            start_analysis_btn.configure(state='normal')
+            start_analysis_btn.Enable()
             update_status_bar_selection()
 
-        progress_bar.StopIndeterminate()
+        # FIXME: Progress bar needs to be stopped when calls to updating source size are progress threads
+        # progress_bar.StopIndeterminate()
 
     if not backup or not backup.is_running():
         progress_bar.StartIndeterminate()
@@ -627,74 +627,83 @@ def select_source():
         # If analysis was run, invalidate it
         reset_analysis_output()
 
-        selected = tree_source.selection()
+        # Get selection delta to figure out what to calculate
+        item = source_tree.GetFirstSelected()
+        selected = []
+        while item != -1:
+            selected.append(item)
+            item = source_tree.GetNextSelected(item)
 
         new_shares = []
         if selected:
             for item in selected:
                 share_info = {
-                    'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
+                    'size': int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText())
                 }
 
-                if settings_dest_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-                    share_info['path'] = tree_source.item(item, 'text')
-
-                    share_vals = tree_source.item(item, 'values')
+                if settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+                    share_info['path'] = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
 
                     if SYS_PLATFORM == PLATFORM_WINDOWS:
                         # Windows uses drive letters, so default name is letter
-                        default_name = tree_source.item(item, 'text')[0]
+                        default_name = share_info['path'][0]
                     elif SYS_PLATFORM == PLATFORM_LINUX:
                         # Linux uses mount points, so get last dir name
-                        default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
+                        default_name = share_info['path'].split(os.path.sep)[-1]
 
-                    share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
+                    share_info['dest_name'] = source_tree.GetItem(item, SOURCE_COL_NAME).GetText() if source_tree.GetItem(item, SOURCE_COL_NAME).GetText() else default_name
                 else:
                     # If single drive mode, use share name as dest name
-                    share_info['path'] = os.path.join(config['source_drive'], tree_source.item(item, 'text'))
-                    share_info['dest_name'] = tree_source.item(item, 'text')
+                    share_info['dest_name'] = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
+                    share_info['path'] = os.path.join(config['source_drive'], share_info['dest_name'])
 
                 new_shares.append(share_info)
         else:
-            # Nothing selected, so empty the meta counter
-            share_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
+            source_selected_space.SetLabel('None')
+            source_selected_space.SetForegroundColour(Color.FADED)
 
         config['sources'] = new_shares
         update_status_bar_selection()
 
-        # If selection is different than last time, invalidate the analysis
-        selection_unchanged_items = [share for share in selected if share in prev_source_selection]
-        if ((not backup or not backup.is_running())  # Make sure backup isn't already running
-                and len(selected) != len(prev_source_selection) or len(selection_unchanged_items) != len(prev_source_selection)):  # Selection has changed from last time
-            start_backup_btn.configure(state='disable')
+        new_selected = [item for item in selected if item not in prev_source_selection]
 
-        prev_source_selection = [share for share in selected]
+        # Mark new selections as pending in UI
+        for item in new_selected:
+            source_tree.SetItem(item, SOURCE_COL_SIZE, label='Calculating')
 
-        # Check if items in selection need to be calculated
-        all_shares_known = True
-        for item in selected:
-            # If new selected item hasn't been calculated, calculate it on the fly
-            if tree_source.item(item, 'values')[0] == 'Unknown':
-                all_shares_known = False
-                update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
-                start_analysis_btn.configure(state='disable')
-                share_name = tree_source.item(item, 'text')
-                thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
+        # Update selected meta info to known selection before calculating new selections
+        selection_known_size_items = [item for item in range(source_tree.GetItemCount()) if source_tree.IsSelected(item) and item not in new_selected]
+        selection_known_size = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in selection_known_size_items])
+        source_selected_space.SetLabel(human_filesize(selection_known_size))
+        source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selection_known_size > 0 else Color.FADED)
+        source_selected_space.Layout()
+        source_selected_space.GetParent().Layout()
 
-        if all_shares_known:
-            progress_bar.StopIndeterminate()
+        # For each selected item, calculate size and add to total
+        for item in new_selected:
+            update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
+            update_share_size(item)
+
+        # Set current selection to previous selection var to be referenced next call
+        prev_source_selection = selected
+
+        progress_bar.StopIndeterminate()
+
     else:
-        # Tree selection locked, so keep selection the same
-        try:
-            tree_source.unbind('<<TreeviewSelect>>', source_select_bind)
-        except tk._tkinter.TclError:
-            pass
+        # Temporarily unbind selection handlers so this function doesn't keep
+        # running with every change
+        source_tree.Unbind(wx.EVT_LIST_ITEM_SELECTED)
+        source_tree.Unbind(wx.EVT_LIST_ITEM_DESELECTED)
+
+        for item in range(source_tree.GetItemCount()):
+            source_tree.Select(item, on=item in prev_source_selection)
 
         if prev_source_selection:
-            tree_source.focus(prev_source_selection[-1])
-        tree_source.selection_set(tuple(prev_source_selection))
+            source_tree.Focus(prev_source_selection[-1])
 
-        source_select_bind = tree_source.bind("<<TreeviewSelect>>", select_source_in_background)
+        # Re-enable the selection handlers that were temporarily disabled
+        source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
+        source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
 
 def select_source_in_background(event):
     """Start a calculation of source filesize in a new thread."""
@@ -873,7 +882,7 @@ def gui_select_from_config():
     # Get list of shares in config
     config_share_name_list = [item['dest_name'] for item in config['sources']]
     if settings_dest_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-        config_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in config_share_name_list]
+        config_source_tree_id_list = [item for item in tree_source.get_children() if source_tree.GetItem(item, SOURCE_COL_PATH) in config_share_name_list]
     else:
         config_source_tree_id_list = [item for item in tree_source.get_children() if len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] in config_share_name_list]
 
@@ -968,7 +977,7 @@ def load_config_from_file(filename: str):
     shares = config_file.get('selection', 'sources')
     if shares is not None and len(shares) > 0:
         new_config['sources'] = [{
-            'path': [tree_source.item(item, 'text') if (len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] == share) else tree_source.item(item, 'text') for item in tree_source.get_children()][0],
+            'path': [source_tree.GetItem(item, SOURCE_COL_PATH) if (len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] == share) else source_tree.GetItem(item, SOURCE_COL_PATH) for item in tree_source.get_children()][0],
             'size': None,
             'dest_name': share
         } for share in shares.split(',')]
@@ -1856,7 +1865,7 @@ if __name__ == '__main__':
             load_source_in_background()
         elif settings_dest_mode == Config.SOURCE_MODE_MULTI_PATH:
             # Get list of paths already in tree
-            existing_path_list = [tree_source.item(item, 'text') for item in tree_source.get_children()]
+            existing_path_list = [source_tree.GetItem(item, SOURCE_COL_PATH) for item in tree_source.get_children()]
 
             # Only add item to list if it's not already there
             if dir_name not in existing_path_list:
@@ -1926,7 +1935,7 @@ if __name__ == '__main__':
 
         # Only set name in preferences if not in custom source mode
         if settings_dest_mode == Config.SOURCE_MODE_MULTI_DRIVE:
-            drive_name = tree_source.item(item, 'text')
+            drive_name = source_tree.GetItem(item, SOURCE_COL_PATH)
             prefs.set('source_names', drive_name, new_name)
 
         tree_source.set(item, 'name', new_name)
@@ -3125,6 +3134,8 @@ if __name__ == '__main__':
     main_frame.SetAcceleratorTable(wx.AcceleratorTable(accelerators))
 
     # Mouse bindings
+    source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
+    source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
     source_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_source_right_click_menu())
     dest_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_dest_right_click_menu())
     split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
