@@ -437,7 +437,10 @@ def load_source():
     if source_avail_drive_list or settings_dest_mode in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH]:
         # Display empty selection sizes
         source_selected_space.SetLabel('None')
-        source_total_space.SetLabel('~ None')
+        source_total_space.SetLabel('~None')
+        source_selected_space.Layout()
+        source_total_space.Layout()
+        source_dest_selection_info_sizer.Layout()
 
         # source_warning.grid_forget()
         # tree_source_frame.grid(row=1, column=1, sticky='ns')
@@ -477,6 +480,7 @@ def load_source():
     elif settings_dest_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_MULTI_DRIVE]:
         source_drive_default = 'No drives available'
 
+        # FIXME: Make the source and destination warnings work
         # tree_source_frame.grid_forget()
         # source_meta_frame.grid_forget()
         # source_select_frame.grid_forget()
@@ -600,7 +604,7 @@ def select_source():
         source_selected_space.SetLabel(human_filesize(selected_total))
         source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
         source_selected_space.Layout()
-        source_selected_space.GetParent().Layout()
+        source_dest_selection_info_sizer.Layout()
         config['sources'] = selected_share_list
 
         share_total = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in range(source_tree.GetItemCount())])
@@ -610,7 +614,7 @@ def select_source():
         source_total_space.SetLabel(f'{"~" if "Unknown" in human_size_list else ""}{human_filesize(share_total)}')
         source_total_space.SetForegroundColour(Color.TEXT_DEFAULT if share_total > 0 else Color.FADED)
         source_total_space.Layout()
-        source_total_space.GetParent().Layout()
+        source_dest_selection_info_sizer.Layout()
 
         # If everything's calculated, enable analysis button to be clicked
         # IDEA: Is it better to assume calculations are out of date, and always calculate on the fly during analysis?
@@ -619,8 +623,7 @@ def select_source():
             start_analysis_btn.Enable()
             update_status_bar_selection()
 
-        # FIXME: Progress bar needs to be stopped when calls to updating source size are progress threads
-        # progress_bar.StopIndeterminate()
+        progress_bar.StopIndeterminate()
 
     if not backup or not backup.is_running():
         progress_bar.StartIndeterminate()
@@ -662,6 +665,8 @@ def select_source():
         else:
             source_selected_space.SetLabel('None')
             source_selected_space.SetForegroundColour(Color.FADED)
+            source_selected_space.Layout()
+            source_src_selection_info_sizer.Layout()
 
         config['sources'] = new_shares
         update_status_bar_selection()
@@ -678,12 +683,14 @@ def select_source():
         source_selected_space.SetLabel(human_filesize(selection_known_size))
         source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selection_known_size > 0 else Color.FADED)
         source_selected_space.Layout()
-        source_selected_space.GetParent().Layout()
+        source_src_selection_info_sizer.Layout()
 
         # For each selected item, calculate size and add to total
         for item in new_selected:
             update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
-            update_share_size(item)
+            start_analysis_btn.Disable()
+            share_name = source_tree.GetItem(item, SOURCE_COL_PATH)
+            thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
 
         # Set current selection to previous selection var to be referenced next call
         prev_source_selection = selected
