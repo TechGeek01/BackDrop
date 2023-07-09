@@ -355,8 +355,8 @@ class DetailBlock(wx.BoxSizer):
         self.BOLD_FONT = bold_font
         self.expanded = False
         self.dark_mode = True
-        self.right_arrow = wx.Bitmap(wx.Image(f'media/right_nav{"_light" if self.dark_mode else ""}.png', wx.BITMAP_TYPE_ANY))
-        self.down_arrow = wx.Bitmap(wx.Image(f'media/down_nav{"_light" if self.dark_mode else ""}.png', wx.BITMAP_TYPE_ANY))
+        self.right_arrow = wx.Bitmap(wx.Image(resource_path(f'media/right_nav{"_light" if self.dark_mode else ""}.png'), wx.BITMAP_TYPE_ANY))
+        self.down_arrow = wx.Bitmap(wx.Image(resource_path(f'media/down_nav{"_light" if self.dark_mode else ""}.png'), wx.BITMAP_TYPE_ANY))
 
         self.lines = {}
 

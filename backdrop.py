@@ -5,12 +5,13 @@ logically copying files from point A to point B. This is complete with
 verification, and many other organization and integrity features.
 """
 
-__version__ = '4.0.0-alpha2'
+__version__ = '4.0.0-alpha3'
 
 import platform
 import tkinter as tk
 from tkinter import ttk, simpledialog, font as tkfont, filedialog
 import wx
+from sys import exit
 import shutil
 import os
 import subprocess
@@ -36,7 +37,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, ProgressBar, DetailBlock, BackupDetailBlock
+from bin.uielements import Color, RootWindow, ModalWindow, ProgressBar, DetailBlock, BackupDetailBlock, resource_path
 from bin.status import Status
 
 def on_press(key):
@@ -1392,14 +1393,14 @@ def show_update_window(update_info: dict):
     if not update_info['updateAvailable'] or update_frame.IsShown():
         return
 
-    icon_windows = wx.Bitmap(wx.Image(f"media/windows{'_light' if settings_dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
-    icon_windows_color = wx.Bitmap(wx.Image('media/windows_color.png', wx.BITMAP_TYPE_ANY))
-    icon_zip = wx.Bitmap(wx.Image(f"media/zip{'_light' if settings_dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
-    icon_zip_color = wx.Bitmap(wx.Image('media/zip_color.png', wx.BITMAP_TYPE_ANY))
-    icon_debian = wx.Bitmap(wx.Image(f"media/debian{'_light' if settings_dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
-    icon_debian_color = wx.Bitmap(wx.Image('media/debian_color.png', wx.BITMAP_TYPE_ANY))
-    icon_targz = wx.Bitmap(wx.Image(f"media/targz{'_light' if settings_dark_mode else ''}.png", wx.BITMAP_TYPE_ANY))
-    icon_targz_color = wx.Bitmap(wx.Image('media/targz_color.png', wx.BITMAP_TYPE_ANY))
+    icon_windows = wx.Bitmap(wx.Image(resource_path(f"media/windows{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
+    icon_windows_color = wx.Bitmap(wx.Image(resource_path('media/windows_color.png', wx.BITMAP_TYPE_ANY)))
+    icon_zip = wx.Bitmap(wx.Image(resource_path(f"media/zip{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
+    icon_zip_color = wx.Bitmap(wx.Image(resource_path('media/zip_color.png', wx.BITMAP_TYPE_ANY)))
+    icon_debian = wx.Bitmap(wx.Image(resource_path(f"media/debian{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
+    icon_debian_color = wx.Bitmap(wx.Image(resource_path('media/debian_color.png', wx.BITMAP_TYPE_ANY)))
+    icon_targz = wx.Bitmap(wx.Image(resource_path(f"media/targz{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
+    icon_targz_color = wx.Bitmap(wx.Image(resource_path('media/targz_color.png', wx.BITMAP_TYPE_ANY)))
 
     icon_info = {
         'backdrop.exe': {
@@ -2538,8 +2539,8 @@ if __name__ == '__main__':
 
     app = wx.App()
 
-    wx.Font.AddPrivateFont('assets/fonts/Roboto-Regular.ttf')
-    wx.Font.AddPrivateFont('assets/fonts/Roboto-Bold.ttf')
+    wx.Font.AddPrivateFont(resource_path('assets/fonts/Roboto-Regular.ttf'))
+    wx.Font.AddPrivateFont(resource_path('assets/fonts/Roboto-Bold.ttf'))
 
     FONT_DEFAULT = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
                            weight=wx.FONTWEIGHT_NORMAL, underline=False,
@@ -2568,7 +2569,7 @@ if __name__ == '__main__':
         title='BackDrop - Data Backup Tool',
         size=wx.Size(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT),
         name='Main window frame',
-        icon=wx.Icon('media/icon.ico')
+        icon=wx.Icon(resource_path('media/icon.ico'))
     )
     main_frame.SetFont(FONT_DEFAULT)
     app.SetTopWindow(main_frame)
@@ -2930,7 +2931,7 @@ if __name__ == '__main__':
     controls_sizer.Add(halt_verification_btn, 0, wx.LEFT, ITEM_UI_PADDING)
 
     branding_sizer = wx.BoxSizer()
-    branding_sizer.Add(wx.StaticBitmap(main_frame.root_panel, -1, wx.Bitmap(wx.Image('media/logo_ui_light.png', wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
+    branding_sizer.Add(wx.StaticBitmap(main_frame.root_panel, -1, wx.Bitmap(wx.Image(resource_path('media/logo_ui_light.png'), wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
     branding_version_text = wx.StaticText(main_frame.root_panel, -1, f'v{__version__}')
     branding_version_text.SetForegroundColour(Color.FADED)
     branding_version_sizer = wx.BoxSizer(wx.VERTICAL)
