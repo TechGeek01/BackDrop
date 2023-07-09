@@ -36,7 +36,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, ProgressBar, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame
+from bin.uielements import Color, RootWindow, ModalWindow, ProgressBar, DetailBlock, BackupDetailBlock
 from bin.status import Status
 
 def on_press(key):
@@ -3310,21 +3310,7 @@ if __name__ == '__main__':
 
     dest_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_dest_in_background)
 
-    # Add tab frame for main detail views
-    content_tab_frame = TabbedFrame(root_window.main_frame, tabs={
-        'summary': 'Backup summary',
-        'details': 'Backup details'
-    })
-    content_tab_frame.tab['summary']['content'] = ScrollableFrame(content_tab_frame.frame)
-    content_tab_frame.tab['details']['content'] = ScrollableFrame(content_tab_frame.frame)
-    content_tab_frame.grid(row=5, column=1, columnspan=2, sticky='nsew')
-    tk.Grid.rowconfigure(root_window.main_frame, 5, weight=1)
-    content_tab_frame.change_tab('details')
-    # FIXME: Canvas returning wrong width that's smaller than actual width of canvas
-    content_tab_frame.tab['details']['width'] = content_tab_frame.tab['details']['content'].winfo_width()
-    content_tab_frame.change_tab('summary')
-    content_tab_frame.tab['summary']['width'] = content_tab_frame.tab['summary']['content'].winfo_width()
-
+    # Tabbed detail view frame was here #
     # Right side frame was here #
     # Control buttons were here #
     # Reset analysis output was here #
