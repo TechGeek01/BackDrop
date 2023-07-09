@@ -224,9 +224,13 @@ def update_backup_eta_timer(progress_info: dict):
     if backup.status == Status.BACKUP_ANALYSIS_RUNNING or backup.status == Status.BACKUP_ANALYSIS_FINISHED:
         backup_eta_label.SetLabel('Analysis in progress. Please wait...')
         backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
+        backup_eta_label.Layout()
+        summary_sizer.Layout()
     elif backup.status == Status.BACKUP_IDLE or backup.status == Status.BACKUP_ANALYSIS_ABORTED:
         backup_eta_label.SetLabel('Please start a backup to show ETA')
         backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
+        backup_eta_label.Layout()
+        summary_sizer.Layout()
     elif backup.status == Status.BACKUP_BACKUP_RUNNING:
         # Total is copy source, verify dest, so total data is 2 * copy
         total_to_copy = progress_info['total']['total'] - progress_info['total']['delete_total']
@@ -245,12 +249,18 @@ def update_backup_eta_timer(progress_info: dict):
 
         backup_eta_label.SetLabel(f'{str(running_time).split(".")[0]} elapsed \u27f6 {str(remaining_time).split(".")[0]} remaining')
         backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
+        backup_eta_label.Layout()
+        summary_sizer.Layout()
     elif backup.status == Status.BACKUP_BACKUP_ABORTED:
         backup_eta_label.SetLabel(f'Backup aborted in {str(datetime.now() - backup.get_backup_start_time()).split(".")[0]}')
         backup_eta_label.SetForegroundColour(Color.FAILED)
+        backup_eta_label.Layout()
+        summary_sizer.Layout()
     elif backup.status == Status.BACKUP_BACKUP_FINISHED:
         backup_eta_label.SetLabel(f'Backup completed successfully in {str(datetime.now() - backup.get_backup_start_time()).split(".")[0]}')
         backup_eta_label.SetForegroundColour(Color.FINISHED)
+        backup_eta_label.Layout()
+        summary_sizer.Layout()
 
 def display_backup_command_info(display_command_list: list) -> list:
     """Enumerate the display widget with command info after a backup analysis.
@@ -428,6 +438,7 @@ def load_source():
     # Empty tree in case this is being refreshed
     source_tree.DeleteAllItems()
 
+    # FIXME: Get source selection warnings working with wxPython
     # if not source_warning.grid_info() and not tree_source_frame.grid_info():
     #     tree_source_frame.grid(row=1, column=1, sticky='ns')
     #     source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
@@ -476,7 +487,7 @@ def load_source():
                     source_tree.Append((directory, '', 'Unknown', 0))
 
         source_tree.Layout()
-        source_tree.GetParent().Layout()
+        source_src_sizer.Layout()
     elif settings_dest_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_MULTI_DRIVE]:
         source_drive_default = 'No drives available'
 
@@ -867,6 +878,8 @@ def load_dest():
         total_drive_space_available = 0
 
     dest_total_space.SetLabel(human_filesize(total_drive_space_available))
+    dest_total_space.Layout()
+    source_dest_selection_info_sizer.Layout()
 
     progress_bar.StopIndeterminate()
 
@@ -1620,6 +1633,8 @@ if __name__ == '__main__':
         # Set status
         if status in STATUS_TEXT_MAP.keys():
             status_bar_selection.SetLabel(STATUS_TEXT_MAP[status])
+            status_bar_selection.Layout()
+            status_bar_sizer.Layout()
 
     def update_status_bar_action(status: int):
         """Update the status bar action status.
@@ -1630,20 +1645,34 @@ if __name__ == '__main__':
 
         if status == Status.IDLE:
             status_bar_action.SetLabel('Idle')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
         elif status == Status.BACKUP_ANALYSIS_RUNNING:
             status_bar_action.SetLabel('Analysis running')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
         elif status == Status.BACKUP_READY_FOR_BACKUP:
             backup_eta_label.SetLabel('Analysis finished, ready for backup')
             backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
+            backup_eta_label.Layout()
+            summary_sizer.Layout()
         elif status == Status.BACKUP_READY_FOR_ANALYSIS:
             backup_eta_label.SetLabel('Please start a backup to show ETA')
             backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
+            backup_eta_label.Layout()
+            summary_sizer.Layout()
         elif status == Status.BACKUP_BACKUP_RUNNING:
             status_bar_action.SetLabel('Backup running')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
         elif status == Status.BACKUP_HALT_REQUESTED:
             status_bar_action.SetLabel('Stopping backup')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
         elif status == Status.VERIFICATION_RUNNING:
             status_bar_action.SetLabel('Data verification running')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
 
     def update_status_bar_update(status: int):
         """Update the status bar update message.
@@ -1663,16 +1692,19 @@ if __name__ == '__main__':
         if status in STATUS_TEXT_MAP.keys():
             status_bar_updates.SetLabel(STATUS_TEXT_MAP[status][0])
             status_bar_updates.SetForegroundColour(STATUS_TEXT_MAP[status][1])
-
-            status_bar_updates.GetParent().Layout()
+            status_bar_updates.Layout()
+            status_bar_sizer.Layout()
 
     def request_kill_backup():
         """Kill a running backup."""
 
         # FIXME: Timer shows aborted, but does not stop counting when aborting backup
         # FIXME: When aborting backup, file detail block shows "done" instead of "aborted"
-        statusbar_action.configure(text='Stopping backup')
+
         if backup:
+            status_bar_action.SetLabel(label='Stopping backup')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
             backup.kill(Backup.KILL_BACKUP)
 
     def update_ui_component(status: int, data=None):
@@ -2417,7 +2449,7 @@ if __name__ == '__main__':
             SOURCE_TREE_SIZE = (420, -1)
 
         source_tree.SetSize(SOURCE_TREE_SIZE)
-        source_tree.GetParent().Layout()
+        source_src_sizer.Layout()
 
         if settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
             source_tree.SetColumnWidth(SOURCE_COL_PATH, 200)
@@ -2443,7 +2475,7 @@ if __name__ == '__main__':
             DEST_TREE_WIDTH = DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50 + DEST_TREE_COLWIDTH_VID + 80 + 50
 
         dest_tree.SetSize(DEST_TREE_WIDTH, -1)
-        dest_tree.GetParent().Layout()
+        source_dest_sizer.Layout()
 
         if settings_dest_mode == Config.DEST_MODE_DRIVES:
             dest_tree.SetColumnWidth(DEST_COL_PATH, DEST_TREE_COLWIDTH_DRIVE)
@@ -2464,7 +2496,6 @@ if __name__ == '__main__':
         """Show the widget inspection tool."""
         wx.lib.inspection.InspectionTool().Show()
 
-    # URGENT: This crashes with a recursion depth error on is_alive
     def on_close():
         if not thread_manager.is_alive('Backup'):
             exit()
@@ -2762,8 +2793,6 @@ if __name__ == '__main__':
     dest_tree.SetBackgroundColour(wx.Colour(0x40, 0x40, 0x40))
     dest_tree.SetTextColour(Color.WHITE)
 
-    redraw_dest_tree()
-
     def update_split_mode_label():
         """ Update the split mode indicator. """
         if config['splitMode']:
@@ -2805,6 +2834,8 @@ if __name__ == '__main__':
     source_dest_sizer.Add(source_dest_control_sizer, 0, wx.EXPAND)
     source_dest_sizer.Add(dest_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
     source_dest_sizer.Add(source_dest_selection_info_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+
+    redraw_dest_tree()
 
     # Source and dest panel
     source_sizer = wx.BoxSizer()
