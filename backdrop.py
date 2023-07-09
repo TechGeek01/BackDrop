@@ -96,11 +96,17 @@ def update_file_detail_lists(list_name: str, files: set):
     } for filename in files])
 
     if list_name == FileUtils.LIST_TOTAL_DELETE:
-        file_details_pending_delete_counter.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
-        file_details_pending_delete_counter_total.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
+        file_details_pending_delete_counter.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
+        file_details_pending_delete_counter.Layout()
+        file_details_pending_delete_counter_total.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
+        file_details_pending_delete_counter_total.Layout()
+        file_details_pending_sizer.Layout()
     elif list_name == FileUtils.LIST_TOTAL_COPY:
-        file_details_pending_copy_counter.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
-        file_details_pending_copy_counter_total.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
+        file_details_pending_copy_counter.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
+        file_details_pending_copy_counter.Layout()
+        file_details_pending_copy_counter_total.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
+        file_details_pending_copy_counter_total.Layout()
+        file_details_pending_sizer.Layout()
     elif list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
         # Remove file from pending list
         file_detail_list_name = FileUtils.LIST_TOTAL_COPY if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else FileUtils.LIST_TOTAL_DELETE
@@ -108,9 +114,12 @@ def update_file_detail_lists(list_name: str, files: set):
 
         # Update file counter
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
-            file_details_pending_copy_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
+            file_details_pending_copy_counter.SetLabel(label=str(len(file_detail_list[file_detail_list_name])))
+            file_details_pending_copy_counter.Layout()
         else:
-            file_details_pending_delete_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
+            file_details_pending_delete_counter.SetLabel(label=str(len(file_detail_list[file_detail_list_name])))
+            file_details_pending_delete_counter.Layout()
+        file_details_pending_sizer.Layout()
 
         # Update copy list scrollable
         filenames = '\n'.join([filename.split(os.path.sep)[-1] for filename in files])
@@ -118,7 +127,9 @@ def update_file_detail_lists(list_name: str, files: set):
             tk.Label(file_details_copied.frame, text=filenames,
                      fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED,
                      justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
-            file_details_copied_counter.configure(text=len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS]))
+            file_details_success_count.SetLabel(label=len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS]))
+            file_details_success_count.Layout()
+            file_details_success_header_sizer.Layout()
 
             # Remove all but the most recent 250 items for performance reasons
             file_details_copied.show_items(250)
@@ -126,7 +137,9 @@ def update_file_detail_lists(list_name: str, files: set):
             tk.Label(file_details_failed.frame, text=filenames,
                      fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED,
                      justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
-            file_details_failed_counter.configure(text=len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL]))
+            file_details_failed_count.SetLabel(label=len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL]))
+            file_details_failed_count.Layout()
+            file_details_failed_header_sizer.Layout()
 
             # Update counter in status bar
             FAILED_FILE_COUNT = len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL])
@@ -329,12 +342,21 @@ def backup_reset_ui():
     [file_detail_list[list_name].clear() for list_name in file_detail_list]
 
     # Reset file details counters
-    file_details_pending_delete_counter.configure(text='0')
-    file_details_pending_delete_counter_total.configure(text='0')
-    file_details_pending_copy_counter.configure(text='0')
-    file_details_pending_copy_counter_total.configure(text='0')
-    file_details_copied_counter.configure(text='0')
-    file_details_failed_counter.configure(text='0')
+    file_details_pending_delete_counter.SetLabel(label='0')
+    file_details_pending_delete_counter.Layout()
+    file_details_pending_delete_counter_total.SetLabel(label='0')
+    file_details_pending_delete_counter_total.Layout()
+    file_details_pending_copy_counter.SetLabel(label='0')
+    file_details_pending_copy_counter.Layout()
+    file_details_pending_copy_counter_total.SetLabel(label='0')
+    file_details_pending_copy_counter_total.Layout()
+    file_details_pending_sizer.Layout()
+    file_details_success_count.SetLabel(label='0')
+    file_details_success_count.Layout()
+    file_details_success_header_sizer.Layout()
+    file_details_failed_count.SetLabel(label='0')
+    file_details_failed_count.Layout()
+    file_details_failed_header_sizer.Layout()
 
     # Empty file details list panes
     file_details_copied.empty()
@@ -343,8 +365,10 @@ def backup_reset_ui():
 def request_kill_analysis():
     """Kill a running analysis."""
 
-    statusbar_action.configure(text='Stopping analysis')
     if backup:
+        status_bar_action.SetLabel(label='Stopping analysis')
+        status_bar_action.Layout()
+        status_bar_sizer.Layout()
         backup.kill(Backup.KILL_ANALYSIS)
 
 def start_backup_analysis():
@@ -359,7 +383,7 @@ def start_backup_analysis():
 
     backup_reset_ui()
     statusbar_counter_btn.configure(text='0 failed', state='disabled')
-    statusbar_details.configure(text='')
+    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
 
     backup = Backup(
         config=config,
@@ -1144,7 +1168,7 @@ def start_backup():
 
     # Reset UI
     statusbar_counter_btn.configure(text='0 failed', state='disabled')
-    statusbar_details.configure(text='')
+    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
 
     # Reset file detail success and fail lists
     for list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
@@ -1238,7 +1262,7 @@ def verify_data_integrity(drive_list: list):
                 path_stub = entry.path.split(drive)[1].strip(os.path.sep)
                 if entry.is_file():
                     # If entry is a file, hash it, and check for a computed hash
-                    statusbar_details.configure(text=entry.path)
+                    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data=entry.path)
 
                     file_hash = get_file_hash(entry.path, lambda: thread_manager.threadlist['Data Verification']['killFlag'])
 
@@ -1291,7 +1315,7 @@ def verify_data_integrity(drive_list: list):
         update_status_bar_action(Status.VERIFICATION_RUNNING)
         progress_bar.StartIndeterminate()
         statusbar_counter_btn.configure(text='0 failed', state='disabled')
-        statusbar_details.configure(text='')
+        update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
 
         halt_verification_btn.pack(side='left', padx=4)
 
@@ -1360,7 +1384,7 @@ def verify_data_integrity(drive_list: list):
                 drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
                 for file, saved_hash in hash_list[drive].items():
                     filename = os.path.join(drive, file)
-                    statusbar_details.configure(text=filename)
+                    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data=filename)
                     computed_hash = get_file_hash(filename)
 
                     if thread_manager.threadlist['Data Verification']['killFlag']:
@@ -1397,7 +1421,7 @@ def verify_data_integrity(drive_list: list):
         halt_verification_btn.pack_forget()
 
         progress_bar.StopIndeterminate()
-        statusbar_details.configure(text='')
+        update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
         update_status_bar_action(Status.IDLE)
 
 def show_update_window(update_info: dict):
@@ -1715,28 +1739,47 @@ if __name__ == '__main__':
             data (*): The data to update (optional).
         """
 
+        # URGENT: Fix update_ui_component button statuses
         if status == Status.UPDATEUI_ANALYSIS_BTN:
             start_analysis_btn.configure(**data)
         elif status == Status.UPDATEUI_BACKUP_BTN:
             start_backup_btn.configure(**data)
         elif status == Status.UPDATEUI_ANALYSIS_START:
             update_status_bar_action(Status.BACKUP_ANALYSIS_RUNNING)
-            start_analysis_btn.configure(text='Halt Analysis', command=request_kill_analysis)
+            start_analysis_btn.SetLabel(label='Halt Analysis')
+            start_analysis_btn.Unbind(wx.EVT_LEFT_DOWN)
+            start_analysis_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: request_kill_analysis())
+            start_analysis_btn.Layout()
+            controls_sizer.Layout()
         elif status == Status.UPDATEUI_ANALYSIS_END:
             update_status_bar_action(Status.IDLE)
-            start_analysis_btn.configure(text='Analyze', command=start_backup_analysis)
+            start_analysis_btn.SetLabel(label='Analyze')
+            start_analysis_btn.Unbind(wx.EVT_LEFT_DOWN)
+            start_analysis_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup_analysis())
+            start_analysis_btn.Layout()
+            controls_sizer.Layout()
         elif status == Status.UPDATEUI_BACKUP_START:
             update_status_bar_action(Status.BACKUP_BACKUP_RUNNING)
-            start_analysis_btn.configure(state='disabled')
-            start_backup_btn.configure(text='Halt Backup', command=request_kill_backup)
+            start_analysis_btn.Disable()
+            start_backup_btn.SetLabel(label='Halt Backup')
+            start_backup_btn.Unbind(wx.EVT_LEFT_DOWN)
+            start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: request_kill_backup())
+            start_backup_btn.Layout()
+            controls_sizer.Layout()
         elif status == Status.UPDATEUI_BACKUP_END:
             update_status_bar_action(Status.IDLE)
-            start_analysis_btn.configure(state='normal')
-            start_backup_btn.configure(text='Run Backup', command=start_backup)
+            start_analysis_btn.Enable()
+            start_backup_btn.SetLabel(label='Run Backup')
+            start_backup_btn.Unbind(wx.EVT_LEFT_DOWN)
+            start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup())
+            start_backup_btn.Layout()
+            controls_sizer.Layout()
         elif status == Status.UPDATEUI_STATUS_BAR:
             update_status_bar_action(data)
         elif status == Status.UPDATEUI_STATUS_BAR_DETAILS:
-            statusbar_details.configure(text=data)
+            status_bar_details.SetLabel(label=data)
+            status_bar_details.Layout()
+            status_bar_sizer.Layout()
         elif status == Status.RESET_ANALYSIS_OUTPUT:
             reset_analysis_output()
 
@@ -2990,14 +3033,16 @@ if __name__ == '__main__':
     status_bar_sizer.Add(status_bar_action, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     update_status_bar_action(Status.IDLE)
     # URGENT: Make status bar error count open the error log on click
-    status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')  # URGENT: Make this update with function
+    status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')  # FIXME: Make this update with function
     status_bar_error_count.SetForegroundColour(Color.FADED)
     status_bar_sizer.Add(status_bar_error_count, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    status_bar_details = wx.StaticText(status_bar, -1, label='', name='Status bar detail item')
+    status_bar_sizer.Add(status_bar_details, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_sizer.Add((-1, -1), 1, wx.EXPAND)
     if PORTABLE_MODE:
         status_bar_portable_mode = wx.StaticText(status_bar, -1, label='Portable mode')
         status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
-    status_bar_updates = wx.StaticText(status_bar, -1, label='Checking for updates', name='Status bar update indicator')  # URGENT: Make this update with function
+    status_bar_updates = wx.StaticText(status_bar, -1, label='Checking for updates', name='Status bar update indicator')  # FIXME: Make this update with function
     status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
     status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
