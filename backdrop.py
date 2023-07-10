@@ -1478,13 +1478,13 @@ def show_update_window(update_info: dict):
     if not update_info['updateAvailable'] or update_frame.IsShown():
         return
 
-    icon_windows = wx.Bitmap(wx.Image(resource_path(f"assets/img/windows{'_light' if settings_dark_mode else ''}.png")), wx.BITMAP_TYPE_ANY)
+    icon_windows = wx.Bitmap(wx.Image(resource_path(f"assets/img/windows{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
     icon_windows_color = wx.Bitmap(wx.Image(resource_path('assets/img/windows_color.png'), wx.BITMAP_TYPE_ANY))
-    icon_zip = wx.Bitmap(wx.Image(resource_path(f"assets/img/zip{'_light' if settings_dark_mode else ''}.png")), wx.BITMAP_TYPE_ANY)
+    icon_zip = wx.Bitmap(wx.Image(resource_path(f"assets/img/zip{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
     icon_zip_color = wx.Bitmap(wx.Image(resource_path('assets/img/zip_color.png'), wx.BITMAP_TYPE_ANY))
-    icon_debian = wx.Bitmap(wx.Image(resource_path(f"assets/img/debian{'_light' if settings_dark_mode else ''}.png")), wx.BITMAP_TYPE_ANY)
+    icon_debian = wx.Bitmap(wx.Image(resource_path(f"assets/img/debian{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
     icon_debian_color = wx.Bitmap(wx.Image(resource_path('assets/img/debian_color.png'), wx.BITMAP_TYPE_ANY))
-    icon_targz = wx.Bitmap(wx.Image(resource_path(f"assets/img/targz{'_light' if settings_dark_mode else ''}.png")), wx.BITMAP_TYPE_ANY)
+    icon_targz = wx.Bitmap(wx.Image(resource_path(f"assets/img/targz{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
     icon_targz_color = wx.Bitmap(wx.Image(resource_path('assets/img/targz_color.png'), wx.BITMAP_TYPE_ANY))
 
     icon_info = {
@@ -3301,12 +3301,7 @@ if __name__ == '__main__':
     main_frame.Show()
 
     # Check for updates on startup
-    thread_manager.start(
-        ThreadManager.SINGLE,
-        target=update_handler.check,
-        name='Update Check',
-        daemon=True
-    )
+    update_handler.check()
 
     source_avail_drive_list = []
     source_drive_default = ''
