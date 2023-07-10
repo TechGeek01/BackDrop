@@ -658,7 +658,13 @@ def select_source():
 
         # If everything's calculated, enable analysis button to be clicked
         # IDEA: Is it better to assume calculations are out of date, and always calculate on the fly during analysis?
-        share_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in range(source_tree.GetItemCount())]
+        selected_source_list = []
+        selected_item = source_tree.GetFirstSelected()
+        while selected_item != -1:
+            selected_source_list.append(selected_item)
+            selected_item = source_tree.GetNextSelected(selected_item)
+
+        share_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in selected_source_list]
         if 'Unknown' not in share_size_list:
             start_analysis_btn.Enable()
             update_status_bar_selection()
@@ -931,20 +937,21 @@ def gui_select_from_config():
 
     # Get list of shares in config
     config_share_name_list = [item['dest_name'] for item in config['sources']]
-    if settings_dest_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-        config_source_tree_id_list = [item for item in tree_source.get_children() if source_tree.GetItem(item, SOURCE_COL_PATH) in config_share_name_list]
-    else:
-        config_source_tree_id_list = [item for item in tree_source.get_children() if len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] in config_share_name_list]
+    config_source_tree_id_list = [item for item in range(source_tree.GetItemCount()) if source_tree.GetItem(item, SOURCE_COL_PATH).GetText() in config_share_name_list]
 
     if config_source_tree_id_list:
-        tree_source.focus(config_source_tree_id_list[-1])
-        prev_source_selection = config_source_tree_id_list
-        tree_source.selection_set(tuple(config_source_tree_id_list))
+        for item in range(source_tree.GetItemCount()):
+            source_tree.Select(item, on=item in config_source_tree_id_list)
+
+        if config_source_tree_id_list:
+            source_tree.Focus(config_source_tree_id_list[-1])
 
         # Recalculate selected totals for display
         # QUESTION: Should source total be recalculated when selecting, or should it continue to use the existing total?
-        known_path_sizes = [int(tree_source.item(item, 'values')[1]) for item in config_source_tree_id_list if tree_source.item(item, 'values')[1] != 'Unknown']
-        share_selected_space.configure(text=human_filesize(sum(known_path_sizes)))
+        known_path_sizes = [int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in config_source_tree_id_list if source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText() != 'Unknown']
+        source_selected_space.SetLabel(label=human_filesize(sum(known_path_sizes)))
+        source_selected_space.Layout()
+        source_src_selection_info_sizer.Layout()
 
     # Get list of drives where volume ID is in config
     connected_vid_list = [drive['vid'] for drive in config['destinations']]
@@ -971,26 +978,25 @@ def gui_select_from_config():
             parent=main_frame
         )
 
-    # Only redo the selection if the config data is different from the current
-    # selection (that is, the drive we selected to load a config is not the only
-    # drive listed in the config)
-    # Because of the <<TreeviewSelect>> handler, re-selecting the same single item
-    # would get stuck into an endless loop of trying to load the config
+    # Select any other config drives
     # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
     if settings_dest_mode == Config.DEST_MODE_DRIVES:
-        config_dest_tree_id_list = [item for item in tree_dest.get_children() if tree_dest.item(item, 'values')[3] in connected_vid_list]
-        if len(config_dest_tree_id_list) > 0 and tree_dest.selection() != tuple(config_dest_tree_id_list):
-            try:
-                tree_dest.unbind('<<TreeviewSelect>>', dest_select_bind)
-            except tk._tkinter.TclError:
-                pass
+        config_dest_tree_id_list = [item for item in range(dest_tree.GetItemCount()) if dest_tree.GetItem(item, DEST_COL_VID).GetText() in connected_vid_list]
 
-            if config_dest_tree_id_list:
-                tree_dest.focus(config_dest_tree_id_list[-1])
-            prev_dest_selection = config_dest_tree_id_list
-            tree_dest.selection_set(tuple(config_dest_tree_id_list))
+        # Temporarily undind selection handler so this function doesn't keep
+        # running with every change
+        dest_tree.Unbind(wx.EVT_LIST_ITEM_SELECTED)
 
-            dest_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_dest_in_background)
+        for item in range(dest_tree.GetItemCount()):
+            dest_tree.Select(item, on=item in config_dest_tree_id_list)
+
+        prev_dest_selection = config_dest_tree_id_list
+
+        if config_dest_tree_id_list:
+            dest_tree.Focus(config_dest_tree_id_list[-1])
+
+        # Re-enable the selection handler that was temporarily disabled
+        dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
 
 def get_share_path_from_name(share: str) -> str:
     """Get a share path from a share name.
@@ -1027,7 +1033,7 @@ def load_config_from_file(filename: str):
     shares = config_file.get('selection', 'sources')
     if shares is not None and len(shares) > 0:
         new_config['sources'] = [{
-            'path': [source_tree.GetItem(item, SOURCE_COL_PATH) if (len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] == share) else source_tree.GetItem(item, SOURCE_COL_PATH) for item in tree_source.get_children()][0],
+            'path': [source_tree.GetItem(item, SOURCE_COL_PATH) for item in range(source_tree.GetItemCount())][0],
             'size': None,
             'dest_name': share
         } for share in shares.split(',')]
@@ -1058,7 +1064,10 @@ def load_config_from_file(filename: str):
 
     config.update(new_config)
 
-    config_selected_space.configure(text=human_filesize(config_drive_total), fg=root_window.uicolor.NORMAL)
+    config_selected_space.SetLabel(label=human_filesize(config_drive_total))
+    config_selected_space.SetForegroundColour(Color.TEXT_DEFAULT)
+    config_selected_space.Layout()
+    source_dest_selection_info_sizer.Layout()
     gui_select_from_config()
 
 def select_dest():
@@ -1074,17 +1083,18 @@ def select_dest():
     global dest_select_bind
 
     if backup and backup.is_running():
-        # Tree selection locked, so keep selection the same
-        try:
-            tree_dest.unbind('<<TreeviewSelect>>', dest_select_bind)
-        except tk._tkinter.TclError:
-            pass
+        # Temporarily undind selection handler so this function doesn't keep
+        # running with every change
+        dest_tree.Unbind(wx.EVT_LIST_ITEM_SELECTED)
+
+        for item in range(dest_tree.GetItemCount()):
+            dest_tree.Select(item, on=item in prev_dest_selection)
 
         if prev_dest_selection:
-            tree_dest.focus(prev_dest_selection[-1])
-        tree_dest.selection_set(tuple(prev_dest_selection))
+            dest_tree.Focus(prev_dest_selection[-1])
 
-        dest_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_dest_in_background)
+        # Re-enable the selection handler that was temporarily disabled
+        dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
 
         return
 
@@ -1093,29 +1103,32 @@ def select_dest():
     # If analysis was run, invalidate it
     reset_analysis_output()
 
-    dest_selection = tree_dest.selection()
+    dest_selection = []
+    item = dest_tree.GetFirstSelected()
+    while item != -1:
+        dest_selection.append(item)
+        item = dest_tree.GetNextSelected(item)
 
     # If selection is different than last time, invalidate the analysis
     selection_selected_last_time = [drive for drive in dest_selection if drive in prev_dest_selection]
     if len(dest_selection) != len(prev_dest_selection) or len(selection_selected_last_time) != len(prev_dest_selection):
-        start_backup_btn.configure(state='disable')
+        start_backup_btn.Disable()
 
-    prev_dest_selection = [share for share in dest_selection]
+    prev_dest_selection = dest_selection.copy()
 
     # Check if newly selected drive has a config file
     # We only want to do this if the click is the first selection (that is, there
     # are no other drives selected except the one we clicked).
     drives_read_from_config_file = False
     if len(dest_selection) > 0:
-        selected_drive = tree_dest.item(dest_selection[0], 'text')
+        selected_drive = dest_tree.GetItem(dest_selection[0], DEST_COL_PATH).GetText()
         SELECTED_PATH_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
         if not keypresses['Alt'] and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
             # Found config file, so read it
             load_config_from_file(SELECTED_PATH_CONFIG_FILE)
-            dest_selection = tree_dest.selection()
             drives_read_from_config_file = True
         else:
-            dest_split_warning_frame.grid_remove()
+            # dest_split_warning_frame.grid_remove()
             prev_selection = len(dest_selection)
 
     selected_total = 0
@@ -1125,17 +1138,16 @@ def select_dest():
         drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
         for item in dest_selection:
             # Write drive IDs to config
-            selected_drive = drive_lookup_list[tree_dest.item(item, 'values')[3]]
+            selected_drive = drive_lookup_list[dest_tree.GetItem(item, DEST_COL_VID).GetText()]
             selected_drive_list.append(selected_drive)
             selected_total += selected_drive['capacity']
     elif settings_dest_mode == Config.DEST_MODE_PATHS:
         for item in dest_selection:
-            drive_path = tree_dest.item(item, 'text')
-            drive_vals = tree_dest.item(item, 'values')
+            drive_path = dest_tree.GetItem(item, DEST_COL_PATH).GetText()
 
-            drive_name = drive_vals[3] if len(drive_vals) >= 4 else ''
-            drive_capacity = int(drive_vals[1])
-            drive_has_config = True if drive_vals[2] == 'Yes' else False
+            drive_name = dest_tree.GetItem(item, DEST_COL_VID).GetText()
+            drive_capacity = int(dest_tree.GetItem(item, DEST_COL_RAWSIZE).GetText())
+            drive_has_config = True if dest_tree.GetItem(item, DEST_COL_CONFIG).GetText() == 'Yes' else False
 
             drive_data = {
                 'name': drive_path,
@@ -1150,11 +1162,16 @@ def select_dest():
 
         config['destinations'] = selected_drive_list
 
-    drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=root_window.uicolor.NORMAL if selected_total > 0 else root_window.uicolor.FADED)
+    dest_selected_space.SetLabel(label=human_filesize(selected_total) if selected_total > 0 else 'None')
+    dest_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
+    dest_selected_space.Layout()
     if not drives_read_from_config_file:
         config['destinations'] = selected_drive_list
         config['missing_drives'] = {}
-        config_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
+        config_selected_space.SetLabel(label='None')
+        config_selected_space.SetForegroundColour(Color.FADED)
+        config_selected_space.Layout()
+    source_dest_selection_info_sizer.Layout()
 
     update_status_bar_selection()
 
@@ -3230,6 +3247,7 @@ if __name__ == '__main__':
     source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
     source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
     source_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_source_right_click_menu())
+    dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
     dest_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_dest_right_click_menu())
     split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
 
@@ -3400,8 +3418,7 @@ if __name__ == '__main__':
     tk.Frame(dest_split_warning_frame).grid(row=0, column=10)
 
     # Destination tree meta stuff was here #
-
-    dest_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_dest_in_background)
+    # Destination selection bindings were here #
 
     # Tabbed detail view frame was here #
     # Right side frame was here #
