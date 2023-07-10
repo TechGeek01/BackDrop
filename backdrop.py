@@ -143,7 +143,10 @@ def update_file_detail_lists(list_name: str, files: set):
 
             # Update counter in status bar
             FAILED_FILE_COUNT = len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL])
-            statusbar_counter_btn.configure(text=f"{FAILED_FILE_COUNT} failed", state='normal' if FAILED_FILE_COUNT > 0 else 'disabled')
+            status_bar_error_count.SetLabel(label=f'{FAILED_FILE_COUNT} failed')
+            status_bar_error_count.SetForegroundColour(Color.DANGER if FAILED_FILE_COUNT > 0 else Color.FADED)
+            status_bar_error_count.Layout()
+            status_bar_sizer.Layout()
 
             # HACK: The scroll yview won't see the label instantly after it's packed.
             # Sleeping for a brief time fixes that. This is acceptable as long as it's
@@ -385,8 +388,12 @@ def start_backup_analysis():
     if (backup and backup.is_running()) or verification_running or not source_avail_drive_list:
         return
 
+    # TODO: Move status bar error log counter reset to reset UI function?
     backup_reset_ui()
-    statusbar_counter_btn.configure(text='0 failed', state='disabled')
+    status_bar_error_count.SetLabel(label='0 failed')
+    status_bar_error_count.SetForegroundColour(Color.FADED)
+    status_bar_error_count.Layout()
+    status_bar_sizer.Layout()
     update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
 
     backup = Backup(
@@ -1188,7 +1195,10 @@ def start_backup():
         return
 
     # Reset UI
-    statusbar_counter_btn.configure(text='0 failed', state='disabled')
+    status_bar_error_count.SetLabel(label='0 failed')
+    status_bar_error_count.SetForegroundColour(Color.FADED)
+    status_bar_error_count.Layout()
+    status_bar_sizer.Layout()
     update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
 
     # Reset file detail success and fail lists
@@ -1304,7 +1314,10 @@ def verify_data_integrity(drive_list: list):
 
                             # Update UI counter
                             verification_failed_list.append(entry.path)
-                            statusbar_counter_btn.configure(text=f"{len(verification_failed_list)} failed", state='normal')
+                            status_bar_error_count.SetLabel(label=f'{len(verification_failed_list)} failed')
+                            status_bar_error_count.SetForegroundColour(Color.DANGER)
+                            status_bar_error_count.Layout()
+                            status_bar_sizer.Layout()
 
                             # Also delete the saved hash
                             if path_stub in hash_list[drive].keys():
@@ -1335,7 +1348,11 @@ def verify_data_integrity(drive_list: list):
     if not backup or not backup.is_running():
         update_status_bar_action(Status.VERIFICATION_RUNNING)
         progress_bar.StartIndeterminate()
-        statusbar_counter_btn.configure(text='0 failed', state='disabled')
+        status_bar_error_count.SetLabel(label='0 failed')
+        status_bar_error_count.SetForegroundColour(Color.FADED)
+        status_bar_error_count.Layout()
+        status_bar_sizer.Layout()
+
         update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
 
         halt_verification_btn.pack(side='left', padx=4)
@@ -1417,7 +1434,10 @@ def verify_data_integrity(drive_list: list):
 
                         # Update UI counter
                         verification_failed_list.append(filename)
-                        statusbar_counter_btn.configure(text=f"{len(verification_failed_list)} failed", state='normal')
+                        status_bar_error_count.SetLabel(label=f'{len(verification_failed_list)} failed')
+                        status_bar_error_count.SetForegroundColour(Color.DANGER)
+                        status_bar_error_count.Layout()
+                        status_bar_sizer.Layout()
 
                         # Delete the saved hash, and write changes to the hash file
                         if file in hash_list[drive].keys():
@@ -3058,7 +3078,7 @@ if __name__ == '__main__':
     status_bar_sizer.Add(status_bar_action, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     update_status_bar_action(Status.IDLE)
     # URGENT: Make status bar error count open the error log on click
-    status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')  # FIXME: Make this update with function
+    status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')
     status_bar_error_count.SetForegroundColour(Color.FADED)
     status_bar_sizer.Add(status_bar_error_count, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_details = wx.StaticText(status_bar, -1, label='', name='Status bar detail item')
@@ -3067,7 +3087,7 @@ if __name__ == '__main__':
     if PORTABLE_MODE:
         status_bar_portable_mode = wx.StaticText(status_bar, -1, label='Portable mode')
         status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
-    status_bar_updates = wx.StaticText(status_bar, -1, label='Checking for updates', name='Status bar update indicator')  # FIXME: Make this update with function
+    status_bar_updates = wx.StaticText(status_bar, -1, label='Checking for updates', name='Status bar update indicator')
     status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
     status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
