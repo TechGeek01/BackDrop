@@ -3077,7 +3077,6 @@ if __name__ == '__main__':
     status_bar_action = wx.StaticText(status_bar, -1, label='', name='Status bar action')
     status_bar_sizer.Add(status_bar_action, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     update_status_bar_action(Status.IDLE)
-    # URGENT: Make status bar error count open the error log on click
     status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')
     status_bar_error_count.SetForegroundColour(Color.FADED)
     status_bar_sizer.Add(status_bar_error_count, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
@@ -3285,6 +3284,7 @@ if __name__ == '__main__':
     start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup())
     halt_verification_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: thread_manager.kill('Data Verification'))
 
+    status_bar_error_count.Bind(wx.EVT_LEFT_DOWN, lambda e: show_backup_error_log())
     status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
 
     # Catch close event for graceful exit
