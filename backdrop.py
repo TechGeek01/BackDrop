@@ -5,7 +5,7 @@ logically copying files from point A to point B. This is complete with
 verification, and many other organization and integrity features.
 """
 
-__version__ = '4.0.0-alpha3'
+__version__ = '4.0.0-alpha4'
 
 import platform
 import tkinter as tk
