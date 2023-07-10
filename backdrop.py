@@ -1557,6 +1557,15 @@ def check_for_updates(info: dict):
 
         wx.PostEvent(main_frame, update_event)
 
+def check_for_updates_in_background():
+    """Check for updates in the background."""
+    thread_manager.start(
+        ThreadManager.SINGLE,
+        target=update_handler.check,
+        name='Update Check',
+        daemon=True
+    )
+
 if __name__ == '__main__':
     PLATFORM_WINDOWS = 'Windows'
     PLATFORM_LINUX = 'Linux'
@@ -3220,8 +3229,9 @@ if __name__ == '__main__':
     menu_bar.Append(debug_menu, '&Debug')
 
     # Help menu
+    ID_CHECK_FOR_UPDATES = wx.NewIdRef()
     help_menu = wx.Menu()
-    help_menu.Append(701, 'Check for Updates', 'Check for program updates, and prompt to download them, if there are any')
+    help_menu.Append(ID_CHECK_FOR_UPDATES, 'Check for Updates', 'Check for program updates, and prompt to download them, if there are any')
     help_menu_allow_prerelease_updates = wx.MenuItem(help_menu, 702, 'Allow Prereleases', 'Allow prerelease versions when checking for updates', kind=wx.ITEM_CHECK)
     help_menu.Append(help_menu_allow_prerelease_updates)
     help_menu_allow_prerelease_updates.Check(settings_allow_prerelease_updates)
@@ -3255,6 +3265,8 @@ if __name__ == '__main__':
     main_frame.Bind(wx.EVT_MENU, lambda e: change_dark_mode_preferences(preferences_menu_dark_mode.IsChecked()), id=ID_DARK_MODE)
 
     main_frame.Bind(wx.EVT_MENU, lambda e: show_widget_inspector(), id=ID_SHOW_WIDGET_INSPECTION)
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: check_for_updates_in_background(), id=ID_CHECK_FOR_UPDATES)
 
     # Key bindings
     accelerators = [wx.AcceleratorEntry() for x in range(7)]
@@ -3310,12 +3322,7 @@ if __name__ == '__main__':
     main_frame.Show()
 
     # Check for updates on startup
-    thread_manager.start(
-        ThreadManager.SINGLE,
-        target=update_handler.check,
-        name='Update Check',
-        daemon=True
-    )
+    check_for_updates_in_background()
 
     source_avail_drive_list = []
     source_drive_default = ''
