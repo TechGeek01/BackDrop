@@ -340,9 +340,8 @@ def backup_reset_ui():
         child.GetWindow().Destroy()
 
     # Clear file lists for file details pane
-    for list_name in file_detail_list:
-        for child in file_detail_list[list_name].GetChildren():
-            child.GetWindow.Destroy()
+    for list_name in file_detail_list.keys():
+        file_detail_list[list_name].clear()
 
     # Reset file details counters
     file_details_pending_delete_counter.SetLabel(label='0')
