@@ -9,7 +9,7 @@ __version__ = '4.0.0-alpha3'
 
 import platform
 import tkinter as tk
-from tkinter import ttk, simpledialog, font as tkfont, filedialog
+from tkinter import simpledialog, font as tkfont, filedialog
 import wx
 from sys import exit
 import shutil
@@ -1507,6 +1507,7 @@ def show_update_window(update_info: dict):
             }
         }
     }
+
     if update_info and 'download' in update_info.keys():
         download_map = {url.split('/')[-1].lower(): url for url in update_info['download']}
 
@@ -3300,7 +3301,12 @@ if __name__ == '__main__':
     main_frame.Show()
 
     # Check for updates on startup
-    update_handler.check()
+    thread_manager.start(
+        ThreadManager.SINGLE,
+        target=update_handler.check,
+        name='Update Check',
+        daemon=True
+    )
 
     source_avail_drive_list = []
     source_drive_default = ''
@@ -3346,18 +3352,6 @@ if __name__ == '__main__':
     actions_menu.add_command(label='Delete Config from Selected Destinations', command=delete_config_file_from_selected_drives)
     menubar.add_cascade(label='Actions', underline=0, menu=actions_menu)
 
-    # Help menu
-    help_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    help_menu.add_command(label='Check for Updates', command=lambda: thread_manager.start(
-        ThreadManager.SINGLE,
-        target=update_handler.check,
-        name='Update Check',
-        daemon=True
-    ))
-    settings_allow_prerelease_updates = tk.BooleanVar(value=config['allow_prereleases'])
-    help_menu.add_checkbutton(label='Allow Prereleases', onvalue=True, offvalue=False, variable=settings_allow_prerelease_updates, command=lambda: prefs.set('ui', 'allow_prereleases', settings_allow_prerelease_updates.get()))
-    menubar.add_cascade(label='Help', underline=0, menu=help_menu)
-
     root_window.config(menu=menubar)
 
     ##################
@@ -3365,64 +3359,12 @@ if __name__ == '__main__':
     ##################
 
     # init vars was here #
-
-    # Tree frames for tree and scrollbar
-    tree_source_frame = tk.Frame(root_window.main_frame)
-
-    tree_source = ttk.Treeview(tree_source_frame)
-    tree_source.pack(side='left')
-    tree_source_scrollbar = ttk.Scrollbar(tree_source_frame, orient='vertical', command=tree_source.yview)
-    tree_source_scrollbar.pack(side='left', fill='y')
-    tree_source.configure(yscrollcommand=tree_source_scrollbar.set)
-
+    # Source tree was here #
     # Source tree meta stuff was here #
-
-    source_select_frame = tk.Frame(root_window.main_frame)
-    source_select_frame.grid(row=0, column=1, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
-
-    source_select_single_frame = tk.Frame(source_select_frame)
-    tk.Label(source_select_single_frame, text='Source:').pack(side='left')
-    PREV_SOURCE_DRIVE = source_drive_default
-    source_select_menu = ttk.OptionMenu(source_select_single_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
-    source_select_menu['menu'].config(selectcolor=root_window.uicolor.FG)
-    source_select_menu.pack(side='left', padx=(12, 0))
-
-    source_select_multi_frame = tk.Frame(source_select_frame)
-    tk.Label(source_select_multi_frame, text='Multi-source mode, selection disabled').pack()
-
-    source_select_custom_single_frame = tk.Frame(source_select_frame)
-    selected_custom_source_text = last_selected_custom_source if last_selected_custom_source and os.path.isdir(last_selected_custom_source) else 'Custom source'
-    source_select_custom_single_path_label = tk.Label(source_select_custom_single_frame, text=selected_custom_source_text)
-    source_select_custom_single_path_label.grid(row=0, column=0, sticky='w')
-    source_select_custom_single_browse_button = ttk.Button(source_select_custom_single_frame, text='Browse', command=browse_for_source_in_background)
-    source_select_custom_single_browse_button.grid(row=0, column=1)
-
-    source_select_custom_multi_frame = tk.Frame(source_select_frame)
-    source_select_custom_multi_path_label = tk.Label(source_select_custom_multi_frame, text='Custom multi-source mode')
-    source_select_custom_multi_path_label.grid(row=0, column=0)
-    source_select_custom_multi_browse_button = ttk.Button(source_select_custom_multi_frame, text='Browse', command=browse_for_source_in_background)
-    source_select_custom_multi_browse_button.grid(row=0, column=1)
 
     source_warning = tk.Label(root_window.main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=root_window.uicolor.ERROR, fg=root_window.uicolor.BLACK)
 
-    tree_dest_frame = tk.Frame(root_window.main_frame)
-    tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
-
-    dest_mode_frame = tk.Frame(root_window.main_frame)
-    dest_mode_frame.grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
-
-    dest_select_normal_frame = tk.Frame(dest_mode_frame)
-    dest_select_normal_frame.pack()
-
-    dest_select_custom_frame = tk.Frame(dest_mode_frame)
-    dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest_in_background)
-    dest_select_custom_browse_button.grid(row=0, column=1)
-
-    tree_dest = ttk.Treeview(tree_dest_frame)
-    tree_dest.pack(side='left')
-    tree_dest_scrollbar = ttk.Scrollbar(tree_dest_frame, orient='vertical', command=tree_dest.yview)
-    tree_dest_scrollbar.pack(side='left', fill='y')
-    tree_dest.configure(yscrollcommand=tree_dest_scrollbar.set)
+    # Destination tree was here #
 
     dest_split_warning_frame = tk.Frame(root_window.main_frame, bg=root_window.uicolor.WARNING)
 
@@ -3438,17 +3380,13 @@ if __name__ == '__main__':
 
     # Destination tree meta stuff was here #
     # Destination selection bindings were here #
-
     # Tabbed detail view frame was here #
     # Right side frame was here #
     # Control buttons were here #
     # Reset analysis output was here #
     # Keyboard listener was here #
-
     # Load source was here #
-
-    # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or REPLACEABLE?
-    thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
+    # Load dest was here #
 
     ui_update_scheduler = RepeatedTimer(0.25, update_ui_during_backup)
 
