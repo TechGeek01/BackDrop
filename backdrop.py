@@ -294,13 +294,13 @@ def display_backup_command_info(display_command_list: list) -> list:
     for i, item in enumerate(display_command_list):
         if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
             if item['mode'] == Status.FILE_OPERATION_DELETE:
-                cmd_header_text = f"Delete {len(item['list'])} files from {item['drive']}"
+                cmd_header_text = f"Delete {len(item['list'])} files from {item['dest']}"
             elif item['mode'] == Status.FILE_OPERATION_UPDATE:
-                cmd_header_text = f"Update {len(item['list'])} files on {item['drive']}"
+                cmd_header_text = f"Update {len(item['list'])} files on {item['dest']}"
             elif item['mode'] == Status.FILE_OPERATION_COPY:
-                cmd_header_text = f"Copy {len(item['list'])} new files to {item['drive']}"
+                cmd_header_text = f"Copy {len(item['list'])} new files to {item['dest']}"
             else:
-                cmd_header_text = f"Work with {len(item['list'])} files on {item['drive']}"
+                cmd_header_text = f"Work with {len(item['list'])} files on {item['dest']}"
 
         backup_summary_block = DetailBlock(
             parent=summary_details_panel,
@@ -462,7 +462,7 @@ def get_source_drive_list() -> list:
     return source_avail_drive_list
 
 def load_source():
-    """Load the source drive and share lists, and display shares in the tree."""
+    """Load the source destination and source lists, and display sources in the tree."""
 
     global PREV_SOURCE_DRIVE
     global source_avail_drive_list
@@ -480,7 +480,7 @@ def load_source():
 
     source_avail_drive_list = get_source_drive_list()
 
-    if source_avail_drive_list or settings_dest_mode in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH]:
+    if settings_dest_mode in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH] or source_avail_drive_list:
         # Display empty selection sizes
         source_selected_space.SetLabel('None')
         source_total_space.SetLabel('~None')
@@ -497,27 +497,27 @@ def load_source():
         selected_source_mode = prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS)
 
         if selected_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE:
-            config['source_drive'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
+            config['source_path'] = prefs.get('selection', 'source_path', source_avail_drive_list[0], verify_data=source_avail_drive_list)
 
-            source_drive_default = config['source_drive']
-            PREV_SOURCE_DRIVE = config['source_drive']
+            source_drive_default = config['source_path']
+            PREV_SOURCE_DRIVE = config['source_path']
             source_src_control_dropdown.Append(source_avail_drive_list)
-            source_src_control_dropdown.SetSelection(source_src_control_dropdown.FindString(config['source_drive']))
+            source_src_control_dropdown.SetSelection(source_src_control_dropdown.FindString(config['source_path']))
 
-            # Enumerate list of shares in source
+            # Enumerate list of paths in source
             if SYS_PLATFORM == PLATFORM_WINDOWS:
-                config['source_drive'] = config['source_drive'] + os.path.sep
+                config['source_path'] = config['source_path'] + os.path.sep
 
-            for directory in next(os.walk(config['source_drive']))[1]:
+            for directory in next(os.walk(config['source_path']))[1]:
                 source_tree.Append((directory, '', 'Unknown', 0))
         elif selected_source_mode == Config.SOURCE_MODE_MULTI_DRIVE:
-            # Enumerate list of shares in source
+            # Enumerate list of paths in source
             for drive in source_avail_drive_list:
                 drive_name = prefs.get('source_names', drive, default='')
                 source_tree.Append((drive, drive_name, 'Unknown', 0))
         elif selected_source_mode == Config.SOURCE_MODE_SINGLE_PATH:
-            if config['source_drive'] and os.path.isdir(config['source_drive']):
-                for directory in next(os.walk(config['source_drive']))[1]:
+            if config['source_path'] and os.path.isdir(config['source_path']):
+                for directory in next(os.walk(config['source_path']))[1]:
                     # QUESTION: Should files be allowed in custom source?
                     source_tree.Append((directory, '', 'Unknown', 0))
 
@@ -543,7 +543,7 @@ def load_source_in_background():
     thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
 
 def change_source_drive(selection: str):
-    """Change the source drive to pull shares from to a new selection.
+    """Change the source drive to pull sources from to a new selection.
 
     Args:
         selection (String): The selection to set as the default.
@@ -580,31 +580,31 @@ def reset_analysis_output():
     summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label='Please start a backup analysis to generate a summary.', name='Backup summary placeholder tooltip 2'), 0, wx.TOP, 5)
     summary_summary_panel.Layout()
 
-# IDEA: @Calculate total space of all @shares in background
+# IDEA: @Calculate total space of all @sources in background
 def select_source():
-    """Calculate and display the filesize of a selected share, if it hasn't been calculated.
+    """Calculate and display the filesize of a selected source, if it hasn't been calculated.
 
     This gets the selection in the source tree, and then calculates the filesize for
-    all shares selected that haven't yet been calculated. The summary of total
-    selection, and total share space is also shown below the tree.
+    all sources selected that haven't yet been calculated. The summary of total
+    selection, and total source space is also shown below the tree.
     """
 
     global prev_source_selection
     global source_selection_total
     global backup
 
-    def update_share_size(item: int):
-        """Update share info for a given share.
+    def update_source_size(item: int):
+        """Update source info for a given source.
 
         Args:
-            item (String): The identifier for a share in the source tree to be calculated.
+            item (String): The identifier for a source in the source tree to be calculated.
         """
 
-        # FIXME: This crashes if you change the source drive, and the number of items in the tree changes while it's calculating things
+        # FIXME: This crashes if you change the source, and the number of items in the tree changes while it's calculating things
         source_name = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
 
         if settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-            source_path = os.path.join(config['source_drive'], source_name)
+            source_path = os.path.join(config['source_path'], source_name)
         elif settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
             source_path = source_name
 
@@ -612,33 +612,33 @@ def select_source():
         source_tree.SetItem(item, SOURCE_COL_SIZE, label=human_filesize(source_dir_size))
         source_tree.SetItem(item, SOURCE_COL_RAWSIZE, label=str(source_dir_size))
 
-        # After calculating share info, update the meta info
+        # After calculating source info, update the meta info
         selected_total = 0
-        selected_share_list = []
+        selected_source_list = []
         selected_item = source_tree.GetFirstSelected()
         while selected_item != -1:
-            # Write selected shares to config
-            share_info = {
+            # Write selected sources to config
+            source_info = {
                 'size': int(source_tree.GetItem(selected_item, SOURCE_COL_RAWSIZE).GetText())
             }
 
             if settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-                share_info['path'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
+                source_info['path'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
 
                 if SYS_PLATFORM == PLATFORM_WINDOWS:
                     # Windows uses drive letters, so default name is letter
-                    default_name = share_info['path'][0]
+                    default_name = source_info['path'][0]
                 elif SYS_PLATFORM == PLATFORM_LINUX:
                     # Linux uses mount points, so get last dir name
-                    default_name = share_info['path'].split(os.path.sep)[-1]
+                    default_name = source_info['path'].split(os.path.sep)[-1]
 
-                share_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() if source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() else default_name
+                source_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() if source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() else default_name
             else:
-                # If single drive mode, use share name as dest name
-                share_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
-                share_info['path'] = os.path.join(config['source_drive'], share_info['dest_name'])
+                # If single drive mode, use source name as dest name
+                source_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
+                source_info['path'] = os.path.join(config['source_path'], source_info['dest_name'])
 
-            selected_share_list.append(share_info)
+            selected_source_list.append(source_info)
 
             # Add total space of selection
             if source_tree.GetItem(selected_item, SOURCE_COL_SIZE).GetText() != 'Unknown':
@@ -651,14 +651,14 @@ def select_source():
         source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
         source_selected_space.Layout()
         source_dest_selection_info_sizer.Layout()
-        config['sources'] = selected_share_list
+        config['sources'] = selected_source_list
 
-        share_total = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in range(source_tree.GetItemCount())])
+        source_total = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in range(source_tree.GetItemCount())])
         human_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in range(source_tree.GetItemCount())]
 
         # Recalculate and display the selected total
-        source_total_space.SetLabel(f'{"~" if "Unknown" in human_size_list else ""}{human_filesize(share_total)}')
-        source_total_space.SetForegroundColour(Color.TEXT_DEFAULT if share_total > 0 else Color.FADED)
+        source_total_space.SetLabel(f'{"~" if "Unknown" in human_size_list else ""}{human_filesize(source_total)}')
+        source_total_space.SetForegroundColour(Color.TEXT_DEFAULT if source_total > 0 else Color.FADED)
         source_total_space.Layout()
         source_dest_selection_info_sizer.Layout()
 
@@ -670,8 +670,8 @@ def select_source():
             selected_source_list.append(selected_item)
             selected_item = source_tree.GetNextSelected(selected_item)
 
-        share_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in selected_source_list]
-        if 'Unknown' not in share_size_list:
+        source_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in selected_source_list]
+        if 'Unknown' not in source_size_list:
             start_analysis_btn.Enable()
             update_status_bar_selection()
 
@@ -690,37 +690,37 @@ def select_source():
             selected.append(item)
             item = source_tree.GetNextSelected(item)
 
-        new_shares = []
+        new_sources = []
         if selected:
             for item in selected:
-                share_info = {
+                source_info = {
                     'size': int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText())
                 }
 
                 if settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-                    share_info['path'] = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
+                    source_info['path'] = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
 
                     if SYS_PLATFORM == PLATFORM_WINDOWS:
                         # Windows uses drive letters, so default name is letter
-                        default_name = share_info['path'][0]
+                        default_name = source_info['path'][0]
                     elif SYS_PLATFORM == PLATFORM_LINUX:
                         # Linux uses mount points, so get last dir name
-                        default_name = share_info['path'].split(os.path.sep)[-1]
+                        default_name = source_info['path'].split(os.path.sep)[-1]
 
-                    share_info['dest_name'] = source_tree.GetItem(item, SOURCE_COL_NAME).GetText() if source_tree.GetItem(item, SOURCE_COL_NAME).GetText() else default_name
+                    source_info['dest_name'] = source_tree.GetItem(item, SOURCE_COL_NAME).GetText() if source_tree.GetItem(item, SOURCE_COL_NAME).GetText() else default_name
                 else:
-                    # If single drive mode, use share name as dest name
-                    share_info['dest_name'] = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
-                    share_info['path'] = os.path.join(config['source_drive'], share_info['dest_name'])
+                    # If single drive mode, use source name as dest name
+                    source_info['dest_name'] = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
+                    source_info['path'] = os.path.join(config['source_path'], source_info['dest_name'])
 
-                new_shares.append(share_info)
+                new_sources.append(source_info)
         else:
             source_selected_space.SetLabel('None')
             source_selected_space.SetForegroundColour(Color.FADED)
             source_selected_space.Layout()
             source_src_selection_info_sizer.Layout()
 
-        config['sources'] = new_shares
+        config['sources'] = new_sources
         update_status_bar_selection()
 
         new_selected = [item for item in selected if item not in prev_source_selection]
@@ -741,8 +741,8 @@ def select_source():
         for item in new_selected:
             update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
             start_analysis_btn.Disable()
-            share_name = source_tree.GetItem(item, SOURCE_COL_PATH)
-            thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
+            source_name = source_tree.GetItem(item, SOURCE_COL_PATH)
+            thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=lambda: update_source_size(item), name=f"SourceCalc_{source_name}", daemon=True)
 
         # Set current selection to previous selection var to be referenced next call
         prev_source_selection = selected
@@ -771,7 +771,7 @@ def select_source_in_background(event):
     thread_manager.start(ThreadManager.MULTIPLE, is_progress_thread=True, target=select_source, name='Load Source Selection', daemon=True)
 
 def load_dest():
-    """Load the destination drive info, and display it in the tree."""
+    """Load the destination path info, and display it in the tree."""
 
     global dest_drive_master_list
 
@@ -799,7 +799,7 @@ def load_dest():
             total_drive_space_available = 0
             dest_drive_master_list = []
             for drive in logical_drive_list:
-                if drive != config['source_drive'] and drive != SYSTEM_DRIVE:
+                if drive != config['source_path'] and drive != SYSTEM_DRIVE:
                     drive_type = win32file.GetDriveType(drive)
 
                     drive_type_list = []
@@ -857,7 +857,7 @@ def load_dest():
                                  stdin=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)
             logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
-            logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['source_drive']]
+            logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['source_path']]
 
             total_drive_space_available = 0
             dest_drive_master_list = []
@@ -925,7 +925,7 @@ def load_dest():
     progress_bar.StopIndeterminate()
 
 def load_dest_in_background():
-    """Start the loading of the destination drive info in a new thread."""
+    """Start the loading of the destination path info in a new thread."""
 
     # TODO: Make load_dest and load_source replaceable, and in their own class
     # TODO: Invalidate load_source or load_dest if tree gets refreshed via some class def call
@@ -935,15 +935,15 @@ def load_dest_in_background():
     thread_manager.start(ThreadManager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
 
 def gui_select_from_config():
-    """From the current config, select the appropriate shares and drives in the GUI."""
+    """From the current config, select the appropriate sources and drives in the GUI."""
 
     global dest_select_bind
     global prev_source_selection
     global prev_dest_selection
 
-    # Get list of shares in config
-    config_share_name_list = [item['dest_name'] for item in config['sources']]
-    config_source_tree_id_list = [item for item in range(source_tree.GetItemCount()) if source_tree.GetItem(item, SOURCE_COL_PATH).GetText() in config_share_name_list]
+    # Get list of sources in config
+    config_source_name_list = [item['dest_name'] for item in config['sources']]
+    config_source_tree_id_list = [item for item in range(source_tree.GetItemCount()) if source_tree.GetItem(item, SOURCE_COL_PATH).GetText() in config_source_name_list]
 
     if config_source_tree_id_list:
         for item in range(source_tree.GetItemCount()):
@@ -960,7 +960,7 @@ def gui_select_from_config():
         source_src_selection_info_sizer.Layout()
 
     # Get list of drives where volume ID is in config
-    connected_vid_list = [drive['vid'] for drive in config['destinations']]
+    connected_vid_list = [dest['vid'] for dest in config['destinations']]
 
     # If drives aren't mounted that should be, display the warning
     MISSING_DRIVE_COUNT = len(config['missing_drives'])
@@ -1004,22 +1004,22 @@ def gui_select_from_config():
         # Re-enable the selection handler that was temporarily disabled
         dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
 
-def get_share_path_from_name(share: str) -> str:
-    """Get a share path from a share name.
+def get_source_path_from_name(source: str) -> str:
+    """Get a source path from a source name.
 
     Args:
-        share (String): The share to get.
+        source (String): The source to get.
 
     Returns:
-        String: The path name for the share.
+        String: The path name for the source.
     """
 
     if prefs.get('selection', 'source_mode', default=Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-        # Single source mode, so source is source drive
-        return os.path.join(config['source_drive'], share)
+        # Single source mode, so source is source path
+        return os.path.join(config['source_path'], source)
     else:
         reference_list = {prefs.get('source_names', mountpoint, default=''): mountpoint for mountpoint in source_avail_drive_list if prefs.get('source_names', mountpoint, '')}
-        return reference_list[share]
+        return reference_list[source]
 
 def load_config_from_file(filename: str):
     """Read a config file, and set the current config based off of it.
@@ -1035,21 +1035,21 @@ def load_config_from_file(filename: str):
 
     SELECTED_DEST_MODE = prefs.get('selection', 'dest_mode', default=Config.DEST_MODE_DRIVES, verify_data=Config.DEST_MODE_OPTIONS)
 
-    # Get shares
-    shares = config_file.get('selection', 'sources')
-    if shares is not None and len(shares) > 0:
+    # Get sources
+    sources = config_file.get('selection', 'sources')
+    if sources is not None and len(sources) > 0:
         new_config['sources'] = [{
             'path': [source_tree.GetItem(item, SOURCE_COL_PATH) for item in range(source_tree.GetItemCount())][0],
             'size': None,
-            'dest_name': share
-        } for share in shares.split(',')]
+            'dest_name': source
+        } for source in sources.split(',')]
 
     if SELECTED_DEST_MODE == Config.DEST_MODE_DRIVES:
         # Get VID list
         vids = config_file.get('selection', 'vids').split(',')
 
-        # Get drive info
-        config_drive_total = 0
+        # Get path info
+        config_dest_total = 0
         new_config['destinations'] = []
         new_config['missing_drives'] = {}
         drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
@@ -1057,31 +1057,31 @@ def load_config_from_file(filename: str):
             if drive in drive_lookup_list.keys():
                 # If drive connected, add to drive list
                 new_config['destinations'].append(drive_lookup_list[drive])
-                config_drive_total += drive_lookup_list[drive]['capacity']
+                config_dest_total += drive_lookup_list[drive]['capacity']
             else:
                 # Add drive capacity info to missing drive list
                 reported_drive_capacity = config_file.get(drive, 'capacity', 0, data_type=Config.INTEGER)
                 new_config['missing_drives'][drive] = reported_drive_capacity
-                config_drive_total += reported_drive_capacity
+                config_dest_total += reported_drive_capacity
     elif SELECTED_DEST_MODE == Config.DEST_MODE_PATHS:
-        # Get drive info
-        config_drive_total = 0
+        # Get path info
+        config_dest_total = 0
         new_config['missing_drives'] = {}
 
     config.update(new_config)
 
-    config_selected_space.SetLabel(label=human_filesize(config_drive_total))
+    config_selected_space.SetLabel(label=human_filesize(config_dest_total))
     config_selected_space.SetForegroundColour(Color.TEXT_DEFAULT)
     config_selected_space.Layout()
     source_dest_selection_info_sizer.Layout()
     gui_select_from_config()
 
 def select_dest():
-    """Parse the current drive selection, read config data, and select other drives and shares if needed.
+    """Parse the current drive selection, read config data, and select other drives and sources if needed.
 
     If the selection involves a single drive that the user specifically clicked on,
     this function reads the config file on it if one exists, and will select any
-    other drives and shares in the config.
+    other drives and sources in the config.
     """
 
     global prev_selection
@@ -1269,11 +1269,11 @@ def cleanup_handler(signal_received, frame):
     exit(0)
 
 # TODO: Move file verification to Backup class
-def verify_data_integrity(drive_list: list):
-    """Verify itegrity of files on destination drives by checking hashes.
+def verify_data_integrity(path_list: list):
+    """Verify itegrity of files on destination paths by checking hashes.
 
     Args:
-        drive_list (String[]): A list of mount points for drives to check.
+        path_list (String[]): A list of mount points for paths to check.
     """
 
     global verification_running
@@ -1645,7 +1645,7 @@ if __name__ == '__main__':
     prefs = Config(CONFIG_FILE_PATH)
     last_selected_custom_source = prefs.get('selection', 'last_selected_custom_source', default=None)
     config = {
-        'source_drive': last_selected_custom_source if prefs.get('selection', 'source_mode', default=Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) == Config.SOURCE_MODE_SINGLE_PATH else None,
+        'source_path': last_selected_custom_source if prefs.get('selection', 'source_mode', default=Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) == Config.SOURCE_MODE_SINGLE_PATH else None,
         'source_mode': prefs.get('selection', 'source_mode', default=Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS),
         'dest_mode': prefs.get('selection', 'dest_mode', default=Config.DEST_MODE_DRIVES, verify_data=Config.DEST_MODE_OPTIONS),
         'splitMode': False,
@@ -1678,27 +1678,27 @@ if __name__ == '__main__':
             status (int): The status code to use.
         """
 
-        if [share for share in config['sources'] if share['size'] is None]:
-            # Not all shares calculated
+        if [source for source in config['sources'] if source['size'] is None]:
+            # Not all sources calculated
             status = Status.BACKUPSELECT_CALCULATING_SOURCE
         elif not config['sources'] and not config['destinations'] and len(config['missing_drives']) == 0:
             # No selection in config
             status = Status.BACKUPSELECT_NO_SELECTION
         elif not config['sources']:
-            # No shares selected
+            # No sources selected
             status = Status.BACKUPSELECT_MISSING_SOURCE
         elif not config['destinations'] and len(config['missing_drives']) == 0:
             # No drives selected
             status = Status.BACKUPSELECT_MISSING_DEST
         else:
-            SHARE_SELECTED_SPACE = sum((share['size'] for share in config['sources']))
-            DRIVE_SELECTED_SPACE = sum((drive['capacity'] for drive in config['destinations'])) + sum(config['missing_drives'].values())
+            SOURCE_SELECTED_SPACE = sum((source['size'] for source in config['sources']))
+            DESTINATION_SELECTED_SPACE = sum((destination['capacity'] for destination in config['destinations'])) + sum(config['missing_drives'].values())
 
-            if SHARE_SELECTED_SPACE < DRIVE_SELECTED_SPACE:
+            if SOURCE_SELECTED_SPACE < DESTINATION_SELECTED_SPACE:
                 # Selected enough drive space
                 status = Status.BACKUPSELECT_ANALYSIS_WAITING
             else:
-                # Shares larger than drive space
+                # Sources larger than drive space
                 status = Status.BACKUPSELECT_INSUFFICIENT_SPACE
 
         STATUS_TEXT_MAP = {
@@ -1856,36 +1856,36 @@ if __name__ == '__main__':
         """Save the config to selected drives."""
 
         if config['sources'] and config['destinations']:
-            share_list = ','.join([item['dest_name'] for item in config['sources']])
+            source_list = ','.join([item['dest_name'] for item in config['sources']])
             raw_vid_list = [drive['vid'] for drive in config['destinations']]
             raw_vid_list.extend(config['missing_drives'].keys())
             vid_list = ','.join(raw_vid_list)
 
-            # For each drive letter that's connected, get drive info, and write file
-            for drive in config['destinations']:
+            # For each destination that's connected, get destination info, and write file
+            for dest in config['destinations']:
                 # If config exists on drives, back it up first
-                if os.path.isfile(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)):
-                    shutil.move(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE), os.path.join(drive['name'], BACKUP_CONFIG_DIR, f'{BACKUP_CONFIG_FILE}.old'))
+                if os.path.isfile(os.path.join(dest['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)):
+                    shutil.move(os.path.join(dest['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE), os.path.join(dest['name'], BACKUP_CONFIG_DIR, f'{BACKUP_CONFIG_FILE}.old'))
 
-                new_config_file = Config(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+                new_config_file = Config(os.path.join(dest['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
-                # Write shares and VIDs to config file
-                new_config_file.set('selection', 'sources', share_list)
+                # Write sources and paths/VIDs to config file
+                new_config_file.set('selection', 'sources', source_list)
                 new_config_file.set('selection', 'vids', vid_list)
 
-                # Write info for each drive to its own section
+                # Write info for each destination to its own section
                 for current_drive in config['destinations']:
                     new_config_file.set(current_drive['vid'], 'vid', current_drive['vid'])
                     new_config_file.set(current_drive['vid'], 'serial', current_drive['serial'])
                     new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
 
                 # Write info for missing drives
-                for drive_vid, capacity in config['missing_drives'].items():
-                    new_config_file.set(drive_vid, 'vid', drive_vid)
-                    new_config_file.set(drive_vid, 'serial', 'Unknown')
-                    new_config_file.set(drive_vid, 'capacity', capacity)
+                for dest_path, capacity in config['missing_drives'].items():
+                    new_config_file.set(dest_path, 'vid', dest_path)
+                    new_config_file.set(dest_path, 'serial', 'Unknown')
+                    new_config_file.set(dest_path, 'capacity', capacity)
 
-            # Since config files on drives changed, refresh the destination list
+            # Since config files on destinations changed, refresh the destination list
             load_dest_in_background()
 
             wx.MessageBox(
@@ -1908,7 +1908,7 @@ if __name__ == '__main__':
             filename = file_dialog.GetPath()
 
             if config['sources'] and config['destinations']:
-                share_list = ','.join([item['dest_name'] for item in config['sources']])
+                source_list = ','.join([item['dest_name'] for item in config['sources']])
                 raw_vid_list = [drive['vid'] for drive in config['destinations']]
                 raw_vid_list.extend(config['missing_drives'].keys())
                 vid_list = ','.join(raw_vid_list)
@@ -1916,8 +1916,8 @@ if __name__ == '__main__':
                 # Get drive info, and write file
                 new_config_file = Config(filename)
 
-                # Write shares and VIDs to config file
-                new_config_file.set('selection', 'sources', share_list)
+                # Write sources and VIDs to config file
+                new_config_file.set('selection', 'sources', source_list)
                 new_config_file.set('selection', 'vids', vid_list)
 
                 # Write info for each drive to its own section
@@ -1995,7 +1995,7 @@ if __name__ == '__main__':
 
         if settings_dest_mode == Config.SOURCE_MODE_SINGLE_PATH:
             source_select_custom_single_path_label.configure(text=dir_name)
-            config['source_drive'] = dir_name
+            config['source_path'] = dir_name
 
             # Log last selection to preferences
             last_selected_custom_source = dir_name
@@ -2184,7 +2184,7 @@ if __name__ == '__main__':
             if source_src_control_browse_btn.IsShown():
                 source_src_control_browse_btn.Hide()
         elif selection == Config.SOURCE_MODE_MULTI_DRIVE:
-            config['source_drive'] = last_selected_custom_source
+            config['source_path'] = last_selected_custom_source
 
             source_src_control_label.SetLabel('Multi-drive mode, browse/selection disabled')
 
@@ -2344,8 +2344,8 @@ if __name__ == '__main__':
         if backup and backup.is_running():  # Backup can't be running while data verification takes place
             return
 
-        drive_list = [drive['name'] for drive in config['destinations']]
-        thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
+        dest_list = [dest['name'] for dest in config['destinations']]
+        thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(dest_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
     def update_ui_pre_analysis():
         """Update the UI before an analysis is run."""
