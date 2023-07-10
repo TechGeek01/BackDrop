@@ -34,8 +34,9 @@ class Color:
     STOPPED = RED
     PENDING = FADED
 
-    BACKGROUND = wx.Colour(0x33, 0x33, 0x33)
-    STATUS_BAR = wx.Colour(0x4a, 0x4a, 0x4a)
+    BACKGROUND = wx.Colour(0x2d, 0x2d, 0x2a)
+    WIDGET_COLOR = wx.Colour(0x39, 0x39, 0x37)
+    STATUS_BAR = wx.Colour(0x48, 0x48, 0x43)
 
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller."""

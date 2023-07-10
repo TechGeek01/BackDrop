@@ -2783,7 +2783,7 @@ if __name__ == '__main__':
     source_tree.AppendColumn('Raw Size')
     source_tree.SetColumnWidth(SOURCE_COL_RAWSIZE, 0)
 
-    source_tree.SetBackgroundColour(wx.Colour(0x40, 0x40, 0x40))
+    source_tree.SetBackgroundColour(Color.WIDGET_COLOR)
     source_tree.SetTextColour(Color.WHITE)
 
     source_src_selection_info_sizer = wx.BoxSizer()
@@ -2838,7 +2838,7 @@ if __name__ == '__main__':
     dest_tree.AppendColumn('Raw Size')
     dest_tree.SetColumnWidth(DEST_COL_RAWSIZE, 0)
 
-    dest_tree.SetBackgroundColour(wx.Colour(0x40, 0x40, 0x40))
+    dest_tree.SetBackgroundColour(Color.WIDGET_COLOR)
     dest_tree.SetTextColour(Color.WHITE)
 
     def update_split_mode_label():
