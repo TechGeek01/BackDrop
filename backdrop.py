@@ -542,34 +542,33 @@ def load_source_in_background():
 
     thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
 
-def change_source_drive(selection: str):
-    """Change the source drive to pull sources from to a new selection.
-
-    Args:
-        selection (String): The selection to set as the default.
-    """
+def change_source_drive(e):
+    """Change the source drive to pull sources from to a new selection."""
 
     global PREV_SOURCE_DRIVE
     global config
 
+    selection = source_src_control_dropdown.GetValue()
+
     # If backup is running, ignore request to change
     if backup and backup.is_running():
-        source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
+        prev_source_index = source_src_control_dropdown.FindString(PREV_SOURCE_DRIVE)
+        source_src_control_dropdown.SetSelection(prev_source_index)
         return
 
     # Invalidate analysis validation
     reset_analysis_output()
 
-    config['source_drive'] = selection
+    config['source_path'] = selection
     PREV_SOURCE_DRIVE = selection
-    prefs.set('selection', 'source_drive', selection)
+    prefs.set('selection', 'source_path', selection)
 
     load_source_in_background()
 
     # If a drive type is selected for both source and destination, reload
     # destination so that the source drive doesn't show in destination list
-    if ((settings_showDrives_source_local.get() and settings_showDrives_dest_local.get())  # Local selected
-            or (settings_showDrives_source_network.get() and settings_showDrives_dest_network.get())):  # Network selected
+    if ((settings_show_drives_source_local and settings_show_drives_destination_local)  # Local selected
+            or (settings_show_drives_source_network and settings_show_drives_destination_network)):  # Network selected
         load_dest_in_background()
 
 def reset_analysis_output():
@@ -3280,6 +3279,7 @@ if __name__ == '__main__':
     main_frame.SetAcceleratorTable(wx.AcceleratorTable(accelerators))
 
     # Mouse bindings
+    source_src_control_dropdown.Bind(wx.EVT_COMBOBOX, change_source_drive)
     source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
     source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
     source_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_source_right_click_menu())
