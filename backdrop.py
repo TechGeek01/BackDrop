@@ -1536,6 +1536,7 @@ def show_update_window(update_info: dict):
                     download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=info['supplemental']['flat_icon']: e.GetEventObject().SetBitmap(icon))
                     download_btn.Bind(wx.EVT_LEFT_DOWN, lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
 
+        update_icon_sizer.Layout()
         update_frame.ShowModal()
 
 def check_for_updates(info: dict):
@@ -1550,7 +1551,11 @@ def check_for_updates(info: dict):
     update_info = info
 
     if info['updateAvailable']:
-        show_update_window(info)
+        update_event = wx.PyEvent()
+        update_event.SetEventType(ID_EVT_CHECK_FOR_UPDATES)
+        update_event.data = info
+
+        wx.PostEvent(main_frame, update_event)
 
 if __name__ == '__main__':
     PLATFORM_WINDOWS = 'Windows'
@@ -3087,7 +3092,7 @@ if __name__ == '__main__':
     if PORTABLE_MODE:
         status_bar_portable_mode = wx.StaticText(status_bar, -1, label='Portable mode')
         status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
-    status_bar_updates = wx.StaticText(status_bar, -1, label='Checking for updates', name='Status bar update indicator')
+    status_bar_updates = wx.StaticText(status_bar, -1, label='Up to date', name='Status bar update indicator')
     status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
     status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
@@ -3288,6 +3293,10 @@ if __name__ == '__main__':
     status_bar_error_count.Bind(wx.EVT_LEFT_DOWN, lambda e: show_backup_error_log())
     status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
 
+    # PyEvent bindings
+    ID_EVT_CHECK_FOR_UPDATES = wx.NewEventType()
+    main_frame.Connect(-1, -1, ID_EVT_CHECK_FOR_UPDATES, lambda e: show_update_window(e.data))
+
     # Catch close event for graceful exit
     main_frame.Bind(wx.EVT_CLOSE, lambda e: on_close())
 
@@ -3301,7 +3310,12 @@ if __name__ == '__main__':
     main_frame.Show()
 
     # Check for updates on startup
-    update_handler.check()
+    thread_manager.start(
+        ThreadManager.SINGLE,
+        target=update_handler.check,
+        name='Update Check',
+        daemon=True
+    )
 
     source_avail_drive_list = []
     source_drive_default = ''
