@@ -2027,7 +2027,7 @@ if __name__ == '__main__':
 
         global last_selected_custom_source
 
-        with wx.DirDialog(main_frame, 'Select source folder', style=wx.DD_DIR_MUST_EXIST) as dir_dialog:
+        with wx.DirDialog(main_frame, 'Select source folder', style=wx.DD_DEFAULT_STYLE) as dir_dialog:
             # User changed their mind
             if dir_dialog.ShowModal() == wx.ID_CANCEL:
                 return
@@ -2038,7 +2038,7 @@ if __name__ == '__main__':
             if not dir_name:
                 return
 
-            if settings_dest_mode == Config.SOURCE_MODE_SINGLE_PATH:
+            if settings_source_mode == Config.SOURCE_MODE_SINGLE_PATH:
                 source_src_control_label.SetLabel(label=dir_name)
                 source_src_control_label.Layout()
                 source_src_control_sizer.Layout()
@@ -2049,7 +2049,7 @@ if __name__ == '__main__':
                 prefs.set('selection', 'last_selected_custom_source', dir_name)
 
                 load_source_in_background()
-            elif settings_dest_mode == Config.SOURCE_MODE_MULTI_PATH:
+            elif settings_source_mode == Config.SOURCE_MODE_MULTI_PATH:
                 # Get list of paths already in tree
                 existing_path_list = [source_tree.GetItem(item, SOURCE_COL_PATH).GetText() for item in range(source_tree.GetItemCount())]
 
@@ -2074,7 +2074,7 @@ if __name__ == '__main__':
     def browse_for_dest():
         """Browse for a destination path, and add to the list."""
 
-        with wx.DirDialog(main_frame, 'Select destination folder', style=wx.DD_DIR_MUST_EXIST) as dir_dialog:
+        with wx.DirDialog(main_frame, 'Select destination folder', style=wx.DD_DEFAULT_STYLE) as dir_dialog:
             # User changed their mind
             if dir_dialog.ShowModal() == wx.ID_CANCEL:
                 return
@@ -2305,11 +2305,11 @@ if __name__ == '__main__':
         config['dest_mode'] = selection
 
         if selection == Config.DEST_MODE_DRIVES:
-            if source_dest_control_btn.IsShown():
-                source_dest_control_btn.Hide()
+            if source_dest_control_browse_btn.IsShown():
+                source_dest_control_browse_btn.Hide()
         elif selection == Config.DEST_MODE_PATHS:
             if not source_src_control_browse_btn.IsShown():
-                source_dest_control_btn.Show()
+                source_dest_control_browse_btn.Show()
 
         redraw_dest_tree()
 
@@ -2927,8 +2927,8 @@ if __name__ == '__main__':
     source_dest_tooltip.SetForegroundColour(Color.INFO)
     source_dest_control_sizer.Add(source_dest_tooltip, 0, wx.ALIGN_CENTER_VERTICAL)
     source_dest_control_sizer.Add((-1, -1), 1, wx.EXPAND)
-    source_dest_control_btn = wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse destination')
-    source_dest_control_sizer.Add(source_dest_control_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
+    source_dest_control_browse_btn = wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse destination')
+    source_dest_control_sizer.Add(source_dest_control_browse_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
     source_dest_control_spacer_button = wx.Button(main_frame.root_panel, -1, label='', size=(0, -1), name='Spacer dummy button')
     source_dest_control_spacer_button.Disable()
     source_dest_control_sizer.Add(source_dest_control_spacer_button, 0, wx.ALIGN_CENTER_VERTICAL)
@@ -3350,9 +3350,11 @@ if __name__ == '__main__':
 
     # Mouse bindings
     source_src_control_dropdown.Bind(wx.EVT_COMBOBOX, change_source_drive)
+    source_src_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: browse_for_source_in_background())
     source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
     source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
     source_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_source_right_click_menu())
+    source_dest_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: browse_for_dest_in_background())
     dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
     dest_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_dest_right_click_menu())
     split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
