@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - Fixed requiring root on Linux due to `keyboard` library
 
 ### Changed
+- Migrated from tkinter to wxPython for GUI
 - Replaced blake2b hash with blake3
 - Increased buffer size for copy operations
 - Improved performance
