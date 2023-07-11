@@ -1551,7 +1551,7 @@ def check_for_updates(info: dict):
 
     if info['updateAvailable']:
         update_event = wx.PyEvent()
-        update_event.SetEventType(ID_EVT_CHECK_FOR_UPDATES)
+        update_event.SetEventType(EVT_CHECK_FOR_UPDATES)
         update_event.data = info
 
         wx.PostEvent(main_frame, update_event)
@@ -3306,8 +3306,8 @@ if __name__ == '__main__':
     status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
 
     # PyEvent bindings
-    ID_EVT_CHECK_FOR_UPDATES = wx.NewEventType()
-    main_frame.Connect(-1, -1, ID_EVT_CHECK_FOR_UPDATES, lambda e: show_update_window(e.data))
+    EVT_CHECK_FOR_UPDATES = wx.NewEventType()
+    main_frame.Connect(-1, -1, EVT_CHECK_FOR_UPDATES, lambda e: show_update_window(e.data))
 
     # Catch close event for graceful exit
     main_frame.Bind(wx.EVT_CLOSE, lambda e: on_close())
