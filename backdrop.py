@@ -5,7 +5,7 @@ logically copying files from point A to point B. This is complete with
 verification, and many other organization and integrity features.
 """
 
-__version__ = '4.0.0-alpha5'
+__version__ = '4.0.0-alpha6'
 
 import platform
 import tkinter as tk
@@ -1511,6 +1511,10 @@ def show_update_window(update_info: dict):
     if not update_info['updateAvailable'] or update_frame.IsShown():
         return
 
+    update_latest_version_text.SetLabel(label=f'v{update_info["latestVersion"]}')
+    update_latest_version_text.Layout()
+    update_version_text_sizer.Layout()
+
     icon_windows = wx.Bitmap(wx.Image(resource_path(f"assets/img/windows{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
     icon_windows_color = wx.Bitmap(wx.Image(resource_path('assets/img/windows_color.png'), wx.BITMAP_TYPE_ANY))
     icon_zip = wx.Bitmap(wx.Image(resource_path(f"assets/img/zip{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
@@ -2837,7 +2841,7 @@ if __name__ == '__main__':
     update_version_header_sizer.Add(update_version_latest_header, 0, wx.ALIGN_RIGHT | wx.TOP, 5)
     update_version_sizer.Add(update_version_header_sizer, 0)
     update_version_text_sizer = wx.BoxSizer(wx.VERTICAL)
-    update_current_version_text = wx.StaticText(update_frame.root_panel, -1, label=__version__, name='Update current version text')
+    update_current_version_text = wx.StaticText(update_frame.root_panel, -1, label=f'v{__version__}', name='Update current version text')
     update_current_version_text.SetFont(FONT_LARGE)
     update_current_version_text.SetForegroundColour(Color.FADED)
     update_version_text_sizer.Add(update_current_version_text, 0)
