@@ -1361,24 +1361,33 @@ def verify_data_integrity(path_list: list):
             file_detail_list[list_name].clear()
 
         # Reset file details counters
-        file_details_pending_delete_counter.configure(text='0')
-        file_details_pending_delete_counter_total.configure(text='0')
-        file_details_pending_copy_counter.configure(text='0')
-        file_details_pending_copy_counter_total.configure(text='0')
-        file_details_copied_counter.configure(text='0')
-        file_details_failed_counter.configure(text='0')
+        file_details_pending_delete_counter.SetLabel(label='0')
+        file_details_pending_delete_counter.Layout()
+        file_details_pending_delete_counter_total.SetLabel(label='0')
+        file_details_pending_delete_counter_total.Layout()
+        file_details_pending_copy_counter.SetLabel(label='0')
+        file_details_pending_copy_counter.Layout()
+        file_details_pending_copy_counter_total.SetLabel(label='0')
+        file_details_pending_copy_counter_total.Layout()
+        file_details_pending_sizer.Layout()
+        file_details_success_count.SetLabel(label='0')
+        file_details_success_count.Layout()
+        file_details_success_header_sizer.Layout()
+        file_details_failed_count.SetLabel(label='0')
+        file_details_failed_count.Layout()
+        file_details_failed_header_sizer.Layout()
 
         # Empty file details list panes
-        file_details_copied.empty()
-        file_details_failed.empty()
+        file_details_success_sizer.Clear()
+        file_details_failed_sizer.Clear()
 
         verification_running = True
         verification_failed_list = []
 
         # Get hash list for all drives
         bad_hash_files = []
-        hash_list = {drive: {} for drive in drive_list}
-        for drive in drive_list:
+        hash_list = {drive: {} for drive in path_list}
+        for drive in path_list:
             drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
 
             if os.path.isfile(drive_hash_file_path):
@@ -1413,11 +1422,11 @@ def verify_data_integrity(path_list: list):
 
         verify_all_files = prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN)
         if verify_all_files:
-            for drive in drive_list:
+            for drive in path_list:
                 drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
                 recurse_for_hash(drive, drive, drive_hash_file_path)
         else:
-            for drive in drive_list:
+            for drive in path_list:
                 drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
                 for file, saved_hash in hash_list[drive].items():
                     filename = os.path.join(drive, file)
@@ -1941,7 +1950,13 @@ if __name__ == '__main__':
     def delete_config_file_from_selected_drives():
         """Delete config files from drives in destination selection."""
 
-        drive_list = [tree_dest.item(drive, 'text').strip(os.path.sep) for drive in tree_dest.selection()]
+        selection = []
+        item = dest_tree.GetFirstSelected()
+        while item != -1:
+            selection.append(item)
+            item = dest_tree.GetNextSelected(item)
+
+        drive_list = [dest_tree.GetItem(item, DEST_COL_PATH).strip(os.path.sep) for item in selection]
         drive_list = [drive for drive in drive_list if os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))]
 
         if drive_list:
@@ -3198,9 +3213,11 @@ if __name__ == '__main__':
     menu_bar.Append(view_menu, '&View')
 
     # Actions menu
+    ID_VERIFY_DATA = wx.NewIdRef()
+    ID_DELETE_CONFIG_FROM_DRIVES = wx.NewIdRef()
     actions_menu = wx.Menu()
-    actions_menu.Append(401, '&Verify Data Integrity on Selected Destinations', 'Verify files on selected destinations against the saved hash to check for errors')
-    actions_menu.Append(402, 'Delete Config from Selected Destinations', 'Delete the saved backup config from the selected destinations')
+    actions_menu.Append(ID_VERIFY_DATA, '&Verify Data Integrity on Selected Destinations', 'Verify files on selected destinations against the saved hash to check for errors')
+    actions_menu.Append(ID_DELETE_CONFIG_FROM_DRIVES, 'Delete Config from Selected Destinations', 'Delete the saved backup config from the selected destinations')
     menu_bar.Append(actions_menu, '&Actions')
 
     # Preferences menu
@@ -3258,6 +3275,9 @@ if __name__ == '__main__':
     main_frame.Bind(wx.EVT_MENU, lambda e: load_source_in_background(), id=ID_REFRESH_SOURCE)
     main_frame.Bind(wx.EVT_MENU, lambda e: load_dest_in_background(), id=ID_REFRESH_DEST)
     main_frame.Bind(wx.EVT_MENU, lambda e: show_backup_error_log(), id=ID_SHOW_ERROR_LOG)
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: start_verify_data_from_hash_list(), id=ID_VERIFY_DATA)
+    main_frame.Bind(wx.EVT_MENU, lambda e: delete_config_file_from_selected_drives(), id=ID_DELETE_CONFIG_FROM_DRIVES)
 
     main_frame.Bind(wx.EVT_MENU, lambda e: change_verification_all_preferences(False), id=ID_VERIFY_KNOWN_FILES)
     main_frame.Bind(wx.EVT_MENU, lambda e: change_verification_all_preferences(True), id=ID_VERIFY_ALL_FILES)
@@ -3354,26 +3374,7 @@ if __name__ == '__main__':
     )
 
     # Main window UI stuff was here #
-
-    ####################
-    # BEGIN MENU STUFF #
-    ####################
-
-    # Add menu bar
-    menubar = tk.Menu(root_window)
-
-    # Actions menu
-    actions_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    actions_menu.add_command(label='Verify Data Integrity on Selected Destinations', underline=0, command=start_verify_data_from_hash_list)
-    actions_menu.add_command(label='Delete Config from Selected Destinations', command=delete_config_file_from_selected_drives)
-    menubar.add_cascade(label='Actions', underline=0, menu=actions_menu)
-
-    root_window.config(menu=menubar)
-
-    ##################
-    # END MENU STUFF #
-    ##################
-
+    # Menu bar stuff was here #
     # init vars was here #
     # Source tree was here #
     # Source tree meta stuff was here #
