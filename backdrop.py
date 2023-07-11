@@ -9,7 +9,7 @@ __version__ = '4.0.0-alpha4'
 
 import platform
 import tkinter as tk
-from tkinter import simpledialog, font as tkfont, filedialog
+from tkinter import simpledialog, font as tkfont
 import wx
 from sys import exit
 import shutil
@@ -124,19 +124,26 @@ def update_file_detail_lists(list_name: str, files: set):
         # Update copy list scrollable
         filenames = '\n'.join([filename.split(os.path.sep)[-1] for filename in files])
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_DELETE_SUCCESS]:
-            tk.Label(file_details_copied.frame, text=filenames,
-                     fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED,
-                     justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
+            new_file_label = wx.StaticText(file_details_success_panel, -1, label=filenames)
+            if list_name == FileUtils.LIST_DELETE_SUCCESS:
+                new_file_label.SetForegroundColour(Color.FADED)
+            file_details_success_sizer.Add(new_file_label, 0)
+            file_details_success_sizer.Layout()
+
             file_details_success_count.SetLabel(label=len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS]))
             file_details_success_count.Layout()
             file_details_success_header_sizer.Layout()
 
             # Remove all but the most recent 250 items for performance reasons
-            file_details_copied.show_items(250)
+            # FIXME: See if truncating the list like this is needed in wxPython
+            # file_details_copied.show_items(250)
         else:
-            tk.Label(file_details_failed.frame, text=filenames,
-                     fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED,
-                     justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
+            new_file_label = wx.StaticText(file_details_failed_panel, -1, label=filenames)
+            if list_name == FileUtils.LIST_DELETE_FAIL:
+                new_file_label.SetForegroundColour(Color.FADED)
+            file_details_failed_sizer.Add(new_file_label, 0)
+            file_details_failed_sizer.Layout()
+
             file_details_failed_count.SetLabel(label=len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL]))
             file_details_failed_count.Layout()
             file_details_failed_header_sizer.Layout()
@@ -151,7 +158,8 @@ def update_file_detail_lists(list_name: str, files: set):
             # HACK: The scroll yview won't see the label instantly after it's packed.
             # Sleeping for a brief time fixes that. This is acceptable as long as it's
             # not run in the main thread, else the UI will hang.
-            file_details_failed.show_items()
+            # FIXME: See if truncating the list like this is needed in wxPython
+            # file_details_failed.show_items()
 
 backup_error_log = []
 
@@ -209,25 +217,30 @@ def display_backup_summary_chunk(title: str, payload: list, reset: bool = None):
         reset = False
 
     if reset:
-        content_tab_frame.tab['summary']['content'].empty()
+        summary_summary_sizer.Clear()
 
-    tk.Label(content_tab_frame.tab['summary']['content'].frame, text=title, font=(None, 14),
-             wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
-    summary_frame = tk.Frame(content_tab_frame.tab['summary']['content'].frame)
-    summary_frame.pack(fill='x', expand=True)
-    summary_frame.columnconfigure(2, weight=1)
+    heading_label = wx.StaticText(summary_summary_panel, -1, label=title)
+    heading_label.SetFont(FONT_HEADING)
+
+    chunk_sizer = wx.GridBagSizer()
 
     for i, item in enumerate(payload):
-        if len(item) > 2:
-            text_color = root_window.uicolor.NORMAL if item[2] else root_window.uicolor.FADED
-        else:
-            text_color = root_window.uicolor.NORMAL
+        row1_label = wx.StaticText(summary_summary_panel, -1, label=item[0])
+        row2_label = wx.StaticText(summary_summary_panel, -1, label='\u27f6')
+        row3_label = wx.StaticText(summary_summary_panel, -1, label=item[1])
 
-        tk.Label(summary_frame, text=item[0], fg=text_color, justify='left').grid(row=i, column=0, sticky='w')
-        tk.Label(summary_frame, text='\u27f6', fg=text_color, justify='left').grid(row=i, column=1, sticky='w')
-        wrap_frame = tk.Frame(summary_frame)
-        wrap_frame.grid(row=i, column=2, sticky='ew')
-        tk.Label(summary_frame, text=item[1], fg=text_color, justify='left').grid(row=i, column=2, sticky='w')
+        if len(item) > 2 and not item[2]:
+            row1_label.SetForegroundColour(Color.FADED)
+            row2_label.SetForegroundColour(Color.FADED)
+            row3_label.SetForegroundColour(Color.FADED)
+
+        chunk_sizer.Add(row1_label, (i, 0))
+        chunk_sizer.Add(row2_label, (i, 1))
+        chunk_sizer.Add(row3_label, (i, 2))
+
+    summary_summary_sizer.Add(heading_label, 0)
+    summary_summary_sizer.Add(chunk_sizer, 0)
+    summary_summary_sizer.Layout()
 
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
 def update_backup_eta_timer(progress_info: dict):
@@ -1207,16 +1220,25 @@ def start_backup():
     # Reset file details counters
     FILE_DELETE_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])
     FILE_COPY_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_COPY])
-    file_details_pending_delete_counter.configure(text=str(FILE_DELETE_COUNT))
-    file_details_pending_delete_counter_total.configure(text=str(FILE_DELETE_COUNT))
-    file_details_pending_copy_counter.configure(text=str(FILE_COPY_COUNT))
-    file_details_pending_copy_counter_total.configure(text=str(FILE_COPY_COUNT))
-    file_details_copied_counter.configure(text='0')
-    file_details_failed_counter.configure(text='0')
+    file_details_pending_delete_counter.SetLabel(label=str(FILE_DELETE_COUNT))
+    file_details_pending_delete_counter.Layout()
+    file_details_pending_delete_counter_total.SetLabel(label=str(FILE_DELETE_COUNT))
+    file_details_pending_delete_counter_total.Layout()
+    file_details_pending_copy_counter.SetLabel(label=str(FILE_COPY_COUNT))
+    file_details_pending_copy_counter.Layout()
+    file_details_pending_copy_counter_total.SetLabel(label=str(FILE_COPY_COUNT))
+    file_details_pending_copy_counter_total.Layout()
+    file_details_pending_sizer.Layout()
+    file_details_success_count.SetLabel(label='0')
+    file_details_success_count.Layout()
+    file_details_success_header_sizer.Layout()
+    file_details_failed_count.SetLabel(label='0')
+    file_details_failed_count.Layout()
+    file_details_failed_header_sizer.Layout()
 
     # Empty file details list panes
-    file_details_copied.empty()
-    file_details_failed.empty()
+    file_details_success_sizer.Clear()
+    file_details_failed_sizer.Clear()
 
     if not backup.analysis_valid or not backup.sanity_check():
         return
@@ -1227,10 +1249,13 @@ def start_backup():
     progress_bar.SetRange(backup.progress['total'])
 
     for cmd in backup.command_list:
-        cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=root_window.uicolor.PENDING)
+        cmd_info_blocks[cmd['displayIndex']].state.SetLabel(label='Pending')
+        cmd_info_blocks[cmd['displayIndex']].state.SetForegroundColour(Color.PENDING)
         if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
-            cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=root_window.uicolor.PENDING)
-        cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=root_window.uicolor.PENDING)
+            cmd_info_blocks[cmd['displayIndex']].SetLabel('current_file', label='Pending')
+            cmd_info_blocks[cmd['displayIndex']].SetForegroundColour('current_file', Color.PENDING)
+        cmd_info_blocks[cmd['displayIndex']].SetLabel('progress', label='Pending')
+        cmd_info_blocks[cmd['displayIndex']].SetForegroundColour('progress', Color.PENDING)
 
     thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
@@ -2002,35 +2027,45 @@ if __name__ == '__main__':
 
         global last_selected_custom_source
 
-        dir_name = filedialog.askdirectory(initialdir='', title='Select source folder')
-        dir_name = os.path.sep.join(dir_name.split('/'))
-        if not dir_name:
-            return
+        with wx.DirDialog(main_frame, 'Select source folder', style=wx.DD_DIR_MUST_EXIST) as dir_dialog:
+            # User changed their mind
+            if dir_dialog.ShowModal() == wx.ID_CANCEL:
+                return
 
-        if settings_dest_mode == Config.SOURCE_MODE_SINGLE_PATH:
-            source_select_custom_single_path_label.configure(text=dir_name)
-            config['source_path'] = dir_name
+            dir_name = dir_dialog.GetPath()
 
-            # Log last selection to preferences
-            last_selected_custom_source = dir_name
-            prefs.set('selection', 'last_selected_custom_source', dir_name)
+            dir_name = os.path.sep.join(dir_name.split('/'))
+            if not dir_name:
+                return
 
-            load_source_in_background()
-        elif settings_dest_mode == Config.SOURCE_MODE_MULTI_PATH:
-            # Get list of paths already in tree
-            existing_path_list = [source_tree.GetItem(item, SOURCE_COL_PATH) for item in tree_source.get_children()]
+            if settings_dest_mode == Config.SOURCE_MODE_SINGLE_PATH:
+                source_src_control_label.SetLabel(label=dir_name)
+                source_src_control_label.Layout()
+                source_src_control_sizer.Layout()
+                config['source_path'] = dir_name
 
-            # Only add item to list if it's not already there
-            if dir_name not in existing_path_list:
                 # Log last selection to preferences
                 last_selected_custom_source = dir_name
                 prefs.set('selection', 'last_selected_custom_source', dir_name)
 
-                # Custom multi-source isn't stored in preferences, so default to
-                # dir name
-                path_name = dir_name.split(os.path.sep)[-1]
-                tree_source.insert(parent='', index='end', text=dir_name, values=('Unknown', 0, path_name))
+                load_source_in_background()
+            elif settings_dest_mode == Config.SOURCE_MODE_MULTI_PATH:
+                # Get list of paths already in tree
+                existing_path_list = [source_tree.GetItem(item, SOURCE_COL_PATH).GetText() for item in range(source_tree.GetItemCount())]
 
+                # Only add item to list if it's not already there
+                if dir_name not in existing_path_list:
+                    # Log last selection to preferences
+                    last_selected_custom_source = dir_name
+                    prefs.set('selection', 'last_selected_custom_source', dir_name)
+
+                    # Custom multi-source isn't stored in preferences, so default to
+                    # dir name
+                    path_name = dir_name.split(os.path.sep)[-1]
+
+                    source_tree.Append((dir_name, path_name, 'Unknown', 0))
+
+    # FIXME: Make browse for source button work
     def browse_for_source_in_background():
         """Load a browsed source in the background."""
 
@@ -2039,30 +2074,45 @@ if __name__ == '__main__':
     def browse_for_dest():
         """Browse for a destination path, and add to the list."""
 
-        dir_name = filedialog.askdirectory(initialdir='', title='Select destination folder')
-        dir_name = os.path.sep.join(dir_name.split('/'))
-        if not dir_name:
-            return
+        with wx.DirDialog(main_frame, 'Select destination folder', style=wx.DD_DIR_MUST_EXIST) as dir_dialog:
+            # User changed their mind
+            if dir_dialog.ShowModal() == wx.ID_CANCEL:
+                return
 
-        if settings_dest_mode != Config.DEST_MODE_PATHS:
-            return
+            dir_name = dir_dialog.GetPath()
 
-        # Get list of paths already in tree
-        existing_path_list = [tree_dest.item(item, 'text') for item in tree_dest.get_children()]
+            dir_name = os.path.sep.join(dir_name.split('/'))
+            if not dir_name:
+                return
 
-        # Only add item to list if it's not already there
-        if dir_name not in existing_path_list:
-            # Custom dest isn't stored in preferences, so default to
-            # dir name
-            drive_free_space = shutil.disk_usage(dir_name).free
-            path_space = get_directory_size(dir_name)
-            config_space = get_directory_size(os.path.join(dir_name, BACKUP_CONFIG_DIR))
+            if settings_dest_mode != Config.DEST_MODE_PATHS:
+                return
 
-            dir_has_config_file = os.path.isfile(os.path.join(dir_name, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
-            name_stub = dir_name.split(os.path.sep)[-1].strip()
-            avail_space = drive_free_space + path_space - config_space
-            tree_dest.insert(parent='', index='end', text=dir_name, values=(human_filesize(avail_space), avail_space, 'Yes' if dir_has_config_file else '', name_stub))
+            # Get list of paths already in tree
+            existing_path_list = [dest_tree.GetItem(item, DEST_COL_PATH) for item in range(dest_tree.GetItemCount())]
 
+            # Only add item to list if it's not already there
+            if dir_name not in existing_path_list:
+                # Custom dest isn't stored in preferences, so default to
+                # dir name
+                drive_free_space = shutil.disk_usage(dir_name).free
+                path_space = get_directory_size(dir_name)
+                config_space = get_directory_size(os.path.join(dir_name, BACKUP_CONFIG_DIR))
+
+                dir_has_config_file = os.path.isfile(os.path.join(dir_name, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+                name_stub = dir_name.split(os.path.sep)[-1].strip()
+                avail_space = drive_free_space + path_space - config_space
+                dest_tree.Append((
+                    dir_name,
+                    name_stub,
+                    human_filesize(avail_space),
+                    'Yes' if dir_has_config_file else '',
+                    '',
+                    '',
+                    avail_space
+                ))
+
+    # FIXME: Make browse for destination button work
     def browse_for_dest_in_background():
         """Load a browsed destination in the background."""
 

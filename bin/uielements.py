@@ -205,7 +205,7 @@ class DetailBlock(wx.BoxSizer):
         """Create an expandable detail block to display info.
 
         Args:
-            parent (tk.*): The parent widget.
+            parent: The parent widget.
             title (String): The bold title to display.
             text_font (wx.Font): The font to use for the text.
             bold_font (wx.Font): The font to use for the headings.
@@ -288,7 +288,7 @@ class DetailBlock(wx.BoxSizer):
         """
 
         if line_name in self.lines.keys():
-            self.header.SetForegroundColour(*args, **kwargs)
+            self.lines[line_name].SetForegroundColour(*args, **kwargs)
 
     def SetFont(self, line_name: str, *args, **kwargs):
         """Set the font of an info line.
@@ -298,14 +298,24 @@ class DetailBlock(wx.BoxSizer):
         """
 
         if line_name in self.lines.keys():
-            self.header.SetFont(*args, **kwargs)
+            self.lines[line_name].SetFont(*args, **kwargs)
+
+    def Layout(self, line_name: str, *args, **kwargs):
+        """Set the font of an info line.
+
+        Args:
+            line_name (String): The line name to change.
+        """
+
+        if line_name in self.lines.keys():
+            self.lines[line_name].Layout(*args, **kwargs)
 
     class InfoLine(wx.BoxSizer):
         def __init__(self, parent, title: str, content: str, bold_font: wx.Font, text_font: wx.Font, clipboard_data: str = None, *args, **kwargs):
             """Create an info line for use in DisplayBlock classes.
 
             Args:
-                parent (tk.*): The parent widget).
+                parent: The parent widget).
                 title (String): The line title.
                 content (String): The content to display.
                 bold_font (wx.Font): The font to be used for the header.
@@ -350,3 +360,26 @@ class DetailBlock(wx.BoxSizer):
             """Set the font of the line."""
 
             self.header.SetFont(*args, **kwargs)
+
+        def Layout(self, *args, **kwargs):
+            """Update the layout of the line."""
+
+            self.header.Layout(*args, **kwargs)
+
+def BackupDetailBlock(DetailBlock):
+    def __init__(self, parent, title: str, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
+        """Create an expandable detail block to display info.
+
+        Args:
+            parent: The parent widget.
+            title (String): The bold title to display.
+            text_font (wx.Font): The font to use for the text.
+            bold_font (wx.Font): The font to use for the headings.
+            enabled (bool): Whether or not this block is enabled.
+        """
+
+        DetailBlock.__init__(self, parent, title, text_font, bold_font, enabled)
+
+        self.state = wx.StaticText(self.parent, -1, label='Pending' if self.enabled else 'Skipped')
+        self.state.SetForegroundColour(Color.PENDING if self.enabled else Color.FADED)
+        self.header_sizer.Add(self.state, 0)
