@@ -500,6 +500,8 @@ def load_source():
             source_warning_panel.Hide()
             source_tree.Show()
             source_src_sizer.Layout()
+            summary_sizer.Layout()
+            root_sizer.Layout()
 
         source_src_control_dropdown.Clear()
 
@@ -539,6 +541,8 @@ def load_source():
             source_tree.Hide()
             source_warning_panel.Show()
             source_src_sizer.Layout()
+            summary_sizer.Layout()
+            root_sizer.Layout()
 
     progress_bar.StopIndeterminate()
 
