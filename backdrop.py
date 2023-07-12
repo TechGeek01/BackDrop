@@ -978,11 +978,16 @@ def gui_select_from_config():
         MISSING_VID_ALERT_MESSAGE = f"The drive{'s' if len(config_missing_drive_vid_list) > 1 else ''} with volume ID{'s' if len(config_missing_drive_vid_list) > 1 else ''} {MISSING_VID_READABLE_LIST} {'are' if len(config_missing_drive_vid_list) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
         MISSING_VID_ALERT_TITLE = f"Drive{'s' if len(config_missing_drive_vid_list) > 1 else ''} missing"
 
-        split_warning_prefix.configure(text=f"There {'is' if MISSING_DRIVE_COUNT == 1 else 'are'}")
-        MISSING_DRIVE_CONTRACTION = 'isn\'t' if MISSING_DRIVE_COUNT == 1 else 'aren\'t'
-        split_warning_suffix.configure(text=f"{'drive' if MISSING_DRIVE_COUNT == 1 else 'destinations'} in the config that {MISSING_DRIVE_CONTRACTION} connected. Please connect {'it' if MISSING_DRIVE_COUNT == 1 else 'them'}, or enable split mode.")
-        split_warning_missing_drive_count.configure(text=str(MISSING_DRIVE_COUNT))
-        dest_split_warning_frame.grid(row=3, column=0, columnspan=3, sticky='nsew', pady=(0, WINDOW_ELEMENT_PADDING), ipady=WINDOW_ELEMENT_PADDING / 4)
+        dest_split_warning_prefix.SetLabel(label=f'There {"is" if MISSING_DRIVE_COUNT == 1 else "are"} ')
+        MISSING_DRIVE_CONTRACTION = "isn't" if MISSING_DRIVE_COUNT == 1 else "aren't"
+        dest_split_warning_suffix.SetLabel(label=f' {"drive" if MISSING_DRIVE_COUNT == 1 else "destinations"} in the config that {MISSING_DRIVE_CONTRACTION} connected. Please connect {"it" if MISSING_DRIVE_COUNT == 1 else "them"}, or enable split mode.')
+        dest_split_warning_count.SetLabel(label=str(MISSING_DRIVE_COUNT))
+
+        if not dest_split_warning_panel.IsShown():
+            dest_split_warning_panel.Show()
+            dest_split_warning_panel.sizer.Layout()
+            dest_split_warning_panel.box.Layout()
+            summary_sizer.Layout()
 
         wx.MessageBox(
             message=MISSING_VID_ALERT_MESSAGE,
@@ -990,6 +995,10 @@ def gui_select_from_config():
             style=wx.ICON_WARNING,
             parent=main_frame
         )
+    else:
+        if dest_split_warning_panel.IsShown():
+            dest_split_warning_panel.Hide()
+            summary_sizer.Layout()
 
     # Select any other config drives
     # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
@@ -1141,7 +1150,9 @@ def select_dest():
             load_config_from_file(SELECTED_PATH_CONFIG_FILE)
             drives_read_from_config_file = True
         else:
-            # dest_split_warning_frame.grid_remove()
+            if dest_split_warning_panel.IsShown():
+                dest_split_warning_panel.Hide()
+                summary_sizer.Layout()
             prev_selection = len(dest_selection)
 
     selected_total = 0
@@ -3028,6 +3039,20 @@ if __name__ == '__main__':
     source_sizer.Add(source_dest_sizer, 0, wx.EXPAND | wx.LEFT, ITEM_UI_PADDING)
 
     # Backup summary panel
+    dest_split_warning_panel = WarningPanel(main_frame.root_panel)
+    dest_split_warning_panel.SetFont(FONT_MEDIUM)
+    dest_split_warning_panel.SetBackgroundColour(Color.WARNING)
+    dest_split_warning_panel.SetForegroundColour(Color.BLACK)
+    dest_split_warning_prefix = wx.StaticText(dest_split_warning_panel, -1, label='There are ')
+    dest_split_warning_count = wx.StaticText(dest_split_warning_panel, -1, label='0')
+    dest_split_warning_count.SetFont(FONT_LARGE)
+    dest_split_warning_suffix = wx.StaticText(dest_split_warning_panel, -1, label=" drives in the config that aren't connected. Please connect them, or enable split mode.")
+    dest_split_warning_line_sizer = wx.BoxSizer()
+    dest_split_warning_line_sizer.Add(dest_split_warning_prefix, 0, wx.ALIGN_CENTER)
+    dest_split_warning_line_sizer.Add(dest_split_warning_count, 0, wx.ALIGN_CENTER)
+    dest_split_warning_line_sizer.Add(dest_split_warning_suffix, 0, wx.ALIGN_CENTER)
+    dest_split_warning_panel.sizer.Add(dest_split_warning_line_sizer, 0, wx.ALIGN_CENTER)
+
     backup_eta_label = wx.StaticText(main_frame.root_panel, -1, label='Please start a backup to show ETA', name='Backup ETA label')
 
     summary_notebook = wx.Notebook(main_frame.root_panel, -1, name='Backup summary notebook')
@@ -3050,7 +3075,9 @@ if __name__ == '__main__':
     summary_notebook.AddPage(summary_summary_panel, 'Backup Summary')
     summary_notebook.AddPage(summary_details_panel, 'Backup Details')
     summary_sizer = wx.BoxSizer(wx.VERTICAL)
-    summary_sizer.Add(backup_eta_label, 0, wx.ALIGN_CENTER_HORIZONTAL)
+    summary_sizer.Add(dest_split_warning_panel, 0, wx.ALIGN_CENTER_HORIZONTAL)
+    dest_split_warning_panel.Hide()
+    summary_sizer.Add(backup_eta_label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, ITEM_UI_PADDING)
     summary_sizer.Add(summary_notebook, 1, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
 
     reset_analysis_output()
