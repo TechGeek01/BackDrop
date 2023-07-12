@@ -2909,7 +2909,7 @@ if __name__ == '__main__':
     SOURCE_COL_RAWSIZE = 3
 
     # FIXME: Remove size in source tree constructor when SetSize works
-    source_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, -1), style=wx.LC_REPORT, name='Source tree')
+    source_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, 170), style=wx.LC_REPORT, name='Source tree')
 
     source_tree.AppendColumn('Path')
     source_tree.AppendColumn('Name')
@@ -2961,7 +2961,7 @@ if __name__ == '__main__':
     DEST_COL_RAWSIZE = 6
 
     # FIXME: Remove size in dest tree constructor when SetSize works
-    dest_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, -1), style=wx.LC_REPORT, name='Destination tree')
+    dest_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, 170), style=wx.LC_REPORT, name='Destination tree')
 
     dest_tree.AppendColumn('Path')
     dest_tree.AppendColumn('Name')
