@@ -2605,6 +2605,21 @@ if __name__ == '__main__':
         settings_dark_mode = dark_mode
         prefs.set('ui', 'dark_mode', dark_mode)
 
+    def change_prerelease_preferences(allow_prereleases: bool = False):
+        """Set verification preferences whether to verify all files or not.
+
+        Args:
+            allow_prereleases (bool): Whether to allow prereleases (default: False).
+        """
+
+        global settings_allow_prerelease_updates
+
+        settings_allow_prerelease_updates = allow_prereleases
+        prefs.set('ui', 'allow_prereleases', allow_prereleases)
+
+        # Update handler doesn't check for this setting on its own, so update it
+        update_handler.allow_prereleases = bool(allow_prereleases)
+
     def redraw_source_tree():
         """Redraw the source tree by reading preferences and setting columns and
         sizes.
@@ -3300,9 +3315,10 @@ if __name__ == '__main__':
 
     # Help menu
     ID_CHECK_FOR_UPDATES = wx.NewIdRef()
+    ID_ALLOW_PRERELEASE_UPDATES = wx.NewIdRef()
     help_menu = wx.Menu()
     help_menu.Append(ID_CHECK_FOR_UPDATES, 'Check for Updates', 'Check for program updates, and prompt to download them, if there are any')
-    help_menu_allow_prerelease_updates = wx.MenuItem(help_menu, 702, 'Allow Prereleases', 'Allow prerelease versions when checking for updates', kind=wx.ITEM_CHECK)
+    help_menu_allow_prerelease_updates = wx.MenuItem(help_menu, ID_ALLOW_PRERELEASE_UPDATES, 'Allow Prereleases', 'Allow prerelease versions when checking for updates', kind=wx.ITEM_CHECK)
     help_menu.Append(help_menu_allow_prerelease_updates)
     help_menu_allow_prerelease_updates.Check(settings_allow_prerelease_updates)
     menu_bar.Append(help_menu, '&Help')
@@ -3340,6 +3356,7 @@ if __name__ == '__main__':
     main_frame.Bind(wx.EVT_MENU, lambda e: show_widget_inspector(), id=ID_SHOW_WIDGET_INSPECTION)
 
     main_frame.Bind(wx.EVT_MENU, lambda e: check_for_updates_in_background(), id=ID_CHECK_FOR_UPDATES)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_prerelease_preferences(help_menu_allow_prerelease_updates.IsChecked()), id=ID_ALLOW_PRERELEASE_UPDATES)
 
     # Key bindings
     accelerators = [wx.AcceleratorEntry() for x in range(7)]
