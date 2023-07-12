@@ -20,6 +20,7 @@ class Color:
     FADED = wx.Colour(0x8e, 0x8e, 0x8e)
     INFO = wx.Colour(0x3b, 0xce, 0xff)
     TOOLTIP = INFO
+    WARNING = GOLD
     ERROR = RED
 
     ENABLED = GREEN
@@ -196,6 +197,24 @@ class ProgressBar(wx.Gauge):
 
         self.is_indeterminate = False
         self.SetValue(self.value)
+
+class WarningPanel(wx.Panel):
+    def __init__(self, parent, *args, **kwargs):
+        """Create an alert-like panel for warnings and errors."""
+
+        wx.Panel.__init__(self, parent, *args, **kwargs)
+
+        self.parent = parent
+
+        # Set up box sizer for panel
+        self.box = wx.BoxSizer()
+        self.SetSizer(self.box)
+
+        # Set up main sizer
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.box.Add((-1, -1), 1)
+        self.box.Add(self.sizer, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 10)
+        self.box.Add((-1, -1), 1)
 
 class DetailBlock(wx.BoxSizer):
     TITLE = 'title'

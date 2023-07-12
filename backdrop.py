@@ -37,7 +37,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, ProgressBar, DetailBlock, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, ProgressBar, DetailBlock, resource_path
 from bin.status import Status
 
 def on_press(key):
@@ -486,14 +486,9 @@ def load_source():
     # Empty tree in case this is being refreshed
     source_tree.DeleteAllItems()
 
-    # FIXME: Get source selection warnings working with wxPython
-    # if not source_warning.grid_info() and not tree_source_frame.grid_info():
-    #     tree_source_frame.grid(row=1, column=1, sticky='ns')
-    #     source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
-
     source_avail_drive_list = get_source_drive_list()
 
-    if settings_dest_mode in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH] or source_avail_drive_list:
+    if settings_source_mode in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH] or source_avail_drive_list:
         # Display empty selection sizes
         source_selected_space.SetLabel('None')
         source_total_space.SetLabel('~None')
@@ -501,9 +496,10 @@ def load_source():
         source_total_space.Layout()
         source_dest_selection_info_sizer.Layout()
 
-        # source_warning.grid_forget()
-        # tree_source_frame.grid(row=1, column=1, sticky='ns')
-        # source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+        if source_warning_panel.IsShown():
+            source_warning_panel.Hide()
+            source_tree.Show()
+            source_src_sizer.Layout()
 
         source_src_control_dropdown.Clear()
 
@@ -536,14 +532,13 @@ def load_source():
 
         source_tree.Layout()
         source_src_sizer.Layout()
-    elif settings_dest_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_MULTI_DRIVE]:
+    elif settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_MULTI_DRIVE]:
         source_drive_default = 'No drives available'
 
-        # FIXME: Make the source and destination warnings work
-        # tree_source_frame.grid_forget()
-        # source_meta_frame.grid_forget()
-        # source_select_frame.grid_forget()
-        # source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
+        if not source_warning_panel.IsShown():
+            source_tree.Hide()
+            source_warning_panel.Show()
+            source_src_sizer.Layout()
 
     progress_bar.StopIndeterminate()
 
@@ -2920,6 +2915,12 @@ if __name__ == '__main__':
     source_tree.SetBackgroundColour(Color.WIDGET_COLOR)
     source_tree.SetTextColour(Color.WHITE)
 
+    source_warning_panel = WarningPanel(main_frame.root_panel, size=(420, 170))
+    source_warning_panel.SetFont(FONT_MEDIUM)
+    source_warning_panel.SetBackgroundColour(Color.WARNING)
+    source_warning_panel.SetForegroundColour(Color.BLACK)
+    source_warning_panel.sizer.Add(wx.StaticText(source_warning_panel, -1, label='No source drives are available'), 0, wx.ALIGN_CENTER)
+
     source_src_selection_info_sizer = wx.BoxSizer()
     source_src_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Selected:', name='Source meta selected label'), 0, wx.ALIGN_CENTER_VERTICAL)
     source_selected_space = wx.StaticText(main_frame.root_panel, -1, label='None', name='Source meta selected value')
@@ -2937,6 +2938,8 @@ if __name__ == '__main__':
     source_src_sizer = wx.BoxSizer(wx.VERTICAL)
     source_src_sizer.Add(source_src_control_sizer, 0, wx.EXPAND)
     source_src_sizer.Add(source_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    source_src_sizer.Add(source_warning_panel, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    source_warning_panel.Hide()
     source_src_sizer.Add(source_src_selection_info_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, ITEM_UI_PADDING)
 
     # Destination controls
@@ -3454,9 +3457,7 @@ if __name__ == '__main__':
     # init vars was here #
     # Source tree was here #
     # Source tree meta stuff was here #
-
-    source_warning = tk.Label(root_window.main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=root_window.uicolor.ERROR, fg=root_window.uicolor.BLACK)
-
+    # Source tree warning was here #
     # Destination tree was here #
 
     dest_split_warning_frame = tk.Frame(root_window.main_frame, bg=root_window.uicolor.WARNING)
