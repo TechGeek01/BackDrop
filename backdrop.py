@@ -510,7 +510,7 @@ def load_source():
         selected_source_mode = prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS)
 
         if selected_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE:
-            config['source_path'] = prefs.get('selection', 'source_path', source_avail_drive_list[0], verify_data=source_avail_drive_list)
+            config['source_path'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
 
             source_drive_default = config['source_path']
             PREV_SOURCE_DRIVE = config['source_path']
@@ -574,7 +574,7 @@ def change_source_drive(e):
 
     config['source_path'] = selection
     PREV_SOURCE_DRIVE = selection
-    prefs.set('selection', 'source_path', selection)
+    prefs.set('selection', 'source_drive', selection)
 
     load_source_in_background()
 
