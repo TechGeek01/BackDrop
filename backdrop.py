@@ -3029,6 +3029,9 @@ if __name__ == '__main__':
     split_mode_status = wx.StaticText(main_frame.root_panel, -1, label='', name='Split mode toggle status')
     update_split_mode_label()
     source_dest_selection_info_sizer.Add(split_mode_status, 0, wx.ALIGN_CENTER_VERTICAL)
+    spacer_button = wx.Button(main_frame.root_panel, -1, label='', size=(0, -1), name='Spacer dummy button')
+    spacer_button.Disable()
+    source_dest_selection_info_sizer.Add(spacer_button, 0, wx.ALIGN_CENTER_VERTICAL)
 
     source_dest_sizer = wx.BoxSizer(wx.VERTICAL)
     source_dest_sizer.Add(source_dest_control_sizer, 0, wx.EXPAND)
