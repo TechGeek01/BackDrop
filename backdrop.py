@@ -660,8 +660,8 @@ def select_source():
 
         source_selected_space.SetLabel(human_filesize(selected_total))
         source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
-        source_selected_space.Layout()
-        source_dest_selection_info_sizer.Layout()
+        source_src_selection_info_sizer.Layout()
+        source_src_sizer.Layout()
         config['sources'] = selected_source_list
 
         source_total = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in range(source_tree.GetItemCount())])
@@ -670,8 +670,8 @@ def select_source():
         # Recalculate and display the selected total
         source_total_space.SetLabel(f'{"~" if "Unknown" in human_size_list else ""}{human_filesize(source_total)}')
         source_total_space.SetForegroundColour(Color.TEXT_DEFAULT if source_total > 0 else Color.FADED)
-        source_total_space.Layout()
-        source_dest_selection_info_sizer.Layout()
+        source_src_selection_info_sizer.Layout()
+        source_src_sizer.Layout()
 
         # If everything's calculated, enable analysis button to be clicked
         # IDEA: Is it better to assume calculations are out of date, and always calculate on the fly during analysis?
@@ -728,8 +728,8 @@ def select_source():
         else:
             source_selected_space.SetLabel('None')
             source_selected_space.SetForegroundColour(Color.FADED)
-            source_selected_space.Layout()
             source_src_selection_info_sizer.Layout()
+            source_src_sizer.Layout()
 
         config['sources'] = new_sources
         update_status_bar_selection()
@@ -745,8 +745,8 @@ def select_source():
         selection_known_size = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in selection_known_size_items])
         source_selected_space.SetLabel(human_filesize(selection_known_size))
         source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selection_known_size > 0 else Color.FADED)
-        source_selected_space.Layout()
         source_src_selection_info_sizer.Layout()
+        source_src_sizer.Layout()
 
         # For each selected item, calculate size and add to total
         for item in new_selected:
@@ -1092,8 +1092,8 @@ def load_config_from_file(filename: str):
 
     config_selected_space.SetLabel(label=human_filesize(config_dest_total))
     config_selected_space.SetForegroundColour(Color.TEXT_DEFAULT)
-    config_selected_space.Layout()
     source_dest_selection_info_sizer.Layout()
+    source_dest_sizer.Layout()
     gui_select_from_config()
 
 def select_dest():
@@ -1192,14 +1192,13 @@ def select_dest():
 
     dest_selected_space.SetLabel(label=human_filesize(selected_total) if selected_total > 0 else 'None')
     dest_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
-    dest_selected_space.Layout()
     if not drives_read_from_config_file:
         config['destinations'] = selected_drive_list
         config['missing_drives'] = {}
         config_selected_space.SetLabel(label='None')
         config_selected_space.SetForegroundColour(Color.FADED)
-        config_selected_space.Layout()
     source_dest_selection_info_sizer.Layout()
+    source_dest_sizer.Layout()
 
     update_status_bar_selection()
 
