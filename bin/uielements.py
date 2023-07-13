@@ -385,7 +385,7 @@ class DetailBlock(wx.BoxSizer):
 
             self.header.Layout(*args, **kwargs)
 
-def BackupDetailBlock(DetailBlock):
+class BackupDetailBlock(DetailBlock):
     def __init__(self, parent, title: str, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
         """Create an expandable detail block to display info.
 

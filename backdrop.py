@@ -5,7 +5,7 @@ logically copying files from point A to point B. This is complete with
 verification, and many other organization and integrity features.
 """
 
-__version__ = '4.0.0-alpha6'
+__version__ = '4.0.0-beta1'
 
 import platform
 import tkinter as tk
@@ -37,7 +37,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, ProgressBar, DetailBlock, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, ProgressBar, DetailBlock, BackupDetailBlock, resource_path
 from bin.status import Status
 
 def on_press(key):
@@ -316,7 +316,7 @@ def display_backup_command_info(display_command_list: list) -> list:
             else:
                 cmd_header_text = f"Work with {len(item['list'])} files on {item['dest']}"
 
-        backup_summary_block = DetailBlock(
+        backup_summary_block = BackupDetailBlock(
             parent=summary_details_panel,
             title=cmd_header_text,
             text_font=FONT_DEFAULT,
