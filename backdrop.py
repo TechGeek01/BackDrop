@@ -9,7 +9,7 @@ __version__ = '4.0.0-alpha6'
 
 import platform
 import tkinter as tk
-from tkinter import simpledialog, font as tkfont
+from tkinter import simpledialog
 import wx
 from sys import exit
 import shutil
@@ -219,28 +219,30 @@ def display_backup_summary_chunk(title: str, payload: list, reset: bool = None):
     if reset:
         summary_summary_sizer.Clear()
 
-    heading_label = wx.StaticText(summary_summary_panel, -1, label=title)
+    heading_label = wx.StaticText(summary_summary_panel, -1, label=title, name='Backup summary chunk header label')
     heading_label.SetFont(FONT_HEADING)
 
     chunk_sizer = wx.GridBagSizer()
 
     for i, item in enumerate(payload):
-        row1_label = wx.StaticText(summary_summary_panel, -1, label=item[0])
-        row2_label = wx.StaticText(summary_summary_panel, -1, label='\u27f6')
-        row3_label = wx.StaticText(summary_summary_panel, -1, label=item[1])
+        col1_label = wx.StaticText(summary_summary_panel, -1, label=item[0], name='Backup summary chunk name label')
+        col2_label = wx.StaticText(summary_summary_panel, -1, label='\u27f6', name='Backup summary chunk arrow label')
+        col3_label = wx.StaticText(summary_summary_panel, -1, label=item[1], name='Backup summary chunk summary label')
 
         if len(item) > 2 and not item[2]:
-            row1_label.SetForegroundColour(Color.FADED)
-            row2_label.SetForegroundColour(Color.FADED)
-            row3_label.SetForegroundColour(Color.FADED)
+            col1_label.SetForegroundColour(Color.FADED)
+            col2_label.SetForegroundColour(Color.FADED)
+            col3_label.SetForegroundColour(Color.FADED)
 
-        chunk_sizer.Add(row1_label, (i, 0))
-        chunk_sizer.Add(row2_label, (i, 1))
-        chunk_sizer.Add(row3_label, (i, 2))
+        chunk_sizer.Add(col1_label, (i, 0))
+        chunk_sizer.Add(col2_label, (i, 1))
+        chunk_sizer.Add(col3_label, (i, 2))
 
     summary_summary_sizer.Add(heading_label, 0)
     summary_summary_sizer.Add(chunk_sizer, 0)
     summary_summary_sizer.Layout()
+    summary_summary_box.Layout()
+    summary_summary_panel.Layout()
 
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
 def update_backup_eta_timer(progress_info: dict):
@@ -300,8 +302,7 @@ def display_backup_command_info(display_command_list: list) -> list:
 
     global cmd_info_blocks
 
-    for child in summary_details_sizer.GetChildren():
-        child.GetWindow().Destroy()
+    summary_details_sizer.Clear()
 
     cmd_info_blocks = []
     for i, item in enumerate(display_command_list):
@@ -325,21 +326,28 @@ def display_backup_command_info(display_command_list: list) -> list:
 
         if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
             # Handle list trimming
-            list_font = tkfont.Font(family=None, size=10, weight='normal')
+
+            dc = wx.ScreenDC()
+
+            dc.SetFont(FONT_BOLD)
+            CURRENT_FILE_HEADER_WIDTH, h = dc.GetTextExtent('Current file: ')
+
+            dc.SetFont(FONT_DEFAULT)
+
             trimmed_file_list = ', '.join(item['list'])[:250]
-            MAX_WIDTH = summary_details_sizer.GetWidth() - 50  # Used to be 80%
-            actual_file_width = list_font.measure(trimmed_file_list)
+            MAX_WIDTH = summary_details_sizer.GetSize().GetWidth() - CURRENT_FILE_HEADER_WIDTH - 50  # Used to be 80%
+            actual_file_width = dc.GetTextExtent(trimmed_file_list).GetWidth()
 
             if actual_file_width > MAX_WIDTH:
                 while actual_file_width > MAX_WIDTH and len(trimmed_file_list) > 1:
                     trimmed_file_list = trimmed_file_list[:-1]
-                    actual_file_width = list_font.measure(f'{trimmed_file_list}...')
+                    actual_file_width = dc.GetTextExtent(f'{trimmed_file_list}...').GetWidth()
                 trimmed_file_list = f'{trimmed_file_list}...'
 
             backup_summary_block.add_line('file_size', 'Total size', human_filesize(item['size']))
-            backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['list']))
-            backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
-            backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
+            backup_summary_block.add_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['list']))
+            backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=Color.PENDING if item['enabled'] else Color.FADED)
+            backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=Color.PENDING if item['enabled'] else Color.FADED)
 
         cmd_info_blocks.append(backup_summary_block)
 
@@ -585,11 +593,17 @@ def change_source_drive(e):
 
 def reset_analysis_output():
 
-    summary_summary_sizer.Clear()
+    print('Reset analysis output')
+
+    for child in summary_summary_sizer.GetChildren():
+        child.GetWindow().Destroy()
+    for child in summary_details_sizer.GetChildren():
+        child.GetWindow().Destroy()
 
     summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label="This area will summarize the backup that's been configured.", name='Backup summary placeholder tooltip 1'), 0)
     summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label='Please start a backup analysis to generate a summary.', name='Backup summary placeholder tooltip 2'), 0, wx.TOP, 5)
-    summary_summary_panel.Layout()
+    summary_summary_sizer.Layout()
+    summary_summary_box.Layout()
 
 # IDEA: @Calculate total space of all @sources in background
 def select_source():
@@ -1841,12 +1855,7 @@ if __name__ == '__main__':
             data (*): The data to update (optional).
         """
 
-        # URGENT: Fix update_ui_component button statuses
-        if status == Status.UPDATEUI_ANALYSIS_BTN:
-            start_analysis_btn.configure(**data)
-        elif status == Status.UPDATEUI_BACKUP_BTN:
-            start_backup_btn.configure(**data)
-        elif status == Status.UPDATEUI_ANALYSIS_START:
+        if status == Status.UPDATEUI_ANALYSIS_START:
             update_status_bar_action(Status.BACKUP_ANALYSIS_RUNNING)
             start_analysis_btn.SetLabel(label='Halt Analysis')
             start_analysis_btn.Unbind(wx.EVT_LEFT_DOWN)
@@ -1882,8 +1891,6 @@ if __name__ == '__main__':
             status_bar_details.SetLabel(label=data)
             status_bar_details.Layout()
             status_bar_sizer.Layout()
-        elif status == Status.RESET_ANALYSIS_OUTPUT:
-            reset_analysis_output()
 
     def open_config_file():
         """Open a config file and load it."""
@@ -2428,7 +2435,7 @@ if __name__ == '__main__':
         """Update the UI before an analysis is run."""
 
         update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
-        update_ui_component(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
+        start_backup_btn.Disable()
         update_ui_component(Status.UPDATEUI_ANALYSIS_START)
 
     def update_ui_post_analysis(files_payload: list, summary_payload: list):
@@ -2457,13 +2464,13 @@ if __name__ == '__main__':
             )
 
             update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
-            update_ui_component(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
+            start_backup_btn.Enable()
             update_ui_component(Status.UPDATEUI_ANALYSIS_END)
         else:
             # If thread halted, mark analysis as invalid
             update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
             update_ui_component(Status.UPDATEUI_ANALYSIS_END)
-            update_ui_component(Status.RESET_ANALYSIS_OUTPUT)
+            reset_analysis_output()
 
     def update_ui_during_backup():
         """Update the user interface using a RepeatedTimer."""
