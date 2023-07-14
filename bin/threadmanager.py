@@ -1,6 +1,7 @@
 import threading
 import time
 
+
 class ThreadManager:
     # Define thread types for starting threads
     SINGLE = 0x00       # One thread at once, block if already running

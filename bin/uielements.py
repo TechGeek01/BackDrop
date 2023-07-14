@@ -5,6 +5,7 @@ import clipboard
 
 WINDOW_ELEMENT_PADDING = 16
 
+
 class Color:
     BLACK = wx.Colour(0x00, 0x00, 0x00)
     WHITE = wx.Colour(0xec, 0xec, 0xec)
@@ -39,6 +40,7 @@ class Color:
     WIDGET_COLOR = wx.Colour(0x39, 0x39, 0x37)
     STATUS_BAR = wx.Colour(0x48, 0x48, 0x43)
 
+
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller."""
 
@@ -50,8 +52,9 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
+
 class RootWindow(wx.Frame):
-    def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
+    def __init__(self, parent=None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
         """Create a window.
 
         Args:
@@ -98,8 +101,9 @@ class RootWindow(wx.Frame):
         self.root_panel.Fit()
         self.SendSizeEvent()
 
+
 class ModalWindow(RootWindow):
-    def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
+    def __init__(self, parent=None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
         """Create a modal window.
 
         Args:
@@ -145,6 +149,7 @@ class ModalWindow(RootWindow):
 
         self.parent.Disable()
         self.Show()
+
 
 class ProgressBar(wx.Gauge):
     def __init__(self, parent, *args, **kwargs):
@@ -198,6 +203,7 @@ class ProgressBar(wx.Gauge):
         self.is_indeterminate = False
         self.SetValue(self.value)
 
+
 class WarningPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
         """Create an alert-like panel for warnings and errors."""
@@ -215,6 +221,7 @@ class WarningPanel(wx.Panel):
         self.box.Add((-1, -1), 1)
         self.box.Add(self.sizer, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 10)
         self.box.Add((-1, -1), 1)
+
 
 class DetailBlock(wx.BoxSizer):
     TITLE = 'title'
@@ -394,6 +401,7 @@ class DetailBlock(wx.BoxSizer):
             """Update the layout of the line."""
 
             self.header.Layout(*args, **kwargs)
+
 
 class BackupDetailBlock(DetailBlock):
     def __init__(self, parent, title: str, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):

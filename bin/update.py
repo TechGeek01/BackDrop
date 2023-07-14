@@ -3,6 +3,7 @@ import re
 
 from bin.status import Status
 
+
 class UpdateHandler:
     def __init__(self, current_version, update_callback, allow_prereleases: bool = None, status_change_fn=None):
         """

@@ -4,6 +4,7 @@ from blake3 import blake3
 
 from bin.status import Status
 
+
 class FileUtils:
     STATUS_SUCCESS = 0x00
     STATUS_FAIL = 0x01
@@ -16,6 +17,7 @@ class FileUtils:
     LIST_DELETE_FAIL = 'delete_fail'
 
     READINTO_BUFSIZE = 1024 * 1024 * 2  # differs from shutil.COPY_BUFSIZE on platforms != Windows
+
 
 def human_filesize(num: int, suffix=None) -> str:
     """Convert a number of bytes to a human readable format.
@@ -36,6 +38,7 @@ def human_filesize(num: int, suffix=None) -> str:
             return "%3.2f %s%s" % (num, unit, suffix)
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)
+
 
 def get_directory_size(directory) -> int:
     """Get the filesize of a directory and its contents.
@@ -62,6 +65,7 @@ def get_directory_size(directory) -> int:
     except OSError:
         return 0
     return total
+
 
 def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_callback, fd_callback, get_backup_killflag) -> tuple:
     """Copy a source binary file to a destination.
@@ -177,6 +181,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     else:
         return None
 
+
 def get_file_hash(filename, kill_flag) -> str:
     """Get the hash of a file.
 
@@ -207,6 +212,7 @@ def get_file_hash(filename, kill_flag) -> str:
         return ''
 
     return h.hexdigest()
+
 
 def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get_backup_killflag, display_index: int = None) -> dict:
     """Copy a source to a destination.
@@ -291,6 +297,7 @@ def do_copy(src, dest, drive_path, pre_callback, prog_callback, fd_callback, get
             return {}
 
     return new_hash_list
+
 
 def do_delete(filename):
     """Delete a file or directory.

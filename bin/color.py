@@ -1,5 +1,6 @@
 import re
 
+
 class Color:
     BLACK = '#000000'
     WHITE = '#ececec'
@@ -114,6 +115,7 @@ class Color:
         """
 
         return self.dark_mode
+
 
 class bcolor:
     HEADER = '\033[95m'

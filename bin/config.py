@@ -3,6 +3,7 @@ import os
 import re
 from dataclasses import dataclass
 
+
 @dataclass
 class Config:
     BOOLEAN = 'boolean'

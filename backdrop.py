@@ -38,6 +38,7 @@ from bin.update import UpdateHandler
 from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, ProgressBar, DetailBlock, BackupDetailBlock, resource_path
 from bin.status import Status
 
+
 def on_press(key):
     """Do things when keys are pressed.
 
@@ -57,6 +58,7 @@ def on_press(key):
     if keypresses['AltL'] or keypresses['AltR'] or keypresses['AltGr']:
         keypresses['Alt'] = True
 
+
 def on_release(key):
     """Do things when keys are pressed.
 
@@ -75,6 +77,7 @@ def on_release(key):
 
     if not keypresses['AltL'] and not keypresses['AltR'] and not keypresses['AltGr']:
         keypresses['Alt'] = False
+
 
 def update_file_detail_lists(list_name: str, files: set):
     """Update the file lists for the detail file view.
@@ -159,7 +162,9 @@ def update_file_detail_lists(list_name: str, files: set):
             # FIXME: See if truncating the list like this is needed in wxPython
             # file_details_failed.show_items()
 
+
 backup_error_log = []
+
 
 def display_backup_progress(copied: int, total: int, display_filename: str = None, operation: int = None, display_index: int = None):
     """Display the copy progress of a transfer
@@ -195,6 +200,7 @@ def display_backup_progress(copied: int, total: int, display_filename: str = Non
             cmd_info_blocks[display_index].SetLabel('progress', label=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}")
             cmd_info_blocks[display_index].SetForegroundColour('progress', Color.BLUE)
 
+
 def get_backup_killflag() -> bool:
     """Get backup thread kill flag status.
 
@@ -202,6 +208,7 @@ def get_backup_killflag() -> bool:
         bool: The kill flag of the backup thread.
     """
     return thread_manager.threadlist['Backup']['killFlag']
+
 
 def display_backup_summary_chunk(title: str, payload: list, reset: bool = None):
     """Display a chunk of a backup analysis summary to the user.
@@ -245,6 +252,7 @@ def display_backup_summary_chunk(title: str, payload: list, reset: bool = None):
     summary_summary_sizer.Layout()
     summary_summary_box.Layout()
     summary_summary_panel.Layout()
+
 
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
 def update_backup_eta_timer(progress_info: dict):
@@ -294,6 +302,7 @@ def update_backup_eta_timer(progress_info: dict):
         backup_eta_label.SetForegroundColour(Color.FINISHED)
         backup_eta_label.Layout()
         summary_sizer.Layout()
+
 
 def display_backup_command_info(display_command_list: list) -> list:
     """Enumerate the display widget with command info after a backup analysis.
@@ -353,6 +362,7 @@ def display_backup_command_info(display_command_list: list) -> list:
 
         cmd_info_blocks.append(backup_summary_block)
 
+
 def backup_reset_ui():
     """Reset the UI when we run a backup analysis."""
 
@@ -392,6 +402,7 @@ def backup_reset_ui():
     for child in file_details_failed_sizer.GetChildren():
         child.GetWindow().Destroy()
 
+
 def request_kill_analysis():
     """Kill a running analysis."""
 
@@ -400,6 +411,7 @@ def request_kill_analysis():
         status_bar_action.Layout()
         status_bar_sizer.Layout()
         backup.kill(Backup.KILL_ANALYSIS)
+
 
 def start_backup_analysis():
     """Start the backup analysis in a separate thread."""
@@ -429,6 +441,7 @@ def start_backup_analysis():
     )
 
     thread_manager.start(ThreadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
+
 
 def get_source_drive_list() -> list:
     """Get the list of available source drives.
@@ -483,6 +496,7 @@ def get_source_drive_list() -> list:
                 source_avail_drive_list.append(drive)
 
     return source_avail_drive_list
+
 
 def load_source():
     """Load the source destination and source lists, and display sources in the tree."""
@@ -556,6 +570,7 @@ def load_source():
 
     progress_bar.StopIndeterminate()
 
+
 def load_source_in_background():
     """Start a source refresh in a new thread."""
 
@@ -563,6 +578,7 @@ def load_source_in_background():
         return
 
     thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
+
 
 def change_source_drive(e):
     """Change the source drive to pull sources from to a new selection."""
@@ -593,6 +609,7 @@ def change_source_drive(e):
             or (settings_show_drives_source_network and settings_show_drives_destination_network)):  # Network selected
         load_dest_in_background()
 
+
 def reset_analysis_output():
     """Reset the summary panel for running an analysis."""
 
@@ -605,6 +622,7 @@ def reset_analysis_output():
     summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label='Please start a backup analysis to generate a summary.', name='Backup summary placeholder tooltip 2'), 0, wx.TOP, 5)
     summary_summary_sizer.Layout()
     summary_summary_box.Layout()
+
 
 # IDEA: @Calculate total space of all @sources in background
 def select_source():
@@ -689,7 +707,6 @@ def select_source():
         source_src_sizer.Layout()
 
         # If everything's calculated, enable analysis button to be clicked
-        # IDEA: Is it better to assume calculations are out of date, and always calculate on the fly during analysis?
         selected_source_list = []
         selected_item = source_tree.GetFirstSelected()
         while selected_item != -1:
@@ -791,10 +808,12 @@ def select_source():
         source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
         source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
 
+
 def select_source_in_background(event):
     """Start a calculation of source filesize in a new thread."""
 
     thread_manager.start(ThreadManager.MULTIPLE, is_progress_thread=True, target=select_source, name='Load Source Selection', daemon=True)
+
 
 def load_dest():
     """Load the destination path info, and display it in the tree."""
@@ -950,6 +969,7 @@ def load_dest():
 
     progress_bar.StopIndeterminate()
 
+
 def load_dest_in_background():
     """Start the loading of the destination path info in a new thread."""
 
@@ -959,6 +979,7 @@ def load_dest_in_background():
         return
 
     thread_manager.start(ThreadManager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
+
 
 def gui_select_from_config():
     """From the current config, select the appropriate sources and drives in the GUI."""
@@ -1039,6 +1060,7 @@ def gui_select_from_config():
         # Re-enable the selection handler that was temporarily disabled
         dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
 
+
 def get_source_path_from_name(source: str) -> str:
     """Get a source path from a source name.
 
@@ -1055,6 +1077,7 @@ def get_source_path_from_name(source: str) -> str:
     else:
         reference_list = {prefs.get('source_names', mountpoint, default=''): mountpoint for mountpoint in source_avail_drive_list if prefs.get('source_names', mountpoint, '')}
         return reference_list[source]
+
 
 def load_config_from_file(filename: str):
     """Read a config file, and set the current config based off of it.
@@ -1110,6 +1133,7 @@ def load_config_from_file(filename: str):
     source_dest_selection_info_sizer.Layout()
     source_dest_sizer.Layout()
     gui_select_from_config()
+
 
 def select_dest():
     """Parse the current drive selection, read config data, and select other drives and sources if needed.
@@ -1219,10 +1243,12 @@ def select_dest():
 
     progress_bar.StopIndeterminate()
 
+
 def select_dest_in_background(event):
     """Start the drive selection handling in a new thread."""
 
     thread_manager.start(ThreadManager.MULTIPLE, is_progress_thread=True, target=select_dest, name='Drive Select', daemon=True)
+
 
 def start_backup():
     """Start the backup in a new thread."""
@@ -1299,6 +1325,7 @@ def start_backup():
 
     thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
+
 def cleanup_handler(signal_received, frame):
     """Handle cleanup when exiting with Ctrl-C.
 
@@ -1331,6 +1358,7 @@ def cleanup_handler(signal_received, frame):
         logging.error('SIGINT or Ctrl-C detected. Force closing...')
 
     exit(0)
+
 
 # TODO: Move file verification to Backup class
 def verify_data_integrity(path_list: list):
@@ -1538,6 +1566,7 @@ def verify_data_integrity(path_list: list):
         update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
         update_status_bar_action(Status.IDLE)
 
+
 def show_update_window(update_info: dict):
     """Display information about updates.
 
@@ -1616,6 +1645,7 @@ def show_update_window(update_info: dict):
         update_icon_sizer.Layout()
         update_frame.ShowModal()
 
+
 def check_for_updates(info: dict):
     """Process the update information provided by the UpdateHandler class.
 
@@ -1634,6 +1664,7 @@ def check_for_updates(info: dict):
 
         wx.PostEvent(main_frame, update_event)
 
+
 def check_for_updates_in_background():
     """Check for updates in the background."""
     thread_manager.start(
@@ -1642,6 +1673,7 @@ def check_for_updates_in_background():
         name='Update Check',
         daemon=True
     )
+
 
 if __name__ == '__main__':
     PLATFORM_WINDOWS = 'Windows'
@@ -1707,6 +1739,9 @@ if __name__ == '__main__':
     WINDOW_ELEMENT_PADDING = 16
 
     # TODO: Move SPECIAL_IGNORE_LIST and verification to Backup class
+    #     NOTE: This already exists in the Backup class, but the local reference
+    #     is used by the data verification functions. Once those get moved to
+    #     the Backup class, this can be removedq
     SPECIAL_IGNORE_LIST = [BACKUP_CONFIG_DIR, '$RECYCLE.BIN', 'System Volume Information']
 
     PORTABLE_CONFIG_FILE_PATH = os.path.join(os.getcwd(), PORTABLE_PREFERENCES_CONFIG_FILE)
@@ -2102,7 +2137,6 @@ if __name__ == '__main__':
 
                     source_tree.Append((dir_name, path_name, 'Unknown', 0))
 
-    # FIXME: Make browse for source button work
     def browse_for_source_in_background():
         """Load a browsed source in the background."""
 
@@ -2149,7 +2183,6 @@ if __name__ == '__main__':
                     avail_space
                 ))
 
-    # FIXME: Make browse for destination button work
     def browse_for_dest_in_background():
         """Load a browsed destination in the background."""
 
@@ -2236,7 +2269,6 @@ if __name__ == '__main__':
 
         dest_tree.DeleteItem(item)
 
-    # FIXME: Fix source tree right click menu
     def show_source_right_click_menu(event):
         """Show the right click menu in the source tree for multi-source mode."""
 
@@ -2253,7 +2285,6 @@ if __name__ == '__main__':
 
         main_frame.PopupMenu(right_click_menu, event.GetPoint())
 
-    # FIXME: Fix destination tree right click menu
     def show_dest_right_click_menu(event):
         """Show the right click menu in the dest tree for custom dest mode."""
 
@@ -2585,7 +2616,7 @@ if __name__ == '__main__':
             FileUtils.LIST_FAIL: set(),
             FileUtils.LIST_DELETE_FAIL: set()
         }
-        for file in sorted(backup_progress['delta']['files'], key = lambda x: x['timestamp']):
+        for file in sorted(backup_progress['delta']['files'], key=lambda x: x['timestamp']):
             filename, filesize, operation, display_index = file['file']
 
             if operation == Status.FILE_OPERATION_COPY:
@@ -2823,25 +2854,25 @@ if __name__ == '__main__':
 
     FONT_DEFAULT = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
                            weight=wx.FONTWEIGHT_NORMAL, underline=False,
-                           faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+                           faceName='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_BOLD = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
                         weight=wx.FONTWEIGHT_BOLD, underline=False,
-                        faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+                        faceName='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_MEDIUM = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
                           weight=wx.FONTWEIGHT_NORMAL, underline=False,
-                          faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+                          faceName='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_LARGE = wx.Font(16, family=wx.FONTFAMILY_DEFAULT, style=0,
                          weight=wx.FONTWEIGHT_NORMAL, underline=False,
-                         faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+                         faceName='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_HEADING = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
                            weight=wx.FONTWEIGHT_BOLD, underline=False,
-                           faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+                           faceName='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_GIANT = wx.Font(28, family=wx.FONTFAMILY_DEFAULT, style=0,
                          weight=wx.FONTWEIGHT_NORMAL, underline=False,
-                         faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+                         faceName='Roboto', encoding=wx.FONTENCODING_DEFAULT)
     FONT_UPDATE_AVAILABLE = wx.Font(32, family=wx.FONTFAMILY_DEFAULT, style=0,
                                     weight=wx.FONTWEIGHT_BOLD, underline=False,
-                                    faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+                                    faceName='Roboto', encoding=wx.FONTENCODING_DEFAULT)
 
     main_frame = RootWindow(
         parent=None,

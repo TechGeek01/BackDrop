@@ -11,6 +11,7 @@ from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_dele
 from bin.config import Config
 from bin.status import Status
 
+
 class Backup:
     # 0xf - Kill modes
     KILL_ALL = 0xf0
@@ -96,7 +97,7 @@ class Backup:
 
         return self.run_killed
 
-    def set_working_file(self, filename = None, size: int = None, operation = None, display_index: int = None):
+    def set_working_file(self, filename=None, size: int = None, operation=None, display_index: int = None):
         """Handle updating the UI before copying a file.
 
         Args:
