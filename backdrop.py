@@ -2194,7 +2194,7 @@ if __name__ == '__main__':
             item: The TreeView item to rename.
         """
 
-        tree_source.delete(item)
+        source_tree.DeleteItem(item)
 
     def rename_dest_item(item):
         """Rename an item in the dest tree for custom dest mode.
@@ -2232,7 +2232,7 @@ if __name__ == '__main__':
             item: The TreeView item to rename.
         """
 
-        tree_dest.delete(item)
+        dest_tree.DeleteItem(item)
 
     # FIXME: Fix source tree right click menu
     def show_source_right_click_menu(event):
@@ -2242,15 +2242,14 @@ if __name__ == '__main__':
         if settings_source_mode not in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
             return
 
-        item = tree_source.identify_row(event.y)
-        if not item:  # Don't do anything if no item was clicked on
-            return
-
-        tree_source.selection_set(item)
-        source_right_click_menu.entryconfig('Rename', command=lambda: rename_source_item(item))
+        right_click_menu = wx.Menu()
+        right_click_menu.Append(ID_SOURCE_RENAME, 'Rename', 'Rename the selected item')
+        right_click_menu.Bind(wx.EVT_MENU, lambda e: rename_source_item(event.GetItem().GetId()), id=ID_SOURCE_RENAME)
         if settings_dest_mode == Config.SOURCE_MODE_MULTI_PATH:
-            source_right_click_menu.entryconfig('Delete', command=lambda: delete_source_item(item))
-        source_right_click_menu.post(event.x_root_window, event.y_root)
+            right_click_menu.Append(ID_SOURCE_DELETE, 'Delete', 'Delete the selected item')
+            right_click_menu.Bind(wx.EVT_MENU, lambda e: delete_source_item(event.GetItem().GetId()), id=ID_SOURCE_DELETE)
+
+        main_frame.PopupMenu(right_click_menu, event.GetPoint())
 
     # FIXME: Fix destination tree right click menu
     def show_dest_right_click_menu(event):
@@ -2260,14 +2259,13 @@ if __name__ == '__main__':
         if settings_dest_mode != Config.DEST_MODE_PATHS:
             return
 
-        item = tree_dest.identify_row(event.y)
-        if not item:  # Don't do anything if no item was clicked on
-            return
+        right_click_menu = wx.Menu()
+        right_click_menu.Append(ID_DEST_RENAME, 'Rename', 'Rename the selected item')
+        right_click_menu.Append(ID_DEST_DELETE, 'Delete', 'Delete the selected item')
+        right_click_menu.Bind(wx.EVT_MENU, lambda e: rename_dest_item(event.GetItem().GetId()), id=ID_DEST_RENAME)
+        right_click_menu.Bind(wx.EVT_MENU, lambda e: delete_dest_item(event.GetItem().GetId()), id=ID_DEST_DELETE)
 
-        tree_dest.selection_set(item)
-        dest_right_click_menu.entryconfig('Rename', command=lambda: rename_dest_item(item))
-        dest_right_click_menu.entryconfig('Delete', command=lambda: delete_dest_item(item))
-        dest_right_click_menu.post(event.x_root, event.y_root)
+        main_frame.PopupMenu(right_click_menu, event.GetPoint())
 
     def change_source_mode(selection):
         """Change the mode for source selection.
@@ -3282,6 +3280,12 @@ if __name__ == '__main__':
     box.Add(root_sizer, 1, wx.EXPAND | wx.ALL, 10)
     box.Add(status_bar, 0, wx.EXPAND)
 
+    # Right click menu stuff
+    ID_SOURCE_RENAME = wx.NewIdRef()
+    ID_SOURCE_DELETE = wx.NewIdRef()
+    ID_DEST_RENAME = wx.NewIdRef()
+    ID_DEST_DELETE = wx.NewIdRef()
+
     # Menu stuff
     menu_bar = wx.MenuBar()
 
@@ -3450,10 +3454,10 @@ if __name__ == '__main__':
     source_src_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: browse_for_source_in_background())
     source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
     source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
-    source_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_source_right_click_menu())
+    source_tree.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, show_source_right_click_menu)
     source_dest_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: browse_for_dest_in_background())
     dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
-    dest_tree.Bind(wx.EVT_RIGHT_DOWN, lambda e: show_dest_right_click_menu())
+    dest_tree.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, show_dest_right_click_menu)
     split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
 
     file_details_delete_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
