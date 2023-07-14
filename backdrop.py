@@ -8,8 +8,8 @@ verification, and many other organization and integrity features.
 __version__ = '4.0.0-beta1'
 
 import platform
-import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog, font as tkfont, filedialog
+import wx
+from sys import exit
 import shutil
 import os
 import subprocess
@@ -21,22 +21,21 @@ import re
 import pickle
 import clipboard
 from pynput import keyboard
-from PIL import Image, ImageTk
 if platform.system() == 'Windows':
     import pythoncom
     import win32api
     import win32file
     import wmi
+import wx.lib.inspection
 import logging
 
 from bin.fileutils import FileUtils, human_filesize, get_directory_size, get_file_hash, do_delete
 from bin.threadmanager import ThreadManager
 from bin.config import Config
-from bin.progress import Progress
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import RootWindow, AppWindow, DetailBlock, BackupDetailBlock, TabbedFrame, ScrollableFrame, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, ProgressBar, DetailBlock, BackupDetailBlock, resource_path
 from bin.status import Status
 
 def on_press(key):
@@ -95,11 +94,17 @@ def update_file_detail_lists(list_name: str, files: set):
     } for filename in files])
 
     if list_name == FileUtils.LIST_TOTAL_DELETE:
-        file_details_pending_delete_counter.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
-        file_details_pending_delete_counter_total.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
+        file_details_pending_delete_counter.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
+        file_details_pending_delete_counter.Layout()
+        file_details_pending_delete_counter_total.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
+        file_details_pending_delete_counter_total.Layout()
+        file_details_pending_sizer.Layout()
     elif list_name == FileUtils.LIST_TOTAL_COPY:
-        file_details_pending_copy_counter.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
-        file_details_pending_copy_counter_total.configure(text=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
+        file_details_pending_copy_counter.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
+        file_details_pending_copy_counter.Layout()
+        file_details_pending_copy_counter_total.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
+        file_details_pending_copy_counter_total.Layout()
+        file_details_pending_sizer.Layout()
     elif list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
         # Remove file from pending list
         file_detail_list_name = FileUtils.LIST_TOTAL_COPY if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else FileUtils.LIST_TOTAL_DELETE
@@ -107,34 +112,52 @@ def update_file_detail_lists(list_name: str, files: set):
 
         # Update file counter
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
-            file_details_pending_copy_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
+            file_details_pending_copy_counter.SetLabel(label=str(len(file_detail_list[file_detail_list_name])))
+            file_details_pending_copy_counter.Layout()
         else:
-            file_details_pending_delete_counter.configure(text=str(len(file_detail_list[file_detail_list_name])))
+            file_details_pending_delete_counter.SetLabel(label=str(len(file_detail_list[file_detail_list_name])))
+            file_details_pending_delete_counter.Layout()
+        file_details_pending_sizer.Layout()
 
         # Update copy list scrollable
         filenames = '\n'.join([filename.split(os.path.sep)[-1] for filename in files])
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_DELETE_SUCCESS]:
-            tk.Label(file_details_copied.frame, text=filenames,
-                     fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED,
-                     justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
-            file_details_copied_counter.configure(text=len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS]))
+            new_file_label = wx.StaticText(file_details_success_panel, -1, label=filenames)
+            if list_name == FileUtils.LIST_DELETE_SUCCESS:
+                new_file_label.SetForegroundColour(Color.FADED)
+            file_details_success_sizer.Add(new_file_label, 0)
+            file_details_success_sizer.Layout()
+
+            file_details_success_count.SetLabel(label=len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS]))
+            file_details_success_count.Layout()
+            file_details_success_header_sizer.Layout()
 
             # Remove all but the most recent 250 items for performance reasons
-            file_details_copied.show_items(250)
+            # FIXME: See if truncating the list like this is needed in wxPython
+            # file_details_copied.show_items(250)
         else:
-            tk.Label(file_details_failed.frame, text=filenames,
-                     fg=root_window.uicolor.NORMAL if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL] else root_window.uicolor.FADED,
-                     justify=tk.LEFT, anchor='w').pack(fill='x', expand=True)
-            file_details_failed_counter.configure(text=len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL]))
+            new_file_label = wx.StaticText(file_details_failed_panel, -1, label=filenames)
+            if list_name == FileUtils.LIST_DELETE_FAIL:
+                new_file_label.SetForegroundColour(Color.FADED)
+            file_details_failed_sizer.Add(new_file_label, 0)
+            file_details_failed_sizer.Layout()
+
+            file_details_failed_count.SetLabel(label=len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL]))
+            file_details_failed_count.Layout()
+            file_details_failed_header_sizer.Layout()
 
             # Update counter in status bar
             FAILED_FILE_COUNT = len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL])
-            statusbar_counter_btn.configure(text=f"{FAILED_FILE_COUNT} failed", state='normal' if FAILED_FILE_COUNT > 0 else 'disabled')
+            status_bar_error_count.SetLabel(label=f'{FAILED_FILE_COUNT} failed')
+            status_bar_error_count.SetForegroundColour(Color.DANGER if FAILED_FILE_COUNT > 0 else Color.FADED)
+            status_bar_error_count.Layout()
+            status_bar_sizer.Layout()
 
             # HACK: The scroll yview won't see the label instantly after it's packed.
             # Sleeping for a brief time fixes that. This is acceptable as long as it's
             # not run in the main thread, else the UI will hang.
-            file_details_failed.show_items()
+            # FIXME: See if truncating the list like this is needed in wxPython
+            # file_details_failed.show_items()
 
 backup_error_log = []
 
@@ -160,14 +183,17 @@ def display_backup_progress(copied: int, total: int, display_filename: str = Non
     # If display index has been specified, write progress to GUI
     if display_index is not None:
         if operation == Status.FILE_OPERATION_DELETE:
-            progress.set(current=backup.progress['current'])
-            cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=root_window.uicolor.NORMAL)
+            progress_bar.SetValue(current=backup.progress['current'])
+            cmd_info_blocks[display_index].SetLabel('progress', label=f"Deleted {display_filename}")
+            cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
         elif operation == Status.FILE_OPERATION_COPY:
-            progress.set(current=backup.progress['current'])
-            cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.NORMAL)
+            progress_bar.SetValue(current=backup.progress['current'])
+            cmd_info_blocks[display_index].SetLabel('progress', label=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}")
+            cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
         elif operation == Status.FILE_OPERATION_VERIFY:
-            progress.set(current=backup.progress['current'])
-            cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.BLUE)
+            progress_bar.SetValue(current=backup.progress['current'])
+            cmd_info_blocks[display_index].SetLabel('progress', label=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}")
+            cmd_info_blocks[display_index].SetForegroundColour('progress', Color.BLUE)
 
 def get_backup_killflag() -> bool:
     """Get backup thread kill flag status.
@@ -192,25 +218,33 @@ def display_backup_summary_chunk(title: str, payload: list, reset: bool = None):
         reset = False
 
     if reset:
-        content_tab_frame.tab['summary']['content'].empty()
+        for child in summary_summary_sizer.GetChildren():
+            child.GetWindow().Destroy()
 
-    tk.Label(content_tab_frame.tab['summary']['content'].frame, text=title, font=(None, 14),
-             wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
-    summary_frame = tk.Frame(content_tab_frame.tab['summary']['content'].frame)
-    summary_frame.pack(fill='x', expand=True)
-    summary_frame.columnconfigure(2, weight=1)
+    heading_label = wx.StaticText(summary_summary_panel, -1, label=title, name='Backup summary chunk header label')
+    heading_label.SetFont(FONT_HEADING)
+
+    chunk_sizer = wx.GridBagSizer()
 
     for i, item in enumerate(payload):
-        if len(item) > 2:
-            text_color = root_window.uicolor.NORMAL if item[2] else root_window.uicolor.FADED
-        else:
-            text_color = root_window.uicolor.NORMAL
+        col1_label = wx.StaticText(summary_summary_panel, -1, label=item[0], name='Backup summary chunk name label')
+        col2_label = wx.StaticText(summary_summary_panel, -1, label='\u27f6', name='Backup summary chunk arrow label')
+        col3_label = wx.StaticText(summary_summary_panel, -1, label=item[1], name='Backup summary chunk summary label')
 
-        tk.Label(summary_frame, text=item[0], fg=text_color, justify='left').grid(row=i, column=0, sticky='w')
-        tk.Label(summary_frame, text='\u27f6', fg=text_color, justify='left').grid(row=i, column=1, sticky='w')
-        wrap_frame = tk.Frame(summary_frame)
-        wrap_frame.grid(row=i, column=2, sticky='ew')
-        tk.Label(summary_frame, text=item[1], fg=text_color, justify='left').grid(row=i, column=2, sticky='w')
+        if len(item) > 2 and not item[2]:
+            col1_label.SetForegroundColour(Color.FADED)
+            col2_label.SetForegroundColour(Color.FADED)
+            col3_label.SetForegroundColour(Color.FADED)
+
+        chunk_sizer.Add(col1_label, (i, 0))
+        chunk_sizer.Add(col2_label, (i, 1))
+        chunk_sizer.Add(col3_label, (i, 2))
+
+    summary_summary_sizer.Add(heading_label, 0)
+    summary_summary_sizer.Add(chunk_sizer, 0)
+    summary_summary_sizer.Layout()
+    summary_summary_box.Layout()
+    summary_summary_panel.Layout()
 
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
 def update_backup_eta_timer(progress_info: dict):
@@ -221,9 +255,15 @@ def update_backup_eta_timer(progress_info: dict):
     """
 
     if backup.status == Status.BACKUP_ANALYSIS_RUNNING or backup.status == Status.BACKUP_ANALYSIS_FINISHED:
-        backup_eta_label.configure(text='Analysis in progress. Please wait...', fg=root_window.uicolor.NORMAL)
+        backup_eta_label.SetLabel('Analysis in progress. Please wait...')
+        backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
+        backup_eta_label.Layout()
+        summary_sizer.Layout()
     elif backup.status == Status.BACKUP_IDLE or backup.status == Status.BACKUP_ANALYSIS_ABORTED:
-        backup_eta_label.configure(text='Please start a backup to show ETA', fg=root_window.uicolor.NORMAL)
+        backup_eta_label.SetLabel('Please start a backup to show ETA')
+        backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
+        backup_eta_label.Layout()
+        summary_sizer.Layout()
     elif backup.status == Status.BACKUP_BACKUP_RUNNING:
         # Total is copy source, verify dest, so total data is 2 * copy
         total_to_copy = progress_info['total']['total'] - progress_info['total']['delete_total']
@@ -240,11 +280,20 @@ def update_backup_eta_timer(progress_info: dict):
             # Show infinity symbol if no calculated ETA
             remaining_time = '\u221e'
 
-        backup_eta_label.configure(text=f"{str(running_time).split('.')[0]} elapsed \u27f6 {str(remaining_time).split('.')[0]} remaining", fg=root_window.uicolor.NORMAL)
+        backup_eta_label.SetLabel(f'{str(running_time).split(".")[0]} elapsed \u27f6 {str(remaining_time).split(".")[0]} remaining')
+        backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
+        backup_eta_label.Layout()
+        summary_sizer.Layout()
     elif backup.status == Status.BACKUP_BACKUP_ABORTED:
-        backup_eta_label.configure(text=f"Backup aborted in {str(datetime.now() - backup.get_backup_start_time()).split('.')[0]}", fg=root_window.uicolor.STOPPED)
+        backup_eta_label.SetLabel(f'Backup aborted in {str(datetime.now() - backup.get_backup_start_time()).split(".")[0]}')
+        backup_eta_label.SetForegroundColour(Color.FAILED)
+        backup_eta_label.Layout()
+        summary_sizer.Layout()
     elif backup.status == Status.BACKUP_BACKUP_FINISHED:
-        backup_eta_label.configure(text=f"Backup completed successfully in {str(datetime.now() - backup.get_backup_start_time()).split('.')[0]}", fg=root_window.uicolor.FINISHED)
+        backup_eta_label.SetLabel(f'Backup completed successfully in {str(datetime.now() - backup.get_backup_start_time()).split(".")[0]}')
+        backup_eta_label.SetForegroundColour(Color.FINISHED)
+        backup_eta_label.Layout()
+        summary_sizer.Layout()
 
 def display_backup_command_info(display_command_list: list) -> list:
     """Enumerate the display widget with command info after a backup analysis.
@@ -255,45 +304,52 @@ def display_backup_command_info(display_command_list: list) -> list:
 
     global cmd_info_blocks
 
-    content_tab_frame.tab['details']['content'].empty()
+    summary_details_sizer.Clear()
 
     cmd_info_blocks = []
     for i, item in enumerate(display_command_list):
         if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
             if item['mode'] == Status.FILE_OPERATION_DELETE:
-                cmd_header_text = f"Delete {len(item['list'])} files from {item['drive']}"
+                cmd_header_text = f"Delete {len(item['list'])} files from {item['dest']}"
             elif item['mode'] == Status.FILE_OPERATION_UPDATE:
-                cmd_header_text = f"Update {len(item['list'])} files on {item['drive']}"
+                cmd_header_text = f"Update {len(item['list'])} files on {item['dest']}"
             elif item['mode'] == Status.FILE_OPERATION_COPY:
-                cmd_header_text = f"Copy {len(item['list'])} new files to {item['drive']}"
+                cmd_header_text = f"Copy {len(item['list'])} new files to {item['dest']}"
             else:
-                cmd_header_text = f"Work with {len(item['list'])} files on {item['drive']}"
+                cmd_header_text = f"Work with {len(item['list'])} files on {item['dest']}"
 
         backup_summary_block = BackupDetailBlock(
-            parent=content_tab_frame.tab['details']['content'].frame,
+            parent=summary_details_panel,
             title=cmd_header_text,
-            backup=backup,
-            uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
+            text_font=FONT_DEFAULT,
+            bold_font=FONT_BOLD
         )
-        backup_summary_block.pack(anchor='w', expand=1)
+        summary_details_sizer.Add(backup_summary_block, -1)
 
         if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
             # Handle list trimming
-            list_font = tkfont.Font(family=None, size=10, weight='normal')
+
+            dc = wx.ScreenDC()
+
+            dc.SetFont(FONT_BOLD)
+            CURRENT_FILE_HEADER_WIDTH, h = dc.GetTextExtent('Current file: ')
+
+            dc.SetFont(FONT_DEFAULT)
+
             trimmed_file_list = ', '.join(item['list'])[:250]
-            MAX_WIDTH = content_tab_frame.tab['details']['width'] * 0.8
-            actual_file_width = list_font.measure(trimmed_file_list)
+            MAX_WIDTH = summary_details_sizer.GetSize().GetWidth() - CURRENT_FILE_HEADER_WIDTH - 50  # Used to be 80%
+            actual_file_width = dc.GetTextExtent(trimmed_file_list).GetWidth()
 
             if actual_file_width > MAX_WIDTH:
                 while actual_file_width > MAX_WIDTH and len(trimmed_file_list) > 1:
                     trimmed_file_list = trimmed_file_list[:-1]
-                    actual_file_width = list_font.measure(f'{trimmed_file_list}...')
+                    actual_file_width = dc.GetTextExtent(f'{trimmed_file_list}...').GetWidth()
                 trimmed_file_list = f'{trimmed_file_list}...'
 
             backup_summary_block.add_line('file_size', 'Total size', human_filesize(item['size']))
-            backup_summary_block.add_copy_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['list']))
-            backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
-            backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=root_window.uicolor.PENDING if item['enabled'] else root_window.uicolor.FADED)
+            backup_summary_block.add_line('file_list', 'File list', trimmed_file_list, '\n'.join(item['list']))
+            backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=Color.PENDING if item['enabled'] else Color.FADED)
+            backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=Color.PENDING if item['enabled'] else Color.FADED)
 
         cmd_info_blocks.append(backup_summary_block)
 
@@ -303,32 +359,46 @@ def backup_reset_ui():
     # Empty backup error log
     backup_error_log.clear()
 
-    # Empty backup summary pane
-    content_tab_frame.tab['summary']['content'].empty()
-
-    # Empty backup operation list pane
-    content_tab_frame.tab['details']['content'].empty()
+    # Empty backup summary and detail panes
+    for child in summary_summary_sizer.GetChildren():
+        child.GetWindow().Destroy()
+    for child in summary_details_sizer.GetChildren():
+        child.GetWindow().Destroy()
 
     # Clear file lists for file details pane
-    [file_detail_list[list_name].clear() for list_name in file_detail_list]
+    for list_name in file_detail_list.keys():
+        file_detail_list[list_name].clear()
 
     # Reset file details counters
-    file_details_pending_delete_counter.configure(text='0')
-    file_details_pending_delete_counter_total.configure(text='0')
-    file_details_pending_copy_counter.configure(text='0')
-    file_details_pending_copy_counter_total.configure(text='0')
-    file_details_copied_counter.configure(text='0')
-    file_details_failed_counter.configure(text='0')
+    file_details_pending_delete_counter.SetLabel(label='0')
+    file_details_pending_delete_counter.Layout()
+    file_details_pending_delete_counter_total.SetLabel(label='0')
+    file_details_pending_delete_counter_total.Layout()
+    file_details_pending_copy_counter.SetLabel(label='0')
+    file_details_pending_copy_counter.Layout()
+    file_details_pending_copy_counter_total.SetLabel(label='0')
+    file_details_pending_copy_counter_total.Layout()
+    file_details_pending_sizer.Layout()
+    file_details_success_count.SetLabel(label='0')
+    file_details_success_count.Layout()
+    file_details_success_header_sizer.Layout()
+    file_details_failed_count.SetLabel(label='0')
+    file_details_failed_count.Layout()
+    file_details_failed_header_sizer.Layout()
 
     # Empty file details list panes
-    file_details_copied.empty()
-    file_details_failed.empty()
+    for child in file_details_success_sizer.GetChildren():
+        child.GetWindow().Destroy()
+    for child in file_details_failed_sizer.GetChildren():
+        child.GetWindow().Destroy()
 
 def request_kill_analysis():
     """Kill a running analysis."""
 
-    statusbar_action.configure(text='Stopping analysis')
     if backup:
+        status_bar_action.SetLabel(label='Stopping analysis')
+        status_bar_action.Layout()
+        status_bar_sizer.Layout()
         backup.kill(Backup.KILL_ANALYSIS)
 
 def start_backup_analysis():
@@ -341,9 +411,13 @@ def start_backup_analysis():
     if (backup and backup.is_running()) or verification_running or not source_avail_drive_list:
         return
 
+    # TODO: Move status bar error log counter reset to reset UI function?
     backup_reset_ui()
-    statusbar_counter_btn.configure(text='0 failed', state='disabled')
-    statusbar_details.configure(text='')
+    status_bar_error_count.SetLabel(label='0 failed')
+    status_bar_error_count.SetForegroundColour(Color.FADED)
+    status_bar_error_count.Layout()
+    status_bar_sizer.Layout()
+    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
 
     backup = Backup(
         config=config,
@@ -411,93 +485,76 @@ def get_source_drive_list() -> list:
     return source_avail_drive_list
 
 def load_source():
-    """Load the source drive and share lists, and display shares in the tree."""
+    """Load the source destination and source lists, and display sources in the tree."""
 
     global PREV_SOURCE_DRIVE
     global source_avail_drive_list
+    global source_drive_default
 
-    progress.start_indeterminate()
+    progress_bar.StartIndeterminate()
 
     # Empty tree in case this is being refreshed
-    tree_source.delete(*tree_source.get_children())
-
-    if not source_warning.grid_info() and not tree_source_frame.grid_info():
-        tree_source_frame.grid(row=1, column=1, sticky='ns')
-        source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+    source_tree.DeleteAllItems()
 
     source_avail_drive_list = get_source_drive_list()
 
-    if source_avail_drive_list or settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH]:
+    if settings_source_mode in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH] or source_avail_drive_list:
         # Display empty selection sizes
-        share_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
-        share_total_space.configure(text='~None', fg=root_window.uicolor.FADED)
+        source_selected_space.SetLabel('None')
+        source_total_space.SetLabel('~None')
+        source_selected_space.Layout()
+        source_total_space.Layout()
+        source_dest_selection_info_sizer.Layout()
 
-        source_warning.grid_forget()
-        tree_source_frame.grid(row=1, column=1, sticky='ns')
-        source_meta_frame.grid(row=2, column=1, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
+        if source_warning_panel.IsShown():
+            source_warning_panel.Hide()
+            source_tree.Show()
+            source_src_sizer.Layout()
+            summary_sizer.Layout()
+            root_sizer.Layout()
+
+        source_src_control_dropdown.Clear()
 
         selected_source_mode = prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS)
 
         if selected_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE:
-            config['source_drive'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
+            config['source_path'] = prefs.get('selection', 'source_drive', source_avail_drive_list[0], verify_data=source_avail_drive_list)
 
-            source_select_custom_single_frame.pack_forget()
-            source_select_custom_multi_frame.pack_forget()
-            source_select_multi_frame.pack_forget()
-            source_select_single_frame.pack()
+            source_drive_default = config['source_path']
+            PREV_SOURCE_DRIVE = config['source_path']
+            source_src_control_dropdown.Append(source_avail_drive_list)
+            source_src_control_dropdown.SetSelection(source_src_control_dropdown.FindString(config['source_path']))
 
-            source_drive_default.set(config['source_drive'])
-            PREV_SOURCE_DRIVE = config['source_drive']
-            source_select_menu.config(state='normal')
-            source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
-
-            # Enumerate list of shares in source
+            # Enumerate list of paths in source
             if SYS_PLATFORM == PLATFORM_WINDOWS:
-                config['source_drive'] = config['source_drive'] + os.path.sep
+                config['source_path'] = config['source_path'] + os.path.sep
 
-            for directory in next(os.walk(config['source_drive']))[1]:
-                tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
+            for directory in next(os.walk(config['source_path']))[1]:
+                source_tree.Append((directory, '', 'Unknown', 0))
         elif selected_source_mode == Config.SOURCE_MODE_MULTI_DRIVE:
-            source_select_single_frame.pack_forget()
-            source_select_custom_single_frame.pack_forget()
-            source_select_custom_multi_frame.pack_forget()
-            source_select_multi_frame.pack()
-
-            # Enumerate list of shares in source
+            # Enumerate list of paths in source
             for drive in source_avail_drive_list:
                 drive_name = prefs.get('source_names', drive, default='')
-                tree_source.insert(parent='', index='end', text=drive, values=('Unknown', 0, drive_name))
+                source_tree.Append((drive, drive_name, 'Unknown', 0))
         elif selected_source_mode == Config.SOURCE_MODE_SINGLE_PATH:
-            source_select_single_frame.pack_forget()
-            source_select_multi_frame.pack_forget()
-            source_select_custom_multi_frame.pack_forget()
-            source_select_custom_single_frame.pack(fill='x', expand=1)
-
-            if not source_select_frame.grid_info():
-                source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
-
-            if config['source_drive'] and os.path.isdir(config['source_drive']):
-                for directory in next(os.walk(config['source_drive']))[1]:
+            if config['source_path'] and os.path.isdir(config['source_path']):
+                for directory in next(os.walk(config['source_path']))[1]:
                     # QUESTION: Should files be allowed in custom source?
-                    tree_source.insert(parent='', index='end', text=directory, values=('Unknown', 0))
-        elif selected_source_mode == Config.SOURCE_MODE_MULTI_PATH:
-            source_select_single_frame.pack_forget()
-            source_select_multi_frame.pack_forget()
-            source_select_custom_single_frame.pack_forget()
-            source_select_custom_multi_frame.pack(fill='x', expand=1)
+                    source_tree.Append((directory, '', 'Unknown', 0))
 
-            if not source_select_frame.grid_info():
-                source_select_frame.grid(row=0, column=1, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='ew')
+        source_tree.Layout()
+        source_src_sizer.Layout()
+    elif settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_MULTI_DRIVE]:
+        source_drive_default = 'No drives available'
 
-    elif settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_MULTI_DRIVE]:
-        source_drive_default.set('No drives available')
+        if not source_warning_panel.IsShown():
+            source_tree.Hide()
+            source_warning_panel.Show()
+            source_src_sizer.Layout()
+            summary_sizer.Layout()
+            root_sizer.Layout()
 
-        tree_source_frame.grid_forget()
-        source_meta_frame.grid_forget()
-        source_select_frame.grid_forget()
-        source_warning.grid(row=0, column=1, rowspan=3, sticky='nsew', padx=10, pady=10, ipadx=20, ipady=20)
-
-    progress.stop_indeterminate()
+    progress_bar.StopIndeterminate()
 
 def load_source_in_background():
     """Start a source refresh in a new thread."""
@@ -507,25 +564,24 @@ def load_source_in_background():
 
     thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
 
-def change_source_drive(selection: str):
-    """Change the source drive to pull shares from to a new selection.
-
-    Args:
-        selection (String): The selection to set as the default.
-    """
+def change_source_drive(e):
+    """Change the source drive to pull sources from to a new selection."""
 
     global PREV_SOURCE_DRIVE
     global config
 
+    selection = source_src_control_dropdown.GetValue()
+
     # If backup is running, ignore request to change
     if backup and backup.is_running():
-        source_select_menu.set_menu(config['source_drive'], *tuple(source_avail_drive_list))
+        prev_source_index = source_src_control_dropdown.FindString(PREV_SOURCE_DRIVE)
+        source_src_control_dropdown.SetSelection(prev_source_index)
         return
 
     # Invalidate analysis validation
     reset_analysis_output()
 
-    config['source_drive'] = selection
+    config['source_path'] = selection
     PREV_SOURCE_DRIVE = selection
     prefs.set('selection', 'source_drive', selection)
 
@@ -533,185 +589,207 @@ def change_source_drive(selection: str):
 
     # If a drive type is selected for both source and destination, reload
     # destination so that the source drive doesn't show in destination list
-    if ((settings_showDrives_source_local.get() and settings_showDrives_dest_local.get())  # Local selected
-            or (settings_showDrives_source_network.get() and settings_showDrives_dest_network.get())):  # Network selected
+    if ((settings_show_drives_source_local and settings_show_drives_destination_local)  # Local selected
+            or (settings_show_drives_source_network and settings_show_drives_destination_network)):  # Network selected
         load_dest_in_background()
 
 def reset_analysis_output():
-    content_tab_frame.tab['summary']['content'].empty()
-    content_tab_frame.tab['details']['content'].empty()
+    """Reset the summary panel for running an analysis."""
 
-    tk.Label(content_tab_frame.tab['summary']['content'].frame, text='This area will summarize the backup that\'s been configured.',
-             wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
-    tk.Label(content_tab_frame.tab['summary']['content'].frame, text='Please start a backup analysis to generate a summary.',
-             wraplength=content_tab_frame.tab['summary']['width'] - 2, justify='left').pack(anchor='w')
+    for child in summary_summary_sizer.GetChildren():
+        child.GetWindow().Destroy()
+    for child in summary_details_sizer.GetChildren():
+        child.GetWindow().Destroy()
 
-# IDEA: @Calculate total space of all @shares in background
+    summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label="This area will summarize the backup that's been configured.", name='Backup summary placeholder tooltip 1'), 0)
+    summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label='Please start a backup analysis to generate a summary.', name='Backup summary placeholder tooltip 2'), 0, wx.TOP, 5)
+    summary_summary_sizer.Layout()
+    summary_summary_box.Layout()
+
+# IDEA: @Calculate total space of all @sources in background
 def select_source():
-    """Calculate and display the filesize of a selected share, if it hasn't been calculated.
+    """Calculate and display the filesize of a selected source, if it hasn't been calculated.
 
     This gets the selection in the source tree, and then calculates the filesize for
-    all shares selected that haven't yet been calculated. The summary of total
-    selection, and total share space is also shown below the tree.
+    all sources selected that haven't yet been calculated. The summary of total
+    selection, and total source space is also shown below the tree.
     """
 
     global prev_source_selection
-    global source_select_bind
+    global source_selection_total
     global backup
 
-    def update_share_size(item: str):
-        """Update share info for a given share.
+    def update_source_size(item: int):
+        """Update source info for a given source.
 
         Args:
-            item (String): The identifier for a share in the source tree to be calculated.
+            item (String): The identifier for a source in the source tree to be calculated.
         """
 
-        # FIXME: This crashes if you change the source drive, and the number of items in the tree changes while it's calculating things
-        share_name = tree_source.item(item, 'text')
+        # FIXME: This crashes if you change the source, and the number of items in the tree changes while it's calculating things
+        source_name = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
 
-        if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-            share_path = os.path.join(config['source_drive'], share_name)
-        elif settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-            share_path = share_name
+        if settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
+            source_path = os.path.join(config['source_path'], source_name)
+        elif settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+            source_path = source_name
 
-        share_dir_size = get_directory_size(share_path)
-        tree_source.set(item, 'size', human_filesize(share_dir_size))
-        tree_source.set(item, 'rawsize', share_dir_size)
+        source_dir_size = get_directory_size(source_path)
+        source_tree.SetItem(item, SOURCE_COL_SIZE, label=human_filesize(source_dir_size))
+        source_tree.SetItem(item, SOURCE_COL_RAWSIZE, label=str(source_dir_size))
 
-        # After calculating share info, update the meta info
+        # After calculating source info, update the meta info
         selected_total = 0
-        selected_share_list = []
-        for item in tree_source.selection():
-            # Write selected shares to config
-            share_info = {
-                'size': int(tree_source.item(item, 'values')[1])
+        selected_source_list = []
+        selected_item = source_tree.GetFirstSelected()
+        while selected_item != -1:
+            # Write selected sources to config
+            source_info = {
+                'size': int(source_tree.GetItem(selected_item, SOURCE_COL_RAWSIZE).GetText())
             }
 
-            if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-                share_info['path'] = tree_source.item(item, 'text')
-
-                share_vals = tree_source.item(item, 'values')
+            if settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+                source_info['path'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
 
                 if SYS_PLATFORM == PLATFORM_WINDOWS:
                     # Windows uses drive letters, so default name is letter
-                    default_name = tree_source.item(item, 'text')[0]
+                    default_name = source_info['path'][0]
                 elif SYS_PLATFORM == PLATFORM_LINUX:
                     # Linux uses mount points, so get last dir name
-                    default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
+                    default_name = source_info['path'].split(os.path.sep)[-1]
 
-                share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
+                source_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() if source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() else default_name
             else:
-                # If single drive mode, use share name as dest name
-                share_info['path'] = os.path.join(config['source_drive'], tree_source.item(item, 'text'))
-                share_info['dest_name'] = tree_source.item(item, 'text')
+                # If single drive mode, use source name as dest name
+                source_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
+                source_info['path'] = os.path.join(config['source_path'], source_info['dest_name'])
 
-            selected_share_list.append(share_info)
+            selected_source_list.append(source_info)
 
             # Add total space of selection
-            if tree_source.item(item, 'values')[0] != 'Unknown':
+            if source_tree.GetItem(selected_item, SOURCE_COL_SIZE).GetText() != 'Unknown':
                 # Add total space of selection
-                share_size = tree_source.item(item, 'values')[1]
-                selected_total = selected_total + int(share_size)
+                selected_total += int(source_tree.GetItem(selected_item, SOURCE_COL_RAWSIZE).GetText())
 
-        share_selected_space.configure(text=human_filesize(selected_total), fg=root_window.uicolor.NORMAL if selected_total > 0 else root_window.uicolor.FADED)
-        config['sources'] = selected_share_list
+            selected_item = source_tree.GetNextSelected(selected_item)
 
-        share_total = 0
-        is_total_approximate = False
-        total_prefix = ''
-        for item in tree_source.get_children():
-            share_total += int(tree_source.item(item, 'values')[1])
+        source_selected_space.SetLabel(human_filesize(selected_total))
+        source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
+        source_src_selection_info_sizer.Layout()
+        source_src_sizer.Layout()
+        config['sources'] = selected_source_list
 
-            # If total is not yet approximate, check if the item hasn't been calculated
-            if not is_total_approximate and tree_source.item(item, 'values')[0] == 'Unknown':
-                is_total_approximate = True
-                total_prefix += '~'
+        source_total = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in range(source_tree.GetItemCount())])
+        human_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in range(source_tree.GetItemCount())]
 
-        share_total_space.configure(text=total_prefix + human_filesize(share_total), fg=root_window.uicolor.NORMAL if share_total > 0 else root_window.uicolor.FADED)
+        # Recalculate and display the selected total
+        source_total_space.SetLabel(f'{"~" if "Unknown" in human_size_list else ""}{human_filesize(source_total)}')
+        source_total_space.SetForegroundColour(Color.TEXT_DEFAULT if source_total > 0 else Color.FADED)
+        source_src_selection_info_sizer.Layout()
+        source_src_sizer.Layout()
 
         # If everything's calculated, enable analysis button to be clicked
         # IDEA: Is it better to assume calculations are out of date, and always calculate on the fly during analysis?
-        share_size_list = [tree_source.item(item, 'values')[0] for item in tree_source.selection()]
-        if 'Unknown' not in share_size_list:
-            start_analysis_btn.configure(state='normal')
+        selected_source_list = []
+        selected_item = source_tree.GetFirstSelected()
+        while selected_item != -1:
+            selected_source_list.append(selected_item)
+            selected_item = source_tree.GetNextSelected(selected_item)
+
+        source_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in selected_source_list]
+        if 'Unknown' not in source_size_list:
+            start_analysis_btn.Enable()
             update_status_bar_selection()
 
-        progress.stop_indeterminate()
+        progress_bar.StopIndeterminate()
 
     if not backup or not backup.is_running():
-        progress.start_indeterminate()
+        progress_bar.StartIndeterminate()
 
         # If analysis was run, invalidate it
         reset_analysis_output()
 
-        selected = tree_source.selection()
+        # Get selection delta to figure out what to calculate
+        item = source_tree.GetFirstSelected()
+        selected = []
+        while item != -1:
+            selected.append(item)
+            item = source_tree.GetNextSelected(item)
 
-        new_shares = []
+        new_sources = []
         if selected:
             for item in selected:
-                share_info = {
-                    'size': int(tree_source.item(item, 'values')[1]) if tree_source.item(item, 'values')[0] != 'Unknown' else None
+                source_info = {
+                    'size': int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText())
                 }
 
-                if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-                    share_info['path'] = tree_source.item(item, 'text')
-
-                    share_vals = tree_source.item(item, 'values')
+                if settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+                    source_info['path'] = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
 
                     if SYS_PLATFORM == PLATFORM_WINDOWS:
                         # Windows uses drive letters, so default name is letter
-                        default_name = tree_source.item(item, 'text')[0]
+                        default_name = source_info['path'][0]
                     elif SYS_PLATFORM == PLATFORM_LINUX:
                         # Linux uses mount points, so get last dir name
-                        default_name = tree_source.item(item, 'text').split(os.path.sep)[-1]
+                        default_name = source_info['path'].split(os.path.sep)[-1]
 
-                    share_info['dest_name'] = share_vals[2] if len(share_vals) >= 3 and share_vals[2] else default_name
+                    source_info['dest_name'] = source_tree.GetItem(item, SOURCE_COL_NAME).GetText() if source_tree.GetItem(item, SOURCE_COL_NAME).GetText() else default_name
                 else:
-                    # If single drive mode, use share name as dest name
-                    share_info['path'] = os.path.join(config['source_drive'], tree_source.item(item, 'text'))
-                    share_info['dest_name'] = tree_source.item(item, 'text')
+                    # If single drive mode, use source name as dest name
+                    source_info['dest_name'] = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
+                    source_info['path'] = os.path.join(config['source_path'], source_info['dest_name'])
 
-                new_shares.append(share_info)
+                new_sources.append(source_info)
         else:
-            # Nothing selected, so empty the meta counter
-            share_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
+            source_selected_space.SetLabel('None')
+            source_selected_space.SetForegroundColour(Color.FADED)
+            source_src_selection_info_sizer.Layout()
+            source_src_sizer.Layout()
 
-        config['sources'] = new_shares
+        config['sources'] = new_sources
         update_status_bar_selection()
 
-        # If selection is different than last time, invalidate the analysis
-        selection_unchanged_items = [share for share in selected if share in prev_source_selection]
-        if ((not backup or not backup.is_running())  # Make sure backup isn't already running
-                and len(selected) != len(prev_source_selection) or len(selection_unchanged_items) != len(prev_source_selection)):  # Selection has changed from last time
-            start_backup_btn.configure(state='disable')
+        new_selected = [item for item in selected if item not in prev_source_selection]
 
-        prev_source_selection = [share for share in selected]
+        # Mark new selections as pending in UI
+        for item in new_selected:
+            source_tree.SetItem(item, SOURCE_COL_SIZE, label='Calculating')
 
-        # Check if items in selection need to be calculated
-        all_shares_known = True
-        for item in selected:
-            # If new selected item hasn't been calculated, calculate it on the fly
-            if tree_source.item(item, 'values')[0] == 'Unknown':
-                all_shares_known = False
-                update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
-                start_analysis_btn.configure(state='disable')
-                share_name = tree_source.item(item, 'text')
-                thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=lambda: update_share_size(item), name=f"shareCalc_{share_name}", daemon=True)
+        # Update selected meta info to known selection before calculating new selections
+        selection_known_size_items = [item for item in range(source_tree.GetItemCount()) if source_tree.IsSelected(item) and item not in new_selected]
+        selection_known_size = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in selection_known_size_items])
+        source_selected_space.SetLabel(human_filesize(selection_known_size))
+        source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selection_known_size > 0 else Color.FADED)
+        source_src_selection_info_sizer.Layout()
+        source_src_sizer.Layout()
 
-        if all_shares_known:
-            progress.stop_indeterminate()
+        # For each selected item, calculate size and add to total
+        for item in new_selected:
+            update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
+            start_analysis_btn.Disable()
+            source_name = source_tree.GetItem(item, SOURCE_COL_PATH)
+            thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=lambda: update_source_size(item), name=f"SourceCalc_{source_name}", daemon=True)
+
+        # Set current selection to previous selection var to be referenced next call
+        prev_source_selection = selected
+
+        progress_bar.StopIndeterminate()
+
     else:
-        # Tree selection locked, so keep selection the same
-        try:
-            tree_source.unbind('<<TreeviewSelect>>', source_select_bind)
-        except tk._tkinter.TclError:
-            pass
+        # Temporarily unbind selection handlers so this function doesn't keep
+        # running with every change
+        source_tree.Unbind(wx.EVT_LIST_ITEM_SELECTED)
+        source_tree.Unbind(wx.EVT_LIST_ITEM_DESELECTED)
+
+        for item in range(source_tree.GetItemCount()):
+            source_tree.Select(item, on=item in prev_source_selection)
 
         if prev_source_selection:
-            tree_source.focus(prev_source_selection[-1])
-        tree_source.selection_set(tuple(prev_source_selection))
+            source_tree.Focus(prev_source_selection[-1])
 
-        source_select_bind = tree_source.bind("<<TreeviewSelect>>", select_source_in_background)
+        # Re-enable the selection handlers that were temporarily disabled
+        source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
+        source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
 
 def select_source_in_background(event):
     """Start a calculation of source filesize in a new thread."""
@@ -719,19 +797,16 @@ def select_source_in_background(event):
     thread_manager.start(ThreadManager.MULTIPLE, is_progress_thread=True, target=select_source, name='Load Source Selection', daemon=True)
 
 def load_dest():
-    """Load the destination drive info, and display it in the tree."""
+    """Load the destination path info, and display it in the tree."""
 
     global dest_drive_master_list
 
-    progress.start_indeterminate()
+    progress_bar.StartIndeterminate()
 
     # Empty tree in case this is being refreshed
-    tree_dest.delete(*tree_dest.get_children())
+    dest_tree.DeleteAllItems()
 
     if prefs.get('selection', 'dest_mode', default=Config.DEST_MODE_DRIVES, verify_data=Config.DEST_MODE_OPTIONS) == Config.DEST_MODE_DRIVES:
-        dest_select_custom_frame.pack_forget()
-        dest_select_normal_frame.pack()
-
         if SYS_PLATFORM == PLATFORM_WINDOWS:
             logical_drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
             logical_drive_list = [drive[:2] for drive in logical_drive_list]
@@ -750,7 +825,7 @@ def load_dest():
             total_drive_space_available = 0
             dest_drive_master_list = []
             for drive in logical_drive_list:
-                if drive != config['source_drive'] and drive != SYSTEM_DRIVE:
+                if drive != config['source_path'] and drive != SYSTEM_DRIVE:
                     drive_type = win32file.GetDriveType(drive)
 
                     drive_type_list = []
@@ -773,7 +848,15 @@ def load_dest():
                             drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                             total_drive_space_available = total_drive_space_available + drive_size
-                            tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+                            dest_tree.Append((
+                                drive,
+                                '',
+                                human_filesize(drive_size),
+                                'Yes' if drive_has_config_file else '',
+                                vsn,
+                                serial,
+                                drive_size
+                            ))
 
                             dest_drive_master_list.append({
                                 'name': drive,
@@ -800,7 +883,7 @@ def load_dest():
                                  stdin=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)
             logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
-            logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['source_drive']]
+            logical_drive_list = [mount for mount in logical_drive_list if mount and mount != config['source_path']]
 
             total_drive_space_available = 0
             dest_drive_master_list = []
@@ -841,7 +924,15 @@ def load_dest():
                     drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                     total_drive_space_available += drive_size
-                    tree_dest.insert(parent='', index='end', text=drive, values=(human_filesize(drive_size), drive_size, 'Yes' if drive_has_config_file else '', vsn, serial))
+                    dest_tree.Append((
+                        drive,
+                        '',
+                        human_filesize(drive_size),
+                        'Yes' if drive_has_config_file else '',
+                        vsn,
+                        serial,
+                        drive_size
+                    ))
 
                     dest_drive_master_list.append({
                         'name': drive,
@@ -850,18 +941,17 @@ def load_dest():
                         'capacity': drive_size,
                         'hasConfig': drive_has_config_file
                     })
-    elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-        dest_select_normal_frame.pack_forget()
-        dest_select_custom_frame.pack(fill='x', expand=1)
-
+    elif settings_dest_mode == Config.DEST_MODE_PATHS:
         total_drive_space_available = 0
 
-    drive_total_space.configure(text=human_filesize(total_drive_space_available), fg=root_window.uicolor.NORMAL if total_drive_space_available > 0 else root_window.uicolor.FADED)
+    dest_total_space.SetLabel(human_filesize(total_drive_space_available))
+    dest_total_space.Layout()
+    source_dest_selection_info_sizer.Layout()
 
-    progress.stop_indeterminate()
+    progress_bar.StopIndeterminate()
 
 def load_dest_in_background():
-    """Start the loading of the destination drive info in a new thread."""
+    """Start the loading of the destination path info in a new thread."""
 
     # TODO: Make load_dest and load_source replaceable, and in their own class
     # TODO: Invalidate load_source or load_dest if tree gets refreshed via some class def call
@@ -871,31 +961,32 @@ def load_dest_in_background():
     thread_manager.start(ThreadManager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
 
 def gui_select_from_config():
-    """From the current config, select the appropriate shares and drives in the GUI."""
+    """From the current config, select the appropriate sources and drives in the GUI."""
 
     global dest_select_bind
     global prev_source_selection
     global prev_dest_selection
 
-    # Get list of shares in config
-    config_share_name_list = [item['dest_name'] for item in config['sources']]
-    if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-        config_source_tree_id_list = [item for item in tree_source.get_children() if tree_source.item(item, 'text') in config_share_name_list]
-    else:
-        config_source_tree_id_list = [item for item in tree_source.get_children() if len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] in config_share_name_list]
+    # Get list of sources in config
+    config_source_name_list = [item['dest_name'] for item in config['sources']]
+    config_source_tree_id_list = [item for item in range(source_tree.GetItemCount()) if source_tree.GetItem(item, SOURCE_COL_PATH).GetText() in config_source_name_list]
 
     if config_source_tree_id_list:
-        tree_source.focus(config_source_tree_id_list[-1])
-        prev_source_selection = config_source_tree_id_list
-        tree_source.selection_set(tuple(config_source_tree_id_list))
+        for item in range(source_tree.GetItemCount()):
+            source_tree.Select(item, on=item in config_source_tree_id_list)
+
+        if config_source_tree_id_list:
+            source_tree.Focus(config_source_tree_id_list[-1])
 
         # Recalculate selected totals for display
         # QUESTION: Should source total be recalculated when selecting, or should it continue to use the existing total?
-        known_path_sizes = [int(tree_source.item(item, 'values')[1]) for item in config_source_tree_id_list if tree_source.item(item, 'values')[1] != 'Unknown']
-        share_selected_space.configure(text=human_filesize(sum(known_path_sizes)))
+        known_path_sizes = [int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in config_source_tree_id_list if source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText() != 'Unknown']
+        source_selected_space.SetLabel(label=human_filesize(sum(known_path_sizes)))
+        source_selected_space.Layout()
+        source_src_selection_info_sizer.Layout()
 
     # Get list of drives where volume ID is in config
-    connected_vid_list = [drive['vid'] for drive in config['destinations']]
+    connected_vid_list = [dest['vid'] for dest in config['destinations']]
 
     # If drives aren't mounted that should be, display the warning
     MISSING_DRIVE_COUNT = len(config['missing_drives'])
@@ -906,51 +997,64 @@ def gui_select_from_config():
         MISSING_VID_ALERT_MESSAGE = f"The drive{'s' if len(config_missing_drive_vid_list) > 1 else ''} with volume ID{'s' if len(config_missing_drive_vid_list) > 1 else ''} {MISSING_VID_READABLE_LIST} {'are' if len(config_missing_drive_vid_list) > 1 else 'is'} not available to be selected.\n\nMissing drives may be omitted or replaced, provided the total space on destination drives is equal to, or exceeds the amount of data to back up.\n\nUnless you reset the config or otherwise restart this tool, this is the last time you will be warned."
         MISSING_VID_ALERT_TITLE = f"Drive{'s' if len(config_missing_drive_vid_list) > 1 else ''} missing"
 
-        split_warning_prefix.configure(text=f"There {'is' if MISSING_DRIVE_COUNT == 1 else 'are'}")
-        MISSING_DRIVE_CONTRACTION = 'isn\'t' if MISSING_DRIVE_COUNT == 1 else 'aren\'t'
-        split_warning_suffix.configure(text=f"{'drive' if MISSING_DRIVE_COUNT == 1 else 'destinations'} in the config that {MISSING_DRIVE_CONTRACTION} connected. Please connect {'it' if MISSING_DRIVE_COUNT == 1 else 'them'}, or enable split mode.")
-        split_warning_missing_drive_count.configure(text=str(MISSING_DRIVE_COUNT))
-        dest_split_warning_frame.grid(row=3, column=0, columnspan=3, sticky='nsew', pady=(0, WINDOW_ELEMENT_PADDING), ipady=WINDOW_ELEMENT_PADDING / 4)
+        dest_split_warning_prefix.SetLabel(label=f'There {"is" if MISSING_DRIVE_COUNT == 1 else "are"} ')
+        MISSING_DRIVE_CONTRACTION = "isn't" if MISSING_DRIVE_COUNT == 1 else "aren't"
+        dest_split_warning_suffix.SetLabel(label=f' {"drive" if MISSING_DRIVE_COUNT == 1 else "destinations"} in the config that {MISSING_DRIVE_CONTRACTION} connected. Please connect {"it" if MISSING_DRIVE_COUNT == 1 else "them"}, or enable split mode.')
+        dest_split_warning_count.SetLabel(label=str(MISSING_DRIVE_COUNT))
 
-        messagebox.showwarning(MISSING_VID_ALERT_TITLE, MISSING_VID_ALERT_MESSAGE)
+        if not dest_split_warning_panel.IsShown():
+            dest_split_warning_panel.Show()
+            dest_split_warning_panel.sizer.Layout()
+            dest_split_warning_panel.box.Layout()
+            summary_sizer.Layout()
 
-    # Only redo the selection if the config data is different from the current
-    # selection (that is, the drive we selected to load a config is not the only
-    # drive listed in the config)
-    # Because of the <<TreeviewSelect>> handler, re-selecting the same single item
-    # would get stuck into an endless loop of trying to load the config
+        wx.MessageBox(
+            message=MISSING_VID_ALERT_MESSAGE,
+            caption=MISSING_VID_ALERT_TITLE,
+            style=wx.ICON_WARNING,
+            parent=main_frame
+        )
+    else:
+        if dest_split_warning_panel.IsShown():
+            dest_split_warning_panel.Hide()
+            summary_sizer.Layout()
+
+    # Select any other config drives
     # QUESTION: Is there a better way to handle this @config loading @selection handler @conflict?
-    if settings_destMode.get() == Config.DEST_MODE_DRIVES:
-        config_dest_tree_id_list = [item for item in tree_dest.get_children() if tree_dest.item(item, 'values')[3] in connected_vid_list]
-        if len(config_dest_tree_id_list) > 0 and tree_dest.selection() != tuple(config_dest_tree_id_list):
-            try:
-                tree_dest.unbind('<<TreeviewSelect>>', dest_select_bind)
-            except tk._tkinter.TclError:
-                pass
+    if settings_dest_mode == Config.DEST_MODE_DRIVES:
+        config_dest_tree_id_list = [item for item in range(dest_tree.GetItemCount()) if dest_tree.GetItem(item, DEST_COL_VID).GetText() in connected_vid_list]
 
-            if config_dest_tree_id_list:
-                tree_dest.focus(config_dest_tree_id_list[-1])
-            prev_dest_selection = config_dest_tree_id_list
-            tree_dest.selection_set(tuple(config_dest_tree_id_list))
+        # Temporarily undind selection handler so this function doesn't keep
+        # running with every change
+        dest_tree.Unbind(wx.EVT_LIST_ITEM_SELECTED)
 
-            dest_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_dest_in_background)
+        for item in range(dest_tree.GetItemCount()):
+            dest_tree.Select(item, on=item in config_dest_tree_id_list)
 
-def get_share_path_from_name(share: str) -> str:
-    """Get a share path from a share name.
+        prev_dest_selection = config_dest_tree_id_list
+
+        if config_dest_tree_id_list:
+            dest_tree.Focus(config_dest_tree_id_list[-1])
+
+        # Re-enable the selection handler that was temporarily disabled
+        dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
+
+def get_source_path_from_name(source: str) -> str:
+    """Get a source path from a source name.
 
     Args:
-        share (String): The share to get.
+        source (String): The source to get.
 
     Returns:
-        String: The path name for the share.
+        String: The path name for the source.
     """
 
     if prefs.get('selection', 'source_mode', default=Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-        # Single source mode, so source is source drive
-        return os.path.join(config['source_drive'], share)
+        # Single source mode, so source is source path
+        return os.path.join(config['source_path'], source)
     else:
         reference_list = {prefs.get('source_names', mountpoint, default=''): mountpoint for mountpoint in source_avail_drive_list if prefs.get('source_names', mountpoint, '')}
-        return reference_list[share]
+        return reference_list[source]
 
 def load_config_from_file(filename: str):
     """Read a config file, and set the current config based off of it.
@@ -966,21 +1070,21 @@ def load_config_from_file(filename: str):
 
     SELECTED_DEST_MODE = prefs.get('selection', 'dest_mode', default=Config.DEST_MODE_DRIVES, verify_data=Config.DEST_MODE_OPTIONS)
 
-    # Get shares
-    shares = config_file.get('selection', 'sources')
-    if shares is not None and len(shares) > 0:
+    # Get sources
+    sources = config_file.get('selection', 'sources')
+    if sources is not None and len(sources) > 0:
         new_config['sources'] = [{
-            'path': [tree_source.item(item, 'text') if (len(tree_source.item(item, 'values')) >= 3 and tree_source.item(item, 'values')[2] == share) else tree_source.item(item, 'text') for item in tree_source.get_children()][0],
+            'path': [source_tree.GetItem(item, SOURCE_COL_PATH) for item in range(source_tree.GetItemCount())][0],
             'size': None,
-            'dest_name': share
-        } for share in shares.split(',')]
+            'dest_name': source
+        } for source in sources.split(',')]
 
     if SELECTED_DEST_MODE == Config.DEST_MODE_DRIVES:
         # Get VID list
         vids = config_file.get('selection', 'vids').split(',')
 
-        # Get drive info
-        config_drive_total = 0
+        # Get path info
+        config_dest_total = 0
         new_config['destinations'] = []
         new_config['missing_drives'] = {}
         drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
@@ -988,28 +1092,31 @@ def load_config_from_file(filename: str):
             if drive in drive_lookup_list.keys():
                 # If drive connected, add to drive list
                 new_config['destinations'].append(drive_lookup_list[drive])
-                config_drive_total += drive_lookup_list[drive]['capacity']
+                config_dest_total += drive_lookup_list[drive]['capacity']
             else:
                 # Add drive capacity info to missing drive list
                 reported_drive_capacity = config_file.get(drive, 'capacity', 0, data_type=Config.INTEGER)
                 new_config['missing_drives'][drive] = reported_drive_capacity
-                config_drive_total += reported_drive_capacity
+                config_dest_total += reported_drive_capacity
     elif SELECTED_DEST_MODE == Config.DEST_MODE_PATHS:
-        # Get drive info
-        config_drive_total = 0
+        # Get path info
+        config_dest_total = 0
         new_config['missing_drives'] = {}
 
     config.update(new_config)
 
-    config_selected_space.configure(text=human_filesize(config_drive_total), fg=root_window.uicolor.NORMAL)
+    config_selected_space.SetLabel(label=human_filesize(config_dest_total))
+    config_selected_space.SetForegroundColour(Color.TEXT_DEFAULT)
+    source_dest_selection_info_sizer.Layout()
+    source_dest_sizer.Layout()
     gui_select_from_config()
 
 def select_dest():
-    """Parse the current drive selection, read config data, and select other drives and shares if needed.
+    """Parse the current drive selection, read config data, and select other drives and sources if needed.
 
     If the selection involves a single drive that the user specifically clicked on,
     this function reads the config file on it if one exists, and will select any
-    other drives and shares in the config.
+    other drives and sources in the config.
     """
 
     global prev_selection
@@ -1017,68 +1124,73 @@ def select_dest():
     global dest_select_bind
 
     if backup and backup.is_running():
-        # Tree selection locked, so keep selection the same
-        try:
-            tree_dest.unbind('<<TreeviewSelect>>', dest_select_bind)
-        except tk._tkinter.TclError:
-            pass
+        # Temporarily undind selection handler so this function doesn't keep
+        # running with every change
+        dest_tree.Unbind(wx.EVT_LIST_ITEM_SELECTED)
+
+        for item in range(dest_tree.GetItemCount()):
+            dest_tree.Select(item, on=item in prev_dest_selection)
 
         if prev_dest_selection:
-            tree_dest.focus(prev_dest_selection[-1])
-        tree_dest.selection_set(tuple(prev_dest_selection))
+            dest_tree.Focus(prev_dest_selection[-1])
 
-        dest_select_bind = tree_dest.bind("<<TreeviewSelect>>", select_dest_in_background)
+        # Re-enable the selection handler that was temporarily disabled
+        dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
 
         return
 
-    progress.start_indeterminate()
+    progress_bar.StartIndeterminate()
 
     # If analysis was run, invalidate it
     reset_analysis_output()
 
-    dest_selection = tree_dest.selection()
+    dest_selection = []
+    item = dest_tree.GetFirstSelected()
+    while item != -1:
+        dest_selection.append(item)
+        item = dest_tree.GetNextSelected(item)
 
     # If selection is different than last time, invalidate the analysis
     selection_selected_last_time = [drive for drive in dest_selection if drive in prev_dest_selection]
     if len(dest_selection) != len(prev_dest_selection) or len(selection_selected_last_time) != len(prev_dest_selection):
-        start_backup_btn.configure(state='disable')
+        start_backup_btn.Disable()
 
-    prev_dest_selection = [share for share in dest_selection]
+    prev_dest_selection = dest_selection.copy()
 
     # Check if newly selected drive has a config file
     # We only want to do this if the click is the first selection (that is, there
     # are no other drives selected except the one we clicked).
     drives_read_from_config_file = False
     if len(dest_selection) > 0:
-        selected_drive = tree_dest.item(dest_selection[0], 'text')
+        selected_drive = dest_tree.GetItem(dest_selection[0], DEST_COL_PATH).GetText()
         SELECTED_PATH_CONFIG_FILE = os.path.join(selected_drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)
         if not keypresses['Alt'] and prev_selection <= len(dest_selection) and len(dest_selection) == 1 and os.path.isfile(SELECTED_PATH_CONFIG_FILE):
             # Found config file, so read it
             load_config_from_file(SELECTED_PATH_CONFIG_FILE)
-            dest_selection = tree_dest.selection()
             drives_read_from_config_file = True
         else:
-            dest_split_warning_frame.grid_remove()
+            if dest_split_warning_panel.IsShown():
+                dest_split_warning_panel.Hide()
+                summary_sizer.Layout()
             prev_selection = len(dest_selection)
 
     selected_total = 0
     selected_drive_list = []
 
-    if settings_destMode.get() == Config.DEST_MODE_DRIVES:
+    if settings_dest_mode == Config.DEST_MODE_DRIVES:
         drive_lookup_list = {drive['vid']: drive for drive in dest_drive_master_list}
         for item in dest_selection:
             # Write drive IDs to config
-            selected_drive = drive_lookup_list[tree_dest.item(item, 'values')[3]]
+            selected_drive = drive_lookup_list[dest_tree.GetItem(item, DEST_COL_VID).GetText()]
             selected_drive_list.append(selected_drive)
             selected_total += selected_drive['capacity']
-    elif settings_destMode.get() == Config.DEST_MODE_PATHS:
+    elif settings_dest_mode == Config.DEST_MODE_PATHS:
         for item in dest_selection:
-            drive_path = tree_dest.item(item, 'text')
-            drive_vals = tree_dest.item(item, 'values')
+            drive_path = dest_tree.GetItem(item, DEST_COL_PATH).GetText()
 
-            drive_name = drive_vals[3] if len(drive_vals) >= 4 else ''
-            drive_capacity = int(drive_vals[1])
-            drive_has_config = True if drive_vals[2] == 'Yes' else False
+            drive_name = dest_tree.GetItem(item, DEST_COL_VID).GetText()
+            drive_capacity = int(dest_tree.GetItem(item, DEST_COL_RAWSIZE).GetText())
+            drive_has_config = True if dest_tree.GetItem(item, DEST_COL_CONFIG).GetText() == 'Yes' else False
 
             drive_data = {
                 'name': drive_path,
@@ -1093,15 +1205,19 @@ def select_dest():
 
         config['destinations'] = selected_drive_list
 
-    drive_selected_space.configure(text=human_filesize(selected_total) if selected_total > 0 else 'None', fg=root_window.uicolor.NORMAL if selected_total > 0 else root_window.uicolor.FADED)
+    dest_selected_space.SetLabel(label=human_filesize(selected_total) if selected_total > 0 else 'None')
+    dest_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
     if not drives_read_from_config_file:
         config['destinations'] = selected_drive_list
         config['missing_drives'] = {}
-        config_selected_space.configure(text='None', fg=root_window.uicolor.FADED)
+        config_selected_space.SetLabel(label='None')
+        config_selected_space.SetForegroundColour(Color.FADED)
+    source_dest_selection_info_sizer.Layout()
+    source_dest_sizer.Layout()
 
     update_status_bar_selection()
 
-    progress.stop_indeterminate()
+    progress_bar.StopIndeterminate()
 
 def select_dest_in_background(event):
     """Start the drive selection handling in a new thread."""
@@ -1114,9 +1230,28 @@ def start_backup():
     if not backup or verification_running:
         return
 
+    # If there are new drives, ask for confirmation before proceeding
+    selected_new_drives = [drive['name'] for drive in config['destinations'] if drive['hasConfig'] is False]
+    if len(selected_new_drives) > 0:
+        drive_string = ', '.join(selected_new_drives[:-2] + [' and '.join(selected_new_drives[-2:])])
+
+        new_drive_confirm_title = f"New drive{'s' if len(selected_new_drives) > 1 else ''} selected"
+        new_drive_confirm_message = f"Drive{'s' if len(selected_new_drives) > 1 else ''} {drive_string} appear{'' if len(selected_new_drives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
+        # confirm_wipe_existing_drives = messagebox.askyesno(new_drive_confirm_title, new_drive_confirm_message)
+
+        with wx.MessageDialog(main_frame, message=new_drive_confirm_message,
+                              caption=new_drive_confirm_title,
+                              style=wx.CAPTION | wx.YES_NO | wx.ICON_WARNING) as confirm_dialog:
+            # User changed their mind
+            if confirm_dialog.ShowModal() == wx.ID_NO:
+                return
+
     # Reset UI
-    statusbar_counter_btn.configure(text='0 failed', state='disabled')
-    statusbar_details.configure(text='')
+    status_bar_error_count.SetLabel(label='0 failed')
+    status_bar_error_count.SetForegroundColour(Color.FADED)
+    status_bar_error_count.Layout()
+    status_bar_sizer.Layout()
+    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
 
     # Reset file detail success and fail lists
     for list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
@@ -1125,29 +1260,42 @@ def start_backup():
     # Reset file details counters
     FILE_DELETE_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])
     FILE_COPY_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_COPY])
-    file_details_pending_delete_counter.configure(text=str(FILE_DELETE_COUNT))
-    file_details_pending_delete_counter_total.configure(text=str(FILE_DELETE_COUNT))
-    file_details_pending_copy_counter.configure(text=str(FILE_COPY_COUNT))
-    file_details_pending_copy_counter_total.configure(text=str(FILE_COPY_COUNT))
-    file_details_copied_counter.configure(text='0')
-    file_details_failed_counter.configure(text='0')
+    file_details_pending_delete_counter.SetLabel(label=str(FILE_DELETE_COUNT))
+    file_details_pending_delete_counter.Layout()
+    file_details_pending_delete_counter_total.SetLabel(label=str(FILE_DELETE_COUNT))
+    file_details_pending_delete_counter_total.Layout()
+    file_details_pending_copy_counter.SetLabel(label=str(FILE_COPY_COUNT))
+    file_details_pending_copy_counter.Layout()
+    file_details_pending_copy_counter_total.SetLabel(label=str(FILE_COPY_COUNT))
+    file_details_pending_copy_counter_total.Layout()
+    file_details_pending_sizer.Layout()
+    file_details_success_count.SetLabel(label='0')
+    file_details_success_count.Layout()
+    file_details_success_header_sizer.Layout()
+    file_details_failed_count.SetLabel(label='0')
+    file_details_failed_count.Layout()
+    file_details_failed_header_sizer.Layout()
 
     # Empty file details list panes
-    file_details_copied.empty()
-    file_details_failed.empty()
+    file_details_success_sizer.Clear()
+    file_details_failed_sizer.Clear()
 
     if not backup.analysis_valid or not backup.sanity_check():
         return
 
     update_ui_component(Status.UPDATEUI_BACKUP_START)
     update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
-    progress.set(current=0, total=backup.progress['total'])
+    progress_bar.SetValue(0)
+    progress_bar.SetRange(backup.progress['total'])
 
     for cmd in backup.command_list:
-        cmd_info_blocks[cmd['displayIndex']].state.configure(text='Pending', fg=root_window.uicolor.PENDING)
+        cmd_info_blocks[cmd['displayIndex']].state.SetLabel(label='Pending')
+        cmd_info_blocks[cmd['displayIndex']].state.SetForegroundColour(Color.PENDING)
         if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
-            cmd_info_blocks[cmd['displayIndex']].configure('current_file', text='Pending', fg=root_window.uicolor.PENDING)
-        cmd_info_blocks[cmd['displayIndex']].configure('progress', text='Pending', fg=root_window.uicolor.PENDING)
+            cmd_info_blocks[cmd['displayIndex']].SetLabel('current_file', label='Pending')
+            cmd_info_blocks[cmd['displayIndex']].SetForegroundColour('current_file', Color.PENDING)
+        cmd_info_blocks[cmd['displayIndex']].SetLabel('progress', label='Pending')
+        cmd_info_blocks[cmd['displayIndex']].SetForegroundColour('progress', Color.PENDING)
 
     thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=backup.run, name='Backup', daemon=True)
 
@@ -1185,11 +1333,11 @@ def cleanup_handler(signal_received, frame):
     exit(0)
 
 # TODO: Move file verification to Backup class
-def verify_data_integrity(drive_list: list):
-    """Verify itegrity of files on destination drives by checking hashes.
+def verify_data_integrity(path_list: list):
+    """Verify itegrity of files on destination paths by checking hashes.
 
     Args:
-        drive_list (String[]): A list of mount points for drives to check.
+        path_list (String[]): A list of mount points for paths to check.
     """
 
     global verification_running
@@ -1209,7 +1357,7 @@ def verify_data_integrity(drive_list: list):
                 path_stub = entry.path.split(drive)[1].strip(os.path.sep)
                 if entry.is_file():
                     # If entry is a file, hash it, and check for a computed hash
-                    statusbar_details.configure(text=entry.path)
+                    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data=entry.path)
 
                     file_hash = get_file_hash(entry.path, lambda: thread_manager.threadlist['Data Verification']['killFlag'])
 
@@ -1230,7 +1378,10 @@ def verify_data_integrity(drive_list: list):
 
                             # Update UI counter
                             verification_failed_list.append(entry.path)
-                            statusbar_counter_btn.configure(text=f"{len(verification_failed_list)} failed", state='normal')
+                            status_bar_error_count.SetLabel(label=f'{len(verification_failed_list)} failed')
+                            status_bar_error_count.SetForegroundColour(Color.DANGER)
+                            status_bar_error_count.Layout()
+                            status_bar_sizer.Layout()
 
                             # Also delete the saved hash
                             if path_stub in hash_list[drive].keys():
@@ -1260,9 +1411,13 @@ def verify_data_integrity(drive_list: list):
 
     if not backup or not backup.is_running():
         update_status_bar_action(Status.VERIFICATION_RUNNING)
-        progress.start_indeterminate()
-        statusbar_counter_btn.configure(text='0 failed', state='disabled')
-        statusbar_details.configure(text='')
+        progress_bar.StartIndeterminate()
+        status_bar_error_count.SetLabel(label='0 failed')
+        status_bar_error_count.SetForegroundColour(Color.FADED)
+        status_bar_error_count.Layout()
+        status_bar_sizer.Layout()
+
+        update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
 
         halt_verification_btn.pack(side='left', padx=4)
 
@@ -1271,24 +1426,33 @@ def verify_data_integrity(drive_list: list):
             file_detail_list[list_name].clear()
 
         # Reset file details counters
-        file_details_pending_delete_counter.configure(text='0')
-        file_details_pending_delete_counter_total.configure(text='0')
-        file_details_pending_copy_counter.configure(text='0')
-        file_details_pending_copy_counter_total.configure(text='0')
-        file_details_copied_counter.configure(text='0')
-        file_details_failed_counter.configure(text='0')
+        file_details_pending_delete_counter.SetLabel(label='0')
+        file_details_pending_delete_counter.Layout()
+        file_details_pending_delete_counter_total.SetLabel(label='0')
+        file_details_pending_delete_counter_total.Layout()
+        file_details_pending_copy_counter.SetLabel(label='0')
+        file_details_pending_copy_counter.Layout()
+        file_details_pending_copy_counter_total.SetLabel(label='0')
+        file_details_pending_copy_counter_total.Layout()
+        file_details_pending_sizer.Layout()
+        file_details_success_count.SetLabel(label='0')
+        file_details_success_count.Layout()
+        file_details_success_header_sizer.Layout()
+        file_details_failed_count.SetLabel(label='0')
+        file_details_failed_count.Layout()
+        file_details_failed_header_sizer.Layout()
 
         # Empty file details list panes
-        file_details_copied.empty()
-        file_details_failed.empty()
+        file_details_success_sizer.Clear()
+        file_details_failed_sizer.Clear()
 
         verification_running = True
         verification_failed_list = []
 
         # Get hash list for all drives
         bad_hash_files = []
-        hash_list = {drive: {} for drive in drive_list}
-        for drive in drive_list:
+        hash_list = {drive: {} for drive in path_list}
+        for drive in path_list:
             drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
 
             if os.path.isfile(drive_hash_file_path):
@@ -1323,15 +1487,15 @@ def verify_data_integrity(drive_list: list):
 
         verify_all_files = prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN)
         if verify_all_files:
-            for drive in drive_list:
+            for drive in path_list:
                 drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
                 recurse_for_hash(drive, drive, drive_hash_file_path)
         else:
-            for drive in drive_list:
+            for drive in path_list:
                 drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
                 for file, saved_hash in hash_list[drive].items():
                     filename = os.path.join(drive, file)
-                    statusbar_details.configure(text=filename)
+                    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data=filename)
                     computed_hash = get_file_hash(filename)
 
                     if thread_manager.threadlist['Data Verification']['killFlag']:
@@ -1343,7 +1507,10 @@ def verify_data_integrity(drive_list: list):
 
                         # Update UI counter
                         verification_failed_list.append(filename)
-                        statusbar_counter_btn.configure(text=f"{len(verification_failed_list)} failed", state='normal')
+                        status_bar_error_count.SetLabel(label=f'{len(verification_failed_list)} failed')
+                        status_bar_error_count.SetForegroundColour(Color.DANGER)
+                        status_bar_error_count.Layout()
+                        status_bar_sizer.Layout()
 
                         # Delete the saved hash, and write changes to the hash file
                         if file in hash_list[drive].keys():
@@ -1367,61 +1534,35 @@ def verify_data_integrity(drive_list: list):
         verification_running = False
         halt_verification_btn.pack_forget()
 
-        progress.stop_indeterminate()
-        statusbar_details.configure(text='')
+        progress_bar.StopIndeterminate()
+        update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
         update_status_bar_action(Status.IDLE)
 
-def display_update_screen(update_info: dict):
+def show_update_window(update_info: dict):
     """Display information about updates.
 
     Args:
         update_info (dict): The update info returned by the UpdateHandler.
     """
 
-    global update_window
+    global update_frame
+    global update_icon_sizer
 
-    if not update_info['updateAvailable'] or (update_window and update_window.winfo_exists()):
+    if not update_info['updateAvailable'] or update_frame.IsShown():
         return
 
-    update_window = AppWindow(
-        root=root_window,
-        title='Update Available',
-        width=600,
-        height=300,
-        center=True,
-        center_content=True,
-        resizable=(False, False),
-        modal=True
-    )
+    update_latest_version_text.SetLabel(label=f'v{update_info["latestVersion"]}')
+    update_latest_version_text.Layout()
+    update_version_text_sizer.Layout()
 
-    if SYS_PLATFORM == PLATFORM_WINDOWS:
-        update_window.iconbitmap(resource_path('media/icon.ico'))
-
-    update_header = tk.Label(update_window.main_frame, text='Update Available!', font=(None, 30, 'bold italic'), fg=root_window.uicolor.INFOTEXTDARK)
-    update_header.pack()
-
-    update_text = tk.Label(update_window.main_frame, text='An update to BackDrop is available. Please update to get the latest features and fixes.', font=(None, 10))
-    update_text.pack(pady=16)
-
-    current_version_frame = tk.Frame(update_window.main_frame)
-    current_version_frame.pack()
-    tk.Label(current_version_frame, text='Current Version:', font=(None, 14)).pack(side='left')
-    tk.Label(current_version_frame, text=__version__, font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
-
-    latest_version_frame = tk.Frame(update_window.main_frame)
-    latest_version_frame.pack(pady=(2, 12))
-    tk.Label(latest_version_frame, text='Latest Version:', font=(None, 14)).pack(side='left')
-    tk.Label(latest_version_frame, text=update_info['latestVersion'], font=(None, 14), fg=root_window.uicolor.FADED).pack(side='left')
-
-    download_frame = tk.Frame(update_window.main_frame)
-    download_frame.pack()
-
-    download_source_frame = tk.Frame(update_window.main_frame)
-    download_source_frame.pack()
-    tk.Label(download_source_frame, text='Or, check out the source on').pack(side='left')
-    github_link = tk.Label(download_source_frame, text='GitHub', fg=root_window.uicolor.INFOTEXT)
-    github_link.pack(side='left')
-    github_link.bind('<Button-1>', lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
+    icon_windows = wx.Bitmap(wx.Image(resource_path(f"assets/img/windows{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
+    icon_windows_color = wx.Bitmap(wx.Image(resource_path('assets/img/windows_color.png'), wx.BITMAP_TYPE_ANY))
+    icon_zip = wx.Bitmap(wx.Image(resource_path(f"assets/img/zip{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
+    icon_zip_color = wx.Bitmap(wx.Image(resource_path('assets/img/zip_color.png'), wx.BITMAP_TYPE_ANY))
+    icon_debian = wx.Bitmap(wx.Image(resource_path(f"assets/img/debian{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
+    icon_debian_color = wx.Bitmap(wx.Image(resource_path('assets/img/debian_color.png'), wx.BITMAP_TYPE_ANY))
+    icon_targz = wx.Bitmap(wx.Image(resource_path(f"assets/img/targz{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
+    icon_targz_color = wx.Bitmap(wx.Image(resource_path('assets/img/targz_color.png'), wx.BITMAP_TYPE_ANY))
 
     icon_info = {
         'backdrop.exe': {
@@ -1443,27 +1584,37 @@ def display_update_screen(update_info: dict):
             }
         }
     }
-    download_map = {url.split('/')[-1].lower(): url for url in update_info['download']}
 
-    for file_type, info in icon_info.items():
-        if file_type in download_map.keys():
-            download_btn = tk.Label(download_frame, image=info['flat_icon'])
-            download_btn.pack(side='left', padx=(12, 4))
-            download_btn.bind('<Enter>', lambda e, icon=info['color_icon']: e.widget.configure(image=icon))
-            download_btn.bind('<Leave>', lambda e, icon=info['flat_icon']: e.widget.configure(image=icon))
-            download_btn.bind('<Button-1>', lambda e, url=download_map[file_type]: webbrowser.open_new(url))
+    if update_info and 'download' in update_info.keys():
+        download_map = {url.split('/')[-1].lower(): url for url in update_info['download']}
 
-            # Add supplemental icon if download is available
-            if 'supplemental' in icon_info[file_type].keys() or info['supplemental']['name'] in download_map.keys():
-                download_btn = tk.Label(download_frame, image=info['supplemental']['flat_icon'])
-                download_btn.pack(side='left', padx=(0, 4))
-                download_btn.bind('<Enter>', lambda e, icon=info['supplemental']['color_icon']: e.widget.configure(image=icon))
-                download_btn.bind('<Leave>', lambda e, icon=info['supplemental']['flat_icon']: e.widget.configure(image=icon))
-                download_btn.bind('<Button-1>', lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
+        update_icon_sizer.Clear()
 
-    update_window.transient(root_window)
-    update_window.grab_set()
-    root_window.wm_attributes('-disabled', True)
+        icon_count = 0
+        for file_type, info in icon_info.items():
+            if file_type in download_map.keys():
+                icon_count += 1
+
+                # If icon isn't first icon, add spacer
+                if icon_count > 1:
+                    update_icon_sizer.Add((12, -1), 0)
+
+                download_btn = wx.StaticBitmap(update_frame.root_panel, -1, info['flat_icon'])
+                update_icon_sizer.Add(download_btn, 0, wx.ALIGN_BOTTOM)
+                download_btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, icon=info['color_icon']: e.GetEventObject().SetBitmap(icon))
+                download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=info['flat_icon']: e.GetEventObject().SetBitmap(icon))
+                download_btn.Bind(wx.EVT_LEFT_DOWN, lambda e, url=download_map[file_type]: webbrowser.open_new(url))
+
+                # # Add supplemental icon if download is available
+                if 'supplemental' in icon_info[file_type].keys() or info['supplemental']['name'] in download_map.keys():
+                    download_btn = wx.StaticBitmap(update_frame.root_panel, -1, info['supplemental']['flat_icon'])
+                    update_icon_sizer.Add(download_btn, 0, wx.ALIGN_BOTTOM | wx.LEFT, 4)
+                    download_btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, icon=info['supplemental']['color_icon']: e.GetEventObject().SetBitmap(icon))
+                    download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=info['supplemental']['flat_icon']: e.GetEventObject().SetBitmap(icon))
+                    download_btn.Bind(wx.EVT_LEFT_DOWN, lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
+
+        update_icon_sizer.Layout()
+        update_frame.ShowModal()
 
 def check_for_updates(info: dict):
     """Process the update information provided by the UpdateHandler class.
@@ -1477,7 +1628,20 @@ def check_for_updates(info: dict):
     update_info = info
 
     if info['updateAvailable']:
-        display_update_screen(info)
+        update_event = wx.PyEvent()
+        update_event.SetEventType(EVT_CHECK_FOR_UPDATES)
+        update_event.data = info
+
+        wx.PostEvent(main_frame, update_event)
+
+def check_for_updates_in_background():
+    """Check for updates in the background."""
+    thread_manager.start(
+        ThreadManager.SINGLE,
+        target=update_handler.check,
+        name='Update Check',
+        daemon=True
+    )
 
 if __name__ == '__main__':
     PLATFORM_WINDOWS = 'Windows'
@@ -1558,7 +1722,7 @@ if __name__ == '__main__':
     prefs = Config(CONFIG_FILE_PATH)
     last_selected_custom_source = prefs.get('selection', 'last_selected_custom_source', default=None)
     config = {
-        'source_drive': last_selected_custom_source if prefs.get('selection', 'source_mode', default=Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) == Config.SOURCE_MODE_SINGLE_PATH else None,
+        'source_path': last_selected_custom_source if prefs.get('selection', 'source_mode', default=Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) == Config.SOURCE_MODE_SINGLE_PATH else None,
         'source_mode': prefs.get('selection', 'source_mode', default=Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS),
         'dest_mode': prefs.get('selection', 'dest_mode', default=Config.DEST_MODE_DRIVES, verify_data=Config.DEST_MODE_OPTIONS),
         'splitMode': False,
@@ -1572,6 +1736,7 @@ if __name__ == '__main__':
     backup = None
     command_list = []
 
+    # FIXME: Find a way to catch SIGINT in wxPython
     signal(SIGINT, cleanup_handler)
 
     thread_manager = ThreadManager()
@@ -1590,27 +1755,27 @@ if __name__ == '__main__':
             status (int): The status code to use.
         """
 
-        if [share for share in config['sources'] if share['size'] is None]:
-            # Not all shares calculated
+        if [source for source in config['sources'] if source['size'] is None]:
+            # Not all sources calculated
             status = Status.BACKUPSELECT_CALCULATING_SOURCE
         elif not config['sources'] and not config['destinations'] and len(config['missing_drives']) == 0:
             # No selection in config
             status = Status.BACKUPSELECT_NO_SELECTION
         elif not config['sources']:
-            # No shares selected
+            # No sources selected
             status = Status.BACKUPSELECT_MISSING_SOURCE
         elif not config['destinations'] and len(config['missing_drives']) == 0:
             # No drives selected
             status = Status.BACKUPSELECT_MISSING_DEST
         else:
-            SHARE_SELECTED_SPACE = sum((share['size'] for share in config['sources']))
-            DRIVE_SELECTED_SPACE = sum((drive['capacity'] for drive in config['destinations'])) + sum(config['missing_drives'].values())
+            SOURCE_SELECTED_SPACE = sum((source['size'] for source in config['sources']))
+            DESTINATION_SELECTED_SPACE = sum((destination['capacity'] for destination in config['destinations'])) + sum(config['missing_drives'].values())
 
-            if SHARE_SELECTED_SPACE < DRIVE_SELECTED_SPACE:
+            if SOURCE_SELECTED_SPACE < DESTINATION_SELECTED_SPACE:
                 # Selected enough drive space
                 status = Status.BACKUPSELECT_ANALYSIS_WAITING
             else:
-                # Shares larger than drive space
+                # Sources larger than drive space
                 status = Status.BACKUPSELECT_INSUFFICIENT_SPACE
 
         STATUS_TEXT_MAP = {
@@ -1624,7 +1789,9 @@ if __name__ == '__main__':
 
         # Set status
         if status in STATUS_TEXT_MAP.keys():
-            statusbar_selection.configure(text=STATUS_TEXT_MAP[status])
+            status_bar_selection.SetLabel(STATUS_TEXT_MAP[status])
+            status_bar_selection.Layout()
+            status_bar_sizer.Layout()
 
     def update_status_bar_action(status: int):
         """Update the status bar action status.
@@ -1634,19 +1801,35 @@ if __name__ == '__main__':
         """
 
         if status == Status.IDLE:
-            statusbar_action.configure(text='Idle')
+            status_bar_action.SetLabel('Idle')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
         elif status == Status.BACKUP_ANALYSIS_RUNNING:
-            statusbar_action.configure(text='Analysis running')
+            status_bar_action.SetLabel('Analysis running')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
         elif status == Status.BACKUP_READY_FOR_BACKUP:
-            backup_eta_label.configure(text='Analysis finished, ready for backup', fg=root_window.uicolor.NORMAL)
+            backup_eta_label.SetLabel('Analysis finished, ready for backup')
+            backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
+            backup_eta_label.Layout()
+            summary_sizer.Layout()
         elif status == Status.BACKUP_READY_FOR_ANALYSIS:
-            backup_eta_label.configure(text='Please start a backup to show ETA', fg=root_window.uicolor.NORMAL)
+            backup_eta_label.SetLabel('Please start a backup to show ETA')
+            backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
+            backup_eta_label.Layout()
+            summary_sizer.Layout()
         elif status == Status.BACKUP_BACKUP_RUNNING:
-            statusbar_action.configure(text='Backup running')
+            status_bar_action.SetLabel('Backup running')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
         elif status == Status.BACKUP_HALT_REQUESTED:
-            statusbar_action.configure(text='Stopping backup')
+            status_bar_action.SetLabel('Stopping backup')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
         elif status == Status.VERIFICATION_RUNNING:
-            statusbar_action.configure(text='Data verification running')
+            status_bar_action.SetLabel('Data verification running')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
 
     def update_status_bar_update(status: int):
         """Update the status bar update message.
@@ -1656,23 +1839,29 @@ if __name__ == '__main__':
         """
 
         STATUS_TEXT_MAP = {
-            Status.UPDATE_CHECKING: ['Checking for updates', root_window.uicolor.NORMAL],
-            Status.UPDATE_AVAILABLE: ['Update available!', root_window.uicolor.INFOTEXT],
-            Status.UPDATE_UP_TO_DATE: ['Up to date', root_window.uicolor.NORMAL],
-            Status.UPDATE_FAILED: ['Update failed', root_window.uicolor.FAILED]
+            Status.UPDATE_CHECKING: ['Checking for updates', Color.TEXT_DEFAULT],
+            Status.UPDATE_AVAILABLE: ['Update available!', Color.INFO],
+            Status.UPDATE_UP_TO_DATE: ['Up to date', Color.TEXT_DEFAULT],
+            Status.UPDATE_FAILED: ['Update failed', Color.FAILED]
         }
 
         # Set status
         if status in STATUS_TEXT_MAP.keys():
-            statusbar_update.configure(text=STATUS_TEXT_MAP[status][0], fg=STATUS_TEXT_MAP[status][1])
+            status_bar_updates.SetLabel(STATUS_TEXT_MAP[status][0])
+            status_bar_updates.SetForegroundColour(STATUS_TEXT_MAP[status][1])
+            status_bar_updates.Layout()
+            status_bar_sizer.Layout()
 
     def request_kill_backup():
         """Kill a running backup."""
 
         # FIXME: Timer shows aborted, but does not stop counting when aborting backup
         # FIXME: When aborting backup, file detail block shows "done" instead of "aborted"
-        statusbar_action.configure(text='Stopping backup')
+
         if backup:
+            status_bar_action.SetLabel(label='Stopping backup')
+            status_bar_action.Layout()
+            status_bar_sizer.Layout()
             backup.kill(Backup.KILL_BACKUP)
 
     def update_ui_component(status: int, data=None):
@@ -1683,57 +1872,122 @@ if __name__ == '__main__':
             data (*): The data to update (optional).
         """
 
-        if status == Status.UPDATEUI_ANALYSIS_BTN:
-            start_analysis_btn.configure(**data)
-        elif status == Status.UPDATEUI_BACKUP_BTN:
-            start_backup_btn.configure(**data)
-        elif status == Status.UPDATEUI_ANALYSIS_START:
+        if status == Status.UPDATEUI_ANALYSIS_START:
             update_status_bar_action(Status.BACKUP_ANALYSIS_RUNNING)
-            start_analysis_btn.configure(text='Halt Analysis', command=request_kill_analysis, style='danger.TButton')
+            start_analysis_btn.SetLabel(label='Halt Analysis')
+            start_analysis_btn.Unbind(wx.EVT_LEFT_DOWN)
+            start_analysis_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: request_kill_analysis())
+            start_analysis_btn.Layout()
+            controls_sizer.Layout()
         elif status == Status.UPDATEUI_ANALYSIS_END:
             update_status_bar_action(Status.IDLE)
-            start_analysis_btn.configure(text='Analyze', command=start_backup_analysis, style='TButton')
+            start_analysis_btn.SetLabel(label='Analyze')
+            start_analysis_btn.Unbind(wx.EVT_LEFT_DOWN)
+            start_analysis_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup_analysis())
+            start_analysis_btn.Layout()
+            controls_sizer.Layout()
         elif status == Status.UPDATEUI_BACKUP_START:
             update_status_bar_action(Status.BACKUP_BACKUP_RUNNING)
-            start_analysis_btn.configure(state='disabled')
-            start_backup_btn.configure(text='Halt Backup', command=request_kill_backup, style='danger.TButton')
+            start_analysis_btn.Disable()
+            start_backup_btn.SetLabel(label='Halt Backup')
+            start_backup_btn.Unbind(wx.EVT_LEFT_DOWN)
+            start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: request_kill_backup())
+            start_backup_btn.Layout()
+            controls_sizer.Layout()
         elif status == Status.UPDATEUI_BACKUP_END:
             update_status_bar_action(Status.IDLE)
-            start_analysis_btn.configure(state='normal')
-            start_backup_btn.configure(text='Run Backup', command=start_backup, style='TButton')
+            start_analysis_btn.Enable()
+            start_backup_btn.SetLabel(label='Run Backup')
+            start_backup_btn.Unbind(wx.EVT_LEFT_DOWN)
+            start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup())
+            start_backup_btn.Layout()
+            controls_sizer.Layout()
         elif status == Status.UPDATEUI_STATUS_BAR:
             update_status_bar_action(data)
         elif status == Status.UPDATEUI_STATUS_BAR_DETAILS:
-            statusbar_details.configure(text=data)
-        elif status == Status.RESET_ANALYSIS_OUTPUT:
-            reset_analysis_output()
+            status_bar_details.SetLabel(label=data)
+            status_bar_details.Layout()
+            status_bar_sizer.Layout()
 
     def open_config_file():
         """Open a config file and load it."""
 
-        filename = filedialog.askopenfilename(initialdir='', title='Select drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
-        if filename:
-            load_config_from_file(filename)
+        with wx.FileDialog(main_frame, 'Select drive config', wildcard='Backup config files|backup.ini|All files (*.*)|*.*',
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as file_dialog:
+            # User changed their mind
+            if file_dialog.ShowModal() == wx.ID_CANCEL:
+                return
+
+            filename = file_dialog.GetPath()
+            if filename:
+                load_config_from_file(filename)
 
     def save_config_file():
         """Save the config to selected drives."""
 
         if config['sources'] and config['destinations']:
-            share_list = ','.join([item['dest_name'] for item in config['sources']])
+            source_list = ','.join([item['dest_name'] for item in config['sources']])
             raw_vid_list = [drive['vid'] for drive in config['destinations']]
             raw_vid_list.extend(config['missing_drives'].keys())
             vid_list = ','.join(raw_vid_list)
 
-            # For each drive letter that's connected, get drive info, and write file
-            for drive in config['destinations']:
+            # For each destination that's connected, get destination info, and write file
+            for dest in config['destinations']:
                 # If config exists on drives, back it up first
-                if os.path.isfile(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)):
-                    shutil.move(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE), os.path.join(drive['name'], BACKUP_CONFIG_DIR, f'{BACKUP_CONFIG_FILE}.old'))
+                if os.path.isfile(os.path.join(dest['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)):
+                    shutil.move(os.path.join(dest['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE), os.path.join(dest['name'], BACKUP_CONFIG_DIR, f'{BACKUP_CONFIG_FILE}.old'))
 
-                new_config_file = Config(os.path.join(drive['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+                new_config_file = Config(os.path.join(dest['name'], BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
-                # Write shares and VIDs to config file
-                new_config_file.set('selection', 'sources', share_list)
+                # Write sources and paths/VIDs to config file
+                new_config_file.set('selection', 'sources', source_list)
+                new_config_file.set('selection', 'vids', vid_list)
+
+                # Write info for each destination to its own section
+                for current_drive in config['destinations']:
+                    new_config_file.set(current_drive['vid'], 'vid', current_drive['vid'])
+                    new_config_file.set(current_drive['vid'], 'serial', current_drive['serial'])
+                    new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
+
+                # Write info for missing drives
+                for dest_path, capacity in config['missing_drives'].items():
+                    new_config_file.set(dest_path, 'vid', dest_path)
+                    new_config_file.set(dest_path, 'serial', 'Unknown')
+                    new_config_file.set(dest_path, 'capacity', capacity)
+
+            # Since config files on destinations changed, refresh the destination list
+            load_dest_in_background()
+
+            wx.MessageBox(
+                message='Backup config saved successfully',
+                caption='Save Backup Config',
+                style=wx.OK | wx.ICON_INFORMATION,
+                parent=main_frame
+            )
+
+    def save_config_file_as():
+        """Save the config file to a specified location."""
+
+        with wx.FileDialog(main_frame, 'Save drive config', defaultFile='backup.ini',
+                           wildcard='Backup config files|backup.ini|All files (*.*)|*.*',
+                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as file_dialog:
+            # User changed their mind
+            if file_dialog.ShowModal() == wx.ID_CANCEL:
+                return
+
+            filename = file_dialog.GetPath()
+
+            if config['sources'] and config['destinations']:
+                source_list = ','.join([item['dest_name'] for item in config['sources']])
+                raw_vid_list = [drive['vid'] for drive in config['destinations']]
+                raw_vid_list.extend(config['missing_drives'].keys())
+                vid_list = ','.join(raw_vid_list)
+
+                # Get drive info, and write file
+                new_config_file = Config(filename)
+
+                # Write sources and VIDs to config file
+                new_config_file.set('selection', 'sources', source_list)
                 new_config_file.set('selection', 'vids', vid_list)
 
                 # Write info for each drive to its own section
@@ -1748,133 +2002,107 @@ if __name__ == '__main__':
                     new_config_file.set(drive_vid, 'serial', 'Unknown')
                     new_config_file.set(drive_vid, 'capacity', capacity)
 
-            # Since config files on drives changed, refresh the destination list
-            load_dest_in_background()
-
-            messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully')
-
-    def save_config_file_as():
-        """Save the config file to a specified location."""
-
-        filename = filedialog.asksaveasfilename(initialdir='', initialfile='backup.ini', title='Save drive config', filetypes=(('Backup config files', 'backup.ini'), ('All files', '*.*')))
-
-        if config['sources'] and config['destinations']:
-            share_list = ','.join([item['dest_name'] for item in config['sources']])
-            raw_vid_list = [drive['vid'] for drive in config['destinations']]
-            raw_vid_list.extend(config['missing_drives'].keys())
-            vid_list = ','.join(raw_vid_list)
-
-            # Get drive info, and write file
-            new_config_file = Config(filename)
-
-            # Write shares and VIDs to config file
-            new_config_file.set('selection', 'sources', share_list)
-            new_config_file.set('selection', 'vids', vid_list)
-
-            # Write info for each drive to its own section
-            for current_drive in config['destinations']:
-                new_config_file.set(current_drive['vid'], 'vid', current_drive['vid'])
-                new_config_file.set(current_drive['vid'], 'serial', current_drive['serial'])
-                new_config_file.set(current_drive['vid'], 'capacity', current_drive['capacity'])
-
-            # Write info for missing drives
-            for drive_vid, capacity in config['missing_drives'].items():
-                new_config_file.set(drive_vid, 'vid', drive_vid)
-                new_config_file.set(drive_vid, 'serial', 'Unknown')
-                new_config_file.set(drive_vid, 'capacity', capacity)
-
-            messagebox.showinfo(title='Save Backup Config', message='Backup config saved successfully')
+                wx.MessageBox(
+                    message='Backup config saved successfully',
+                    caption='Save Backup Config',
+                    style=wx.OK | wx.ICON_INFORMATION,
+                    parent=main_frame
+                )
 
     def delete_config_file_from_selected_drives():
         """Delete config files from drives in destination selection."""
 
-        drive_list = [tree_dest.item(drive, 'text').strip(os.path.sep) for drive in tree_dest.selection()]
+        selection = []
+        item = dest_tree.GetFirstSelected()
+        while item != -1:
+            selection.append(item)
+            item = dest_tree.GetNextSelected(item)
+
+        drive_list = [dest_tree.GetItem(item, DEST_COL_PATH).GetText().strip(os.path.sep) for item in selection]
         drive_list = [drive for drive in drive_list if os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))]
 
         if drive_list:
             # Ask for confirmation before deleting
-            if messagebox.askyesno('Delete config files?', 'Are you sure you want to delete the config files from the selected drives?'):
+            if wx.MessageBox(
+                message='Are you sure you want to delete the config files from the selected drives?',
+                caption='Delete config files?',
+                style=wx.YES_NO,
+                parent=main_frame
+            ) == wx.YES:
                 # Delete config file on each drive
                 [os.remove(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) for drive in drive_list]
 
                 # Since config files on drives changed, refresh the destination list
                 load_dest_in_background()
 
-    window_backup_error_log = None
-
     def show_backup_error_log():
         """Show the backup error log."""
 
-        global window_backup_error_log
+        # TODO: Move this error log building to the UI update function.
+        # This would let the UI update thread handle appending, and have this function
+        # only deal with showing the window itself.
+        backup_error_log_log_sizer.Clear()
 
-        if window_backup_error_log is None or not window_backup_error_log.winfo_exists():
-            # Initialize window
-            window_backup_error_log = AppWindow(
-                root=root_window,
-                title='Backup Error Log',
-                width=650,
-                height=450,
-                center=True,
-                resizable=(False, False)
+        for error in backup_error_log:
+            error_summary_block = DetailBlock(
+                parent=backup_error_log_log_panel,
+                title=error['file'].split(os.path.sep)[-1],
+                text_font=FONT_DEFAULT,
+                bold_font=FONT_BOLD
             )
 
-            window_backup_error_log.main_frame.grid_columnconfigure(0, weight=1)
-            window_backup_error_log.main_frame.grid_rowconfigure(1, weight=1)
+            error_summary_block.add_line('file_name', 'Filename', error['file'])
+            error_summary_block.add_line('operation', 'Operation', error['mode'])
+            error_summary_block.add_line('error', 'Error', error['error'])
 
-            if SYS_PLATFORM == PLATFORM_WINDOWS:
-                window_backup_error_log.iconbitmap(resource_path('media/icon.ico'))
+            backup_error_log_log_sizer.Add(error_summary_block, 0)
 
-            tk.Label(window_backup_error_log.main_frame, text='Error Log', font=(None, 20)).grid(row=0, column=0, sticky='ew', pady=WINDOW_ELEMENT_PADDING / 2)
-            errorlog_error_list_frame = ScrollableFrame(window_backup_error_log.main_frame)
-            errorlog_error_list_frame.grid(row=1, column=0, sticky='nsew')
-
-            for error in backup_error_log:
-                error_summary_block = DetailBlock(
-                    parent=errorlog_error_list_frame.frame,
-                    title=error['file'].split(os.path.sep)[-1],
-                    uicolor=root_window.uicolor  # FIXME: Is there a better way to do this than to pass the uicolor instance from RootWindow into this?
-                )
-
-                error_summary_block.add_line('file_name', 'Filename', error['file'])
-                error_summary_block.add_line('operation', 'Operation', error['mode'])
-                error_summary_block.add_line('error', 'Error', error['error'])
-
-                error_summary_block.pack(anchor='w', expand=1)
+        backup_error_log_frame.ShowModal()
 
     def browse_for_source():
         """Browse for a source path, and either make it the source, or add to the list."""
 
         global last_selected_custom_source
 
-        dir_name = filedialog.askdirectory(initialdir='', title='Select source folder')
-        dir_name = os.path.sep.join(dir_name.split('/'))
-        if not dir_name:
-            return
+        with wx.DirDialog(main_frame, 'Select source folder', style=wx.DD_DEFAULT_STYLE) as dir_dialog:
+            # User changed their mind
+            if dir_dialog.ShowModal() == wx.ID_CANCEL:
+                return
 
-        if settings_sourceMode.get() == Config.SOURCE_MODE_SINGLE_PATH:
-            source_select_custom_single_path_label.configure(text=dir_name)
-            config['source_drive'] = dir_name
+            dir_name = dir_dialog.GetPath()
 
-            # Log last selection to preferences
-            last_selected_custom_source = dir_name
-            prefs.set('selection', 'last_selected_custom_source', dir_name)
+            dir_name = os.path.sep.join(dir_name.split('/'))
+            if not dir_name:
+                return
 
-            load_source_in_background()
-        elif settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_PATH:
-            # Get list of paths already in tree
-            existing_path_list = [tree_source.item(item, 'text') for item in tree_source.get_children()]
+            if settings_source_mode == Config.SOURCE_MODE_SINGLE_PATH:
+                source_src_control_label.SetLabel(label=dir_name)
+                source_src_control_label.Layout()
+                source_src_control_sizer.Layout()
+                config['source_path'] = dir_name
 
-            # Only add item to list if it's not already there
-            if dir_name not in existing_path_list:
                 # Log last selection to preferences
                 last_selected_custom_source = dir_name
                 prefs.set('selection', 'last_selected_custom_source', dir_name)
 
-                # Custom multi-source isn't stored in preferences, so default to
-                # dir name
-                path_name = dir_name.split(os.path.sep)[-1]
-                tree_source.insert(parent='', index='end', text=dir_name, values=('Unknown', 0, path_name))
+                load_source_in_background()
+            elif settings_source_mode == Config.SOURCE_MODE_MULTI_PATH:
+                # Get list of paths already in tree
+                existing_path_list = [source_tree.GetItem(item, SOURCE_COL_PATH).GetText() for item in range(source_tree.GetItemCount())]
 
+                # Only add item to list if it's not already there
+                if dir_name not in existing_path_list:
+                    # Log last selection to preferences
+                    last_selected_custom_source = dir_name
+                    prefs.set('selection', 'last_selected_custom_source', dir_name)
+
+                    # Custom multi-source isn't stored in preferences, so default to
+                    # dir name
+                    path_name = dir_name.split(os.path.sep)[-1]
+
+                    source_tree.Append((dir_name, path_name, 'Unknown', 0))
+
+    # FIXME: Make browse for source button work
     def browse_for_source_in_background():
         """Load a browsed source in the background."""
 
@@ -1883,30 +2111,45 @@ if __name__ == '__main__':
     def browse_for_dest():
         """Browse for a destination path, and add to the list."""
 
-        dir_name = filedialog.askdirectory(initialdir='', title='Select destination folder')
-        dir_name = os.path.sep.join(dir_name.split('/'))
-        if not dir_name:
-            return
+        with wx.DirDialog(main_frame, 'Select destination folder', style=wx.DD_DEFAULT_STYLE) as dir_dialog:
+            # User changed their mind
+            if dir_dialog.ShowModal() == wx.ID_CANCEL:
+                return
 
-        if settings_destMode.get() != Config.DEST_MODE_PATHS:
-            return
+            dir_name = dir_dialog.GetPath()
 
-        # Get list of paths already in tree
-        existing_path_list = [tree_dest.item(item, 'text') for item in tree_dest.get_children()]
+            dir_name = os.path.sep.join(dir_name.split('/'))
+            if not dir_name:
+                return
 
-        # Only add item to list if it's not already there
-        if dir_name not in existing_path_list:
-            # Custom dest isn't stored in preferences, so default to
-            # dir name
-            drive_free_space = shutil.disk_usage(dir_name).free
-            path_space = get_directory_size(dir_name)
-            config_space = get_directory_size(os.path.join(dir_name, BACKUP_CONFIG_DIR))
+            if settings_dest_mode != Config.DEST_MODE_PATHS:
+                return
 
-            dir_has_config_file = os.path.isfile(os.path.join(dir_name, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
-            name_stub = dir_name.split(os.path.sep)[-1].strip()
-            avail_space = drive_free_space + path_space - config_space
-            tree_dest.insert(parent='', index='end', text=dir_name, values=(human_filesize(avail_space), avail_space, 'Yes' if dir_has_config_file else '', name_stub))
+            # Get list of paths already in tree
+            existing_path_list = [dest_tree.GetItem(item, DEST_COL_PATH) for item in range(dest_tree.GetItemCount())]
 
+            # Only add item to list if it's not already there
+            if dir_name not in existing_path_list:
+                # Custom dest isn't stored in preferences, so default to
+                # dir name
+                drive_free_space = shutil.disk_usage(dir_name).free
+                path_space = get_directory_size(dir_name)
+                config_space = get_directory_size(os.path.join(dir_name, BACKUP_CONFIG_DIR))
+
+                dir_has_config_file = os.path.isfile(os.path.join(dir_name, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+                name_stub = dir_name.split(os.path.sep)[-1].strip()
+                avail_space = drive_free_space + path_space - config_space
+                dest_tree.Append((
+                    dir_name,
+                    name_stub,
+                    human_filesize(avail_space),
+                    'Yes' if dir_has_config_file else '',
+                    '',
+                    '',
+                    avail_space
+                ))
+
+    # FIXME: Make browse for destination button work
     def browse_for_dest_in_background():
         """Load a browsed destination in the background."""
 
@@ -1919,23 +2162,32 @@ if __name__ == '__main__':
             item: The TreeView item to rename.
         """
 
-        current_vals = tree_source.item(item, 'values')
-        current_name = current_vals[2] if len(current_vals) >= 3 else ''
+        current_name = source_tree.GetItem(item, SOURCE_COL_NAME).GetText()
 
-        new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root_window)
-        if new_name is not None:
-            new_name = new_name.strip()
+        with wx.TextEntryDialog(None, message='Please enter a new name for the item',
+                                caption='Rename source', value=current_name) as dialog:
+            response = dialog.ShowModal()
+
+            # User changed their mind
+            if response == wx.ID_CANCEL:
+                return
+
+            new_name = dialog.GetValue().strip()
             new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
             new_name = new_name.group(0) if new_name is not None else ''
-        else:
-            new_name = ''
 
-        # Only set name in preferences if not in custom source mode
-        if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_DRIVE:
-            drive_name = tree_source.item(item, 'text')
+            # Name shouldn't be changed if it's the same as current, or blank
+            if new_name == current_name:
+                return
+            if new_name == '':
+                return
+
+        # Only set name in preferences if in drive mode
+        if settings_source_mode == Config.SOURCE_MODE_MULTI_DRIVE:
+            drive_name = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
             prefs.set('source_names', drive_name, new_name)
 
-        tree_source.set(item, 'name', new_name)
+        source_tree.SetItem(item, SOURCE_COL_NAME, new_name)
 
     def delete_source_item(item):
         """Delete an item in the source tree for multi-source mode.
@@ -1944,7 +2196,7 @@ if __name__ == '__main__':
             item: The TreeView item to rename.
         """
 
-        tree_source.delete(item)
+        source_tree.DeleteItem(item)
 
     def rename_dest_item(item):
         """Rename an item in the dest tree for custom dest mode.
@@ -1953,18 +2205,27 @@ if __name__ == '__main__':
             item: The TreeView item to rename.
         """
 
-        current_vals = tree_dest.item(item, 'values')
-        current_name = current_vals[3] if len(current_vals) >= 4 else ''
+        current_name = dest_tree.GetItem(item, DEST_COL_NAME).GetText()
 
-        new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root_window)
-        if new_name is not None:
-            new_name = new_name.strip()
+        with wx.TextEntryDialog(None, message='Please enter a new name for the item',
+                                caption='Rename destination', value=current_name) as dialog:
+            response = dialog.ShowModal()
+
+            # User changed their mind
+            if response == wx.ID_CANCEL:
+                return
+
+            new_name = dialog.GetValue().strip()
             new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
             new_name = new_name.group(0) if new_name is not None else ''
-        else:
-            new_name = ''
 
-        tree_dest.set(item, 'vid', new_name)
+            # Name shouldn't be changed if it's the same as current, or blank
+            if new_name == current_name:
+                return
+            if new_name == '':
+                return
+
+        dest_tree.SetItem(item, DEST_COL_NAME, new_name)
 
     def delete_dest_item(item):
         """Delete an item in the dest tree for custom dest mode.
@@ -1973,140 +2234,137 @@ if __name__ == '__main__':
             item: The TreeView item to rename.
         """
 
-        tree_dest.delete(item)
+        dest_tree.DeleteItem(item)
 
+    # FIXME: Fix source tree right click menu
     def show_source_right_click_menu(event):
         """Show the right click menu in the source tree for multi-source mode."""
 
         # Program needs to be in multi-source mode
-        if settings_sourceMode.get() not in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+        if settings_source_mode not in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
             return
 
-        item = tree_source.identify_row(event.y)
-        if not item:  # Don't do anything if no item was clicked on
-            return
+        right_click_menu = wx.Menu()
+        right_click_menu.Append(ID_SOURCE_RENAME, 'Rename', 'Rename the selected item')
+        right_click_menu.Bind(wx.EVT_MENU, lambda e: rename_source_item(event.GetItem().GetId()), id=ID_SOURCE_RENAME)
+        if settings_dest_mode == Config.SOURCE_MODE_MULTI_PATH:
+            right_click_menu.Append(ID_SOURCE_DELETE, 'Delete', 'Delete the selected item')
+            right_click_menu.Bind(wx.EVT_MENU, lambda e: delete_source_item(event.GetItem().GetId()), id=ID_SOURCE_DELETE)
 
-        tree_source.selection_set(item)
-        source_right_click_menu.entryconfig('Rename', command=lambda: rename_source_item(item))
-        if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_PATH:
-            source_right_click_menu.entryconfig('Delete', command=lambda: delete_source_item(item))
-        source_right_click_menu.post(event.x_root_window, event.y_root)
+        main_frame.PopupMenu(right_click_menu, event.GetPoint())
 
+    # FIXME: Fix destination tree right click menu
     def show_dest_right_click_menu(event):
         """Show the right click menu in the dest tree for custom dest mode."""
 
         # Program needs to be in path destination mode
-        if settings_destMode.get() != Config.DEST_MODE_PATHS:
+        if settings_dest_mode != Config.DEST_MODE_PATHS:
             return
 
-        item = tree_dest.identify_row(event.y)
-        if not item:  # Don't do anything if no item was clicked on
-            return
+        right_click_menu = wx.Menu()
+        right_click_menu.Append(ID_DEST_RENAME, 'Rename', 'Rename the selected item')
+        right_click_menu.Append(ID_DEST_DELETE, 'Delete', 'Delete the selected item')
+        right_click_menu.Bind(wx.EVT_MENU, lambda e: rename_dest_item(event.GetItem().GetId()), id=ID_DEST_RENAME)
+        right_click_menu.Bind(wx.EVT_MENU, lambda e: delete_dest_item(event.GetItem().GetId()), id=ID_DEST_DELETE)
 
-        tree_dest.selection_set(item)
-        dest_right_click_menu.entryconfig('Rename', command=lambda: rename_dest_item(item))
-        dest_right_click_menu.entryconfig('Delete', command=lambda: delete_dest_item(item))
-        dest_right_click_menu.post(event.x_root, event.y_root)
+        main_frame.PopupMenu(right_click_menu, event.GetPoint())
 
-    def change_source_mode():
-        """Change the mode for source selection."""
+    def change_source_mode(selection):
+        """Change the mode for source selection.
 
-        global source_right_click_bind
-        global WINDOW_MIN_WIDTH
-        global PREV_SOURCE_MODE
+        Args:
+            selection: The selected source mode to change to.
+        """
+
+        global settings_source_mode
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
-            settings_sourceMode.set(PREV_SOURCE_MODE)
+            selection_source_mode_menu_single_drive.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE)
+            selection_source_mode_menu_multi_drive.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_DRIVE)
+            selection_source_mode_menu_single_path.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_PATH)
+            selection_source_mode_menu_multi_path.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_PATH)
             return
 
         # If analysis is valid, invalidate it
         reset_analysis_output()
 
-        prefs.set('selection', 'source_mode', settings_sourceMode.get())
-        root_geom = root_window.geometry().split('+')
-        root_size_geom = root_geom[0].split('x')
-        CUR_WIN_WIDTH = int(root_size_geom[0])
-        CUR_WIN_HEIGHT = int(root_size_geom[1])
-        POS_X = int(root_geom[1])
-        POS_Y = int(root_geom[2])
+        prefs.set('selection', 'source_mode', selection)
 
-        if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH] and PREV_SOURCE_MODE not in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-            tree_source.column('#0', width=SINGLE_SOURCE_TEXT_COL_WIDTH)
-            tree_source.column('name', width=SINGLE_SOURCE_NAME_COL_WIDTH)
-            tree_source['displaycolumns'] = ('size')
+        if selection == Config.SOURCE_MODE_SINGLE_DRIVE:
+            source_src_control_label.SetLabel('Source: ')
 
-            WINDOW_MIN_WIDTH -= WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-            CUR_WIN_WIDTH -= WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-            root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
-            root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+            source_src_control_dropdown.Clear()
+            if not source_src_control_dropdown.IsShown():
+                source_src_control_dropdown.Show()
 
-            # Unbind right click menu
-            try:
-                tree_source.unbind('<Button-3>', source_right_click_bind)
-            except tk._tkinter.TclError:
-                pass
+            if source_src_control_browse_btn.IsShown():
+                source_src_control_browse_btn.Hide()
+        elif selection == Config.SOURCE_MODE_MULTI_DRIVE:
+            config['source_path'] = last_selected_custom_source
 
-            config['source_mode'] == settings_sourceMode.get()
-            PREV_SOURCE_MODE = settings_sourceMode.get()
+            source_src_control_label.SetLabel('Multi-drive mode, browse/selection disabled')
 
-            if settings_sourceMode.get() == Config.SOURCE_MODE_SINGLE_PATH:
-                config['source_drive'] = last_selected_custom_source
-        elif settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH] and PREV_SOURCE_MODE not in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-            WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-            CUR_WIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-            root_window.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
-            root_window.geometry(f'{CUR_WIN_WIDTH}x{CUR_WIN_HEIGHT}+{POS_X}+{POS_Y}')
+            if source_src_control_dropdown.IsShown():
+                source_src_control_dropdown.Hide()
 
-            tree_source.column('#0', width=MULTI_SOURCE_TEXT_COL_WIDTH)
-            tree_source.column('name', width=MULTI_SOURCE_NAME_COL_WIDTH)
-            tree_source['displaycolumns'] = ('name', 'size')
+            if source_src_control_browse_btn.IsShown():
+                source_src_control_browse_btn.Hide()
+        elif selection == Config.SOURCE_MODE_SINGLE_PATH:
+            source_src_control_label.SetLabel(last_selected_custom_source)
 
-            # Bind right click menu
-            if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_DRIVE:  # Delete option should only show in custom mode
-                source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
+            if source_src_control_dropdown.IsShown():
+                source_src_control_dropdown.Hide()
 
-            config['source_mode'] == settings_sourceMode.get()
-            PREV_SOURCE_MODE = settings_sourceMode.get()
+            if not source_src_control_browse_btn.IsShown():
+                source_src_control_browse_btn.Show()
+        elif selection == Config.SOURCE_MODE_MULTI_PATH:
+            source_src_control_label.SetLabel('Custom multi-source mode')
+
+            if source_src_control_dropdown.IsShown():
+                source_src_control_dropdown.Hide()
+
+            if not source_src_control_browse_btn.IsShown():
+                source_src_control_browse_btn.Show()
+
+        settings_source_mode = selection
+        prefs.set('selection', 'source_mode', selection)
+        config['source_mode'] == selection
+
+        redraw_source_tree()
 
         load_source_in_background()
 
-    def change_dest_mode():
-        """Change the mode for destination selection."""
+    def change_dest_mode(selection):
+        """Change the mode for destination selection.
 
-        global dest_right_click_bind
-        global PREV_DEST_MODE
+        Args:
+            selection: The selected destination mode to change to.
+        """
+
+        global settings_dest_mode
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
-            settings_destMode.set(PREV_DEST_MODE)
+            selection_dest_mode_menu_paths.Check(settings_dest_mode == Config.DEST_MODE_PATHS)
+            selection_dest_mode_menu_drives.Check(settings_dest_mode == Config.DEST_MODE_DRIVES)
             return
 
         # If analysis is valid, invalidate it
         reset_analysis_output()
 
-        prefs.set('selection', 'dest_mode', settings_destMode.get())
+        settings_dest_mode = selection
+        prefs.set('selection', 'dest_mode', selection)
+        config['dest_mode'] = selection
 
-        if settings_destMode.get() == Config.DEST_MODE_DRIVES:
-            tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
-            tree_dest.heading('vid', text='Volume ID')
-            tree_dest.column('vid', width=90)
-            tree_dest['displaycolumns'] = ('size', 'configfile', 'vid', 'serial')
+        if selection == Config.DEST_MODE_DRIVES:
+            if source_dest_control_browse_btn.IsShown():
+                source_dest_control_browse_btn.Hide()
+        elif selection == Config.DEST_MODE_PATHS:
+            if not source_src_control_browse_btn.IsShown():
+                source_dest_control_browse_btn.Show()
 
-            tree_dest.unbind('<Button-3>', dest_right_click_bind)
-
-            config['dest_mode'] = settings_destMode.get()
-            PREV_DEST_MODE = settings_destMode.get()
-        elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-            tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
-            tree_dest.column('vid', width=140)
-            tree_dest.heading('vid', text='Name')
-            tree_dest['displaycolumns'] = ('vid', 'size', 'configfile')
-
-            dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
-
-            config['dest_mode'] = settings_destMode.get()
-            PREV_DEST_MODE = settings_destMode.get()
+        redraw_dest_tree()
 
         if not thread_manager.is_alive('Refresh Destination'):
             thread_manager.start(ThreadManager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
@@ -2118,20 +2376,22 @@ if __name__ == '__main__':
             toggle_type (int): The drive type to toggle.
         """
 
-        global PREV_LOCAL_SOURCE_DRIVE
-        global PREV_NETWORK_SOURCE_DRIVE
+        global settings_show_drives_source_network
+        global settings_show_drives_source_local
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
-            settings_showDrives_source_local.set(PREV_LOCAL_SOURCE_DRIVE)
-            settings_showDrives_source_network.set(PREV_NETWORK_SOURCE_DRIVE)
+            if toggle_type == DRIVE_TYPE_LOCAL:
+                selection_menu_show_drives_source_local.Check(settings_show_drives_source_local)
+            elif toggle_type == DRIVE_TYPE_REMOTE:
+                selection_menu_show_drives_source_network.Check(settings_show_drives_source_network)
             return
 
         # If analysis is valid, invalidate it
         reset_analysis_output()
 
-        selected_local = settings_showDrives_source_local.get()
-        selected_network = settings_showDrives_source_network.get()
+        selected_network = selection_menu_show_drives_source_network.IsChecked()
+        selected_local = selection_menu_show_drives_source_local.IsChecked()
 
         # If both selections are unchecked, the last one has just been unchecked
         # In this case, re-check it, so that there's always some selection
@@ -2140,14 +2400,15 @@ if __name__ == '__main__':
         # find a proper solution for this...
         if not selected_local and not selected_network:
             if toggle_type == DRIVE_TYPE_LOCAL:
-                settings_showDrives_source_local.set(True)
+                selection_menu_show_drives_source_local.Check(True)
             elif toggle_type == DRIVE_TYPE_REMOTE:
-                settings_showDrives_source_network.set(True)
+                selection_menu_show_drives_source_network.Check(True)
 
-        PREV_LOCAL_SOURCE_DRIVE = settings_showDrives_source_local.get()
-        PREV_NETWORK_SOURCE_DRIVE = settings_showDrives_source_network.get()
-        prefs.set('selection', 'source_network_drives', settings_showDrives_source_network.get())
-        prefs.set('selection', 'source_local_drives', settings_showDrives_source_local.get())
+        # Set preferences
+        settings_show_drives_source_network = selection_menu_show_drives_source_network.IsChecked()
+        settings_show_drives_source_local = selection_menu_show_drives_source_local.IsChecked()
+        prefs.set('selection', 'source_network_drives', settings_show_drives_source_network)
+        prefs.set('selection', 'source_local_drives', settings_show_drives_source_local)
 
         load_source_in_background()
 
@@ -2158,33 +2419,39 @@ if __name__ == '__main__':
             toggle_type (int): The drive type to toggle.
         """
 
-        global PREV_LOCAL_DEST_DRIVE
-        global PREV_NETWORK_DEST_DRIVE
+        global settings_show_drives_destination_network
+        global settings_show_drives_destination_local
 
         # If backup is running, ignore request to change
         if backup and backup.is_running():
-            settings_showDrives_dest_local.set(PREV_LOCAL_DEST_DRIVE)
-            settings_showDrives_dest_network.set(PREV_NETWORK_DEST_DRIVE)
+            if toggle_type == DRIVE_TYPE_LOCAL:
+                selection_menu_show_drives_destination_local.Check(settings_show_drives_destination_local)
+            elif toggle_type == DRIVE_TYPE_REMOTE:
+                selection_menu_show_drives_destination_network.Check(settings_show_drives_destination_network)
             return
 
         # If analysis is valid, invalidate it
         reset_analysis_output()
 
-        selected_local = settings_showDrives_dest_local.get()
-        selected_network = settings_showDrives_dest_network.get()
+        selected_local = selection_menu_show_drives_destination_local.IsChecked()
+        selected_network = selection_menu_show_drives_destination_network.IsChecked()
 
         # If both selections are unchecked, the last one has just been unchecked
         # In this case, re-check it, so that there's always some selection
+        # TODO: This currently uses the fixed type to indicate local drives, but
+        # will be used to select both fixed and removable drives. Should probably
+        # find a proper solution for this...
         if not selected_local and not selected_network:
             if toggle_type == DRIVE_TYPE_LOCAL:
-                settings_showDrives_dest_local.set(True)
+                selection_menu_show_drives_destination_local.Check(True)
             elif toggle_type == DRIVE_TYPE_REMOTE:
-                settings_showDrives_dest_network.set(True)
+                selection_menu_show_drives_destination_network.Check(True)
 
-        PREV_LOCAL_DEST_DRIVE = settings_showDrives_dest_local.get()
-        PREV_NETWORK_DEST_DRIVE = settings_showDrives_dest_network.get()
-        prefs.set('selection', 'destination_network_drives', settings_showDrives_dest_network.get())
-        prefs.set('selection', 'destination_local_drives', settings_showDrives_dest_local.get())
+        # Set preferences
+        settings_show_drives_destination_network = selection_menu_show_drives_destination_network.IsChecked()
+        settings_show_drives_destination_local = selection_menu_show_drives_destination_local.IsChecked()
+        prefs.set('selection', 'destination_network_drives', settings_show_drives_destination_network)
+        prefs.set('selection', 'destination_local_drives', settings_show_drives_destination_local)
 
         load_dest_in_background()
 
@@ -2194,14 +2461,14 @@ if __name__ == '__main__':
         if backup and backup.is_running():  # Backup can't be running while data verification takes place
             return
 
-        drive_list = [drive['name'] for drive in config['destinations']]
-        thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(drive_list), name='Data Verification', is_progress_thread=True, daemon=True)
+        dest_list = [dest['name'] for dest in config['destinations']]
+        thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(dest_list), name='Data Verification', is_progress_thread=True, daemon=True)
 
     def update_ui_pre_analysis():
         """Update the UI before an analysis is run."""
 
         update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_ANALYSIS_RUNNING)
-        update_ui_component(Status.UPDATEUI_BACKUP_BTN, {'state': 'disable'})
+        start_backup_btn.Disable()
         update_ui_component(Status.UPDATEUI_ANALYSIS_START)
 
     def update_ui_post_analysis(files_payload: list, summary_payload: list):
@@ -2230,13 +2497,13 @@ if __name__ == '__main__':
             )
 
             update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
-            update_ui_component(Status.UPDATEUI_BACKUP_BTN, {'state': 'normal'})
+            start_backup_btn.Enable()
             update_ui_component(Status.UPDATEUI_ANALYSIS_END)
         else:
             # If thread halted, mark analysis as invalid
             update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
             update_ui_component(Status.UPDATEUI_ANALYSIS_END)
-            update_ui_component(Status.RESET_ANALYSIS_OUTPUT)
+            reset_analysis_output()
 
     def update_ui_during_backup():
         """Update the user interface using a RepeatedTimer."""
@@ -2247,9 +2514,9 @@ if __name__ == '__main__':
         backup_progress = backup.get_progress_updates()
 
         if backup.status == Status.BACKUP_ANALYSIS_RUNNING:
-            progress.start_indeterminate()
+            progress_bar.StartIndeterminate()
         else:
-            progress.stop_indeterminate()
+            progress_bar.StopIndeterminate()
 
         # Update ETA timer
         update_backup_eta_timer(backup_progress)
@@ -2267,13 +2534,15 @@ if __name__ == '__main__':
 
             # Update file details info block
             if display_index is not None and display_index in cmd_info_blocks:
-                cmd_info_blocks[display_index].configure('current_file', text=filename if filename is not None else '', fg=root_window.uicolor.NORMAL)
+                cmd_info_blocks[display_index].SetLabel('current_file', label=filename if filename is not None else '')
+                cmd_info_blocks[display_index].SetForegroundColour('current_file', Color.TEXT_DEFAULT)
         else:
             filename, display_index = (None, None)
 
         # Update backup status for each command info block
         if backup_progress['total']['command_display_index'] is not None:
-            cmd_info_blocks[backup_progress['total']['command_display_index']].state.configure(text='Running', fg=root_window.uicolor.RUNNING)
+            cmd_info_blocks[backup_progress['total']['command_display_index']].state.SetLabel(label='Running')
+            cmd_info_blocks[backup_progress['total']['command_display_index']].state.SetForegroundColour(Color.RUNNING)
             backup.progress['command_display_index'] = None
 
         # Update status bar
@@ -2294,15 +2563,20 @@ if __name__ == '__main__':
         if display_index is not None:
             # FIXME: Progress bar jumps after completing backup, as though
             #     the progress or total changes when the backup completes
-            progress.set(current=backup.progress['current'], total=backup.progress['total'])
+            progress_bar.SetValue(backup.progress['current'])
+            progress_bar.SetRange(backup.progress['total'])
 
-            cmd_info_blocks[display_index].configure('current_file', text=buffer['display_filename'], fg=root_window.uicolor.NORMAL)
+            cmd_info_blocks[display_index].SetLabel('current_file', label=buffer['display_filename'])
+            cmd_info_blocks[display_index].SetForegroundColour('current_file', Color.TEXT_DEFAULT)
             if buffer['operation'] == Status.FILE_OPERATION_DELETE:
-                cmd_info_blocks[display_index].configure('progress', text=f"Deleted {buffer['display_filename']}", fg=root_window.uicolor.NORMAL)
+                cmd_info_blocks[display_index].SetLabel('progress', label=f"Deleted {buffer['display_filename']}")
+                cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
             elif buffer['operation'] == Status.FILE_OPERATION_COPY:
-                cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.NORMAL)
+                cmd_info_blocks[display_index].SetLabel('progress', label=f"{percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}")
+                cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
             elif buffer['operation'] == Status.FILE_OPERATION_VERIFY:
-                cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.BLUE)
+                cmd_info_blocks[display_index].SetLabel('progress', label=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}")
+                cmd_info_blocks[display_index].SetForegroundColour('progress', Color.BLUE)
 
         # Update file detail lists on deletes and copies
         delta_file_lists = {
@@ -2351,15 +2625,131 @@ if __name__ == '__main__':
         if command is not None:
             display_index = command['displayIndex']
             if backup.status == Status.BACKUP_BACKUP_ABORTED and backup.progress['current'] < backup.progress['total']:
-                cmd_info_blocks[display_index].state.configure(text='Aborted', fg=root_window.uicolor.STOPPED)
-                cmd_info_blocks[display_index].configure('progress', text='Aborted', fg=root_window.uicolor.STOPPED)
+                cmd_info_blocks[display_index].state.SetLabel(text='Aborted')
+                cmd_info_blocks[display_index].state.SetForegroundColour(Color.STOPPED)
+                cmd_info_blocks[display_index].SetLabel('progress', text='Aborted')
+                cmd_info_blocks[display_index].SetForegroundColour('progress', Color.STOPPED)
             else:
-                cmd_info_blocks[display_index].state.configure(text='Done', fg=root_window.uicolor.FINISHED)
-                cmd_info_blocks[display_index].configure('progress', text='Done', fg=root_window.uicolor.FINISHED)
+                cmd_info_blocks[display_index].state.SetLabel(text='Done')
+                cmd_info_blocks[display_index].state.SetForegroundColour(Color.FINISHED)
+                cmd_info_blocks[display_index].SetLabel('progress', text='Done')
+                cmd_info_blocks[display_index].SetForegroundColour('progress', Color.FINISHED)
 
         # If backup stopped, 
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
+
+    # FIXME: can a function like this be generalized to set a setting and preferences?
+    def change_verification_all_preferences(verify_all: bool = True):
+        """Set verification preferences whether to verify all files or not.
+
+        Args:
+            verify_all (bool): Whether to verify all files (default: True).
+        """
+
+        global settings_verify_all_files
+
+        settings_verify_all_files = verify_all
+        prefs.set('verification', 'verify_all_files', verify_all)
+
+    def change_dark_mode_preferences(dark_mode: bool = True):
+        """Set dark mode preferences.
+
+        Args:
+            dark_mode (bool): Whether to enable dark mode (default: True).
+        """
+
+        global settings_dark_mode
+
+        settings_dark_mode = dark_mode
+        prefs.set('ui', 'dark_mode', dark_mode)
+
+    def change_prerelease_preferences(allow_prereleases: bool = False):
+        """Set verification preferences whether to verify all files or not.
+
+        Args:
+            allow_prereleases (bool): Whether to allow prereleases (default: False).
+        """
+
+        global settings_allow_prerelease_updates
+
+        settings_allow_prerelease_updates = allow_prereleases
+        prefs.set('ui', 'allow_prereleases', allow_prereleases)
+
+        # Update handler doesn't check for this setting on its own, so update it
+        update_handler.allow_prereleases = bool(allow_prereleases)
+
+    def redraw_source_tree():
+        """Redraw the source tree by reading preferences and setting columns and
+        sizes.
+        """
+
+        if settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
+            SOURCE_TREE_SIZE = (280, -1)
+        elif settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+            SOURCE_TREE_SIZE = (420, -1)
+
+        source_tree.SetSize(SOURCE_TREE_SIZE)
+        source_src_sizer.Layout()
+
+        if settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
+            source_tree.SetColumnWidth(SOURCE_COL_PATH, 200)
+            source_tree.SetColumnWidth(SOURCE_COL_NAME, 0)
+            source_tree.SetColumnWidth(SOURCE_COL_SIZE, 80)
+        elif settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+            source_tree.SetColumnWidth(SOURCE_COL_PATH, 170)
+            source_tree.SetColumnWidth(SOURCE_COL_NAME, 170)
+            source_tree.SetColumnWidth(SOURCE_COL_SIZE, 80)
+
+    def redraw_dest_tree():
+        """Redraw the destination tree by reading preferences and setting columns
+        and sizes.
+        """
+
+        DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == PLATFORM_WINDOWS else 150
+        DEST_TREE_COLWIDTH_VID = 140 if settings_dest_mode == Config.DEST_MODE_PATHS else 90
+        DEST_TREE_COLWIDTH_SERIAL = 150 if SYS_PLATFORM == PLATFORM_WINDOWS else 50
+
+        if settings_dest_mode == Config.DEST_MODE_DRIVES:
+            DEST_TREE_WIDTH = DEST_TREE_COLWIDTH_DRIVE + 80 + 50 + DEST_TREE_COLWIDTH_VID + DEST_TREE_COLWIDTH_SERIAL
+        elif settings_dest_mode == Config.DEST_MODE_PATHS:
+            DEST_TREE_WIDTH = DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50 + DEST_TREE_COLWIDTH_VID + 80 + 50
+
+        dest_tree.SetSize(DEST_TREE_WIDTH, -1)
+        source_dest_sizer.Layout()
+
+        if settings_dest_mode == Config.DEST_MODE_DRIVES:
+            dest_tree.SetColumnWidth(DEST_COL_PATH, DEST_TREE_COLWIDTH_DRIVE)
+            dest_tree.SetColumnWidth(DEST_COL_NAME, 0)
+            dest_tree.SetColumnWidth(DEST_COL_SIZE, 80)
+            dest_tree.SetColumnWidth(DEST_COL_CONFIG, 50)
+            dest_tree.SetColumnWidth(DEST_COL_VID, DEST_TREE_COLWIDTH_VID)
+            dest_tree.SetColumnWidth(DEST_COL_SERIAL, DEST_TREE_COLWIDTH_SERIAL)
+        elif settings_dest_mode == Config.DEST_MODE_PATHS:
+            dest_tree.SetColumnWidth(DEST_COL_PATH, DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
+            dest_tree.SetColumnWidth(DEST_COL_NAME, DEST_TREE_COLWIDTH_VID)
+            dest_tree.SetColumnWidth(DEST_COL_SIZE, 80)
+            dest_tree.SetColumnWidth(DEST_COL_CONFIG, 50)
+            dest_tree.SetColumnWidth(DEST_COL_VID, 0)
+            dest_tree.SetColumnWidth(DEST_COL_SERIAL, 0)
+
+    def show_widget_inspector():
+        """Show the widget inspection tool."""
+        wx.lib.inspection.InspectionTool().Show()
+
+    def on_close():
+        if not thread_manager.is_alive('Backup'):
+            exit()
+
+        if wx.MessageBox(
+            message="There's still a background process running. Are you sure you want to kill it?",
+            caption='Quit?',
+            style=wx.OK | wx.CANCEL,
+            parent=main_frame
+        ) == wx.OK:
+            if backup:
+                backup.kill()
+            exit()
 
     LOGGING_LEVEL = logging.INFO
     LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
@@ -2374,6 +2764,17 @@ if __name__ == '__main__':
         FileUtils.LIST_FAIL: []
     }
 
+    # Load settings from preferences
+    settings_show_drives_source_network = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
+    settings_show_drives_source_local = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
+    settings_show_drives_destination_network = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
+    settings_show_drives_destination_local = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
+    settings_source_mode = prefs.get('selection', 'source_mode')
+    settings_dest_mode = prefs.get('selection', 'dest_mode')
+    settings_verify_all_files = prefs.get('verification', 'verify_all_files', default=True, data_type=Config.BOOLEAN)
+    settings_dark_mode = prefs.get('ui', 'dark_mode', default=True, data_type=Config.BOOLEAN)
+    settings_allow_prerelease_updates = prefs.get('ui', 'allow_prereleases', default=False, data_type=Config.BOOLEAN)
+
     update_handler = UpdateHandler(
         current_version=__version__,
         allow_prereleases=config['allow_prereleases'],
@@ -2381,78 +2782,7 @@ if __name__ == '__main__':
         update_callback=check_for_updates
     )
 
-    WINDOW_BASE_WIDTH = 1200  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
-    WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
-    WINDOW_MIN_HEIGHT = 700
-    MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == PLATFORM_WINDOWS else 200
-    MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == PLATFORM_WINDOWS else 140
-    SINGLE_SOURCE_TEXT_COL_WIDTH = 170
-    SINGLE_SOURCE_NAME_COL_WIDTH = 170
-
-    WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
-    if prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-        WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
-
-    root_window = RootWindow(
-        title='BackDrop - Data Backup Tool',
-        width=WINDOW_MIN_WIDTH,
-        height=WINDOW_MIN_HEIGHT,
-        center=True,
-        status_bar=True,
-        dark_mode=prefs.get('ui', 'dark_mode', True, data_type=Config.BOOLEAN)
-    )
-
-    if SYS_PLATFORM == PLATFORM_WINDOWS:
-        root_window.iconbitmap(resource_path('media/icon.ico'))
-    elif SYS_PLATFORM == PLATFORM_LINUX:
-        root_window.iconphoto(True, ImageTk.PhotoImage(Image.open(resource_path('media/icon.png'))))
-
-    default_font = tkfont.nametofont("TkDefaultFont")
-    default_font.configure(size=9)
-    heading_font = tkfont.nametofont("TkHeadingFont")
-    heading_font.configure(size=9, weight='normal')
-    menu_font = tkfont.nametofont("TkMenuFont")
-    menu_font.configure(size=9)
-
-    # Selection and backup status, left side
-    statusbar_selection = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
-    statusbar_selection.grid(row=0, column=0, padx=6)
-    update_status_bar_selection()
-    statusbar_action = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
-    statusbar_action.grid(row=0, column=1, padx=6)
-    update_status_bar_action(Status.IDLE)
-    statusbar_counter_btn = ttk.Button(root_window.status_bar_frame, text='0 failed', width=0, command=show_backup_error_log, state='disabled', style='danger.statusbar.TButton')
-    statusbar_counter_btn.grid(row=0, column=2, ipadx=3, padx=3)
-    statusbar_details = tk.Label(root_window.status_bar_frame, bg=root_window.uicolor.STATUS_BAR)
-    statusbar_details.grid(row=0, column=3, padx=6)
-
-    # Portable mode indicator and update status, right side
-    if PORTABLE_MODE:
-        statusbar_portablemode = tk.Label(root_window.status_bar_frame, text='Portable mode', bg=root_window.uicolor.STATUS_BAR)
-        statusbar_portablemode.grid(row=0, column=99, padx=6)
-    statusbar_update = tk.Label(root_window.status_bar_frame, text='', bg=root_window.uicolor.STATUS_BAR)
-    statusbar_update.grid(row=0, column=100, padx=6)
-    statusbar_update.bind('<Button-1>', lambda e: display_update_screen(update_info))
-
-    # Set some default styling
-    tk_style = ttk.Style()
-    if SYS_PLATFORM == PLATFORM_WINDOWS:
-        tk_style.theme_use('vista')
-    elif SYS_PLATFORM == PLATFORM_LINUX:
-        tk_style.theme_use('clam')
-
-    tk_style.element_create('TButton', 'from', 'clam')
-    tk_style.layout('TButton', [
-        ('TButton.border', {'sticky': 'nswe', 'border': '1', 'children': [
-            ('TButton.focus', {'sticky': 'nswe', 'children': [
-                ('TButton.padding', {'sticky': 'nswe', 'children': [
-                    ('TButton.label', {'sticky': 'nswe'})
-                ]})
-            ]})
-        ]})
-    ])
-
-    if root_window.dark_mode:
+    if settings_dark_mode:
         BUTTON_NORMAL_COLOR = '#585858'
         BUTTON_TEXT_COLOR = '#fff'
         BUTTON_ACTIVE_COLOR = '#666'
@@ -2473,526 +2803,699 @@ if __name__ == '__main__':
         DANGER_BUTTON_DISABLED_COLOR = '#900'
         DANGER_BUTTON_DISABLED_TEXT_COLOR = '#caa'
 
-    tk_style.map(
-        'TButton',
-        background=[('pressed', '!disabled', BUTTON_PRESSED_COLOR), ('active', '!disabled', BUTTON_ACTIVE_COLOR), ('disabled', BUTTON_DISABLED_COLOR)],
-        foreground=[('disabled', BUTTON_DISABLED_TEXT_COLOR)]
+    WINDOW_BASE_WIDTH = 1300  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
+    WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
+    WINDOW_MIN_HEIGHT = 700
+    MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == PLATFORM_WINDOWS else 200
+    MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == PLATFORM_WINDOWS else 140
+    SINGLE_SOURCE_TEXT_COL_WIDTH = 170
+    SINGLE_SOURCE_NAME_COL_WIDTH = 170
+    ITEM_UI_PADDING = 10
+
+    WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
+    if prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+        WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+
+    app = wx.App()
+
+    wx.Font.AddPrivateFont(resource_path('assets/fonts/Roboto-Regular.ttf'))
+    wx.Font.AddPrivateFont(resource_path('assets/fonts/Roboto-Bold.ttf'))
+
+    FONT_DEFAULT = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
+                           weight=wx.FONTWEIGHT_NORMAL, underline=False,
+                           faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_BOLD = wx.Font(9, family=wx.FONTFAMILY_DEFAULT, style=0,
+                        weight=wx.FONTWEIGHT_BOLD, underline=False,
+                        faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_MEDIUM = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
+                          weight=wx.FONTWEIGHT_NORMAL, underline=False,
+                          faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_LARGE = wx.Font(16, family=wx.FONTFAMILY_DEFAULT, style=0,
+                         weight=wx.FONTWEIGHT_NORMAL, underline=False,
+                         faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_HEADING = wx.Font(11, family=wx.FONTFAMILY_DEFAULT, style=0,
+                           weight=wx.FONTWEIGHT_BOLD, underline=False,
+                           faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_GIANT = wx.Font(28, family=wx.FONTFAMILY_DEFAULT, style=0,
+                         weight=wx.FONTWEIGHT_NORMAL, underline=False,
+                         faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+    FONT_UPDATE_AVAILABLE = wx.Font(32, family=wx.FONTFAMILY_DEFAULT, style=0,
+                                    weight=wx.FONTWEIGHT_BOLD, underline=False,
+                                    faceName ='Roboto', encoding=wx.FONTENCODING_DEFAULT)
+
+    main_frame = RootWindow(
+        parent=None,
+        title='BackDrop - Data Backup Tool',
+        size=wx.Size(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT),
+        name='Main window frame',
+        icon=wx.Icon(resource_path('assets/icon.ico'))
     )
-    tk_style.map(
-        'danger.TButton',
-        background=[('pressed', '!disabled', '#900'), ('active', '!disabled', '#c00'), ('disabled', DANGER_BUTTON_DISABLED_COLOR)],
-        foreground=[('disabled', DANGER_BUTTON_DISABLED_TEXT_COLOR)]
+    main_frame.SetFont(FONT_DEFAULT)
+    app.SetTopWindow(main_frame)
+
+    backup_error_log_frame = ModalWindow(
+        parent=main_frame,
+        title='Backup Error Log',
+        size=wx.Size(650, 450),
+        name='Backup error log frame'
     )
-    tk_style.map(
-        'statusbar.TButton',
-        background=[('pressed', '!disabled', root_window.uicolor.STATUS_BAR), ('active', '!disabled', root_window.uicolor.STATUS_BAR), ('disabled', root_window.uicolor.STATUS_BAR)],
-        foreground=[('disabled', root_window.uicolor.FADED)]
+    backup_error_log_frame.SetFont(FONT_DEFAULT)
+
+    backup_error_log_frame.Panel(
+        name='Backup error log root panel',
+        background=Color.BACKGROUND,
+        foreground=Color.TEXT_DEFAULT
     )
-    tk_style.map(
-        'tab.TButton',
-        background=[('pressed', '!disabled', root_window.uicolor.BG), ('active', '!disabled', root_window.uicolor.BG), ('disabled', root_window.uicolor.BG)],
-        foreground=[('disabled', root_window.uicolor.FADED), ('active', '!disabled', root_window.uicolor.FG)]
+    backup_error_log_sizer = wx.BoxSizer(wx.VERTICAL)
+
+    backup_error_log_header = wx.StaticText(backup_error_log_frame.root_panel, -1, label='Backup Error Log', name='Backup error log heading')
+    backup_error_log_header.SetFont(FONT_HEADING)
+    backup_error_log_sizer.Add(backup_error_log_header, 0, wx.ALIGN_CENTER_HORIZONTAL)
+
+    backup_error_log_log_panel = wx.ScrolledWindow(backup_error_log_frame.root_panel, -1, style=wx.VSCROLL, name='Backup error log panel')
+    backup_error_log_log_panel.SetScrollbars(20, 20, 50, 50)
+    backup_error_log_log_panel.SetForegroundColour(Color.TEXT_DEFAULT)
+    backup_error_log_log_sizer = wx.BoxSizer(wx.VERTICAL)
+    backup_error_log_log_panel.SetSizer(backup_error_log_log_sizer)
+    backup_error_log_sizer.Add(backup_error_log_log_panel, 1, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+
+    backup_error_log_box = wx.BoxSizer()
+    backup_error_log_box.Add(backup_error_log_sizer, 1, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
+    backup_error_log_frame.root_panel.SetSizerAndFit(backup_error_log_box)
+
+    update_frame = ModalWindow(
+        parent=main_frame,
+        title='Update Available',
+        size=wx.Size(600, 370),  # Should be 600x300, compensating for title bar with 320
+        name='Update frame'
     )
-    tk_style.configure('TButton', background=BUTTON_NORMAL_COLOR, foreground=BUTTON_TEXT_COLOR, bordercolor=BUTTON_NORMAL_COLOR, borderwidth=0, padding=(6, 4))
-    tk_style.configure('danger.TButton', background='#b00', foreground='#fff', bordercolor='#b00', borderwidth=0)
-    tk_style.configure('slim.TButton', padding=(2, 2))
-    tk_style.configure('statusbar.TButton', padding=(3, 0), background=root_window.uicolor.STATUS_BAR, foreground=root_window.uicolor.FG)
-    tk_style.configure('tab.TButton', padding=(3, 0), background=root_window.uicolor.BG, foreground=root_window.uicolor.FADED)
-    tk_style.configure('active.tab.TButton', foreground=root_window.uicolor.FG)
-    tk_style.configure('danger.statusbar.TButton', foreground=root_window.uicolor.DANGER)
+    update_frame.SetFont(FONT_DEFAULT)
 
-    tk_style.configure('tooltip.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.TOOLTIP)
-    tk_style.configure('on.toggle.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.GREEN)
-    tk_style.configure('off.toggle.TLabel', background=root_window.uicolor.BG, foreground=root_window.uicolor.FADED)
-
-    tk_style.configure('TCheckbutton', background=root_window.uicolor.BG, foreground=root_window.uicolor.NORMAL)
-    tk_style.configure('TFrame', background=root_window.uicolor.BG, foreground=root_window.uicolor.NORMAL)
-
-    tk_style.element_create('custom.Treeheading.border', 'from', 'default')
-    tk_style.element_create('custom.Treeview.field', 'from', 'clam')
-    tk_style.layout('custom.Treeview.Heading', [
-        ('custom.Treeheading.cell', {'sticky': 'nswe'}),
-        ('custom.Treeheading.border', {'sticky': 'nswe', 'children': [
-            ('custom.Treeheading.padding', {'sticky': 'nswe', 'children': [
-                ('custom.Treeheading.image', {'side': 'right', 'sticky': ''}),
-                ('custom.Treeheading.text', {'sticky': 'we'})
-            ]})
-        ]}),
-    ])
-    tk_style.layout('custom.Treeview', [
-        ('custom.Treeview.field', {'sticky': 'nswe', 'border': '1', 'children': [
-            ('custom.Treeview.padding', {'sticky': 'nswe', 'children': [
-                ('custom.Treeview.treearea', {'sticky': 'nswe'})
-            ]})
-        ]})
-    ])
-    tk_style.configure('custom.Treeview.Heading', background=root_window.uicolor.BGACCENT, foreground=root_window.uicolor.FG, padding=2.5)
-    tk_style.configure('custom.Treeview', background=root_window.uicolor.BGACCENT2, fieldbackground=root_window.uicolor.BGACCENT2, foreground=root_window.uicolor.FG, bordercolor=root_window.uicolor.BGACCENT3)
-    tk_style.map('custom.Treeview', foreground=[('disabled', 'SystemGrayText'), ('!disabled', '!selected', root_window.uicolor.NORMAL), ('selected', root_window.uicolor.BLACK)], background=[('disabled', 'SystemButtonFace'), ('!disabled', '!selected', root_window.uicolor.BGACCENT2), ('selected', root_window.uicolor.COLORACCENT)])
-
-    tk_style.element_create('custom.Progressbar.trough', 'from', 'clam')
-    tk_style.element_create('custom.Progressbar.pbar', 'from', 'default')
-    tk_style.layout('custom.Progressbar', [
-        ('custom.Progressbar.trough', {'sticky': 'nsew', 'children': [
-            ('custom.Progressbar.padding', {'sticky': 'nsew', 'children': [
-                ('custom.Progressbar.pbar', {'side': 'left', 'sticky': 'ns'})
-            ]})
-        ]})
-    ])
-    tk_style.configure('custom.Progressbar', padding=4, background=root_window.uicolor.COLORACCENT, bordercolor=root_window.uicolor.BGACCENT3, borderwidth=0, troughcolor=root_window.uicolor.BG, lightcolor=root_window.uicolor.COLORACCENT, darkcolor=root_window.uicolor.COLORACCENT)
-
-    def on_close():
-        if not thread_manager.is_alive('Backup'):
-            root_window.quit()
-            exit()
-
-        if messagebox.askokcancel('Quit?', 'There\'s still a background process running. Are you sure you want to kill it?', parent=root_window):
-            if backup:
-                backup.kill()
-            root_window.quit()
-            exit()
-
-    # Add menu bar
-    menubar = tk.Menu(root_window)
-
-    # File menu
-    file_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    file_menu.add_command(label='Open Backup Config...', underline=0, accelerator='Ctrl+O', command=open_config_file)
-    file_menu.add_command(label='Save Backup Config', underline=0, accelerator='Ctrl+S', command=save_config_file)
-    file_menu.add_command(label='Save Backup Config As...', underline=19, accelerator='Ctrl+Shift+S', command=save_config_file_as)
-    file_menu.add_separator()
-    file_menu.add_command(label='Exit', underline=1, command=on_close)
-    menubar.add_cascade(label='File', underline=0, menu=file_menu)
-
-    # Selection menu
-    selection_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    settings_showDrives_source_network = tk.BooleanVar(value=prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN))
-    settings_showDrives_source_local = tk.BooleanVar(value=prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN))
-    PREV_NETWORK_SOURCE_DRIVE = settings_showDrives_source_network.get()
-    PREV_LOCAL_SOURCE_DRIVE = settings_showDrives_source_local.get()
-    selection_menu.add_checkbutton(label='Source Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_network, command=lambda: change_source_type(DRIVE_TYPE_REMOTE))
-    selection_menu.add_checkbutton(label='Source Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_source_local, command=lambda: change_source_type(DRIVE_TYPE_LOCAL))
-    settings_showDrives_dest_network = tk.BooleanVar(value=prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN))
-    settings_showDrives_dest_local = tk.BooleanVar(value=prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN))
-    PREV_NETWORK_DEST_DRIVE = settings_showDrives_dest_network.get()
-    PREV_LOCAL_DEST_DRIVE = settings_showDrives_dest_local.get()
-    selection_menu.add_checkbutton(label='Destination Network Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_network, command=lambda: change_destination_type(DRIVE_TYPE_REMOTE))
-    selection_menu.add_checkbutton(label='Destination Local Drives', onvalue=True, offvalue=False, variable=settings_showDrives_dest_local, command=lambda: change_destination_type(DRIVE_TYPE_LOCAL))
-    selection_menu.add_separator()
-    selection_source_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    settings_sourceMode = tk.StringVar(value=prefs.get('selection', 'source_mode', verify_data=Config.SOURCE_MODE_OPTIONS, default=Config.SOURCE_MODE_SINGLE_DRIVE))
-    PREV_SOURCE_MODE = settings_sourceMode.get()
-    selection_source_mode_menu.add_checkbutton(label='Single drive, select subfolders', onvalue=Config.SOURCE_MODE_SINGLE_DRIVE, offvalue=Config.SOURCE_MODE_SINGLE_DRIVE, variable=settings_sourceMode, command=change_source_mode)
-    selection_source_mode_menu.add_checkbutton(label='Multi drive, select drives', onvalue=Config.SOURCE_MODE_MULTI_DRIVE, offvalue=Config.SOURCE_MODE_MULTI_DRIVE, variable=settings_sourceMode, command=change_source_mode)
-    selection_source_mode_menu.add_separator()
-    selection_source_mode_menu.add_checkbutton(label='Single path, select subfolders', onvalue=Config.SOURCE_MODE_SINGLE_PATH, offvalue=Config.SOURCE_MODE_SINGLE_PATH, variable=settings_sourceMode, command=change_source_mode)
-    selection_source_mode_menu.add_checkbutton(label='Multi path, select paths', onvalue=Config.SOURCE_MODE_MULTI_PATH, offvalue=Config.SOURCE_MODE_MULTI_PATH, variable=settings_sourceMode, command=change_source_mode)
-    selection_menu.add_cascade(label='Source Mode', underline=0, menu=selection_source_mode_menu)
-    selection_dest_mode_menu = tk.Menu(selection_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    settings_destMode = tk.StringVar(value=prefs.get('selection', 'dest_mode', verify_data=Config.DEST_MODE_OPTIONS, default=Config.DEST_MODE_DRIVES))
-    PREV_DEST_MODE = settings_destMode.get()
-    selection_dest_mode_menu.add_checkbutton(label='Drives', onvalue=Config.DEST_MODE_DRIVES, offvalue=Config.DEST_MODE_DRIVES, variable=settings_destMode, command=change_dest_mode)
-    selection_dest_mode_menu.add_checkbutton(label='Paths', onvalue=Config.DEST_MODE_PATHS, offvalue=Config.DEST_MODE_PATHS, variable=settings_destMode, command=change_dest_mode)
-    selection_menu.add_cascade(label='Destination Mode', underline=0, menu=selection_dest_mode_menu)
-    menubar.add_cascade(label='Selection', underline=0, menu=selection_menu)
-
-    # View menu
-    view_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    view_menu.add_command(label='Refresh Source', accelerator='Ctrl+F5', command=load_source_in_background)
-    view_menu.add_command(label='Refresh Destination', underline=0, accelerator='F5', command=load_dest_in_background)
-    show_file_details_pane = tk.BooleanVar()
-    view_menu.add_separator()
-    view_menu.add_command(label='Backup Error Log', accelerator='Ctrl+E', command=show_backup_error_log)
-    menubar.add_cascade(label='View', underline=0, menu=view_menu)
-
-    # Actions menu
-    actions_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    actions_menu.add_command(label='Verify Data Integrity on Selected Destinations', underline=0, command=start_verify_data_from_hash_list)
-    actions_menu.add_command(label='Delete Config from Selected Destinations', command=delete_config_file_from_selected_drives)
-    menubar.add_cascade(label='Actions', underline=0, menu=actions_menu)
-
-    # Preferences menu
-    preferences_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    preferences_verification_menu = tk.Menu(preferences_menu, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    settings_verifyAllFiles = tk.BooleanVar(value=prefs.get('verification', 'verify_all_files', default=False, data_type=Config.BOOLEAN))
-    preferences_verification_menu.add_checkbutton(label='Verify Known Files', onvalue=False, offvalue=False, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
-    preferences_verification_menu.add_checkbutton(label='Verify All Files', onvalue=True, offvalue=True, variable=settings_verifyAllFiles, command=lambda: prefs.set('verification', 'verify_all_files', settings_verifyAllFiles.get()))
-    preferences_menu.add_cascade(label='Data Integrity Verification', underline=0, menu=preferences_verification_menu)
-    settings_darkModeEnabled = tk.BooleanVar(value=root_window.dark_mode)
-    preferences_menu.add_checkbutton(label='Enable Dark Mode (requires restart)', onvalue=1, offvalue=0, variable=settings_darkModeEnabled, command=lambda: prefs.set('ui', 'dark_mode', settings_darkModeEnabled.get()))
-    menubar.add_cascade(label='Preferences', underline=0, menu=preferences_menu)
-
-    # Help menu
-    help_menu = tk.Menu(menubar, tearoff=0, bg=root_window.uicolor.DEFAULT_BG, fg=root_window.uicolor.BLACK)
-    help_menu.add_command(label='Check for Updates', command=lambda: thread_manager.start(
-        ThreadManager.SINGLE,
-        target=update_handler.check,
-        name='Update Check',
-        daemon=True
-    ))
-    settings_allow_prerelease_updates = tk.BooleanVar(value=config['allow_prereleases'])
-    help_menu.add_checkbutton(label='Allow Prereleases', onvalue=True, offvalue=False, variable=settings_allow_prerelease_updates, command=lambda: prefs.set('ui', 'allow_prereleases', settings_allow_prerelease_updates.get()))
-    menubar.add_cascade(label='Help', underline=0, menu=help_menu)
-
-    # Key bindings
-    root_window.bind('<Control-o>', lambda e: open_config_file())
-    root_window.bind('<Control-s>', lambda e: save_config_file())
-    root_window.bind('<Control-Shift-S>', lambda e: save_config_file_as())
-    root_window.bind('<Control-e>', lambda e: show_backup_error_log())
-
-    root_window.config(menu=menubar)
-
-    icon_windows = ImageTk.PhotoImage(Image.open(resource_path(f"media/windows{'_light' if root_window.dark_mode else ''}.png")))
-    icon_windows_color = ImageTk.PhotoImage(Image.open(resource_path('media/windows_color.png')))
-    icon_zip = ImageTk.PhotoImage(Image.open(resource_path(f"media/zip{'_light' if root_window.dark_mode else ''}.png")))
-    icon_zip_color = ImageTk.PhotoImage(Image.open(resource_path('media/zip_color.png')))
-    icon_debian = ImageTk.PhotoImage(Image.open(resource_path(f"media/debian{'_light' if root_window.dark_mode else ''}.png")))
-    icon_debian_color = ImageTk.PhotoImage(Image.open(resource_path('media/debian_color.png')))
-    icon_targz = ImageTk.PhotoImage(Image.open(resource_path(f"media/targz{'_light' if root_window.dark_mode else ''}.png")))
-    icon_targz_color = ImageTk.PhotoImage(Image.open(resource_path('media/targz_color.png')))
-
-    # Progress/status values
-    progress_bar = ttk.Progressbar(root_window.main_frame, maximum=100, style='custom.Progressbar')
-    progress_bar.grid(row=10, column=1, columnspan=3, sticky='ew', padx=(0, WINDOW_ELEMENT_PADDING), pady=(WINDOW_ELEMENT_PADDING, 0))
-
-    progress = Progress(
-        progress_bar=progress_bar,
-        thread_manager=thread_manager
+    update_frame.Panel(
+        name='Update root panel',
+        background=Color.BACKGROUND,
+        foreground=Color.TEXT_DEFAULT
     )
+    update_sizer = wx.BoxSizer(wx.VERTICAL)
 
-    source_avail_drive_list = []
-    source_drive_default = tk.StringVar()
+    update_header = wx.StaticText(update_frame.root_panel, -1, label='Update Available!', name='Update available heading')
+    update_header.SetFont(FONT_UPDATE_AVAILABLE)
+    update_header.SetForegroundColour(Color.INFO)
+    update_sizer.Add(update_header, 0, wx.ALIGN_CENTER_HORIZONTAL)
+    update_description = wx.StaticText(update_frame.root_panel, -1, label='An update to BackDrop is available. Please update to get the latest features and fixes.', name='Update description text')
+    update_sizer.Add(update_description, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 20)
 
-    # Tree frames for tree and scrollbar
-    tree_source_frame = tk.Frame(root_window.main_frame)
+    update_version_sizer = wx.BoxSizer()
+    update_version_header_sizer = wx.BoxSizer(wx.VERTICAL)
+    update_version_current_header = wx.StaticText(update_frame.root_panel, -1, label='Current: ', name='Update current version header')
+    update_version_current_header.SetFont(FONT_LARGE)
+    update_version_header_sizer.Add(update_version_current_header, 0, wx.ALIGN_RIGHT)
+    update_version_latest_header = wx.StaticText(update_frame.root_panel, -1, label='Latest: ', name='Update latest version header')
+    update_version_latest_header.SetFont(FONT_LARGE)
+    update_version_header_sizer.Add(update_version_latest_header, 0, wx.ALIGN_RIGHT | wx.TOP, 5)
+    update_version_sizer.Add(update_version_header_sizer, 0)
+    update_version_text_sizer = wx.BoxSizer(wx.VERTICAL)
+    update_current_version_text = wx.StaticText(update_frame.root_panel, -1, label=f'v{__version__}', name='Update current version text')
+    update_current_version_text.SetFont(FONT_LARGE)
+    update_current_version_text.SetForegroundColour(Color.FADED)
+    update_version_text_sizer.Add(update_current_version_text, 0)
+    update_latest_version_text = wx.StaticText(update_frame.root_panel, -1, label='Unknown', name='Update latest version text')
+    update_latest_version_text.SetFont(FONT_LARGE)
+    update_latest_version_text.SetForegroundColour(Color.FADED)
+    update_version_text_sizer.Add(update_latest_version_text, 0, wx.TOP, 5)
+    update_version_sizer.Add(update_version_text_sizer, 0)
+    update_sizer.Add(update_version_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
 
-    tree_source = ttk.Treeview(tree_source_frame, columns=('size', 'rawsize', 'name'), style='custom.Treeview')
-    if settings_sourceMode.get() in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-        tree_source_display_cols = ('size')
+    update_icon_sizer = wx.BoxSizer()
+    update_sizer.Add(update_icon_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 20)
 
-        SOURCE_TEXT_COL_WIDTH = 170
-        SOURCE_NAME_COL_WIDTH = 170
-    elif settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-        tree_source_display_cols = ('name', 'size')
+    update_download_source_sizer = wx.BoxSizer()
+    update_download_source_sizer.Add(wx.StaticText(update_frame.root_panel, -1, label='Or, check out the source on ', name='Update frame GitHub description'), 0)
+    github_link = wx.StaticText(update_frame.root_panel, -1, label='GitHub', name='Update frame GitHub link')
+    github_link.SetForegroundColour(Color.INFO)
+    github_link.Bind(wx.EVT_LEFT_DOWN, lambda e: webbrowser.open_new('https://www.github.com/TechGeek01/BackDrop'))
+    update_download_source_sizer.Add(github_link, 0)
+    update_sizer.Add(update_download_source_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL)
 
-        SOURCE_TEXT_COL_WIDTH = 200
-        SOURCE_NAME_COL_WIDTH = 140
+    update_box = wx.BoxSizer()
+    update_box.Add(update_sizer, 1, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
+    update_frame.root_panel.SetSizerAndFit(update_box)
 
-    tree_source.heading('#0', text='Path')
-    tree_source.column('#0', width=SOURCE_TEXT_COL_WIDTH)
-    tree_source.heading('name', text='Name')
-    tree_source.column('name', width=SOURCE_NAME_COL_WIDTH)
-    tree_source.heading('size', text='Size')
-    tree_source.column('size', width=80)
-    tree_source['displaycolumns'] = tree_source_display_cols
+    # Root panel stuff
+    main_frame.Panel(
+        name='Main window root panel',
+        background=Color.BACKGROUND,
+        foreground=Color.TEXT_DEFAULT
+    )
+    root_sizer = wx.GridBagSizer(vgap=ITEM_UI_PADDING, hgap=ITEM_UI_PADDING)
 
-    tree_source.pack(side='left')
-    tree_source_scrollbar = ttk.Scrollbar(tree_source_frame, orient='vertical', command=tree_source.yview)
-    tree_source_scrollbar.pack(side='left', fill='y')
-    tree_source.configure(yscrollcommand=tree_source_scrollbar.set)
+    # Source controls
+    source_src_control_sizer = wx.BoxSizer()
+    source_src_control_label = wx.StaticText(main_frame.root_panel, -1, label='Source: ', name='Source control label')
+    source_src_control_sizer.Add(source_src_control_label, 0, wx.ALIGN_CENTER_VERTICAL)
+    source_src_control_dropdown = wx.ComboBox(main_frame.root_panel, -1, style=wx.CB_READONLY, name='Source control ComboBox')
+    source_src_control_sizer.Add(source_src_control_dropdown, 0, wx.ALIGN_CENTER_VERTICAL)
+    source_src_control_sizer.Add((-1, -1), 1, wx.EXPAND)
+    source_src_control_browse_btn = wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse source button')
+    source_src_control_sizer.Add(source_src_control_browse_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
+    source_src_control_spacer_button = wx.Button(main_frame.root_panel, -1, label='', size=(0, -1), name='Spacer dummy button')
+    source_src_control_spacer_button.Disable()
+    source_src_control_sizer.Add(source_src_control_spacer_button, 0, wx.ALIGN_CENTER_VERTICAL)
 
-    source_meta_frame = tk.Frame(root_window.main_frame)
-    tk.Grid.columnconfigure(source_meta_frame, 0, weight=1)
+    SOURCE_COL_PATH = 0
+    SOURCE_COL_NAME = 1
+    SOURCE_COL_SIZE = 2
+    SOURCE_COL_RAWSIZE = 3
 
-    share_space_frame = tk.Frame(source_meta_frame)
-    share_space_frame.grid(row=0, column=0)
-    share_selected_space_frame = tk.Frame(share_space_frame)
-    share_selected_space_frame.grid(row=0, column=0)
-    share_selected_space_label = tk.Label(share_selected_space_frame, text='Selected:').pack(side='left')
-    share_selected_space = tk.Label(share_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
-    share_selected_space.pack(side='left')
-    share_total_space_frame = tk.Frame(share_space_frame)
-    share_total_space_frame.grid(row=0, column=1, padx=(12, 0))
-    share_total_space_label = tk.Label(share_total_space_frame, text='Total:').pack(side='left')
-    share_total_space = tk.Label(share_total_space_frame, text='~None', fg=root_window.uicolor.FADED)
-    share_total_space.pack(side='left')
+    # FIXME: Remove size in source tree constructor when SetSize works
+    source_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, 170), style=wx.LC_REPORT, name='Source tree')
 
-    source_select_frame = tk.Frame(root_window.main_frame)
-    source_select_frame.grid(row=0, column=1, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
+    source_tree.AppendColumn('Path')
+    source_tree.AppendColumn('Name')
+    source_tree.AppendColumn('Size')
+    source_tree.AppendColumn('Raw Size')
+    source_tree.SetColumnWidth(SOURCE_COL_RAWSIZE, 0)
 
-    source_select_single_frame = tk.Frame(source_select_frame)
-    tk.Label(source_select_single_frame, text='Source:').pack(side='left')
-    PREV_SOURCE_DRIVE = source_drive_default
-    source_select_menu = ttk.OptionMenu(source_select_single_frame, source_drive_default, '', *tuple([]), command=change_source_drive)
-    source_select_menu['menu'].config(selectcolor=root_window.uicolor.FG)
-    source_select_menu.pack(side='left', padx=(12, 0))
+    source_tree.SetBackgroundColour(Color.WIDGET_COLOR)
+    source_tree.SetTextColour(Color.WHITE)
 
-    source_select_multi_frame = tk.Frame(source_select_frame)
-    tk.Label(source_select_multi_frame, text='Multi-source mode, selection disabled').pack()
+    source_warning_panel = WarningPanel(main_frame.root_panel, size=(420, 170))
+    source_warning_panel.SetFont(FONT_MEDIUM)
+    source_warning_panel.SetBackgroundColour(Color.WARNING)
+    source_warning_panel.SetForegroundColour(Color.BLACK)
+    source_warning_panel.sizer.Add(wx.StaticText(source_warning_panel, -1, label='No source drives are available'), 0, wx.ALIGN_CENTER)
 
-    source_select_custom_single_frame = tk.Frame(source_select_frame)
-    source_select_custom_single_frame.grid_columnconfigure(0, weight=1)
-    selected_custom_source_text = last_selected_custom_source if last_selected_custom_source and os.path.isdir(last_selected_custom_source) else 'Custom source'
-    source_select_custom_single_path_label = tk.Label(source_select_custom_single_frame, text=selected_custom_source_text)
-    source_select_custom_single_path_label.grid(row=0, column=0, sticky='w')
-    source_select_custom_single_browse_button = ttk.Button(source_select_custom_single_frame, text='Browse', command=browse_for_source_in_background, style='slim.TButton')
-    source_select_custom_single_browse_button.grid(row=0, column=1)
+    source_src_selection_info_sizer = wx.BoxSizer()
+    source_src_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Selected:', name='Source meta selected label'), 0, wx.ALIGN_CENTER_VERTICAL)
+    source_selected_space = wx.StaticText(main_frame.root_panel, -1, label='None', name='Source meta selected value')
+    source_selected_space.SetForegroundColour(Color.FADED)
+    source_src_selection_info_sizer.Add(source_selected_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+    source_src_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
+    source_src_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Total:', name='Source meta total label'), 0, wx.ALIGN_CENTER_VERTICAL)
+    source_total_space = wx.StaticText(main_frame.root_panel, -1, label='~None', name='Source meta total value')
+    source_total_space.SetForegroundColour(Color.FADED)
+    source_src_selection_info_sizer.Add(source_total_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+    spacer_button = wx.Button(main_frame.root_panel, -1, label='', size=(0, -1), name='Spacer dummy button')
+    spacer_button.Disable()
+    source_src_selection_info_sizer.Add(spacer_button, 0, wx.ALIGN_CENTER_VERTICAL)
 
-    source_select_custom_multi_frame = tk.Frame(source_select_frame)
-    source_select_custom_multi_frame.grid_columnconfigure(0, weight=1)
-    source_select_custom_multi_path_label = tk.Label(source_select_custom_multi_frame, text='Custom multi-source mode')
-    source_select_custom_multi_path_label.grid(row=0, column=0)
-    source_select_custom_multi_browse_button = ttk.Button(source_select_custom_multi_frame, text='Browse', command=browse_for_source_in_background, style='slim.TButton')
-    source_select_custom_multi_browse_button.grid(row=0, column=1)
+    source_src_sizer = wx.BoxSizer(wx.VERTICAL)
+    source_src_sizer.Add(source_src_control_sizer, 0, wx.EXPAND)
+    source_src_sizer.Add(source_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    source_src_sizer.Add(source_warning_panel, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    source_warning_panel.Hide()
+    source_src_sizer.Add(source_src_selection_info_sizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, ITEM_UI_PADDING)
 
-    # Source tree right click menu
-    source_right_click_menu = tk.Menu(tree_source, tearoff=0)
-    source_right_click_menu.add_command(label='Rename', underline=0)
-    if settings_sourceMode.get() == Config.SOURCE_MODE_MULTI_PATH:
-        source_right_click_menu.add_command(label='Delete')
+    # Destination controls
+    source_dest_control_sizer = wx.BoxSizer()
+    source_dest_control_sizer.Add((-1, -1), 1, wx.EXPAND)
+    source_dest_tooltip = wx.StaticText(main_frame.root_panel, -1, label='Hold ALT when selecting a drive to ignore config files', name='Destination select tooltip')
+    source_dest_tooltip.SetForegroundColour(Color.INFO)
+    source_dest_control_sizer.Add(source_dest_tooltip, 0, wx.ALIGN_CENTER_VERTICAL)
+    source_dest_control_sizer.Add((-1, -1), 1, wx.EXPAND)
+    source_dest_control_browse_btn = wx.Button(main_frame.root_panel, -1, label='Browse', name='Browse destination')
+    source_dest_control_sizer.Add(source_dest_control_browse_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, ITEM_UI_PADDING)
+    source_dest_control_spacer_button = wx.Button(main_frame.root_panel, -1, label='', size=(0, -1), name='Spacer dummy button')
+    source_dest_control_spacer_button.Disable()
+    source_dest_control_sizer.Add(source_dest_control_spacer_button, 0, wx.ALIGN_CENTER_VERTICAL)
 
-    source_select_bind = tree_source.bind("<<TreeviewSelect>>", select_source_in_background)
-    if settings_sourceMode.get() in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-        source_right_click_bind = tree_source.bind('<Button-3>', show_source_right_click_menu)
-    else:
-        source_right_click_bind = None
+    DEST_COL_PATH = 0
+    DEST_COL_NAME = 1
+    DEST_COL_SIZE = 2
+    DEST_COL_CONFIG = 3
+    DEST_COL_VID = 4
+    DEST_COL_SERIAL = 5
+    DEST_COL_RAWSIZE = 6
 
-    source_warning = tk.Label(root_window.main_frame, text='No source drives are available', font=(None, 14), wraplength=250, bg=root_window.uicolor.ERROR, fg=root_window.uicolor.BLACK)
+    # FIXME: Remove size in dest tree constructor when SetSize works
+    dest_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, 170), style=wx.LC_REPORT, name='Destination tree')
 
-    root_window.bind('<Control-F5>', lambda x: load_source_in_background())
+    dest_tree.AppendColumn('Path')
+    dest_tree.AppendColumn('Name')
+    dest_tree.AppendColumn('Size')
+    dest_tree.AppendColumn('Config')
+    dest_tree.AppendColumn('Volume ID')
+    dest_tree.AppendColumn('Serial')
+    dest_tree.AppendColumn('Raw Size')
+    dest_tree.SetColumnWidth(DEST_COL_RAWSIZE, 0)
 
-    tree_dest_frame = tk.Frame(root_window.main_frame)
-    tree_dest_frame.grid(row=1, column=2, sticky='ns', padx=(WINDOW_ELEMENT_PADDING, 0))
+    dest_tree.SetBackgroundColour(Color.WIDGET_COLOR)
+    dest_tree.SetTextColour(Color.WHITE)
 
-    dest_mode_frame = tk.Frame(root_window.main_frame)
-    dest_mode_frame.grid(row=0, column=2, pady=WINDOW_ELEMENT_PADDING / 4, sticky='ew')
+    def update_split_mode_label():
+        """ Update the split mode indicator. """
+        if config['splitMode']:
+            split_mode_status.SetLabel('Split mode enabled')
+            split_mode_status.SetForegroundColour(Color.GREEN)
+        else:
+            split_mode_status.SetLabel('Split mode disabled')
+            split_mode_status.SetForegroundColour(Color.FADED)
 
-    def toggle_split_mode(event):
+    def toggle_split_mode():
         """Handle toggling of split mode based on checkbox value."""
 
         if (not backup or not backup.is_running()) and not verification_running:
             config['splitMode'] = not config['splitMode']
+            update_split_mode_label()
 
-            if config['splitMode']:
-                split_mode_frame.configure(highlightbackground=root_window.uicolor.GREEN)
-                split_mode_status.configure(style='on.toggle.TLabel')
-            else:
-                split_mode_frame.configure(highlightbackground=root_window.uicolor.FADED)
-                split_mode_status.configure(style='off.toggle.TLabel')
+    source_dest_selection_info_sizer = wx.BoxSizer()
+    source_dest_selection_info_sizer.Add((-1, -1), 1, wx.EXPAND)
+    source_dest_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Config:', name='Destination meta config label'), 0, wx.ALIGN_CENTER_VERTICAL)
+    config_selected_space = wx.StaticText(main_frame.root_panel, -1, label='None', name='Destination meta config value')
+    config_selected_space.SetForegroundColour(Color.FADED)
+    source_dest_selection_info_sizer.Add(config_selected_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+    source_dest_selection_info_sizer.Add((20, -1), 0)
+    source_dest_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Selected:', name='Destination meta selected label'), 0, wx.ALIGN_CENTER_VERTICAL)
+    dest_selected_space = wx.StaticText(main_frame.root_panel, -1, label='None', name='Destination meta selected value')
+    dest_selected_space.SetForegroundColour(Color.FADED)
+    source_dest_selection_info_sizer.Add(dest_selected_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+    source_dest_selection_info_sizer.Add((20, -1), 0)
+    source_dest_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Avail:', name='Destination meta available label'), 0, wx.ALIGN_CENTER_VERTICAL)
+    dest_total_space = wx.StaticText(main_frame.root_panel, -1, label=human_filesize(0), name='Destination meta available value')
+    dest_total_space.SetForegroundColour(Color.FADED)
+    source_dest_selection_info_sizer.Add(dest_total_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+    source_dest_selection_info_sizer.Add((-1, -1), 1, wx.EXPAND)
+    split_mode_status = wx.StaticText(main_frame.root_panel, -1, label='', name='Split mode toggle status')
+    update_split_mode_label()
+    source_dest_selection_info_sizer.Add(split_mode_status, 0, wx.ALIGN_CENTER_VERTICAL)
+    spacer_button = wx.Button(main_frame.root_panel, -1, label='', size=(0, -1), name='Spacer dummy button')
+    spacer_button.Disable()
+    source_dest_selection_info_sizer.Add(spacer_button, 0, wx.ALIGN_CENTER_VERTICAL)
 
-    dest_select_normal_frame = tk.Frame(dest_mode_frame)
-    dest_select_normal_frame.pack()
-    alt_tooltip_normal_frame = tk.Frame(dest_select_normal_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
-    alt_tooltip_normal_frame.pack(side='left', ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
-    ttk.Label(alt_tooltip_normal_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
+    source_dest_sizer = wx.BoxSizer(wx.VERTICAL)
+    source_dest_sizer.Add(source_dest_control_sizer, 0, wx.EXPAND)
+    source_dest_sizer.Add(dest_tree, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    source_dest_sizer.Add(source_dest_selection_info_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
 
-    dest_select_custom_frame = tk.Frame(dest_mode_frame)
-    dest_select_custom_frame.grid_columnconfigure(0, weight=1)
-    alt_tooltip_custom_frame = tk.Frame(dest_select_custom_frame, highlightbackground=root_window.uicolor.TOOLTIP, highlightthickness=1)
-    alt_tooltip_custom_frame.grid(row=0, column=0, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=4)
-    ttk.Label(alt_tooltip_custom_frame, text='Hold ALT when selecting a drive to ignore config files', style='tooltip.TLabel').pack(fill='y', expand=1)
-    dest_select_custom_browse_button = ttk.Button(dest_select_custom_frame, text='Browse', command=browse_for_dest_in_background, style='slim.TButton')
-    dest_select_custom_browse_button.grid(row=0, column=1)
+    redraw_dest_tree()
 
-    DEST_TREE_COLWIDTH_DRIVE = 50 if SYS_PLATFORM == PLATFORM_WINDOWS else 150
-    DEST_TREE_COLWIDTH_VID = 140 if settings_destMode.get() == Config.DEST_MODE_PATHS else 90
-    DEST_TREE_COLWIDTH_SERIAL = 150 if SYS_PLATFORM == PLATFORM_WINDOWS else 50
+    # Source and dest panel
+    source_sizer = wx.BoxSizer()
+    source_sizer.Add(source_src_sizer, 0, wx.EXPAND)
+    source_sizer.Add(source_dest_sizer, 0, wx.EXPAND | wx.LEFT, ITEM_UI_PADDING)
 
-    tree_dest = ttk.Treeview(tree_dest_frame, columns=('size', 'rawsize', 'configfile', 'vid', 'serial'), style='custom.Treeview')
-    tree_dest.heading('#0', text='Drive')
-    if settings_destMode.get() == Config.DEST_MODE_PATHS:
-        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE + DEST_TREE_COLWIDTH_SERIAL - 50)
-    else:
-        tree_dest.column('#0', width=DEST_TREE_COLWIDTH_DRIVE)
-    tree_dest.heading('size', text='Size')
-    tree_dest.column('size', width=80)
-    tree_dest.heading('configfile', text='Config')
-    tree_dest.column('configfile', width=50)
-    if settings_destMode.get() == Config.DEST_MODE_DRIVES:
-        tree_dest.heading('vid', text='Volume ID')
-    elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-        tree_dest.heading('vid', text='Name')
-    tree_dest.column('vid', width=DEST_TREE_COLWIDTH_VID)
-    tree_dest.heading('serial', text='Serial')
-    tree_dest.column('serial', width=DEST_TREE_COLWIDTH_SERIAL)
+    # Backup summary panel
+    dest_split_warning_panel = WarningPanel(main_frame.root_panel)
+    dest_split_warning_panel.SetFont(FONT_MEDIUM)
+    dest_split_warning_panel.SetBackgroundColour(Color.WARNING)
+    dest_split_warning_panel.SetForegroundColour(Color.BLACK)
+    dest_split_warning_prefix = wx.StaticText(dest_split_warning_panel, -1, label='There are ')
+    dest_split_warning_count = wx.StaticText(dest_split_warning_panel, -1, label='0')
+    dest_split_warning_count.SetFont(FONT_LARGE)
+    dest_split_warning_suffix = wx.StaticText(dest_split_warning_panel, -1, label=" drives in the config that aren't connected. Please connect them, or enable split mode.")
+    dest_split_warning_line_sizer = wx.BoxSizer()
+    dest_split_warning_line_sizer.Add(dest_split_warning_prefix, 0, wx.ALIGN_CENTER)
+    dest_split_warning_line_sizer.Add(dest_split_warning_count, 0, wx.ALIGN_CENTER)
+    dest_split_warning_line_sizer.Add(dest_split_warning_suffix, 0, wx.ALIGN_CENTER)
+    dest_split_warning_panel.sizer.Add(dest_split_warning_line_sizer, 0, wx.ALIGN_CENTER)
 
-    if settings_destMode.get() == Config.DEST_MODE_DRIVES:
-        tree_dest_display_cols = ('size', 'configfile', 'vid', 'serial')
-    elif settings_destMode.get() == Config.DEST_MODE_PATHS:
-        tree_dest_display_cols = ('vid', 'size', 'configfile')
-    tree_dest['displaycolumns'] = tree_dest_display_cols
+    backup_eta_label = wx.StaticText(main_frame.root_panel, -1, label='Please start a backup to show ETA', name='Backup ETA label')
 
-    tree_dest.pack(side='left')
-    tree_dest_scrollbar = ttk.Scrollbar(tree_dest_frame, orient='vertical', command=tree_dest.yview)
-    tree_dest_scrollbar.pack(side='left', fill='y')
-    tree_dest.configure(yscrollcommand=tree_dest_scrollbar.set)
+    summary_notebook = wx.Notebook(main_frame.root_panel, -1, name='Backup summary notebook')
+    summary_summary_panel = wx.ScrolledWindow(summary_notebook, -1, style=wx.VSCROLL, name='Backup summary panel')
+    summary_summary_panel.SetScrollbars(20, 20, 50, 50)
+    summary_summary_panel.SetBackgroundColour(Color.BACKGROUND)
+    summary_summary_panel.SetForegroundColour(Color.TEXT_DEFAULT)
+    summary_summary_sizer = wx.BoxSizer(wx.VERTICAL)
+    summary_summary_box = wx.BoxSizer()
+    summary_summary_box.Add(summary_summary_sizer, 0, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
+    summary_summary_panel.SetSizer(summary_summary_box)
+    summary_details_panel = wx.ScrolledWindow(summary_notebook, -1, style=wx.VSCROLL, name='Backup detail panel')
+    summary_details_panel.SetScrollbars(20, 20, 50, 50)
+    summary_details_panel.SetBackgroundColour(Color.BACKGROUND)
+    summary_details_panel.SetForegroundColour(Color.TEXT_DEFAULT)
+    summary_details_sizer = wx.BoxSizer(wx.VERTICAL)
+    summary_details_box = wx.BoxSizer()
+    summary_details_box.Add(summary_details_sizer, 0, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
+    summary_details_panel.SetSizer(summary_details_box)
+    summary_notebook.AddPage(summary_summary_panel, 'Backup Summary')
+    summary_notebook.AddPage(summary_details_panel, 'Backup Details')
+    summary_sizer = wx.BoxSizer(wx.VERTICAL)
+    summary_sizer.Add(dest_split_warning_panel, 0, wx.ALIGN_CENTER_HORIZONTAL)
+    dest_split_warning_panel.Hide()
+    summary_sizer.Add(backup_eta_label, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, ITEM_UI_PADDING)
+    summary_sizer.Add(summary_notebook, 1, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
 
-    root_window.bind('<F5>', lambda x: load_dest_in_background())
-
-    # Dest tree right click menu
-    dest_right_click_menu = tk.Menu(tree_source, tearoff=0)
-    dest_right_click_menu.add_command(label='Rename', underline=0)
-    dest_right_click_menu.add_command(label='Delete')
-
-    if settings_destMode.get() == Config.DEST_MODE_PATHS:
-        dest_right_click_bind = tree_dest.bind('<Button-3>', show_dest_right_click_menu)
-    else:
-        dest_right_click_bind = None
-
-    # There's an invisible 1px background on buttons. When changing this in icon buttons, it becomes
-    # visible, so 1px needs to be added back
-    dest_meta_frame = tk.Frame(root_window.main_frame)
-    dest_meta_frame.grid(row=2, column=2, sticky='nsew', pady=(1, 0))
-    tk.Grid.columnconfigure(dest_meta_frame, 0, weight=1)
-
-    dest_split_warning_frame = tk.Frame(root_window.main_frame, bg=root_window.uicolor.WARNING)
-    dest_split_warning_frame.rowconfigure(0, weight=1)
-    dest_split_warning_frame.columnconfigure(0, weight=1)
-    dest_split_warning_frame.columnconfigure(10, weight=1)
-
-    # TODO: Can this be cleaned up?
-    tk.Frame(dest_split_warning_frame).grid(row=0, column=1)
-    split_warning_prefix = tk.Label(dest_split_warning_frame, text='There are', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK)
-    split_warning_prefix.grid(row=0, column=1, sticky='ns')
-    split_warning_missing_drive_count = tk.Label(dest_split_warning_frame, text='0', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK, font=(None, 18, 'bold'))
-    split_warning_missing_drive_count.grid(row=0, column=2, sticky='ns')
-    split_warning_suffix = tk.Label(dest_split_warning_frame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK)
-    split_warning_suffix.grid(row=0, column=3, sticky='ns')
-    tk.Frame(dest_split_warning_frame).grid(row=0, column=10)
-
-    drive_space_frame = tk.Frame(dest_meta_frame)
-    drive_space_frame.grid(row=0, column=0)
-
-    config_selected_space_frame = tk.Frame(drive_space_frame)
-    config_selected_space_frame.grid(row=0, column=0)
-    tk.Label(config_selected_space_frame, text='Config:').pack(side='left')
-    config_selected_space = tk.Label(config_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
-    config_selected_space.pack(side='left')
-
-    drive_selected_space_frame = tk.Frame(drive_space_frame)
-    drive_selected_space_frame.grid(row=0, column=1, padx=(12, 0))
-    tk.Label(drive_selected_space_frame, text='Selected:').pack(side='left')
-    drive_selected_space = tk.Label(drive_selected_space_frame, text='None', fg=root_window.uicolor.FADED)
-    drive_selected_space.pack(side='left')
-
-    drive_total_space_frame = tk.Frame(drive_space_frame)
-    drive_total_space_frame.grid(row=0, column=2, padx=(12, 0))
-    tk.Label(drive_total_space_frame, text='Avail:').pack(side='left')
-    drive_total_space = tk.Label(drive_total_space_frame, text=human_filesize(0), fg=root_window.uicolor.FADED)
-    drive_total_space.pack(side='left')
-    split_mode_frame = tk.Frame(drive_space_frame, highlightbackground=root_window.uicolor.GREEN if config['splitMode'] else root_window.uicolor.FADED, highlightthickness=1)
-    split_mode_frame.grid(row=0, column=3, padx=(12, 0), pady=4, ipadx=WINDOW_ELEMENT_PADDING / 2, ipady=3)
-    split_mode_status = ttk.Label(split_mode_frame, text='Split mode', style='on.toggle.TLabel' if config['splitMode'] else 'off.toggle.TLabel')
-    split_mode_status.pack(fill='y', expand=1)
-
-    split_mode_frame.bind('<Button-1>', toggle_split_mode)
-    split_mode_status.bind('<Button-1>', toggle_split_mode)
-
-    dest_select_bind = tree_dest.bind('<<TreeviewSelect>>', select_dest_in_background)
-
-    # Add tab frame for main detail views
-    content_tab_frame = TabbedFrame(root_window.main_frame, tabs={
-        'summary': 'Backup summary',
-        'details': 'Backup details'
-    })
-    content_tab_frame.tab['summary']['content'] = ScrollableFrame(content_tab_frame.frame)
-    content_tab_frame.tab['details']['content'] = ScrollableFrame(content_tab_frame.frame)
-    content_tab_frame.grid(row=5, column=1, columnspan=2, sticky='nsew')
-    tk.Grid.rowconfigure(root_window.main_frame, 5, weight=1)
-    content_tab_frame.change_tab('details')
-    # FIXME: Canvas returning wrong width that's smaller than actual width of canvas
-    content_tab_frame.tab['details']['width'] = content_tab_frame.tab['details']['content'].winfo_width()
-    content_tab_frame.change_tab('summary')
-    content_tab_frame.tab['summary']['width'] = content_tab_frame.tab['summary']['content'].winfo_width()
-
-    # Backup ETA (tab gutter)
-    backup_eta_label = tk.Label(content_tab_frame.gutter, text='Please start a backup to show ETA')
-    backup_eta_label.pack()
-
-    # Right side frame
-    tk.Grid.columnconfigure(root_window.main_frame, 3, weight=1)
-    right_side_frame = tk.Frame(root_window.main_frame)
-    right_side_frame.grid(row=0, column=3, rowspan=7, sticky='nsew', pady=(WINDOW_ELEMENT_PADDING / 2, 0))
-
-    backup_file_details_frame = tk.Frame(right_side_frame)
-    backup_file_details_frame.pack(fill='both', expand=True, padx=WINDOW_ELEMENT_PADDING)
-    backup_file_details_frame.pack_propagate(0)
-
-    file_details_pending_delete_header_line = tk.Frame(backup_file_details_frame)
-    file_details_pending_delete_header_line.grid(row=0, column=0, sticky='w')
-    file_details_pending_delete_header = tk.Label(file_details_pending_delete_header_line, text='Files to delete', font=(None, 11, 'bold'))
-    file_details_pending_delete_header.pack(side='left')
-    file_details_pending_delete_tooltip = tk.Label(file_details_pending_delete_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
-    file_details_pending_delete_tooltip.pack(side='left')
-    file_details_pending_delete_counter_frame = tk.Frame(backup_file_details_frame)
-    file_details_pending_delete_counter_frame.grid(row=1, column=0, sticky='w')
-    file_details_pending_delete_counter = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 28))
-    file_details_pending_delete_counter.pack(side='left', anchor='s')
-    tk.Label(file_details_pending_delete_counter_frame, text='of', font=(None, 11), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
-    file_details_pending_delete_counter_total = tk.Label(file_details_pending_delete_counter_frame, text='0', font=(None, 12), fg=root_window.uicolor.FADED)
-    file_details_pending_delete_counter_total.pack(side='left', anchor='s', pady=(0, 5))
-
-    file_details_pending_copy_header_line = tk.Frame(backup_file_details_frame)
-    file_details_pending_copy_header_line.grid(row=0, column=1, sticky='e')
-    file_details_pending_copy_header = tk.Label(file_details_pending_copy_header_line, text='Files to copy', font=(None, 11, 'bold'))
-    file_details_pending_copy_header.pack(side='right')
-    file_details_pending_copy_tooltip = tk.Label(file_details_pending_copy_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
-    file_details_pending_copy_tooltip.pack(side='right')
-    file_details_pending_copy_counter_frame = tk.Frame(backup_file_details_frame)
-    file_details_pending_copy_counter_frame.grid(row=1, column=1, sticky='e')
-    file_details_pending_copy_counter = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 28))
-    file_details_pending_copy_counter.pack(side='left', anchor='s')
-    tk.Label(file_details_pending_copy_counter_frame, text='of', font=(None, 11), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 5))
-    file_details_pending_copy_counter_total = tk.Label(file_details_pending_copy_counter_frame, text='0', font=(None, 12), fg=root_window.uicolor.FADED)
-    file_details_pending_copy_counter_total.pack(side='left', anchor='s', pady=(0, 5))
-
-    file_details_copied_header_line = tk.Frame(backup_file_details_frame)
-    file_details_copied_header_line.grid(row=2, column=0, columnspan=2, sticky='ew')
-    file_details_copied_header_line.grid_columnconfigure(1, weight=1)
-    file_details_copied_header = tk.Label(file_details_copied_header_line, text='Successful', font=(None, 11, 'bold'))
-    file_details_copied_header.grid(row=0, column=0)
-    file_details_copied_tooltip = tk.Label(file_details_copied_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
-    file_details_copied_tooltip.grid(row=0, column=1, sticky='w')
-    file_details_copied_counter = tk.Label(file_details_copied_header_line, text='0', font=(None, 11, 'bold'))
-    file_details_copied_counter.grid(row=0, column=2)
-    file_details_copied = ScrollableFrame(backup_file_details_frame)
-    file_details_copied.grid(row=3, column=0, columnspan=2, pady=(0, WINDOW_ELEMENT_PADDING / 2), sticky='nsew')
-
-    file_details_failed_header_line = tk.Frame(backup_file_details_frame)
-    file_details_failed_header_line.grid(row=4, column=0, columnspan=2, sticky='ew')
-    file_details_failed_header_line.grid_columnconfigure(1, weight=1)
-    file_details_failed_header = tk.Label(file_details_failed_header_line, text='Failed', font=(None, 11, 'bold'))
-    file_details_failed_header.grid(row=0, column=0)
-    file_details_failed_tooltip = tk.Label(file_details_failed_header_line, text='(Click to copy)', fg=root_window.uicolor.FADED)
-    file_details_failed_tooltip.grid(row=0, column=1, sticky='w')
-    file_details_failed_counter = tk.Label(file_details_failed_header_line, text='0', font=(None, 11, 'bold'))
-    file_details_failed_counter.grid(row=0, column=2)
-    file_details_failed = ScrollableFrame(backup_file_details_frame)
-    file_details_failed.grid(row=5, column=0, columnspan=2, sticky='nsew')
-
-    # Set grid weights
-    tk.Grid.rowconfigure(backup_file_details_frame, 3, weight=2)
-    tk.Grid.rowconfigure(backup_file_details_frame, 5, weight=1)
-    tk.Grid.columnconfigure(backup_file_details_frame, (0, 1), weight=1)
-
-    # Set click to copy key bindings
-    file_details_pending_delete_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
-    file_details_pending_delete_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
-    file_details_pending_copy_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
-    file_details_pending_copy_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
-    file_details_copied_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
-    file_details_copied_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
-    file_details_copied_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
-    file_details_failed_header.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
-    file_details_failed_tooltip.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
-    file_details_failed_counter.bind('<Button-1>', lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
-
-    # Add placeholder to backup analysis
     reset_analysis_output()
-    backup_action_button_frame = tk.Frame(right_side_frame)
-    backup_action_button_frame.pack(padx=WINDOW_ELEMENT_PADDING, pady=WINDOW_ELEMENT_PADDING / 2)
-    start_analysis_btn = ttk.Button(backup_action_button_frame, text='Analyze', width=0, command=start_backup_analysis, state='normal')
-    start_analysis_btn.pack(side='left', padx=4)
-    start_backup_btn = ttk.Button(backup_action_button_frame, text='Run Backup', width=0, command=start_backup, state='disabled')
-    start_backup_btn.pack(side='left', padx=4)
-    halt_verification_btn = ttk.Button(backup_action_button_frame, text='Halt Verification', width=0, command=lambda: thread_manager.kill('Data Verification'), style='danger.TButton')
 
-    branding_frame = tk.Frame(right_side_frame)
-    branding_frame.pack(padx=WINDOW_ELEMENT_PADDING / 2)
+    # FIle list panel
+    file_details_pending_header_sizer = wx.BoxSizer()
+    file_details_delete_text = wx.StaticText(main_frame.root_panel, -1, label='Files to delete', name='Files to delete header label')
+    file_details_delete_text.SetFont(FONT_HEADING)
+    file_details_pending_header_sizer.Add(file_details_delete_text, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
+    file_details_delete_copy_text = wx.StaticText(main_frame.root_panel, -1, label='(Click to copy)', name='Files to delete header clipboard label')
+    file_details_delete_copy_text.SetForegroundColour(Color.FADED)
+    file_details_pending_header_sizer.Add(file_details_delete_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
+    file_details_pending_header_sizer.Add((-1, -1), 1, wx.EXPAND)
+    file_details_copy_copy_text = wx.StaticText(main_frame.root_panel, -1, label='(Click to copy)', name='Files to copy header clipboard label')
+    file_details_copy_copy_text.SetForegroundColour(Color.FADED)
+    file_details_pending_header_sizer.Add(file_details_copy_copy_text, 0, wx.ALIGN_BOTTOM | wx.RIGHT, 5)
+    file_details_copy_text = wx.StaticText(main_frame.root_panel, -1, label='Files to copy', name='Files to copy header label')
+    file_details_copy_text.SetFont(FONT_HEADING)
+    file_details_pending_header_sizer.Add(file_details_copy_text, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
 
-    image_logo = ImageTk.PhotoImage(Image.open(resource_path(f"media/logo_ui{'_light' if root_window.dark_mode else ''}.png")))
-    tk.Label(branding_frame, image=image_logo).pack(side='left')
-    tk.Label(branding_frame, text=f"v{__version__}", font=(None, 10), fg=root_window.uicolor.FADED).pack(side='left', anchor='s', pady=(0, 12))
+    file_details_pending_sizer = wx.BoxSizer()
+    file_details_pending_delete_counter = wx.StaticText(main_frame.root_panel, -1, label='0', name='Pending delete counter')
+    file_details_pending_delete_counter.SetFont(FONT_GIANT)
+    file_details_pending_sizer.Add(file_details_pending_delete_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
+    file_details_pending_delete_of = wx.StaticText(main_frame.root_panel, -1, label='of', name='Pending delete "of"')
+    file_details_pending_delete_of.SetFont(FONT_MEDIUM)
+    file_details_pending_delete_of.SetForegroundColour(Color.FADED)
+    file_details_pending_sizer.Add(file_details_pending_delete_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
+    file_details_pending_delete_counter_total = wx.StaticText(main_frame.root_panel, -1, label='0', name='Pending delete total')
+    file_details_pending_delete_counter_total.SetFont(FONT_MEDIUM)
+    file_details_pending_delete_counter_total.SetForegroundColour(Color.FADED)
+    file_details_pending_sizer.Add(file_details_pending_delete_counter_total, 0, wx.ALIGN_BOTTOM)
+    file_details_pending_sizer.Add((-1, -1), 1, wx.EXPAND)
+    file_details_pending_copy_counter = wx.StaticText(main_frame.root_panel, -1, label='0', name='Pending copy counter')
+    file_details_pending_copy_counter.SetFont(FONT_GIANT)
+    file_details_pending_sizer.Add(file_details_pending_copy_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
+    file_details_pending_copy_of = wx.StaticText(main_frame.root_panel, -1, label='of', name='Pending copy "of"')
+    file_details_pending_copy_of.SetFont(FONT_MEDIUM)
+    file_details_pending_copy_of.SetForegroundColour(Color.FADED)
+    file_details_pending_sizer.Add(file_details_pending_copy_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
+    file_details_pending_copy_counter_total = wx.StaticText(main_frame.root_panel, -1, label='0', name='Pending copy total')
+    file_details_pending_copy_counter_total.SetFont(FONT_MEDIUM)
+    file_details_pending_copy_counter_total.SetForegroundColour(Color.FADED)
+    file_details_pending_sizer.Add(file_details_pending_copy_counter_total, 0, wx.ALIGN_BOTTOM)
+
+    file_details_success_header_sizer = wx.BoxSizer()
+    file_details_success_header = wx.StaticText(main_frame.root_panel, -1, label='Successful', name='Success file list header')
+    file_details_success_header.SetFont(FONT_HEADING)
+    file_details_success_header_sizer.Add(file_details_success_header, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
+    file_details_success_copy_text = wx.StaticText(main_frame.root_panel, -1, label='(Click to copy)', name='Success file list clipboard header')
+    file_details_success_copy_text.SetForegroundColour(Color.FADED)
+    file_details_success_header_sizer.Add(file_details_success_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
+    file_details_success_header_sizer.Add((-1, -1), 1, wx.EXPAND)
+    file_details_success_count = wx.StaticText(main_frame.root_panel, -1, label='0', name='Success file list count')
+    file_details_success_count.SetFont(FONT_HEADING)
+    file_details_success_header_sizer.Add(file_details_success_count, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
+
+    file_details_success_panel = wx.ScrolledWindow(main_frame.root_panel, -1, style=wx.VSCROLL, name='Success file list')
+    file_details_success_panel.SetScrollbars(20, 20, 50, 50)
+    file_details_success_panel.SetForegroundColour(Color.TEXT_DEFAULT)
+    file_details_success_sizer = wx.BoxSizer(wx.VERTICAL)
+    file_details_success_panel.SetSizer(file_details_success_sizer)
+
+    file_details_failed_header_sizer = wx.BoxSizer()
+    file_details_failed_header = wx.StaticText(main_frame.root_panel, -1, label='Failed', name='Failed file list header')
+    file_details_failed_header.SetFont(FONT_HEADING)
+    file_details_failed_header_sizer.Add(file_details_failed_header, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
+    file_details_failed_copy_text = wx.StaticText(main_frame.root_panel, -1, label='(Click to copy)', name='Failed file list clipboard header')
+    file_details_failed_copy_text.SetForegroundColour(Color.FADED)
+    file_details_failed_header_sizer.Add(file_details_failed_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
+    file_details_failed_header_sizer.Add((-1, -1), 1, wx.EXPAND)
+    file_details_failed_count = wx.StaticText(main_frame.root_panel, -1, label='0', name='Failed file list count')
+    file_details_failed_count.SetFont(FONT_HEADING)
+    file_details_failed_header_sizer.Add(file_details_failed_count, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
+
+    file_details_failed_panel = wx.ScrolledWindow(main_frame.root_panel, -1, style=wx.VSCROLL, name='Failed file list')
+    file_details_failed_panel.SetScrollbars(20, 20, 50, 50)
+    file_details_failed_panel.SetForegroundColour(Color.TEXT_DEFAULT)
+    file_details_failed_sizer = wx.BoxSizer(wx.VERTICAL)
+    file_details_failed_panel.SetSizer(file_details_failed_sizer)
+
+    file_list_sizer = wx.BoxSizer(wx.VERTICAL)
+    file_list_sizer.Add(file_details_pending_header_sizer, 0, wx.EXPAND)
+    file_list_sizer.Add(file_details_pending_sizer, 0, wx.EXPAND)
+    file_list_sizer.Add(file_details_success_header_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    file_list_sizer.Add(file_details_success_panel, 2, wx.EXPAND)
+    file_list_sizer.Add(file_details_failed_header_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    file_list_sizer.Add(file_details_failed_panel, 1, wx.EXPAND)
+
+    progress_bar = ProgressBar(main_frame.root_panel, style=wx.GA_SMOOTH | wx.GA_PROGRESS)
+    progress_bar.SetRange(100)
+    progress_bar.BindThreadManager(thread_manager)
+
+    controls_sizer = wx.BoxSizer()
+    start_analysis_btn = wx.Button(main_frame.root_panel, -1, label='Analyze', name='Analysis button')
+    controls_sizer.Add(start_analysis_btn, 0)
+    start_backup_btn = wx.Button(main_frame.root_panel, -1, label='Run Backup', name='Backup button')
+    controls_sizer.Add(start_backup_btn, 0, wx.LEFT, ITEM_UI_PADDING)
+    halt_verification_btn = wx.Button(main_frame.root_panel, -1, label='Halt Verification', name='Halt verification button')
+    halt_verification_btn.Disable()
+    controls_sizer.Add(halt_verification_btn, 0, wx.LEFT, ITEM_UI_PADDING)
+
+    branding_sizer = wx.BoxSizer()
+    if settings_dark_mode:
+        logo_image_path = resource_path('assets/img/logo_text_light.png')
+    else:
+        logo_image_path = resource_path('assets/img/logo_text.png')
+    branding_sizer.Add(wx.StaticBitmap(main_frame.root_panel, -1, wx.Bitmap(wx.Image(logo_image_path, wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
+    branding_version_text = wx.StaticText(main_frame.root_panel, -1, f'v{__version__}')
+    branding_version_text.SetForegroundColour(Color.FADED)
+    branding_version_sizer = wx.BoxSizer(wx.VERTICAL)
+    branding_version_sizer.Add(branding_version_text, 0)
+    branding_version_sizer.Add((-1, 12), 0)
+    branding_sizer.Add(branding_version_sizer, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
+
+    # Status bar
+    STATUS_BAR_PADDING = 8
+    status_bar = wx.Panel(main_frame.root_panel, size=(-1, 20))
+    status_bar.SetBackgroundColour(Color.STATUS_BAR)
+    status_bar.SetForegroundColour(Color.TEXT_DEFAULT)
+    status_bar_sizer = wx.BoxSizer()
+    status_bar_selection = wx.StaticText(status_bar, -1, label='', name='Status bar selection')
+    status_bar_sizer.Add(status_bar_selection, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    update_status_bar_selection()
+    status_bar_action = wx.StaticText(status_bar, -1, label='', name='Status bar action')
+    status_bar_sizer.Add(status_bar_action, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    update_status_bar_action(Status.IDLE)
+    status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')
+    status_bar_error_count.SetForegroundColour(Color.FADED)
+    status_bar_sizer.Add(status_bar_error_count, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    status_bar_details = wx.StaticText(status_bar, -1, label='', name='Status bar detail item')
+    status_bar_sizer.Add(status_bar_details, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    status_bar_sizer.Add((-1, -1), 1, wx.EXPAND)
+    if PORTABLE_MODE:
+        status_bar_portable_mode = wx.StaticText(status_bar, -1, label='Portable mode')
+        status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    status_bar_updates = wx.StaticText(status_bar, -1, label='Up to date', name='Status bar update indicator')
+    status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
+    status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
+    status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
+    status_bar_outer_sizer.Add(status_bar_sizer, 0, wx.EXPAND)
+    status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
+    status_bar.SetSizer(status_bar_outer_sizer)
+
+    root_sizer.Add(source_sizer, (0, 0), flag=wx.EXPAND)
+    root_sizer.Add(summary_sizer, (1, 0), (3, 1), flag=wx.EXPAND)
+    root_sizer.Add(file_list_sizer, (0, 1), (2, 1), flag=wx.EXPAND)
+    root_sizer.Add(controls_sizer, (2, 1), flag=wx.ALIGN_CENTER_HORIZONTAL)
+    root_sizer.Add(branding_sizer, (3, 1), flag=wx.ALIGN_CENTER_HORIZONTAL)
+    root_sizer.Add(progress_bar, (4, 0), (1, 2), flag=wx.EXPAND)
+
+    root_sizer.AddGrowableRow(1)
+    root_sizer.AddGrowableCol(1)
+
+    box = wx.BoxSizer(wx.VERTICAL)
+    box.Add(root_sizer, 1, wx.EXPAND | wx.ALL, 10)
+    box.Add(status_bar, 0, wx.EXPAND)
+
+    # Right click menu stuff
+    ID_SOURCE_RENAME = wx.NewIdRef()
+    ID_SOURCE_DELETE = wx.NewIdRef()
+    ID_DEST_RENAME = wx.NewIdRef()
+    ID_DEST_DELETE = wx.NewIdRef()
+
+    # Menu stuff
+    menu_bar = wx.MenuBar()
+
+    # File menu
+    ID_OPEN_CONFIG = wx.NewIdRef()
+    ID_SAVE_CONFIG = wx.NewIdRef()
+    ID_SAVE_CONFIG_AS = wx.NewIdRef()
+    file_menu = wx.Menu()
+    file_menu.Append(ID_OPEN_CONFIG, '&Open Backup Config...\tCtrl+O', 'Open a previously created backup config')
+    file_menu.Append(ID_SAVE_CONFIG, '&Save Backup Config\tCtrl+S', 'Save the current config to backup config file on the selected destinations')
+    file_menu.Append(ID_SAVE_CONFIG_AS, 'Save Backup Config &As...\tCtrl+Shift+S', 'Save the current config to a backup config file')
+    file_menu.AppendSeparator()
+    file_menu_exit = file_menu.Append(104, 'E&xit', 'Terminate the program')
+    menu_bar.Append(file_menu, '&File')
+
+    # Selection menu
+    ID_MENU_SOURCE_NETWORK_DRIVE = wx.NewIdRef()
+    ID_MENU_SOURCE_LOCAL_DRIVE = wx.NewIdRef()
+    ID_MENU_DEST_NETWORK_DRIVE = wx.NewIdRef()
+    ID_MENU_DEST_LOCAL_DRIVE = wx.NewIdRef()
+    ID_MENU_SOURCE_MODE_SINGLE_DRIVE = wx.NewIdRef()
+    ID_MENU_SOURCE_MODE_MULTI_DRIVE = wx.NewIdRef()
+    ID_MENU_SOURCE_MODE_SINGLE_PATH = wx.NewIdRef()
+    ID_MENU_SOURCE_MODE_MULTI_PATH = wx.NewIdRef()
+    ID_MENU_DEST_MODE_DRIVES = wx.NewIdRef()
+    ID_MENU_DEST_MODE_PATHS = wx.NewIdRef()
+    selection_menu = wx.Menu()
+    selection_menu_show_drives_source_network = wx.MenuItem(selection_menu, ID_MENU_SOURCE_NETWORK_DRIVE, 'Source Network Drives', 'Enable network drives as sources', kind=wx.ITEM_CHECK)
+    selection_menu.Append(selection_menu_show_drives_source_network)
+    selection_menu_show_drives_source_network.Check(settings_show_drives_source_network)
+    selection_menu_show_drives_source_local = wx.MenuItem(selection_menu, ID_MENU_SOURCE_LOCAL_DRIVE, 'Source Local Drives', 'Enable local drives as sources', kind=wx.ITEM_CHECK)
+    selection_menu.Append(selection_menu_show_drives_source_local)
+    selection_menu_show_drives_source_local.Check(settings_show_drives_source_local)
+    selection_menu_show_drives_destination_network = wx.MenuItem(selection_menu, ID_MENU_DEST_NETWORK_DRIVE, 'Destination Network Drives', 'Enable network drives as destinations', kind=wx.ITEM_CHECK)
+    selection_menu.Append(selection_menu_show_drives_destination_network)
+    selection_menu_show_drives_destination_network.Check(settings_show_drives_destination_network)
+    selection_menu_show_drives_destination_local = wx.MenuItem(selection_menu, ID_MENU_DEST_LOCAL_DRIVE, 'Destination Local Drives', 'Enable local drives as destinations', kind=wx.ITEM_CHECK)
+    selection_menu.Append(selection_menu_show_drives_destination_local)
+    selection_menu_show_drives_destination_local.Check(settings_show_drives_destination_local)
+    selection_menu.AppendSeparator()
+    selection_source_mode_menu = wx.Menu()
+    selection_source_mode_menu_single_drive = wx.MenuItem(selection_source_mode_menu, ID_MENU_SOURCE_MODE_SINGLE_DRIVE, 'Single drive, select subfolders', 'Select subfolders from a drive to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(selection_source_mode_menu_single_drive)
+    selection_source_mode_menu_single_drive.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE)
+    selection_source_mode_menu_multi_drive = wx.MenuItem(selection_source_mode_menu, ID_MENU_SOURCE_MODE_MULTI_DRIVE, 'Multi drive, select drives', 'Select one or more drives to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(selection_source_mode_menu_multi_drive)
+    selection_source_mode_menu_multi_drive.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_DRIVE)
+    selection_source_mode_menu_single_path = wx.MenuItem(selection_source_mode_menu, ID_MENU_SOURCE_MODE_SINGLE_PATH, 'Single path, select subfolders', 'Specify a path, and select subfolders to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(selection_source_mode_menu_single_path)
+    selection_source_mode_menu_single_path.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_PATH)
+    selection_source_mode_menu_multi_path = wx.MenuItem(selection_source_mode_menu, ID_MENU_SOURCE_MODE_MULTI_PATH, 'Multi path, select paths', 'Specify one or more paths to use as sources', kind=wx.ITEM_RADIO)
+    selection_source_mode_menu.Append(selection_source_mode_menu_multi_path)
+    selection_source_mode_menu_multi_path.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_PATH)
+    selection_menu.AppendSubMenu(selection_source_mode_menu, '&Source Mode')
+    selection_dest_mode_menu = wx.Menu()
+    selection_dest_mode_menu_drives = wx.MenuItem(selection_dest_mode_menu, ID_MENU_DEST_MODE_DRIVES, 'Drives', 'Select one or more drives as destinations', kind=wx.ITEM_RADIO)
+    selection_dest_mode_menu.Append(selection_dest_mode_menu_drives)
+    selection_dest_mode_menu_drives.Check(settings_dest_mode == Config.DEST_MODE_DRIVES)
+    selection_dest_mode_menu_paths = wx.MenuItem(selection_dest_mode_menu, ID_MENU_DEST_MODE_PATHS, 'Paths', 'Specify one or more paths as destinations', kind=wx.ITEM_RADIO)
+    selection_dest_mode_menu.Append(selection_dest_mode_menu_paths)
+    selection_dest_mode_menu_paths.Check(settings_dest_mode == Config.DEST_MODE_PATHS)
+    selection_menu.AppendSubMenu(selection_dest_mode_menu, '&Destination Mode')
+    menu_bar.Append(selection_menu, '&Selection')
+
+    # View menu
+    ID_REFRESH_SOURCE = wx.NewIdRef()
+    ID_REFRESH_DEST = wx.NewIdRef()
+    ID_SHOW_ERROR_LOG = wx.NewIdRef()
+    view_menu = wx.Menu()
+    view_menu.Append(ID_REFRESH_SOURCE, 'Refresh Source\tCtrl+F5', 'Refresh the list of sources shown')
+    view_menu.Append(ID_REFRESH_DEST, '&Refresh Destination\tF5', 'Refresh the list of destinations shown')
+    view_menu.AppendSeparator()
+    view_menu.Append(ID_SHOW_ERROR_LOG, 'Backup Error Log\tCtrl+E', 'Show the backup error log')
+    menu_bar.Append(view_menu, '&View')
+
+    # Actions menu
+    ID_VERIFY_DATA = wx.NewIdRef()
+    ID_DELETE_CONFIG_FROM_DRIVES = wx.NewIdRef()
+    actions_menu = wx.Menu()
+    actions_menu.Append(ID_VERIFY_DATA, '&Verify Data Integrity on Selected Destinations', 'Verify files on selected destinations against the saved hash to check for errors')
+    actions_menu.Append(ID_DELETE_CONFIG_FROM_DRIVES, 'Delete Config from Selected Destinations', 'Delete the saved backup config from the selected destinations')
+    menu_bar.Append(actions_menu, '&Actions')
+
+    # Preferences menu
+    ID_VERIFY_KNOWN_FILES = wx.NewIdRef()
+    ID_VERIFY_ALL_FILES = wx.NewIdRef()
+    ID_DARK_MODE = wx.NewIdRef()
+    preferences_menu = wx.Menu()
+    preferences_verification_menu = wx.Menu()
+    preferences_verification_menu_verify_known_files = wx.MenuItem(preferences_verification_menu, ID_VERIFY_KNOWN_FILES, 'Verify Known Files', 'Verify files with known hashes, skip unknown files', kind=wx.ITEM_RADIO)
+    preferences_verification_menu.Append(preferences_verification_menu_verify_known_files)
+    preferences_verification_menu_verify_known_files.Check(not settings_verify_all_files)
+    preferences_verification_menu_verify_all_files = wx.MenuItem(preferences_verification_menu, ID_VERIFY_ALL_FILES, 'Verify All Files', 'Verify files with known hashes, compute and save the hash of unknown files', kind=wx.ITEM_RADIO)
+    preferences_verification_menu.Append(preferences_verification_menu_verify_all_files)
+    preferences_verification_menu_verify_all_files.Check(settings_verify_all_files)
+    preferences_menu.AppendSubMenu(preferences_verification_menu, '&Data Integrity Verification')
+    preferences_menu_dark_mode = wx.MenuItem(preferences_menu, 502, 'Enable Dark Mode (requires restart)', 'Enable or disable dark mode', kind=wx.ITEM_CHECK)
+    preferences_menu.Append(preferences_menu_dark_mode)
+    preferences_menu_dark_mode.Check(settings_dark_mode)
+    menu_bar.Append(preferences_menu, '&Preferences')
+
+    # Debug menu
+    ID_SHOW_WIDGET_INSPECTION = wx.NewIdRef()
+    debug_menu = wx.Menu()
+    debug_menu.Append(ID_SHOW_WIDGET_INSPECTION, 'Show &Widget Inspection Tool\tF6', 'Show the widget inspection tool')
+    menu_bar.Append(debug_menu, '&Debug')
+
+    # Help menu
+    ID_CHECK_FOR_UPDATES = wx.NewIdRef()
+    ID_ALLOW_PRERELEASE_UPDATES = wx.NewIdRef()
+    help_menu = wx.Menu()
+    help_menu.Append(ID_CHECK_FOR_UPDATES, 'Check for Updates', 'Check for program updates, and prompt to download them, if there are any')
+    help_menu_allow_prerelease_updates = wx.MenuItem(help_menu, ID_ALLOW_PRERELEASE_UPDATES, 'Allow Prereleases', 'Allow prerelease versions when checking for updates', kind=wx.ITEM_CHECK)
+    help_menu.Append(help_menu_allow_prerelease_updates)
+    help_menu_allow_prerelease_updates.Check(settings_allow_prerelease_updates)
+    menu_bar.Append(help_menu, '&Help')
+
+    main_frame.SetMenuBar(menu_bar)
+
+    # Menu item bindings
+    main_frame.Bind(wx.EVT_MENU, lambda e: open_config_file(), id=ID_OPEN_CONFIG)
+    main_frame.Bind(wx.EVT_MENU, lambda e: save_config_file(), id=ID_SAVE_CONFIG)
+    main_frame.Bind(wx.EVT_MENU, lambda e: save_config_file_as(), id=ID_SAVE_CONFIG_AS)
+    main_frame.Bind(wx.EVT_MENU, lambda e: on_close(), file_menu_exit)
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_type(DRIVE_TYPE_REMOTE), id=ID_MENU_SOURCE_NETWORK_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_type(DRIVE_TYPE_LOCAL), id=ID_MENU_SOURCE_LOCAL_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_destination_type(DRIVE_TYPE_REMOTE), id=ID_MENU_DEST_NETWORK_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_destination_type(DRIVE_TYPE_LOCAL), id=ID_MENU_DEST_LOCAL_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_SINGLE_DRIVE), id=ID_MENU_SOURCE_MODE_SINGLE_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_MULTI_DRIVE), id=ID_MENU_SOURCE_MODE_MULTI_DRIVE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_SINGLE_PATH), id=ID_MENU_SOURCE_MODE_SINGLE_PATH)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_source_mode(Config.SOURCE_MODE_MULTI_PATH), id=ID_MENU_SOURCE_MODE_MULTI_PATH)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_dest_mode(Config.DEST_MODE_DRIVES), id=ID_MENU_DEST_MODE_DRIVES)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_dest_mode(Config.DEST_MODE_PATHS), id=ID_MENU_DEST_MODE_PATHS)
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: load_source_in_background(), id=ID_REFRESH_SOURCE)
+    main_frame.Bind(wx.EVT_MENU, lambda e: load_dest_in_background(), id=ID_REFRESH_DEST)
+    main_frame.Bind(wx.EVT_MENU, lambda e: show_backup_error_log(), id=ID_SHOW_ERROR_LOG)
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: start_verify_data_from_hash_list(), id=ID_VERIFY_DATA)
+    main_frame.Bind(wx.EVT_MENU, lambda e: delete_config_file_from_selected_drives(), id=ID_DELETE_CONFIG_FROM_DRIVES)
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_verification_all_preferences(False), id=ID_VERIFY_KNOWN_FILES)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_verification_all_preferences(True), id=ID_VERIFY_ALL_FILES)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_dark_mode_preferences(preferences_menu_dark_mode.IsChecked()), id=ID_DARK_MODE)
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: show_widget_inspector(), id=ID_SHOW_WIDGET_INSPECTION)
+
+    main_frame.Bind(wx.EVT_MENU, lambda e: check_for_updates_in_background(), id=ID_CHECK_FOR_UPDATES)
+    main_frame.Bind(wx.EVT_MENU, lambda e: change_prerelease_preferences(help_menu_allow_prerelease_updates.IsChecked()), id=ID_ALLOW_PRERELEASE_UPDATES)
+
+    # Key bindings
+    accelerators = [wx.AcceleratorEntry() for x in range(7)]
+    accelerators[0].Set(wx.ACCEL_CTRL, ord('O'), ID_OPEN_CONFIG)
+    accelerators[1].Set(wx.ACCEL_CTRL, ord('S'), ID_SAVE_CONFIG)
+    accelerators[2].Set(wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('S'), ID_SAVE_CONFIG_AS)
+    accelerators[3].Set(wx.ACCEL_CTRL, wx.WXK_F5, ID_REFRESH_SOURCE)
+    accelerators[4].Set(wx.ACCEL_NORMAL, wx.WXK_F5, ID_REFRESH_DEST)
+    accelerators[5].Set(wx.ACCEL_CTRL, ord('E'), ID_SHOW_ERROR_LOG)
+    accelerators[6].Set(wx.ACCEL_NORMAL, wx.WXK_F6, ID_SHOW_WIDGET_INSPECTION)
+    main_frame.SetAcceleratorTable(wx.AcceleratorTable(accelerators))
+
+    # Mouse bindings
+    source_src_control_dropdown.Bind(wx.EVT_COMBOBOX, change_source_drive)
+    source_src_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: browse_for_source_in_background())
+    source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
+    source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
+    source_tree.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, show_source_right_click_menu)
+    source_dest_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: browse_for_dest_in_background())
+    dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
+    dest_tree.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, show_dest_right_click_menu)
+    split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
+
+    file_details_delete_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
+    file_details_delete_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
+    file_details_copy_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
+    file_details_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
+    file_details_success_header.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+    file_details_success_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+    file_details_success_count.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
+    file_details_failed_header.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+    file_details_failed_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+    file_details_failed_count.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
+
+    start_analysis_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup_analysis())
+    start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup())
+    halt_verification_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: thread_manager.kill('Data Verification'))
+
+    status_bar_error_count.Bind(wx.EVT_LEFT_DOWN, lambda e: show_backup_error_log())
+    status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
+
+    # PyEvent bindings
+    EVT_CHECK_FOR_UPDATES = wx.NewEventType()
+    main_frame.Connect(-1, -1, EVT_CHECK_FOR_UPDATES, lambda e: show_update_window(e.data))
+
+    # Catch close event for graceful exit
+    main_frame.Bind(wx.EVT_CLOSE, lambda e: on_close())
 
     # Keyboard listener
     listener = keyboard.Listener(
@@ -3000,19 +3503,26 @@ if __name__ == '__main__':
         on_release=on_release)
     listener.start()
 
-    load_source_in_background()
-    # QUESTION: Does init load_dest @thread_type need to be SINGLE, MULTIPLE, or REPLACEABLE?
-    thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_dest, name='Init', daemon=True)
+    main_frame.root_panel.SetSizerAndFit(box)
+    main_frame.Show()
 
     # Check for updates on startup
-    thread_manager.start(
-        ThreadManager.SINGLE,
-        target=update_handler.check,
-        name='Update Check',
-        daemon=True
-    )
+    check_for_updates_in_background()
 
+    source_avail_drive_list = []
+    source_drive_default = ''
+
+    # Load UI and configure for preferences
+    change_source_mode(settings_source_mode)
+    change_dest_mode(settings_dest_mode)
+
+    # Add placeholder to backup analysis
+    reset_analysis_output()
+
+    # Load data
+    load_source_in_background()
+
+    # Continuously update UI using data from Backup instance
     ui_update_scheduler = RepeatedTimer(0.25, update_ui_during_backup)
 
-    root_window.protocol('WM_DELETE_WINDOW', on_close)
-    root_window.mainloop()
+    app.MainLoop()

@@ -1,15 +1,43 @@
-import tkinter as tk
-from tkinter import ttk
-from PIL import Image, ImageTk
 import sys
 import os
-import ctypes
+import wx
 import clipboard
-import time
-
-from bin.color import Color
 
 WINDOW_ELEMENT_PADDING = 16
+
+class Color:
+    BLACK = wx.Colour(0x00, 0x00, 0x00)
+    WHITE = wx.Colour(0xec, 0xec, 0xec)
+    BLUE = wx.Colour(0x00, 0x93, 0xc4)
+    GREEN = wx.Colour(0x6d, 0xb5, 0x00)
+    GOLD = wx.Colour(0xeb, 0xb3, 0x00)
+    RED = wx.Colour(0xff, 0x55, 0x33)
+    GRAY = wx.Colour(0x66, 0x66, 0x66)
+
+    COLORACCENT = GREEN
+
+    TEXT_DEFAULT = WHITE
+    FADED = wx.Colour(0x8e, 0x8e, 0x8e)
+    INFO = wx.Colour(0x3b, 0xce, 0xff)
+    TOOLTIP = INFO
+    WARNING = GOLD
+    ERROR = RED
+
+    ENABLED = GREEN
+    DISABLED = RED
+
+    SUCCESS = GREEN
+    FAILED = RED
+
+    DANGER = RED
+    FINISHED = GREEN
+    RUNNING = BLUE
+    STOPPED = RED
+    PENDING = FADED
+
+    BACKGROUND = wx.Colour(0x2d, 0x2d, 0x2a)
+    WIDGET_COLOR = wx.Colour(0x39, 0x39, 0x37)
+    STATUS_BAR = wx.Colour(0x48, 0x48, 0x43)
 
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller."""
@@ -22,574 +50,365 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
-class RootWindow(tk.Tk):
-    def __init__(self, title, width: int, height: int, center: bool = None, resizable=None, status_bar: bool = None, dark_mode: bool = None, *args, **kwargs):
-        # TODO: Get icons working to be passed into RootWindow class
-        # TODO: Add option to give RootWindow a scrollbar
-        # TODO: Add option to give RootWindow status bar
-
-        """Create a root window.
+class RootWindow(wx.Frame):
+    def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
+        """Create a window.
 
         Args:
-            title (String): The window title.
-            width (int): The window width.
-            height (int): The window height.
-            center (bool): Whether to center the window on the parent
-                (optional).
-            resizable (tuple): Whether to let the window be resized in
-                width or height.
-            status_bar (bool): Whether to add a status bar to the window
-                (optional).
-            dark_mode (bool): Whether to use dark mode (optional).
+            parent: The parent of the resulting frame.
+            title (String): The title of the window.
+            size (wx.Size): The size of the window.
+            name (String): The name to give the frame.
+            icon (wx.Icon): The icon to apply to the window (optional).
         """
 
-        if center is None:
-            center = False
-        if resizable is None:
-            resizable = (True, True)
-        if status_bar is None:
-            status_bar = False
-        if dark_mode is None:
-            dark_mode = False
+        self.parent = parent
+        self.icon = icon
 
-        (resize_width, resize_height) = resizable
+        wx.Frame.__init__(
+            self,
+            parent=parent,
+            title=title,
+            size=size,
+            name=name,
+            *args,
+            **kwargs
+        )
 
-        tk.Tk.__init__(self, *args, **kwargs)
-        self.title(title)
-        self.minsize(width, height)
-        self.geometry(f'{width}x{height}')
-        self.resizable(resize_width, resize_height)
+        if icon is not None:
+            self.SetIcon(icon)
 
-        if center:
-            self.center()
-
-        # Create and set uicolor instance for application windows
-        self.uicolor = Color(self, dark_mode)
-        if self.uicolor.is_dark_mode():
-            self.tk_setPalette(background=self.uicolor.BG)
-
-        self.dark_mode = self.uicolor.is_dark_mode()
-
-        # Set up window frame
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-        self.main_frame = tk.Frame(self)
-        self.main_frame.grid(row=0, column=0, sticky='nsew', padx=(WINDOW_ELEMENT_PADDING, 0), pady=(0, WINDOW_ELEMENT_PADDING))
-
-        # Set up status bar
-        if status_bar:
-            self.status_bar_frame = tk.Frame(self, bg=self.uicolor.STATUS_BAR)
-            self.status_bar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
-            self.status_bar_frame.columnconfigure(50, weight=1)  # Let column 51 fill width, used like a spacer to have both left- and right-aligned text
-
-    def center(self):
-        """Center the root window on a screen.
-        """
-
-        self.update_idletasks()
-        WIDTH = self.winfo_width()
-        FRAME_WIDTH = self.winfo_rootx() - self.winfo_x()
-        WIN_WIDTH = WIDTH + 2 * FRAME_WIDTH
-        HEIGHT = self.winfo_height()
-        TITLEBAR_HEIGHT = self.winfo_rooty() - self.winfo_y()
-        WIN_HEIGHT = HEIGHT + TITLEBAR_HEIGHT + FRAME_WIDTH
-
-        # Set position and center on screen
-        x = self.winfo_screenwidth() // 2 - WIN_WIDTH // 2
-        y = self.winfo_screenheight() // 2 - WIN_HEIGHT // 2
-
-        self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, x, y))
-        self.deiconify()
-
-class AppWindow(tk.Toplevel):
-    def __init__(self, root, title, width: int, height: int, center: bool = None, center_content: bool = None, resizable=None, status_bar: bool = None, modal: bool = None, *args, **kwargs):
-        # TODO: Get icons working to be passed into AppWindow class
-        # TODO: Add option to give AppWindow a scrollbar
-        # TODO: Add option to give AppWindow status bar
-
-        """Create an app window.
+    def Panel(self, name: str = None, background: wx.Colour = None, foreground: wx.Colour = None):
+        """Create the base wx.Panel for the Frame.
 
         Args:
-            root (tkinter.Tk): The root window to make AppWindow a child of.
-            title (String): The window title.
-            width (int): The window width.
-            height (int): The window height.
-            center (bool): Whether to center the window on the parent
-                (optional).
-            center_content (bool): Whether to center the content in the window
-                (optional).
-            resizable (tuple): Whether to let the window be resized in
-                width or height.
-            status_bar (bool): Whether to add a status bar to the window
-                (optional).
-            modal (bool): Whether or not the window is a modal window (optional).
+            name (String): The name of the panel (optional).
+            background (wx.Colour): The background color of the panel (optional).
+            foreground (wx.Colour): The foreground color of the panel (optional).
         """
-        if center is None:
-            center = False
-        if center_content is None:
-            center_content = False
-        if resizable is None:
-            resizable = (True, True)
-        if status_bar is None:
-            status_bar = False
-        if modal is None:
-            modal = False
 
-        (resize_width, resize_height) = resizable
+        self.root_panel = wx.Panel(self, name=name)
 
-        tk.Toplevel.__init__(self, root, *args, **kwargs)
-        self.title(title)
-        self.minsize(width, height)
-        self.geometry(f'{width}x{height}')
-        self.resizable(resize_width, resize_height)
+        if background is not None:
+            self.root_panel.SetBackgroundColour(background)
 
-        if center:
-            self.center(root)
+        if foreground is not None:
+            self.root_panel.SetForegroundColour(foreground)
 
-        # Set up window frame
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-        self.main_frame = tk.Frame(self)
-        if not center_content:
-            self.main_frame.grid(row=0, column=0, sticky='nsew', padx=WINDOW_ELEMENT_PADDING, pady=(0, WINDOW_ELEMENT_PADDING))
+        self.root_panel.Fit()
+        self.SendSizeEvent()
+
+class ModalWindow(RootWindow):
+    def __init__(self, parent = None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
+        """Create a modal window.
+
+        Args:
+            parent: The parent of the resulting frame.
+            title (String): The title of the window.
+            size (wx.Size): The size of the window.
+            name (String): The name to give the frame.
+            icon (wx.Icon): The icon to apply to the window (optional).
+        """
+
+        self.icon = icon
+
+        RootWindow.__init__(
+            self,
+            parent=parent,
+            title=title,
+            size=size,
+            name=name,
+            icon=icon,
+            *args,
+            **kwargs
+        )
+
+        if icon is not None:
+            self.SetIcon(icon)
+        elif parent is not None and parent.icon is not None:  # If no icon is specified, inherit from parent if the parent has an icon
+            self.SetIcon(parent.icon)
+
+        self.Bind(wx.EVT_CLOSE, self.on_close)
+
+    def on_close(self, event):
+        self.parent.Enable()
+        self.parent.Show()
+
+        if event.CanVeto():
+            event.Veto()
+            self.Hide()
         else:
-            self.main_frame.grid(row=0, column=0, sticky='')
+            self.Destroy()
 
-        # Set up status bar
-        if status_bar:
-            self.status_bar_frame = tk.Frame(self, bg=root.uicolor.STATUS_BAR)
-            self.status_bar_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=0)
-            self.status_bar_frame.columnconfigure(50, weight=1)  # Let column 51 fill width, used like a spacer to have both left- and right-aligned text
+    def ShowModal(self):
+        """Show the modal."""
 
-        # If window is a modal window, disable parent window until AppWindow
-        # is closed.
-        if modal:
-            def on_close():
-                self.destroy()
-                root.wm_attributes('-disabled', False)
+        self.parent.Disable()
+        self.Show()
 
-                ctypes.windll.user32.SetForegroundWindow(root.winfo_id())
-                root.focus_set()
-
-            self.protocol('WM_DELETE_WINDOW', on_close)
-
-    def center(self, center_to_window):
-        """Center the window on the root window.
+class ProgressBar(wx.Gauge):
+    def __init__(self, parent, *args, **kwargs):
+        """Create a progress bar.
 
         Args:
-            center_to_window (tkinter.Tk): The window to center the child window on.
+            parent: The parent of the progress bar.
         """
 
-        self.update_idletasks()
-        WIDTH = self.winfo_width()
-        FRAME_WIDTH = self.winfo_rootx() - self.winfo_x()
-        WIN_WIDTH = WIDTH + 2 * FRAME_WIDTH
-        HEIGHT = self.winfo_height()
-        TITLEBAR_HEIGHT = self.winfo_rooty() - self.winfo_y()
-        WIN_HEIGHT = HEIGHT + TITLEBAR_HEIGHT + FRAME_WIDTH
+        self.value = 0
+        self.max = None
+        self.is_indeterminate = False
 
-        # Center element provided, so use its position for reference
-        ROOT_FRAME_WIDTH = center_to_window.winfo_rootx() - center_to_window.winfo_x()
-        ROOT_WIN_WIDTH = center_to_window.winfo_width() + 2 * ROOT_FRAME_WIDTH
-        ROOT_TITLEBAR_HEIGHT = center_to_window.winfo_rooty() - center_to_window.winfo_y()
-        ROOT_WIN_HEIGHT = center_to_window.winfo_height() + ROOT_TITLEBAR_HEIGHT + ROOT_FRAME_WIDTH
+        wx.Gauge.__init__(self, parent, *args, **kwargs)
 
-        x = center_to_window.winfo_x() + ROOT_WIN_WIDTH // 2 - WIN_WIDTH // 2
-        y = center_to_window.winfo_y() + ROOT_WIN_HEIGHT // 2 - WIN_HEIGHT // 2
-
-        self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, x, y))
-        self.deiconify()
-
-class ScrollableFrame(tk.Frame):
-    def __init__(self, parent, scrollbar=None, *args, **kwargs):
-        """Create a scrollable frame widget.
+    def BindThreadManager(self, thread_manager):
+        """Bind a ThreadManager instance to the progress bar.
 
         Args:
-            parent (tk.*): The parent widget of the resulting frame.
-            scrollbar (tk.Scrollbar): An existing scrollbar to bind
-                (default: None). If not specified, a scrollbar to the right
-                of the frame will be created.
+            thread_manager (ThreadManager): The ThreadManager to bind to.
         """
 
-        tk.Frame.__init__(self, parent)
-        self.pack_propagate(0)
+        self.__thread_manager = thread_manager
 
-        self.canvas = tk.Canvas(self, *args, **kwargs)
-        if scrollbar is None:
-            self.vsb = tk.Scrollbar(self, orient='vertical', command=self.yview)
-        else:
-            self.vsb = scrollbar
-            self.vsb.configure(command=self.yview)
+    def StartIndeterminate(self):
+        """Start indeterminate mode."""
 
-        self.frame = ttk.Frame(self.canvas)
-        self.frame.bind('<Configure>', lambda e: self.canvas.configure(
-            scrollregion=self.canvas.bbox('all')
-        ))
-
-        self.canvas.create_window((0, 0), window=self.frame, anchor='nw')
-        self.canvas.configure(yscrollcommand=self.vsb.set)
-
-        self.canvas.pack(side='left', fill='both', expand=1)
-        if scrollbar is None:
-            self.vsb.pack(side='left', fill='y')
-
-        self.canvas.bind('<Enter>', self._bind_on_enter)
-        self.canvas.bind('<Leave>', self._unbind_on_leave)
-
-    def yview(self, *args):
-        if self.canvas.yview() == (0.0, 1.0):
+        # No need to start if this isn't the first progress thread
+        if len(self.__thread_manager.get_progress_threads()) > 1:
             return
-        self.canvas.yview(*args)
 
-    def _on_mousewheel(self, event):
-        if self.canvas.yview() == (0.0, 1.0):
+        # If progress bar is already in indeterminate mode, no need to set it
+        if self.is_indeterminate:
             return
-        self.canvas.yview_scroll(int(-1 * event.delta / 120), 'units')
 
-    def _bind_on_enter(self, event):
-        self.canvas.bind_all('<MouseWheel>', self._on_mousewheel)
+        self.value = self.GetValue()
+        self.Pulse()
+        self.is_indeterminate = True
 
-    def _unbind_on_leave(self, event):
-        # HACK: ScrollableFrame unbind_all will cause problems if mousewheel is bound to anything else
-        self.unbind_all('<MouseWheel>')
+    def StopIndeterminate(self):
+        """Stop indeterminate mode."""
 
-    def configure(self, *args, **kwargs):
-        self.frame.configure(*args, **kwargs)
+        # No need to stop if this isn't the only progress thread
+        if len(self.__thread_manager.get_progress_threads()) > 1:
+            return
 
-    def show_items(self, limit=None):
-        """Scroll to the bottom of the frame, and truncate items.
+        # If progress bar is already in determinate mode, no need to set it
+        if not self.is_indeterminate:
+            return
 
-        Args:
-            limit (int): If specified, the number of items to truncate to (default: None).
-        """
+        self.is_indeterminate = False
+        self.SetValue(self.value)
 
-        if limit is not None and isinstance(limit, int):
-            [widget.destroy() for widget in self.frame.winfo_children()[:-limit]]
+class WarningPanel(wx.Panel):
+    def __init__(self, parent, *args, **kwargs):
+        """Create an alert-like panel for warnings and errors."""
 
-        time.sleep(0.01)
-        self.canvas.yview_moveto(1)
+        wx.Panel.__init__(self, parent, *args, **kwargs)
 
-    def empty(self):
-        self.canvas.yview_moveto(0)
-        [widget.destroy() for widget in self.frame.winfo_children()]
+        self.parent = parent
 
-    def winfo_height(self):
-        self.canvas.update_idletasks()
-        return self.canvas.winfo_height()
+        # Set up box sizer for panel
+        self.box = wx.BoxSizer()
+        self.SetSizer(self.box)
 
-    def winfo_width(self):
-        self.canvas.update_idletasks()
-        return self.canvas.winfo_width()
+        # Set up main sizer
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.box.Add((-1, -1), 1)
+        self.box.Add(self.sizer, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 10)
+        self.box.Add((-1, -1), 1)
 
-class TabbedFrame(tk.Frame):
-    def __init__(self, parent, tabs=None, *args, **kwargs):
-        """Create a tabbed frame widget.
-
-        Args:
-            parent (tk.*): The parent widget of the resulting frame.
-            tabs (dict): A list of display names for tabs to show (optional).
-                key (String): The internal name for the tab.
-                value (String): The display name for the tab.
-        """
-
-        if tabs is None:
-            tabs = {}
-
-        tk.Frame.__init__(self, parent)
-        self.pack_propagate(0)
-
-        self.tab = {}
-
-        self.tab_frame = tk.Frame(self)
-        self.gutter = tk.Frame(self)
-        self.frame = tk.Frame(self)
-
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-
-        self.tab_frame.grid(row=0, column=0)
-        self.gutter.grid(row=0, column=1, sticky='ew')
-        self.frame.grid(row=1, column=0, columnspan=2, sticky='nsew')
-
-        first_tab_name = list(tabs.keys())[0]
-        for tab_name, tab_label in tabs.items():
-            tab_style = 'active.tab.TButton' if tab_name == first_tab_name else 'tab.TButton'
-
-            self.tab[tab_name] = {
-                'tab': ttk.Button(self.tab_frame, text=tab_label, width=0, command=lambda tn=tab_name: self.change_tab(tn), style=tab_style),
-                'content': None
-            }
-            self.tab[tab_name]['tab'].pack(side='left', ipadx=3, ipady=2, padx=2)
-
-    def change_tab(self, tab_name):
-        """Change to a given tab in the tab list.
-
-        Args:
-            tab_name (String): The tab to change to.
-        """
-
-        self.focus_set()
-
-        [widget.pack_forget() for widget in self.frame.winfo_children()]
-
-        # Change styling of tabs to show active tab
-        for tab in self.tab:
-            tab_style = 'active.tab.TButton' if tab == tab_name else 'tab.TButton'
-            self.tab[tab]['tab'].configure(style=tab_style)
-
-        self.tab[tab_name]['content'].pack(fill='both', expand=True)
-
-    def configure(self, *args, **kwargs):
-        self.frame.configure(*args, **kwargs)
-
-class BackupDetailBlock(tk.Frame):
-    HEADER_FONT = (None, 9, 'bold')
-    TEXT_FONT = (None, 9)
-
+class DetailBlock(wx.BoxSizer):
     TITLE = 'title'
     CONTENT = 'content'
 
-    def __init__(self, parent, title, uicolor, backup, enabled: bool = None):
+    def __init__(self, parent, title: str, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
         """Create an expandable detail block to display info.
 
         Args:
-            parent (tk.*): The parent widget.
+            parent: The parent widget.
             title (String): The bold title to display.
-            uicolor (Color): The UI pallete instance.
-            backup (Backup): The backup instance to reference.
+            text_font (wx.Font): The font to use for the text.
+            bold_font (wx.Font): The font to use for the headings.
             enabled (bool): Whether or not this block is enabled.
         """
 
-        if enabled is None:
-            enabled = True
+        wx.BoxSizer.__init__(self, orient=wx.VERTICAL)
 
         self.enabled = enabled
-        self.backup = backup
-        self.uicolor = uicolor
-        self.dark_mode = uicolor.is_dark_mode()
-        self.right_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if self.dark_mode else ''}.png")))
-        self.down_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if self.dark_mode else ''}.png")))
+        self.parent = parent
+        self.TEXT_FONT = text_font
+        self.BOLD_FONT = bold_font
+        self.expanded = False
+        self.dark_mode = True  # FIXME: Get dark mode working with DetailBlock class
+        self.right_arrow = wx.Bitmap(wx.Image(resource_path(f'assets/img/right_nav{"_light" if self.dark_mode else ""}.png'), wx.BITMAP_TYPE_ANY))
+        self.down_arrow = wx.Bitmap(wx.Image(resource_path(f'assets/img/down_nav{"_light" if self.dark_mode else ""}.png'), wx.BITMAP_TYPE_ANY))
 
         self.lines = {}
 
-        tk.Frame.__init__(self, parent)
-        self.pack_propagate(0)
-        self.grid_columnconfigure(1, weight=1)
+        self.header_sizer = wx.BoxSizer()
+        self.arrow = wx.StaticBitmap(self.parent, -1, self.right_arrow)
+        self.header_sizer.Add(self.arrow, 0, wx.TOP, 3)
+        self.header = wx.StaticText(self.parent, -1, label=title)
+        self.header.SetFont(self.BOLD_FONT)
+        self.header.SetForegroundColour(Color.TEXT_DEFAULT if self.enabled else Color.FADED)
+        self.header_sizer.Add(self.header, 0, wx.LEFT, 5)
+        self.Add(self.header_sizer, 0)
 
-        self.arrow = tk.Label(self, image=self.right_arrow)
-        self.header_frame = tk.Frame(self)
-        self.header = tk.Label(self.header_frame, text=title, font=BackupDetailBlock.HEADER_FONT, fg=self.uicolor.NORMAL if self.enabled else self.uicolor.FADED)
-        self.state = tk.Label(self.header_frame, text='Pending' if self.enabled else 'Skipped', font=BackupDetailBlock.TEXT_FONT, fg=self.uicolor.PENDING if self.enabled else self.uicolor.FADED)
-
-        self.content = tk.Frame(self)
-
-        self.arrow.grid(row=0, column=0)
-        self.header_frame.grid(row=0, column=1, sticky='w')
-        self.header.pack(side='left')
-        self.state.pack(side='left')
+        self.content = wx.Panel(self.parent, name='DetailBlock content panel')
+        self.content.Hide()
+        self.content.SetForegroundColour(Color.TEXT_DEFAULT if self.enabled else Color.FADED)
+        self.content_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.content.SetSizer(self.content_sizer)
+        self.Add(self.content, 0)
 
         # Bind click for expanding and collapsing
-        self.arrow.bind('<Button-1>', lambda e: self.toggle())
-        self.header.bind('<Button-1>', lambda e: self.toggle())
+        self.arrow.Bind(wx.EVT_LEFT_DOWN, lambda e: self.toggle())
+        self.header.Bind(wx.EVT_LEFT_DOWN, lambda e: self.toggle())
 
     def toggle(self):
         """Toggle expanding content of a block."""
 
-        # Don't toggle when backup analysis is still running
-        if self.backup.analysis_running:
-            return
-
-        # Check if arrow needs to be expanded
-        if not self.content.grid_info():
+        if not self.expanded:
             # Collapsed turns into expanded
-            self.arrow.configure(image=self.down_arrow)
-            self.content.grid(row=1, column=1, sticky='w')
+            self.expanded = True
+
+            self.arrow.SetBitmap(self.down_arrow)
+            self.content.Show()
+            self.Layout()
+            self.parent.Layout()
+            self.parent.GetParent().Layout()
         else:
             # Expanded turns into collapsed
-            self.arrow.configure(image=self.right_arrow)
-            self.content.grid_forget()
+            self.expanded = False
 
-    def add_line(self, line_name, title, content, *args, **kwargs):
+            self.arrow.SetBitmap(self.right_arrow)
+            self.content.Hide()
+            self.Layout()
+            self.parent.Layout()
+            self.parent.GetParent().Layout()
+
+    def add_line(self, line_name: str, title: str, content: str, clipboard_data: str = None, *args, **kwargs):
         """Add a line to the block content.
 
         Args:
             line_name (String): The name of the line for later reference.
             title (String): The line title.
             content (String): The content to display.
+            clipboard_data (String): The clipboard data to copy when clicked (optional).
         """
 
-        self.lines[line_name] = self.InfoLine(self.content, title, content, self.uicolor, *args, **kwargs)
-        self.lines[line_name].pack(anchor='w')
+        self.lines[line_name] = self.InfoLine(self.content, title, content, bold_font=self.BOLD_FONT, text_font=self.TEXT_FONT, clipboard_data=clipboard_data, *args, **kwargs)
+        self.content_sizer.Add(self.lines[line_name], 0)
 
-    def add_copy_line(self, line_name, title, content, clipboard_data, *args, **kwargs):
-        """Add a line to the block content.
+    def SetForegroundColour(self, line_name: str, *args, **kwargs):
+        """Set the foreground color of an info line.
 
         Args:
-            line_name (String): The name of the line for later reference.
-            title (String): The line title.
-            content (String): The content to display.
+            line_name (String): The line name to change.
         """
 
-        self.lines[line_name] = self.InfoLine(self.content, title, content, self.uicolor, clipboard_data, *args, **kwargs)
-        self.lines[line_name].pack(anchor='w')
-
-    def configure(self, line_name, *args, **kwargs):
         if line_name in self.lines.keys():
-            self.lines[line_name].configure(*args, **kwargs)
+            self.lines[line_name].SetForegroundColour(*args, **kwargs)
 
-    class InfoLine(tk.Frame):
-        def __init__(self, parent, title, content, uicolor, clipboard_data=None, *args, **kwargs):
+    def SetFont(self, line_name: str, *args, **kwargs):
+        """Set the font of an info line.
+
+        Args:
+            line_name (String): The line name to change.
+        """
+
+        if line_name in self.lines.keys():
+            self.lines[line_name].SetFont(*args, **kwargs)
+
+    def SetLabel(self, line_name: str, *args, **kwargs):
+        """Set the label text of an info line.
+
+        Args:
+            line_name (String): The line name to change.
+        """
+
+        if line_name in self.lines.keys():
+            self.lines[line_name].SetLabel(*args, **kwargs)
+
+    def Layout(self, line_name: str, *args, **kwargs):
+        """Set the font of an info line.
+
+        Args:
+            line_name (String): The line name to change.
+        """
+
+        if line_name in self.lines.keys():
+            self.lines[line_name].Layout(*args, **kwargs)
+
+    class InfoLine(wx.BoxSizer):
+        def __init__(self, parent, title: str, content: str, bold_font: wx.Font, text_font: wx.Font, clipboard_data: str = None, *args, **kwargs):
             """Create an info line for use in DisplayBlock classes.
 
             Args:
-                parent (tk.*): The parent widget).
+                parent: The parent widget).
                 title (String): The line title.
                 content (String): The content to display.
-                uicolor (Color): The UI pallete instance.
+                bold_font (wx.Font): The font to be used for the header.
+                text_font (wx.Font): The font to be used for the text.
                 clipboard_data (String): The data to copy to clipboard if line
                     is a copy line (default: None).
             """
 
-            tk.Frame.__init__(self, parent)
+            wx.BoxSizer.__init__(self)
 
-            self.uicolor = uicolor
+            self.parent = parent
+            self.BOLD_FONT = bold_font
+            self.TEXT_FONT = text_font
 
-            self.title = tk.Label(self, text=f"{title}:", font=BackupDetailBlock.HEADER_FONT)
+            self.title = wx.StaticText(self.parent, -1, label=f"{title}:")
+            self.title.SetFont(self.BOLD_FONT)
+            self.Add(self.title, 0)
+
             if clipboard_data is not None and clipboard_data:
-                self.tooltip = tk.Label(self, text='(Click to copy)', font=BackupDetailBlock.TEXT_FONT, fg=self.uicolor.FADED)
+                self.tooltip = wx.StaticText(self.parent, -1, label='(Click to copy)')
+                self.tooltip.SetFont(self.TEXT_FONT)
+                self.tooltip.SetForegroundColour(Color.FADED)
                 self.clipboard_data = clipboard_data
-            self.content = tk.Label(self, text=content, font=BackupDetailBlock.TEXT_FONT, *args, **kwargs)
+                self.Add(self.tooltip, 0, wx.LEFT, 5)
 
-            self.title.pack(side='left')
-            if clipboard_data is not None and clipboard_data:
-                self.tooltip.pack(side='left')
-            self.content.pack(side='left')
+            self.content = wx.StaticText(self.parent, -1, label=content)
+            self.content.SetFont(self.TEXT_FONT)
+            self.Add(self.content, 0, wx.LEFT, 5)
 
             # Set up keyboard binding for copies
             if clipboard_data is not None and clipboard_data:
-                self.title.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
-                self.tooltip.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
-                self.content.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
+                self.title.Bind(wx.EVT_LEFT_DOWN, lambda e: clipboard.copy(self.clipboard_data))
+                self.tooltip.Bind(wx.EVT_LEFT_DOWN, lambda e: clipboard.copy(self.clipboard_data))
+                self.content.Bind(wx.EVT_LEFT_DOWN, lambda e: clipboard.copy(self.clipboard_data))
 
-        def configure(self, *args, **kwargs):
-            self.content.configure(*args, **kwargs)
+        def SetForegroundColour(self, *args, **kwargs):
+            """Set the foreground color of the line."""
 
-class DetailBlock(tk.Frame):
-    HEADER_FONT = (None, 9, 'bold')
-    TEXT_FONT = (None, 9)
+            self.header.SetForegroundColour(*args, **kwargs)
 
-    TITLE = 'title'
-    CONTENT = 'content'
+        def SetFont(self, *args, **kwargs):
+            """Set the font of the line."""
 
-    def __init__(self, parent, title, uicolor, enabled: bool = True):
+            self.header.SetFont(*args, **kwargs)
+
+        def Layout(self, *args, **kwargs):
+            """Update the layout of the line."""
+
+            self.header.Layout(*args, **kwargs)
+
+class BackupDetailBlock(DetailBlock):
+    def __init__(self, parent, title: str, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
         """Create an expandable detail block to display info.
 
         Args:
-            parent (tk.*): The parent widget.
+            parent: The parent widget.
             title (String): The bold title to display.
-            uicolor (Color): The UI pallete instance.
+            text_font (wx.Font): The font to use for the text.
+            bold_font (wx.Font): The font to use for the headings.
             enabled (bool): Whether or not this block is enabled.
         """
 
-        self.enabled = enabled
-        self.uicolor = uicolor
-        self.dark_mode = uicolor.is_dark_mode()
-        self.right_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/right_nav{'_light' if self.dark_mode else ''}.png")))
-        self.down_arrow = ImageTk.PhotoImage(Image.open(resource_path(f"media/down_nav{'_light' if self.dark_mode else ''}.png")))
+        DetailBlock.__init__(self, parent, title, text_font, bold_font, enabled)
 
-        self.lines = {}
-
-        tk.Frame.__init__(self, parent)
-        self.pack_propagate(0)
-        self.grid_columnconfigure(1, weight=1)
-
-        self.arrow = tk.Label(self, image=self.right_arrow)
-        self.header_frame = tk.Frame(self)
-        self.header = tk.Label(self.header_frame, text=title, font=DetailBlock.HEADER_FONT, fg=self.uicolor.NORMAL if self.enabled else self.uicolor.FADED)
-
-        self.content = tk.Frame(self)
-
-        self.arrow.grid(row=0, column=0)
-        self.header_frame.grid(row=0, column=1, sticky='w')
-        self.header.pack(side='left')
-
-        # Bind click for expanding and collapsing
-        self.arrow.bind('<Button-1>', lambda e: self.toggle())
-        self.header.bind('<Button-1>', lambda e: self.toggle())
-
-    def toggle(self):
-        """Toggle expanding content of a block."""
-
-        if not self.content.grid_info():
-            # Collapsed turns into expanded
-            self.arrow.configure(image=self.down_arrow)
-            self.content.grid(row=1, column=1, sticky='w')
-        else:
-            # Expanded turns into collapsed
-            self.arrow.configure(image=self.right_arrow)
-            self.content.grid_forget()
-
-    def add_line(self, line_name, title, content, *args, **kwargs):
-        """Add a line to the block content.
-
-        Args:
-            line_name (String): The name of the line for later reference.
-            title (String): The line title.
-            content (String): The content to display.
-        """
-
-        self.lines[line_name] = self.InfoLine(self.content, title, content, self.uicolor, *args, **kwargs)
-        self.lines[line_name].pack(anchor='w')
-
-    def add_copy_line(self, line_name, title, content, clipboard_data, *args, **kwargs):
-        """Add a line to the block content.
-
-        Args:
-            line_name (String): The name of the line for later reference.
-            title (String): The line title.
-            content (String): The content to display.
-        """
-
-        self.lines[line_name] = self.InfoLine(self.content, title, content, self.uicolor, clipboard_data, *args, **kwargs)
-        self.lines[line_name].pack(anchor='w')
-
-    def configure(self, line_name, *args, **kwargs):
-        if line_name in self.lines.keys():
-            self.lines[line_name].configure(*args, **kwargs)
-
-    class InfoLine(tk.Frame):
-        def __init__(self, parent, title, content, uicolor, clipboard_data=None, *args, **kwargs):
-            """Create an info line for use in DisplayBlock classes.
-
-            Args:
-                parent (tk.*): The parent widget).
-                title (String): The line title.
-                content (String): The content to display.
-                uicolor (Color): The UI pallete instance.
-                clipboard_data (String): The data to copy to clipboard if line
-                    is a copy line (default: None).
-            """
-
-            tk.Frame.__init__(self, parent)
-
-            self.uicolor = uicolor
-
-            self.title = tk.Label(self, text=f"{title}:", font=DetailBlock.HEADER_FONT)
-            if clipboard_data is not None and clipboard_data:
-                self.tooltip = tk.Label(self, text='(Click to copy)', font=DetailBlock.TEXT_FONT, fg=self.uicolor.FADED)
-                self.clipboard_data = clipboard_data
-            self.content = tk.Label(self, text=content, font=DetailBlock.TEXT_FONT, *args, **kwargs)
-
-            self.title.pack(side='left')
-            if clipboard_data is not None and clipboard_data:
-                self.tooltip.pack(side='left')
-            self.content.pack(side='left')
-
-            # Set up keyboard binding for copies
-            if clipboard_data is not None and clipboard_data:
-                self.title.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
-                self.tooltip.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
-                self.content.bind('<Button-1>', lambda e: clipboard.copy(self.clipboard_data))
-
-        def configure(self, *args, **kwargs):
-            self.content.configure(*args, **kwargs)
+        self.state = wx.StaticText(self.parent, -1, label='Pending' if self.enabled else 'Skipped')
+        self.state.SetForegroundColour(Color.PENDING if self.enabled else Color.FADED)
+        self.header_sizer.Add(self.state, 0)
