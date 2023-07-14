@@ -8,7 +8,6 @@ verification, and many other organization and integrity features.
 __version__ = '4.0.0-beta1'
 
 import platform
-from tkinter import simpledialog
 import wx
 from sys import exit
 import shutil
@@ -219,7 +218,8 @@ def display_backup_summary_chunk(title: str, payload: list, reset: bool = None):
         reset = False
 
     if reset:
-        summary_summary_sizer.Clear()
+        for child in summary_summary_sizer.GetChildren():
+            child.GetWindow().Destroy()
 
     heading_label = wx.StaticText(summary_summary_panel, -1, label=title, name='Backup summary chunk header label')
     heading_label.SetFont(FONT_HEADING)
@@ -594,8 +594,7 @@ def change_source_drive(e):
         load_dest_in_background()
 
 def reset_analysis_output():
-
-    print('Reset analysis output')
+    """Reset the summary panel for running an analysis."""
 
     for child in summary_summary_sizer.GetChildren():
         child.GetWindow().Destroy()
@@ -3527,54 +3526,3 @@ if __name__ == '__main__':
     ui_update_scheduler = RepeatedTimer(0.25, update_ui_during_backup)
 
     app.MainLoop()
-
-    #########################
-    # LEFTOVER tkinter BITS #
-    # TODO: REMOVE THIS!    #
-    #########################
-
-    root_window = RootWindow(
-        title='BackDrop - Data Backup Tool',
-        width=WINDOW_MIN_WIDTH,
-        height=WINDOW_MIN_HEIGHT,
-        center=True,
-        status_bar=True,
-        dark_mode=prefs.get('ui', 'dark_mode', True, data_type=Config.BOOLEAN)
-    )
-
-    # Main window UI stuff was here #
-    # Menu bar stuff was here #
-    # init vars was here #
-    # Source tree was here #
-    # Source tree meta stuff was here #
-    # Source tree warning was here #
-    # Destination tree was here #
-
-    dest_split_warning_frame = tk.Frame(root_window.main_frame, bg=root_window.uicolor.WARNING)
-
-    # TODO: Can this be cleaned up?
-    tk.Frame(dest_split_warning_frame).grid(row=0, column=1)
-    split_warning_prefix = tk.Label(dest_split_warning_frame, text='There are', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK)
-    split_warning_prefix.grid(row=0, column=1, sticky='ns')
-    split_warning_missing_drive_count = tk.Label(dest_split_warning_frame, text='0', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK, font=(None, 18, 'bold'))
-    split_warning_missing_drive_count.grid(row=0, column=2, sticky='ns')
-    split_warning_suffix = tk.Label(dest_split_warning_frame, text='drives in the config that aren\'t connected. Please connect them, or enable split mode.', bg=root_window.uicolor.WARNING, fg=root_window.uicolor.BLACK)
-    split_warning_suffix.grid(row=0, column=3, sticky='ns')
-    tk.Frame(dest_split_warning_frame).grid(row=0, column=10)
-
-    # Destination tree meta stuff was here #
-    # Destination selection bindings were here #
-    # Tabbed detail view frame was here #
-    # Right side frame was here #
-    # Control buttons were here #
-    # Reset analysis output was here #
-    # Keyboard listener was here #
-    # Load source was here #
-    # Load dest was here #
-    # UI update scheduler was here #
-
-    root_window.mainloop()
-
-    #############################
-    # END LEFTOVER tkinter BITS #
-    #############################
