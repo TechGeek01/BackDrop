@@ -2016,7 +2016,7 @@ if __name__ == '__main__':
             selection.append(item)
             item = dest_tree.GetNextSelected(item)
 
-        drive_list = [dest_tree.GetItem(item, DEST_COL_PATH).strip(os.path.sep) for item in selection]
+        drive_list = [dest_tree.GetItem(item, DEST_COL_PATH).GetText().strip(os.path.sep) for item in selection]
         drive_list = [drive for drive in drive_list if os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))]
 
         if drive_list:
