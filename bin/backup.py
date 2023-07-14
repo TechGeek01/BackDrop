@@ -1,4 +1,3 @@
-from tkinter import messagebox
 import os
 import itertools
 from datetime import datetime
@@ -232,17 +231,6 @@ class Backup:
         # or if there is an existing config, the source total must be less than the config total
         if not (len(self.config['missing_drives']) == 0 and source_total < drive_total) and not (source_total < config_total and self.config['splitMode']):
             return
-
-        # If there are new drives, ask for confirmation before proceeding
-        selected_new_drives = [drive['name'] for drive in self.config['destinations'] if drive['hasConfig'] is False]
-        if not self.confirm_wipe_existing_drives and len(selected_new_drives) > 0:
-            drive_string = ', '.join(selected_new_drives[:-2] + [' and '.join(selected_new_drives[-2:])])
-
-            new_drive_confirm_title = f"New drive{'s' if len(selected_new_drives) > 1 else ''} selected"
-            new_drive_confirm_message = f"Drive{'s' if len(selected_new_drives) > 1 else ''} {drive_string} appear{'' if len(selected_new_drives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
-            self.confirm_wipe_existing_drives = messagebox.askyesno(new_drive_confirm_title, new_drive_confirm_message)
-
-            return self.confirm_wipe_existing_drives
 
         return True
 

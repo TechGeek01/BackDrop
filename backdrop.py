@@ -8,7 +8,6 @@ verification, and many other organization and integrity features.
 __version__ = '4.0.0-beta1'
 
 import platform
-import tkinter as tk
 from tkinter import simpledialog
 import wx
 from sys import exit
@@ -1228,6 +1227,22 @@ def start_backup():
 
     if not backup or verification_running:
         return
+
+    # If there are new drives, ask for confirmation before proceeding
+    selected_new_drives = [drive['name'] for drive in config['destinations'] if drive['hasConfig'] is False]
+    if len(selected_new_drives) > 0:
+        drive_string = ', '.join(selected_new_drives[:-2] + [' and '.join(selected_new_drives[-2:])])
+
+        new_drive_confirm_title = f"New drive{'s' if len(selected_new_drives) > 1 else ''} selected"
+        new_drive_confirm_message = f"Drive{'s' if len(selected_new_drives) > 1 else ''} {drive_string} appear{'' if len(selected_new_drives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
+        # confirm_wipe_existing_drives = messagebox.askyesno(new_drive_confirm_title, new_drive_confirm_message)
+
+        with wx.MessageDialog(main_frame, message=new_drive_confirm_message,
+                              caption=new_drive_confirm_title,
+                              style=wx.CAPTION | wx.YES_NO | wx.ICON_WARNING) as confirm_dialog:
+            # User changed their mind
+            if confirm_dialog.ShowModal() == wx.ID_NO:
+                return
 
     # Reset UI
     status_bar_error_count.SetLabel(label='0 failed')
