@@ -2160,23 +2160,32 @@ if __name__ == '__main__':
             item: The TreeView item to rename.
         """
 
-        current_vals = tree_source.item(item, 'values')
-        current_name = current_vals[2] if len(current_vals) >= 3 else ''
+        current_name = source_tree.GetItem(item, SOURCE_COL_NAME).GetText()
 
-        new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root_window)
-        if new_name is not None:
-            new_name = new_name.strip()
+        with wx.TextEntryDialog(None, message='Please enter a new name for the item',
+                                caption='Rename source', value=current_name) as dialog:
+            response = dialog.ShowModal()
+
+            # User changed their mind
+            if response == wx.ID_CANCEL:
+                return
+
+            new_name = dialog.GetValue().strip()
             new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
             new_name = new_name.group(0) if new_name is not None else ''
-        else:
-            new_name = ''
 
-        # Only set name in preferences if not in custom source mode
-        if settings_dest_mode == Config.SOURCE_MODE_MULTI_DRIVE:
-            drive_name = source_tree.GetItem(item, SOURCE_COL_PATH)
+            # Name shouldn't be changed if it's the same as current, or blank
+            if new_name == current_name:
+                return
+            if new_name == '':
+                return
+
+        # Only set name in preferences if in drive mode
+        if settings_source_mode == Config.SOURCE_MODE_MULTI_DRIVE:
+            drive_name = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
             prefs.set('source_names', drive_name, new_name)
 
-        tree_source.set(item, 'name', new_name)
+        source_tree.SetItem(item, SOURCE_COL_NAME, new_name)
 
     def delete_source_item(item):
         """Delete an item in the source tree for multi-source mode.
