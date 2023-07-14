@@ -2203,18 +2203,27 @@ if __name__ == '__main__':
             item: The TreeView item to rename.
         """
 
-        current_vals = tree_dest.item(item, 'values')
-        current_name = current_vals[3] if len(current_vals) >= 4 else ''
+        current_name = dest_tree.GetItem(item, DEST_COL_NAME).GetText()
 
-        new_name = simpledialog.askstring('Input', 'Enter a new name', initialvalue=current_name, parent=root_window)
-        if new_name is not None:
-            new_name = new_name.strip()
+        with wx.TextEntryDialog(None, message='Please enter a new name for the item',
+                                caption='Rename destination', value=current_name) as dialog:
+            response = dialog.ShowModal()
+
+            # User changed their mind
+            if response == wx.ID_CANCEL:
+                return
+
+            new_name = dialog.GetValue().strip()
             new_name = re.search(r'[A-Za-z0-9_\- ]+', new_name)
             new_name = new_name.group(0) if new_name is not None else ''
-        else:
-            new_name = ''
 
-        tree_dest.set(item, 'vid', new_name)
+            # Name shouldn't be changed if it's the same as current, or blank
+            if new_name == current_name:
+                return
+            if new_name == '':
+                return
+
+        dest_tree.SetItem(item, DEST_COL_NAME, new_name)
 
     def delete_dest_item(item):
         """Delete an item in the dest tree for custom dest mode.
