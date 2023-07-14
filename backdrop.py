@@ -185,13 +185,16 @@ def display_backup_progress(copied: int, total: int, display_filename: str = Non
     if display_index is not None:
         if operation == Status.FILE_OPERATION_DELETE:
             progress_bar.SetValue(current=backup.progress['current'])
-            cmd_info_blocks[display_index].configure('progress', text=f"Deleted {display_filename}", fg=root_window.uicolor.NORMAL)
+            cmd_info_blocks[display_index].SetLabel('progress', label=f"Deleted {display_filename}")
+            cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
         elif operation == Status.FILE_OPERATION_COPY:
             progress_bar.SetValue(current=backup.progress['current'])
-            cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.NORMAL)
+            cmd_info_blocks[display_index].SetLabel('progress', label=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}")
+            cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
         elif operation == Status.FILE_OPERATION_VERIFY:
             progress_bar.SetValue(current=backup.progress['current'])
-            cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}", fg=root_window.uicolor.BLUE)
+            cmd_info_blocks[display_index].SetLabel('progress', label=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}")
+            cmd_info_blocks[display_index].SetForegroundColour('progress', Color.BLUE)
 
 def get_backup_killflag() -> bool:
     """Get backup thread kill flag status.
@@ -2532,13 +2535,15 @@ if __name__ == '__main__':
 
             # Update file details info block
             if display_index is not None and display_index in cmd_info_blocks:
-                cmd_info_blocks[display_index].configure('current_file', text=filename if filename is not None else '', fg=root_window.uicolor.NORMAL)
+                cmd_info_blocks[display_index].SetLabel('current_file', label=filename if filename is not None else '')
+                cmd_info_blocks[display_index].SetForegroundColour('current_file', Color.TEXT_DEFAULT)
         else:
             filename, display_index = (None, None)
 
         # Update backup status for each command info block
         if backup_progress['total']['command_display_index'] is not None:
-            cmd_info_blocks[backup_progress['total']['command_display_index']].state.configure(text='Running', fg=root_window.uicolor.RUNNING)
+            cmd_info_blocks[backup_progress['total']['command_display_index']].state.SetLabel(label='Running')
+            cmd_info_blocks[backup_progress['total']['command_display_index']].state.SetForegroundColour(Color.RUNNING)
             backup.progress['command_display_index'] = None
 
         # Update status bar
@@ -2562,13 +2567,17 @@ if __name__ == '__main__':
             progress_bar.SetValue(backup.progress['current'])
             progress_bar.SetRange(backup.progress['total'])
 
-            cmd_info_blocks[display_index].configure('current_file', text=buffer['display_filename'], fg=root_window.uicolor.NORMAL)
+            cmd_info_blocks[display_index].SetLabel('current_file', label=buffer['display_filename'])
+            cmd_info_blocks[display_index].SetForegroundColour('current_file', Color.TEXT_DEFAULT)
             if buffer['operation'] == Status.FILE_OPERATION_DELETE:
-                cmd_info_blocks[display_index].configure('progress', text=f"Deleted {buffer['display_filename']}", fg=root_window.uicolor.NORMAL)
+                cmd_info_blocks[display_index].SetLabel('progress', label=f"Deleted {buffer['display_filename']}")
+                cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
             elif buffer['operation'] == Status.FILE_OPERATION_COPY:
-                cmd_info_blocks[display_index].configure('progress', text=f"{percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.NORMAL)
+                cmd_info_blocks[display_index].SetLabel('progress', label=f"{percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}")
+                cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
             elif buffer['operation'] == Status.FILE_OPERATION_VERIFY:
-                cmd_info_blocks[display_index].configure('progress', text=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}", fg=root_window.uicolor.BLUE)
+                cmd_info_blocks[display_index].SetLabel('progress', label=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}")
+                cmd_info_blocks[display_index].SetForegroundColour('progress', Color.BLUE)
 
         # Update file detail lists on deletes and copies
         delta_file_lists = {
@@ -2617,11 +2626,15 @@ if __name__ == '__main__':
         if command is not None:
             display_index = command['displayIndex']
             if backup.status == Status.BACKUP_BACKUP_ABORTED and backup.progress['current'] < backup.progress['total']:
-                cmd_info_blocks[display_index].state.configure(text='Aborted', fg=root_window.uicolor.STOPPED)
-                cmd_info_blocks[display_index].configure('progress', text='Aborted', fg=root_window.uicolor.STOPPED)
+                cmd_info_blocks[display_index].state.SetLabel(text='Aborted')
+                cmd_info_blocks[display_index].state.SetForegroundColour(Color.STOPPED)
+                cmd_info_blocks[display_index].SetLabel('progress', text='Aborted')
+                cmd_info_blocks[display_index].SetForegroundColour('progress', Color.STOPPED)
             else:
-                cmd_info_blocks[display_index].state.configure(text='Done', fg=root_window.uicolor.FINISHED)
-                cmd_info_blocks[display_index].configure('progress', text='Done', fg=root_window.uicolor.FINISHED)
+                cmd_info_blocks[display_index].state.SetLabel(text='Done')
+                cmd_info_blocks[display_index].state.SetForegroundColour(Color.FINISHED)
+                cmd_info_blocks[display_index].SetLabel('progress', text='Done')
+                cmd_info_blocks[display_index].SetForegroundColour('progress', Color.FINISHED)
 
         # If backup stopped, 
         if backup.status != Status.BACKUP_BACKUP_RUNNING:

@@ -319,6 +319,16 @@ class DetailBlock(wx.BoxSizer):
         if line_name in self.lines.keys():
             self.lines[line_name].SetFont(*args, **kwargs)
 
+    def SetLabel(self, line_name: str, *args, **kwargs):
+        """Set the label text of an info line.
+
+        Args:
+            line_name (String): The line name to change.
+        """
+
+        if line_name in self.lines.keys():
+            self.lines[line_name].SetLabel(*args, **kwargs)
+
     def Layout(self, line_name: str, *args, **kwargs):
         """Set the font of an info line.
 
