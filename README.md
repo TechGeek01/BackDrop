@@ -7,7 +7,7 @@
   <img alt="undefined" src="https://img.shields.io/github/downloads/TechGeek01/BackDrop/total" />
   <a href="https://github.com/TechGeek01/BackDrop/blob/master/LICENSE"><img alt="undefined" src="https://img.shields.io/github/license/TechGeek01/BackDrop"></a>
   <br />
-  <a href="https://github.com/TechGeek01/BackDrop/releases/latest" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a>
+  <a href="https://github.com/TechGeek01/BackDrop/releases/latest" target="_blank"><img alt="undefined" src="https://badgen.net/badge/Download/Windows/?color=blue&icon=windows&label"></a> <a href="https://github.com/TechGeek01/BackDrop/releases/latest" target="_blank"><img alt="undefined" src="https://img.shields.io/badge/%e2%80%8b-Debian-A81D33?logo=debian"></a>
   <br /><br />
 </p>
 
