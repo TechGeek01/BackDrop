@@ -2549,8 +2549,16 @@ if __name__ == '__main__':
 
         update_ui_component(Status.UPDATEUI_ANALYSIS_END)
 
+    def request_update_ui_during_backup():
+        """Request to update the user interface using a RepeatedTimer."""
+        
+        event = wx.PyEvent()
+        event.SetEventType(EVT_BACKUP_TIMER)
+
+        wx.PostEvent(main_frame, event)
+
     def update_ui_during_backup():
-        """Update the user interface using a RepeatedTimer."""
+        """Update the user interface using the event sent via a RepeatedTimer."""
 
         if not backup:
             return
@@ -3579,6 +3587,8 @@ if __name__ == '__main__':
     load_source_in_background()
 
     # Continuously update UI using data from Backup instance
-    ui_update_scheduler = RepeatedTimer(0.25, update_ui_during_backup)
+    EVT_BACKUP_TIMER = wx.NewEventType()
+    main_frame.Connect(-1, -1, EVT_BACKUP_TIMER, lambda e: update_ui_during_backup())
+    ui_update_scheduler = RepeatedTimer(0.25, request_update_ui_during_backup)
 
     app.MainLoop()
