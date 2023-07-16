@@ -250,8 +250,6 @@ def display_backup_summary_chunk(title: str, payload: list, reset: bool = None):
     summary_summary_sizer.Add(heading_label, 0)
     summary_summary_sizer.Add(chunk_sizer, 0)
     summary_summary_sizer.Layout()
-    summary_summary_box.Layout()
-    summary_summary_panel.Layout()
 
 
 # QUESTION: Instead of the copy function handling display, can it just set variables, and have the timer handle all the UI stuff?
@@ -333,7 +331,6 @@ def display_backup_command_info(display_command_list: list) -> list:
             text_font=FONT_DEFAULT,
             bold_font=FONT_BOLD
         )
-        summary_details_sizer.Add(backup_summary_block, -1)
 
         if item['type'] == Backup.COMMAND_TYPE_FILE_LIST:
             # Handle list trimming
@@ -360,6 +357,7 @@ def display_backup_command_info(display_command_list: list) -> list:
             backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=Color.PENDING if item['enabled'] else Color.FADED)
             backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=Color.PENDING if item['enabled'] else Color.FADED)
 
+        summary_details_sizer.Add(backup_summary_block, -1)
         cmd_info_blocks.append(backup_summary_block)
 
 
@@ -436,8 +434,8 @@ def start_backup_analysis():
         backup_config_dir=BACKUP_CONFIG_DIR,
         backup_config_file=BACKUP_CONFIG_FILE,
         analysis_pre_callback_fn=update_ui_pre_analysis,
-        analysis_callback_fn=update_ui_post_analysis,
-        backup_callback_fn=update_ui_post_backup
+        analysis_callback_fn=request_update_ui_post_analysis,
+        backup_callback_fn=request_update_ui_post_backup
     )
 
     thread_manager.start(ThreadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
@@ -2502,6 +2500,21 @@ if __name__ == '__main__':
         start_backup_btn.Disable()
         update_ui_component(Status.UPDATEUI_ANALYSIS_START)
 
+    def request_update_ui_post_analysis(files_payload: list, summary_payload: list):
+        """Request to update the UI after an analysis has been run.
+
+        Args:
+            files_payload (list): The file data to display in the UI.
+            summary_payload (list): The summary data to display in the UI.
+        """
+
+        event = wx.PyEvent()
+        event.SetEventType(EVT_ANALYSIS_FINISHED)
+        event.fp = files_payload
+        event.sp = summary_payload
+
+        wx.PostEvent(main_frame, event)
+
     def update_ui_post_analysis(files_payload: list, summary_payload: list):
         """Update the UI after an analysis has been run.
 
@@ -2529,12 +2542,12 @@ if __name__ == '__main__':
 
             update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
             start_backup_btn.Enable()
-            update_ui_component(Status.UPDATEUI_ANALYSIS_END)
         else:
             # If thread halted, mark analysis as invalid
             update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
-            update_ui_component(Status.UPDATEUI_ANALYSIS_END)
             reset_analysis_output()
+
+        update_ui_component(Status.UPDATEUI_ANALYSIS_END)
 
     def update_ui_during_backup():
         """Update the user interface using a RepeatedTimer."""
@@ -2641,6 +2654,20 @@ if __name__ == '__main__':
 
         for (list_name, file_list) in delta_file_lists.items():
             update_file_detail_lists(list_name, file_list)
+
+    def request_update_ui_post_backup(command=None):
+        """Request to update the UI after an analysis has been run.
+
+        Args:
+            files_payload (list): The file data to display in the UI.
+            summary_payload (list): The summary data to display in the UI.
+        """
+
+        event = wx.PyEvent()
+        event.SetEventType(EVT_BACKUP_FINISHED)
+        event.data = command
+
+        wx.PostEvent(main_frame, event)
 
     def update_ui_post_backup(command=None):
         """Update the UI after the backup finishes.
@@ -3516,7 +3543,11 @@ if __name__ == '__main__':
     status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
 
     # PyEvent bindings
+    EVT_ANALYSIS_FINISHED = wx.NewEventType()
+    EVT_BACKUP_FINISHED = wx.NewEventType()
     EVT_CHECK_FOR_UPDATES = wx.NewEventType()
+    main_frame.Connect(-1, -1, EVT_ANALYSIS_FINISHED, lambda e: update_ui_post_analysis(e.fp, e.sp))
+    main_frame.Connect(-1, -1, EVT_BACKUP_FINISHED, lambda e: update_ui_post_backup(e.data))
     main_frame.Connect(-1, -1, EVT_CHECK_FOR_UPDATES, lambda e: show_update_window(e.data))
 
     # Catch close event for graceful exit

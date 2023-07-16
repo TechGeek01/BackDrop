@@ -305,6 +305,8 @@ class DetailBlock(wx.BoxSizer):
 
         self.lines[line_name] = self.InfoLine(self.content, title, content, bold_font=self.BOLD_FONT, text_font=self.TEXT_FONT, clipboard_data=clipboard_data, *args, **kwargs)
         self.content_sizer.Add(self.lines[line_name], 0)
+        self.lines[line_name].Layout()
+        self.content_sizer.Layout()
 
     def SetForegroundColour(self, line_name: str, *args, **kwargs):
         """Set the foreground color of an info line.
@@ -387,20 +389,28 @@ class DetailBlock(wx.BoxSizer):
                 self.tooltip.Bind(wx.EVT_LEFT_DOWN, lambda e: clipboard.copy(self.clipboard_data))
                 self.content.Bind(wx.EVT_LEFT_DOWN, lambda e: clipboard.copy(self.clipboard_data))
 
+            self.Layout()
+
         def SetForegroundColour(self, *args, **kwargs):
             """Set the foreground color of the line."""
 
-            self.header.SetForegroundColour(*args, **kwargs)
+            self.title.SetForegroundColour(*args, **kwargs)
 
         def SetFont(self, *args, **kwargs):
             """Set the font of the line."""
 
-            self.header.SetFont(*args, **kwargs)
+            self.title.SetFont(*args, **kwargs)
+
+        def SetLabel(self, *args, **kwargs):
+            """Set the content label text of the line."""
+
+            self.content.SetLabel(*args, **kwargs)
 
         def Layout(self, *args, **kwargs):
             """Update the layout of the line."""
 
-            self.header.Layout(*args, **kwargs)
+            self.title.Layout(*args, **kwargs)
+            self.content.Layout(*args, **kwargs)
 
 
 class BackupDetailBlock(DetailBlock):
