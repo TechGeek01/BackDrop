@@ -3268,17 +3268,11 @@ if __name__ == '__main__':
     controls_sizer.Add(halt_verification_btn, 0, wx.LEFT, ITEM_UI_PADDING)
 
     branding_sizer = wx.BoxSizer()
-    if settings_dark_mode:
-        logo_image_path = resource_path('assets/img/logo_text_light.png')
-    else:
-        logo_image_path = resource_path('assets/img/logo_text.png')
-    branding_sizer.Add(wx.StaticBitmap(main_frame.root_panel, -1, wx.Bitmap(wx.Image(logo_image_path, wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
     branding_version_text = wx.StaticText(main_frame.root_panel, -1, f'v{__version__}')
     branding_version_text.SetForegroundColour(Color.FADED)
-    branding_version_sizer = wx.BoxSizer(wx.VERTICAL)
-    branding_version_sizer.Add(branding_version_text, 0)
-    branding_version_sizer.Add((-1, 12), 0)
-    branding_sizer.Add(branding_version_sizer, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
+    branding_sizer.Add(branding_version_text, 0, wx.ALIGN_TOP | wx.TOP, 6)
+    logo_image_path = resource_path('assets/img/logo_icon.png')
+    branding_sizer.Add(wx.StaticBitmap(main_frame.root_panel, -1, wx.Bitmap(wx.Image(logo_image_path, wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
 
     # Status bar
     STATUS_BAR_PADDING = 8
@@ -3313,7 +3307,7 @@ if __name__ == '__main__':
     root_sizer.Add(summary_sizer, (1, 0), (3, 1), flag=wx.EXPAND)
     root_sizer.Add(file_list_sizer, (0, 1), (2, 1), flag=wx.EXPAND)
     root_sizer.Add(controls_sizer, (2, 1), flag=wx.ALIGN_CENTER_HORIZONTAL)
-    root_sizer.Add(branding_sizer, (3, 1), flag=wx.ALIGN_CENTER_HORIZONTAL)
+    root_sizer.Add(branding_sizer, (3, 1), flag=wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, border=ITEM_UI_PADDING)
     root_sizer.Add(progress_bar, (4, 0), (1, 2), flag=wx.EXPAND)
 
     root_sizer.AddGrowableRow(1)
