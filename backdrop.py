@@ -1268,7 +1268,6 @@ def start_backup():
 
         new_drive_confirm_title = f"New drive{'s' if len(selected_new_drives) > 1 else ''} selected"
         new_drive_confirm_message = f"Drive{'s' if len(selected_new_drives) > 1 else ''} {drive_string} appear{'' if len(selected_new_drives) > 1 else 's'} to be new. Existing data will be deleted.\n\nAre you sure you want to continue?"
-        confirm_wipe_existing_drives = messagebox.askyesno(new_drive_confirm_title, new_drive_confirm_message)
 
         with wx.MessageDialog(main_frame, message=new_drive_confirm_message,
                               caption=new_drive_confirm_title,
