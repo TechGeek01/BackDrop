@@ -338,16 +338,6 @@ class DetailBlock(wx.BoxSizer):
         if line_name in self.lines.keys():
             self.lines[line_name].SetLabel(*args, **kwargs)
 
-    def Layout(self, line_name: str, *args, **kwargs):
-        """Set the font of an info line.
-
-        Args:
-            line_name (String): The line name to change.
-        """
-
-        if line_name in self.lines.keys():
-            self.lines[line_name].Layout(*args, **kwargs)
-
     class InfoLine(wx.BoxSizer):
         def __init__(self, parent, title: str, content: str, bold_font: wx.Font, text_font: wx.Font, clipboard_data: str = None, *args, **kwargs):
             """Create an info line for use in DisplayBlock classes.

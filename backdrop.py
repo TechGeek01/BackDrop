@@ -357,7 +357,9 @@ def display_backup_command_info(display_command_list: list) -> list:
             backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=Color.PENDING if item['enabled'] else Color.FADED)
             backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=Color.PENDING if item['enabled'] else Color.FADED)
 
-        summary_details_sizer.Add(backup_summary_block, -1)
+        summary_details_sizer.Add(backup_summary_block, 0)
+        summary_details_sizer.Layout()
+        summary_details_box.Layout()
         cmd_info_blocks.append(backup_summary_block)
 
 
