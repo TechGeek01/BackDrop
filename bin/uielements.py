@@ -253,7 +253,7 @@ class DetailBlock(wx.BoxSizer):
 
         self.header_sizer = wx.BoxSizer()
         self.arrow = wx.StaticBitmap(self.parent, -1, self.right_arrow)
-        self.header_sizer.Add(self.arrow, 0, wx.TOP, 3)
+        self.header_sizer.Add(self.arrow, 0, wx.TOP, 2)
         self.header = wx.StaticText(self.parent, -1, label=title)
         self.header.SetFont(self.BOLD_FONT)
         self.header.SetForegroundColour(Color.TEXT_DEFAULT if self.enabled else Color.FADED)
@@ -265,7 +265,7 @@ class DetailBlock(wx.BoxSizer):
         self.content.SetForegroundColour(Color.TEXT_DEFAULT if self.enabled else Color.FADED)
         self.content_sizer = wx.BoxSizer(wx.VERTICAL)
         self.content.SetSizer(self.content_sizer)
-        self.Add(self.content, 0)
+        self.Add(self.content, 0, wx.LEFT, 15)
 
         # Bind click for expanding and collapsing
         self.arrow.Bind(wx.EVT_LEFT_DOWN, lambda e: self.toggle())
@@ -415,8 +415,9 @@ class BackupDetailBlock(DetailBlock):
             enabled (bool): Whether or not this block is enabled.
         """
 
+        # FIXME: Clicking on the state doesn't toggle the content. Rewriting the toggle function should fix this.
         DetailBlock.__init__(self, parent, title, text_font, bold_font, enabled)
 
         self.state = wx.StaticText(self.parent, -1, label='Pending' if self.enabled else 'Skipped')
         self.state.SetForegroundColour(Color.PENDING if self.enabled else Color.FADED)
-        self.header_sizer.Add(self.state, 0)
+        self.header_sizer.Add(self.state, 0, wx.LEFT, 5)
