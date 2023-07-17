@@ -2825,9 +2825,7 @@ if __name__ == '__main__':
 
         exit()
 
-    LOGGING_LEVEL = logging.INFO
-    LOGGING_FORMAT = '[%(levelname)s] %(asctime)s - %(message)s'
-    logging.basicConfig(level=LOGGING_LEVEL, format=LOGGING_FORMAT)
+    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(asctime)s - %(message)s')
 
     file_detail_list = {
         FileUtils.LIST_TOTAL_DELETE: [],
