@@ -131,7 +131,7 @@ def update_file_detail_lists(list_name: str, files: set):
             file_details_success_sizer.Add(new_file_label, 0)
             file_details_success_sizer.Layout()
 
-            file_details_success_count.SetLabel(label=len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS]))
+            file_details_success_count.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS])))
             file_details_success_count.Layout()
             file_details_success_header_sizer.Layout()
 
@@ -145,7 +145,7 @@ def update_file_detail_lists(list_name: str, files: set):
             file_details_failed_sizer.Add(new_file_label, 0)
             file_details_failed_sizer.Layout()
 
-            file_details_failed_count.SetLabel(label=len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL]))
+            file_details_failed_count.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL])))
             file_details_failed_count.Layout()
             file_details_failed_header_sizer.Layout()
 
@@ -199,6 +199,10 @@ def display_backup_progress(copied: int, total: int, display_filename: str = Non
             progress_bar.SetValue(current=backup.progress['current'])
             cmd_info_blocks[display_index].SetLabel('progress', label=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}")
             cmd_info_blocks[display_index].SetForegroundColour('progress', Color.BLUE)
+
+        cmd_info_blocks[display_index].Layout()
+        summary_details_sizer.Layout()
+        summary_details_box.Layout()
 
 
 def get_backup_killflag() -> bool:
@@ -338,12 +342,13 @@ def display_backup_command_info(display_command_list: list) -> list:
             dc = wx.ScreenDC()
 
             dc.SetFont(FONT_BOLD)
-            CURRENT_FILE_HEADER_WIDTH, h = dc.GetTextExtent('Current file: ')
+            FILE_LIST_HEADER_WIDTH = dc.GetTextExtent('File list: ').GetWidth()
 
             dc.SetFont(FONT_DEFAULT)
+            TOOLTIP_HEADER_WIDTH = dc.GetTextExtent('(Click to copy)').GetWidth()
 
             trimmed_file_list = ', '.join(item['list'])[:250]
-            MAX_WIDTH = summary_details_sizer.GetSize().GetWidth() - CURRENT_FILE_HEADER_WIDTH - 50  # Used to be 80%
+            MAX_WIDTH = summary_details_panel.GetSize().GetWidth() - FILE_LIST_HEADER_WIDTH - TOOLTIP_HEADER_WIDTH - 2 * ITEM_UI_PADDING - 50  # Used to be 80%
             actual_file_width = dc.GetTextExtent(trimmed_file_list).GetWidth()
 
             if actual_file_width > MAX_WIDTH:
@@ -357,7 +362,7 @@ def display_backup_command_info(display_command_list: list) -> list:
             backup_summary_block.add_line('current_file', 'Current file', 'Pending' if item['enabled'] else 'Skipped', fg=Color.PENDING if item['enabled'] else Color.FADED)
             backup_summary_block.add_line('progress', 'Progress', 'Pending' if item['enabled'] else 'Skipped', fg=Color.PENDING if item['enabled'] else Color.FADED)
 
-        summary_details_sizer.Add(backup_summary_block, 0)
+        summary_details_sizer.Add(backup_summary_block, 1, wx.EXPAND)
         summary_details_sizer.Layout()
         summary_details_box.Layout()
         cmd_info_blocks.append(backup_summary_block)
@@ -2586,9 +2591,29 @@ if __name__ == '__main__':
         if backup_progress['total']['current_file'] is not None:
             filename, size, operation, display_index = backup_progress['total']['current_file']
 
+            if filename is None:
+                filename = ''
+
             # Update file details info block
             if display_index is not None and display_index in cmd_info_blocks:
-                cmd_info_blocks[display_index].SetLabel('current_file', label=filename if filename is not None else '')
+                dc = wx.ScreenDC()
+
+                dc.SetFont(FONT_BOLD)
+                CURRENT_FILE_HEADER_WIDTH = dc.GetTextExtent('Current file: ').GetWidth()
+
+                dc.SetFont(FONT_DEFAULT)
+                TOOLTIP_HEADER_WIDTH = dc.GetTextExtent('(Click to copy)').GetWidth()
+
+                MAX_WIDTH = summary_details_panel.GetSize().GetWidth() - CURRENT_FILE_HEADER_WIDTH - TOOLTIP_HEADER_WIDTH - 2 * ITEM_UI_PADDING - 50  # Used to be 80%
+                actual_file_width = dc.GetTextExtent(filename).GetWidth()
+
+                if actual_file_width > MAX_WIDTH:
+                    while actual_file_width > MAX_WIDTH and len(filename) > 1:
+                        filename = filename[:-1]
+                        actual_file_width = dc.GetTextExtent(f'{filename}...').GetWidth()
+                    filename = f'{filename}...'
+
+                cmd_info_blocks[display_index].SetLabel('current_file', label=filename)
                 cmd_info_blocks[display_index].SetForegroundColour('current_file', Color.TEXT_DEFAULT)
         else:
             filename, display_index = (None, None)
@@ -2614,7 +2639,7 @@ if __name__ == '__main__':
             percent_copied = 100
 
         # If display index has been specified, write progress to GUI
-        if display_index is not None:
+        if display_index is not None and buffer['display_index'] is not None:
             # FIXME: Progress bar jumps after completing backup, as though
             #     the progress or total changes when the backup completes
             progress_bar.SetValue(backup.progress['current'])
@@ -2693,14 +2718,14 @@ if __name__ == '__main__':
         if command is not None:
             display_index = command['displayIndex']
             if backup.status == Status.BACKUP_BACKUP_ABORTED and backup.progress['current'] < backup.progress['total']:
-                cmd_info_blocks[display_index].state.SetLabel(text='Aborted')
+                cmd_info_blocks[display_index].state.SetLabel(label='Aborted')
                 cmd_info_blocks[display_index].state.SetForegroundColour(Color.STOPPED)
-                cmd_info_blocks[display_index].SetLabel('progress', text='Aborted')
+                cmd_info_blocks[display_index].SetLabel('progress', label='Aborted')
                 cmd_info_blocks[display_index].SetForegroundColour('progress', Color.STOPPED)
             else:
-                cmd_info_blocks[display_index].state.SetLabel(text='Done')
+                cmd_info_blocks[display_index].state.SetLabel(label='Done')
                 cmd_info_blocks[display_index].state.SetForegroundColour(Color.FINISHED)
-                cmd_info_blocks[display_index].SetLabel('progress', text='Done')
+                cmd_info_blocks[display_index].SetLabel('progress', label='Done')
                 cmd_info_blocks[display_index].SetForegroundColour('progress', Color.FINISHED)
 
         # If backup stopped, 
@@ -3190,7 +3215,7 @@ if __name__ == '__main__':
     summary_summary_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     summary_summary_sizer = wx.BoxSizer(wx.VERTICAL)
     summary_summary_box = wx.BoxSizer()
-    summary_summary_box.Add(summary_summary_sizer, 0, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
+    summary_summary_box.Add(summary_summary_sizer, 1, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
     summary_summary_panel.SetSizer(summary_summary_box)
     summary_details_panel = wx.ScrolledWindow(summary_notebook, -1, style=wx.VSCROLL, name='Backup detail panel')
     summary_details_panel.SetScrollbars(20, 20, 50, 50)
@@ -3198,7 +3223,7 @@ if __name__ == '__main__':
     summary_details_panel.SetForegroundColour(Color.TEXT_DEFAULT)
     summary_details_sizer = wx.BoxSizer(wx.VERTICAL)
     summary_details_box = wx.BoxSizer()
-    summary_details_box.Add(summary_details_sizer, 0, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
+    summary_details_box.Add(summary_details_sizer, 1, wx.EXPAND | wx.ALL, ITEM_UI_PADDING)
     summary_details_panel.SetSizer(summary_details_box)
     summary_notebook.AddPage(summary_summary_panel, 'Backup Summary')
     summary_notebook.AddPage(summary_details_panel, 'Backup Details')

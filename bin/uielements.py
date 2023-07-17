@@ -265,7 +265,7 @@ class DetailBlock(wx.BoxSizer):
         self.content.SetForegroundColour(Color.TEXT_DEFAULT if self.enabled else Color.FADED)
         self.content_sizer = wx.BoxSizer(wx.VERTICAL)
         self.content.SetSizer(self.content_sizer)
-        self.Add(self.content, 0, wx.LEFT, 15)
+        self.Add(self.content, 1, wx.EXPAND | wx.LEFT, 15)
 
         # Bind click for expanding and collapsing
         self.arrow.Bind(wx.EVT_LEFT_DOWN, lambda e: self.toggle())
@@ -328,7 +328,7 @@ class DetailBlock(wx.BoxSizer):
         if line_name in self.lines.keys():
             self.lines[line_name].SetFont(*args, **kwargs)
 
-    def SetLabel(self, line_name: str, *args, **kwargs):
+    def SetLabel(self, line_name: str, label: str):
         """Set the label text of an info line.
 
         Args:
@@ -336,7 +336,7 @@ class DetailBlock(wx.BoxSizer):
         """
 
         if line_name in self.lines.keys():
-            self.lines[line_name].SetLabel(*args, **kwargs)
+            self.lines[line_name].SetLabel(label=label)
 
     class InfoLine(wx.BoxSizer):
         def __init__(self, parent, title: str, content: str, bold_font: wx.Font, text_font: wx.Font, clipboard_data: str = None, *args, **kwargs):
@@ -391,10 +391,10 @@ class DetailBlock(wx.BoxSizer):
 
             self.title.SetFont(*args, **kwargs)
 
-        def SetLabel(self, *args, **kwargs):
+        def SetLabel(self, label: str):
             """Set the content label text of the line."""
 
-            self.content.SetLabel(*args, **kwargs)
+            self.content.SetLabel(label=label)
 
         def Layout(self, *args, **kwargs):
             """Update the layout of the line."""
