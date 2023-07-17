@@ -466,7 +466,7 @@ def get_source_drive_list() -> list:
             drive_type_list.append(DRIVE_TYPE_FIXED)
             drive_type_list.append(DRIVE_TYPE_REMOVABLE)
         source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
-    elif SYS_PLATFORM == PLATFORM_LINUX:
+    else:
         local_selected = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
         network_selected = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
 
@@ -677,7 +677,7 @@ def select_source():
                 if SYS_PLATFORM == PLATFORM_WINDOWS:
                     # Windows uses drive letters, so default name is letter
                     default_name = source_info['path'][0]
-                elif SYS_PLATFORM == PLATFORM_LINUX:
+                else:
                     # Linux uses mount points, so get last dir name
                     default_name = source_info['path'].split(os.path.sep)[-1]
 
@@ -751,7 +751,7 @@ def select_source():
                     if SYS_PLATFORM == PLATFORM_WINDOWS:
                         # Windows uses drive letters, so default name is letter
                         default_name = source_info['path'][0]
-                    elif SYS_PLATFORM == PLATFORM_LINUX:
+                    else:
                         # Linux uses mount points, so get last dir name
                         default_name = source_info['path'].split(os.path.sep)[-1]
 
@@ -891,7 +891,7 @@ def load_dest():
                             })
                         except (FileNotFoundError, OSError):
                             pass
-        elif SYS_PLATFORM == PLATFORM_LINUX:
+        else:
             local_selected = prefs.get('selection', 'destination_local_drives', default=True, data_type=Config.BOOLEAN)
             network_selected = prefs.get('selection', 'destination_network_drives', default=False, data_type=Config.BOOLEAN)
 
@@ -1683,13 +1683,14 @@ if __name__ == '__main__':
     PLATFORM_WINDOWS = 'Windows'
     PLATFORM_LINUX = 'Linux'
 
+    SYS_PLATFORM = platform.system()
+
     # Platform sanity check
-    if not platform.system() in [PLATFORM_WINDOWS, PLATFORM_LINUX]:
+    if SYS_PLATFORM not in [PLATFORM_WINDOWS, PLATFORM_LINUX]:
         logging.error('This operating system is not supported')
         exit()
 
     # Set constants
-    SYS_PLATFORM = platform.system()
     if SYS_PLATFORM == PLATFORM_WINDOWS:
         DRIVE_TYPE_REMOVABLE = win32file.DRIVE_REMOVABLE
         DRIVE_TYPE_FIXED = win32file.DRIVE_FIXED
@@ -1703,7 +1704,7 @@ if __name__ == '__main__':
         # Set params to allow ANSI escapes for color
         k = ctypes.windll.kernel32
         k.SetConsoleMode(k.GetStdHandle(-11), 7)
-    elif SYS_PLATFORM == PLATFORM_LINUX:
+    else:
         DRIVE_TYPE_REMOVABLE = 2
         DRIVE_TYPE_FIXED = 3
         DRIVE_TYPE_LOCAL = DRIVE_TYPE_FIXED
