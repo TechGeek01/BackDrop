@@ -2142,10 +2142,13 @@ if __name__ == '__main__':
 
                     source_tree.Append((dir_name, path_name, 'Unknown', 0))
 
-    def browse_for_source_in_background():
+    def request_browse_for_source():
         """Load a browsed source in the background."""
 
-        thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=browse_for_source, name='Browse for source', daemon=True)
+        event = wx.PyEvent()
+        event.SetEventType(EVT_REQUEST_OPEN_SOURCE)
+
+        wx.PostEvent(main_frame, event)
 
     def browse_for_dest():
         """Browse for a destination path, and add to the list."""
@@ -2188,10 +2191,13 @@ if __name__ == '__main__':
                     avail_space
                 ))
 
-    def browse_for_dest_in_background():
+    def request_browse_for_dest():
         """Load a browsed destination in the background."""
 
-        thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=browse_for_dest, name='Browse for destination', daemon=True)
+        event = wx.PyEvent()
+        event.SetEventType(EVT_REQUEST_OPEN_DEST)
+
+        wx.PostEvent(main_frame, event)
 
     def rename_source_item(item):
         """Rename an item in the source tree for multi-source mode.
@@ -3554,11 +3560,11 @@ if __name__ == '__main__':
 
     # Mouse bindings
     source_src_control_dropdown.Bind(wx.EVT_COMBOBOX, change_source_drive)
-    source_src_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: browse_for_source_in_background())
+    source_src_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: request_browse_for_source())
     source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
     source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
     source_tree.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, show_source_right_click_menu)
-    source_dest_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: browse_for_dest_in_background())
+    source_dest_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: request_browse_for_dest())
     dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
     dest_tree.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, show_dest_right_click_menu)
     split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
@@ -3582,9 +3588,13 @@ if __name__ == '__main__':
     status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
 
     # PyEvent bindings
+    EVT_REQUEST_OPEN_SOURCE = wx.NewEventType()
+    EVT_REQUEST_OPEN_DEST = wx.NewEventType()
     EVT_ANALYSIS_FINISHED = wx.NewEventType()
     EVT_BACKUP_FINISHED = wx.NewEventType()
     EVT_CHECK_FOR_UPDATES = wx.NewEventType()
+    main_frame.Connect(-1, -1, EVT_REQUEST_OPEN_SOURCE, lambda e: browse_for_source())
+    main_frame.Connect(-1, -1, EVT_REQUEST_OPEN_DEST, lambda e: browse_for_dest())
     main_frame.Connect(-1, -1, EVT_ANALYSIS_FINISHED, lambda e: update_ui_post_analysis(e.fp, e.sp))
     main_frame.Connect(-1, -1, EVT_BACKUP_FINISHED, lambda e: update_ui_post_backup(e.data))
     main_frame.Connect(-1, -1, EVT_CHECK_FOR_UPDATES, lambda e: show_update_window(e.data))
