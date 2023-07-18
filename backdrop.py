@@ -1714,11 +1714,12 @@ def check_for_updates_in_background():
 if __name__ == '__main__':
     PLATFORM_WINDOWS = 'Windows'
     PLATFORM_LINUX = 'Linux'
+    PLATFORM_MAC = 'Darwin'
 
     SYS_PLATFORM = platform.system()
 
     # Platform sanity check
-    if SYS_PLATFORM not in [PLATFORM_WINDOWS, PLATFORM_LINUX]:
+    if SYS_PLATFORM not in [PLATFORM_WINDOWS, PLATFORM_LINUX, PLATFORM_MAC]:
         logging.error('This operating system is not supported')
         exit()
 
