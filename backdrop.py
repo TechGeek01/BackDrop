@@ -2497,7 +2497,7 @@ if __name__ == '__main__':
 
         dest_list = [dest['name'] for dest in config['destinations']]
 
-        post_event(evt_type=EVT_VERIFY_DATA_INTEGRITY, dest_list)
+        post_event(evt_type=EVT_VERIFY_DATA_INTEGRITY, data=dest_list)
 
     def request_update_ui_pre_analysis():
         """Request to update the UI before analysis has been run."""
