@@ -188,15 +188,15 @@ def display_backup_progress(copied: int, total: int, display_filename: str = Non
     # If display index has been specified, write progress to GUI
     if display_index is not None:
         if operation == Status.FILE_OPERATION_DELETE:
-            progress_bar.SetValue(current=backup.progress['current'])
+            progress_bar.SetValue(backup.progress['current'])
             cmd_info_blocks[display_index].SetLabel('progress', label=f"Deleted {display_filename}")
             cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
         elif operation == Status.FILE_OPERATION_COPY:
-            progress_bar.SetValue(current=backup.progress['current'])
+            progress_bar.SetValue(backup.progress['current'])
             cmd_info_blocks[display_index].SetLabel('progress', label=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}")
             cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
         elif operation == Status.FILE_OPERATION_VERIFY:
-            progress_bar.SetValue(current=backup.progress['current'])
+            progress_bar.SetValue(backup.progress['current'])
             cmd_info_blocks[display_index].SetLabel('progress', label=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}")
             cmd_info_blocks[display_index].SetForegroundColour('progress', Color.BLUE)
 
