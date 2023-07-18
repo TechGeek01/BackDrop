@@ -229,8 +229,8 @@ def display_backup_summary_chunk(title: str, payload: list, reset: bool = None):
         reset = False
 
     if reset:
-        for child in summary_summary_sizer.GetChildren():
-            child.GetWindow().Destroy()
+        summary_summary_sizer.Clear(True)
+        summary_summary_sizer.Layout()
 
     heading_label = wx.StaticText(summary_summary_panel, -1, label=title, name='Backup summary chunk header label')
     heading_label.SetFont(FONT_HEADING)
@@ -315,7 +315,8 @@ def display_backup_command_info(display_command_list: list) -> list:
 
     global cmd_info_blocks
 
-    summary_details_sizer.Clear()
+    summary_details_sizer.Clear(True)
+    summary_details_sizer.Layout()
 
     cmd_info_blocks = []
     for i, item in enumerate(display_command_list):
@@ -375,10 +376,10 @@ def backup_reset_ui():
     backup_error_log.clear()
 
     # Empty backup summary and detail panes
-    for child in summary_summary_sizer.GetChildren():
-        child.GetWindow().Destroy()
-    for child in summary_details_sizer.GetChildren():
-        child.GetWindow().Destroy()
+    summary_summary_sizer.Clear(True)
+    summary_summary_sizer.Layout()
+    summary_details_sizer.Clear(True)
+    summary_details_sizer.Layout()
 
     # Clear file lists for file details pane
     for list_name in file_detail_list.keys():
@@ -402,10 +403,10 @@ def backup_reset_ui():
     file_details_failed_header_sizer.Layout()
 
     # Empty file details list panes
-    for child in file_details_success_sizer.GetChildren():
-        child.GetWindow().Destroy()
-    for child in file_details_failed_sizer.GetChildren():
-        child.GetWindow().Destroy()
+    file_details_success_sizer.Clear(True)
+    file_details_success_sizer.Layout()
+    file_details_failed_sizer.Clear(True)
+    file_details_failed_sizer.Layout()
 
 
 def request_kill_analysis():
@@ -626,10 +627,10 @@ def change_source_drive(e):
 def reset_analysis_output():
     """Reset the summary panel for running an analysis."""
 
-    for child in summary_summary_sizer.GetChildren():
-        child.GetWindow().Destroy()
-    for child in summary_details_sizer.GetChildren():
-        child.GetWindow().Destroy()
+    summary_summary_sizer.Clear(True)
+    summary_summary_sizer.Layout()
+    summary_details_sizer.Clear(True)
+    summary_details_sizer.Layout()
 
     summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label="This area will summarize the backup that's been configured.", name='Backup summary placeholder tooltip 1'), 0)
     summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label='Please start a backup analysis to generate a summary.', name='Backup summary placeholder tooltip 2'), 0, wx.TOP, 5)
@@ -1333,8 +1334,10 @@ def start_backup():
     file_details_failed_header_sizer.Layout()
 
     # Empty file details list panes
-    file_details_success_sizer.Clear()
-    file_details_failed_sizer.Clear()
+    file_details_success_sizer.Clear(True)
+    file_details_success_sizer.Layout()
+    file_details_failed_sizer.Clear(True)
+    file_details_failed_sizer.Layout()
 
     if not backup.analysis_valid or not backup.sanity_check():
         return
@@ -1501,8 +1504,10 @@ def verify_data_integrity(path_list: list):
         file_details_failed_header_sizer.Layout()
 
         # Empty file details list panes
-        file_details_success_sizer.Clear()
-        file_details_failed_sizer.Clear()
+        file_details_success_sizer.Clear(True)
+        file_details_success_sizer.Layout()
+        file_details_failed_sizer.Clear(True)
+        file_details_failed_sizer.Layout()
 
         verification_running = True
         verification_failed_list = []
@@ -1647,7 +1652,8 @@ def show_update_window(update_info: dict):
     if update_info and 'download' in update_info.keys():
         download_map = {url.split('/')[-1].lower(): url for url in update_info['download']}
 
-        update_icon_sizer.Clear()
+        update_icon_sizer.Clear(True)
+        update_icon_sizer.Layout()
 
         icon_count = 0
         for file_type, info in icon_info.items():
@@ -2107,7 +2113,8 @@ if __name__ == '__main__':
         # TODO: Move this error log building to the UI update function.
         # This would let the UI update thread handle appending, and have this function
         # only deal with showing the window itself.
-        backup_error_log_log_sizer.Clear()
+        backup_error_log_log_sizer.Clear(True)
+        backup_error_log_log_sizer.Layout()
 
         for error in backup_error_log:
             error_summary_block = DetailBlock(
