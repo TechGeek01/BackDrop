@@ -79,6 +79,29 @@ def on_release(key):
         keypresses['Alt'] = False
 
 
+# FIXME: post_event() probably shouldn't hardcode the wx.Frame
+def post_event(evt_type: wx.EventType, data: list = None, frame: wx.Frame = None):
+    """Post a wx.PyEvent of a given type with optional data.
+
+    Args:
+        evt_type (wx.EventType): The event flag to use.
+        data (tuple[]): Any data to append to the event (optional).
+        frame (wx.Frame): The wxPython frame to bind the event to.
+    """
+
+    if frame is None:
+        frame = main_frame
+
+    event = wx.PyEvent()
+    event.SetEventType(evt_type)
+
+    if data is not None:
+        if isinstance(data, list):
+            event.data = data
+
+    wx.PostEvent(frame, event)
+
+
 def update_file_detail_lists(list_name: str, files: set):
     """Update the file lists for the detail file view.
 
@@ -443,7 +466,7 @@ def start_backup_analysis():
         backup_config_file=BACKUP_CONFIG_FILE,
         analysis_pre_callback_fn=request_update_ui_pre_analysis,
         analysis_callback_fn=request_update_ui_post_analysis,
-        backup_callback_fn=request_update_ui_post_backup
+        backup_callback_fn=lambda cmd: post_event(evt_type=EVT_BACKUP_FINISHED, data=cmd)
     )
 
     thread_manager.start(ThreadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
@@ -588,10 +611,7 @@ def load_source_in_background():
     if (backup and backup.is_running()) or LOADING_SOURCE:
         return
 
-    event = wx.PyEvent()
-    event.SetEventType(EVT_REQUEST_LOAD_SOURCE)
-
-    wx.PostEvent(main_frame, event)
+    post_event(evt_type=EVT_REQUEST_LOAD_SOURCE)
 
 
 def change_source_drive(e):
@@ -799,12 +819,8 @@ def select_source():
         for item in new_selected:
             update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
             start_analysis_btn.Disable()
-            event = wx.PyEvent()
 
-            event.SetEventType(EVT_UPDATE_SOURCE_SIZE)
-            event.data = item
-
-            wx.PostEvent(main_frame, event)
+            post_event(evt_type=EVT_UPDATE_SOURCE_SIZE, data=item)
 
         # Set current selection to previous selection var to be referenced next call
         prev_source_selection = selected
@@ -824,17 +840,9 @@ def select_source():
             source_tree.Focus(prev_source_selection[-1])
 
         # Re-enable the selection handlers that were temporarily disabled
-        source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
-        source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
+        source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, lambda e: post_event(evt_type=EVT_SELECT_SOURCE))
+        source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, lambda e: post_event(evt_type=EVT_SELECT_SOURCE))
 
-
-def select_source_in_background(event):
-    """Start a calculation of source filesize in a new thread."""
-
-    event = wx.PyEvent()
-    event.SetEventType(EVT_SELECT_SOURCE)
-
-    wx.PostEvent(main_frame, event)
 
 def load_dest():
     """Load the destination path info, and display it in the tree."""
@@ -1004,10 +1012,7 @@ def load_dest_in_background():
     if (backup and backup.is_running()) or LOADING_DEST:
         return
 
-    event = wx.PyEvent()
-    event.SetEventType(EVT_REQUEST_LOAD_DEST)
-
-    wx.PostEvent(main_frame, event)
+    post_event(evt_type=EVT_REQUEST_LOAD_DEST)
 
 
 def gui_select_from_config():
@@ -1087,7 +1092,7 @@ def gui_select_from_config():
             dest_tree.Focus(config_dest_tree_id_list[-1])
 
         # Re-enable the selection handler that was temporarily disabled
-        dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
+        dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, lambda e: post_event(evt_type=EVT_SELECT_DEST))
 
 
 def get_source_path_from_name(source: str) -> str:
@@ -1188,7 +1193,7 @@ def select_dest():
             dest_tree.Focus(prev_dest_selection[-1])
 
         # Re-enable the selection handler that was temporarily disabled
-        dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
+        dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, lambda e: post_event(evt_type=EVT_SELECT_DEST))
 
         return
 
@@ -1271,15 +1276,6 @@ def select_dest():
     update_status_bar_selection()
 
     progress_bar.StopIndeterminate()
-
-
-def select_dest_in_background(event):
-    """Start the drive selection handling in a new thread."""
-
-    event = wx.PyEvent()
-    event.SetEventType(EVT_SELECT_DEST)
-
-    wx.PostEvent(main_frame, event)
 
 
 def start_backup():
@@ -1694,11 +1690,7 @@ def check_for_updates(info: dict):
     update_info = info
 
     if info['updateAvailable']:
-        update_event = wx.PyEvent()
-        update_event.SetEventType(EVT_CHECK_FOR_UPDATES)
-        update_event.data = info
-
-        wx.PostEvent(main_frame, update_event)
+        post_event(evt_type=EVT_CHECK_FOR_UPDATES, data=info)
 
 
 def check_for_updates_in_background():
@@ -2176,14 +2168,6 @@ if __name__ == '__main__':
 
                     source_tree.Append((dir_name, path_name, 'Unknown', 0))
 
-    def request_browse_for_source():
-        """Load a browsed source in the background."""
-
-        event = wx.PyEvent()
-        event.SetEventType(EVT_REQUEST_OPEN_SOURCE)
-
-        wx.PostEvent(main_frame, event)
-
     def browse_for_dest():
         """Browse for a destination path, and add to the list."""
 
@@ -2225,14 +2209,6 @@ if __name__ == '__main__':
                     avail_space
                 ))
 
-    def request_browse_for_dest():
-        """Load a browsed destination in the background."""
-
-        event = wx.PyEvent()
-        event.SetEventType(EVT_REQUEST_OPEN_DEST)
-
-        wx.PostEvent(main_frame, event)
-
     def rename_source_item(item):
         """Rename an item in the source tree for multi-source mode.
 
@@ -2267,15 +2243,6 @@ if __name__ == '__main__':
 
         source_tree.SetItem(item, SOURCE_COL_NAME, new_name)
 
-    def delete_source_item(item):
-        """Delete an item in the source tree for multi-source mode.
-
-        Args:
-            item: The TreeView item to rename.
-        """
-
-        source_tree.DeleteItem(item)
-
     def rename_dest_item(item):
         """Rename an item in the dest tree for custom dest mode.
 
@@ -2305,15 +2272,6 @@ if __name__ == '__main__':
 
         dest_tree.SetItem(item, DEST_COL_NAME, new_name)
 
-    def delete_dest_item(item):
-        """Delete an item in the dest tree for custom dest mode.
-
-        Args:
-            item: The TreeView item to rename.
-        """
-
-        dest_tree.DeleteItem(item)
-
     def show_source_right_click_menu(event):
         """Show the right click menu in the source tree for multi-source mode."""
 
@@ -2326,7 +2284,7 @@ if __name__ == '__main__':
         right_click_menu.Bind(wx.EVT_MENU, lambda e: rename_source_item(event.GetItem().GetId()), id=ID_SOURCE_RENAME)
         if settings_dest_mode == Config.SOURCE_MODE_MULTI_PATH:
             right_click_menu.Append(ID_SOURCE_DELETE, 'Delete', 'Delete the selected item')
-            right_click_menu.Bind(wx.EVT_MENU, lambda e: delete_source_item(event.GetItem().GetId()), id=ID_SOURCE_DELETE)
+            right_click_menu.Bind(wx.EVT_MENU, lambda e: source_tree.DeleteItem(event.GetItem().GetId()), id=ID_SOURCE_DELETE)
 
         main_frame.PopupMenu(right_click_menu, event.GetPoint())
 
@@ -2341,7 +2299,7 @@ if __name__ == '__main__':
         right_click_menu.Append(ID_DEST_RENAME, 'Rename', 'Rename the selected item')
         right_click_menu.Append(ID_DEST_DELETE, 'Delete', 'Delete the selected item')
         right_click_menu.Bind(wx.EVT_MENU, lambda e: rename_dest_item(event.GetItem().GetId()), id=ID_DEST_RENAME)
-        right_click_menu.Bind(wx.EVT_MENU, lambda e: delete_dest_item(event.GetItem().GetId()), id=ID_DEST_DELETE)
+        right_click_menu.Bind(wx.EVT_MENU, lambda e: dest_tree.DeleteItem(event.GetItem().GetId()), id=ID_DEST_DELETE)
 
         main_frame.PopupMenu(right_click_menu, event.GetPoint())
 
@@ -2443,10 +2401,7 @@ if __name__ == '__main__':
         redraw_dest_tree()
 
         if not LOADING_DEST:
-            event = wx.PyEvent()
-            event.SetEventType(EVT_REQUEST_LOAD_DEST)
-
-            wx.PostEvent(main_frame, event)
+            post_event(evt_type=EVT_REQUEST_LOAD_DEST)
 
     def change_source_type(toggle_type: int):
         """Change the drive types for source selection.
@@ -2542,19 +2497,12 @@ if __name__ == '__main__':
 
         dest_list = [dest['name'] for dest in config['destinations']]
 
-        event = wx.PyEvent()
-        event.SetEventType(EVT_VERIFY_DATA_INTEGRITY)
-        event.data = dest_list
-
-        wx.PostEvent(main_frame, event)
+        post_event(evt_type=EVT_VERIFY_DATA_INTEGRITY, dest_list)
 
     def request_update_ui_pre_analysis():
         """Request to update the UI before analysis has been run."""
 
-        event = wx.PyEvent()
-        event.SetEventType(EVT_ANALYSIS_STARTING)
-
-        wx.PostEvent(main_frame, event)
+        post_event(evt_type=EVT_ANALYSIS_STARTING)
 
     def update_ui_pre_analysis():
         """Update the UI before an analysis is run."""
@@ -2615,10 +2563,7 @@ if __name__ == '__main__':
     def request_update_ui_during_backup():
         """Request to update the user interface using a RepeatedTimer."""
         
-        event = wx.PyEvent()
-        event.SetEventType(EVT_BACKUP_TIMER)
-
-        wx.PostEvent(main_frame, event)
+        post_event(evt_type=EVT_BACKUP_TIMER)
 
     def update_ui_during_backup():
         """Update the user interface using the event sent via a RepeatedTimer."""
@@ -2745,20 +2690,6 @@ if __name__ == '__main__':
 
         for (list_name, file_list) in delta_file_lists.items():
             update_file_detail_lists(list_name, file_list)
-
-    def request_update_ui_post_backup(command=None):
-        """Request to update the UI after an analysis has been run.
-
-        Args:
-            files_payload (list): The file data to display in the UI.
-            summary_payload (list): The summary data to display in the UI.
-        """
-
-        event = wx.PyEvent()
-        event.SetEventType(EVT_BACKUP_FINISHED)
-        event.data = command
-
-        wx.PostEvent(main_frame, event)
 
     def update_ui_post_backup(command=None):
         """Update the UI after the backup finishes.
@@ -3613,12 +3544,12 @@ if __name__ == '__main__':
 
     # Mouse bindings
     source_src_control_dropdown.Bind(wx.EVT_COMBOBOX, change_source_drive)
-    source_src_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: request_browse_for_source())
-    source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_source_in_background)
-    source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, select_source_in_background)
+    source_src_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: post_event(evt_type=EVT_REQUEST_OPEN_SOURCE))
+    source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, lambda e: post_event(evt_type=EVT_SELECT_SOURCE))
+    source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, lambda e: post_event(evt_type=EVT_SELECT_SOURCE))
     source_tree.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, show_source_right_click_menu)
-    source_dest_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: request_browse_for_dest())
-    dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, select_dest_in_background)
+    source_dest_control_browse_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: post_event(evt_type=EVT_REQUEST_OPEN_DEST))
+    dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, lambda e: post_event(evt_type=EVT_SELECT_DEST))
     dest_tree.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, show_dest_right_click_menu)
     split_mode_status.Bind(wx.EVT_LEFT_DOWN, lambda e: toggle_split_mode())
 
