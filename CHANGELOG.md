@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## 4.0.0 - TBD
 ### Added
 - Added current working file during backup to status bar details
+- Experimental\* Mac OSX support
+	- By "experimental," I mean that it opens on Mac OSX. I can't guarantee it'll do anything else. *Soon™*
 
 ### Removed
 - Removed buggy CLI for performance reasons
