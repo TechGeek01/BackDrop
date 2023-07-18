@@ -65,13 +65,13 @@ class UpdateHandler:
                     count (int): Development version.
         """
 
-        m = re.search(r'(\d+)\.(\d+)\.(\d+)(?:-([A_Za-z]+)\.(\d+))?', version_string)
+        m = re.search(r'(\d+)\.(\d+)\.(\d+)(?:-([A_Za-z]+)(\d+))?', version_string)
 
-        if m.group(4) is not None and m.group(5) is not None:
+        if m.group(4) is not None:
             # Dev version exists
             dev_version = {
                 'stage': m.group(4).lower(),
-                'version': int(m.group(5))
+                'version': int(m.group(5)) if m.group(5) is not None else 1
             }
         else:
             dev_version = None
@@ -133,10 +133,10 @@ class UpdateHandler:
             # Neither version has dev tag, so versions are identical
             return True
         if current_version['dev'] is not None and latest_version['dev'] is None:
-            # Latest is not dev
+            # Current is dev, and latest is production
             return False
         if current_version['dev'] is None and latest_version['dev'] is not None:
-            # Latest is dev
+            # Latest is dev, current version is not
             return True
 
         current_dev_stage_rank = dev_stage_rank[current_version['dev']['stage']] if current_version['dev']['stage'] in dev_stage_rank.keys() else -1

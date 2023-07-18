@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - Fixed removable drives like flash drives not showing as local drives
 - Fixed regression causing source drive selection to list folders in PWD instead of drive root if drive selected was the same drive BackDrop is run from
 - Fixed requiring root on Linux due to `keyboard` library
+- Fixed version string being parsed incorrectly when checking for updates
 
 ### Changed
 - Migrated from tkinter to wxPython for GUI
