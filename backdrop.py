@@ -440,7 +440,7 @@ def start_backup_analysis():
         config=config,
         backup_config_dir=BACKUP_CONFIG_DIR,
         backup_config_file=BACKUP_CONFIG_FILE,
-        analysis_pre_callback_fn=update_ui_pre_analysis,
+        analysis_pre_callback_fn=request_update_ui_pre_analysis,
         analysis_callback_fn=request_update_ui_post_analysis,
         backup_callback_fn=request_update_ui_post_backup
     )
@@ -506,11 +506,14 @@ def get_source_drive_list() -> list:
 def load_source():
     """Load the source destination and source lists, and display sources in the tree."""
 
+    global LOADING_SOURCE
     global PREV_SOURCE_DRIVE
     global source_avail_drive_list
     global source_drive_default
 
     progress_bar.StartIndeterminate()
+
+    LOADING_SOURCE = True
 
     # Empty tree in case this is being refreshed
     source_tree.DeleteAllItems()
@@ -573,16 +576,21 @@ def load_source():
             summary_sizer.Layout()
             root_sizer.Layout()
 
+    LOADING_SOURCE = False
+
     progress_bar.StopIndeterminate()
 
 
 def load_source_in_background():
     """Start a source refresh in a new thread."""
 
-    if (backup and backup.is_running()) or thread_manager.is_alive('Refresh Source'):
+    if (backup and backup.is_running()) or LOADING_SOURCE:
         return
 
-    thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=load_source, name='Refresh Source', daemon=True)
+    event = wx.PyEvent()
+    event.SetEventType(EVT_REQUEST_LOAD_SOURCE)
+
+    wx.PostEvent(main_frame, event)
 
 
 def change_source_drive(e):
@@ -629,6 +637,90 @@ def reset_analysis_output():
     summary_summary_box.Layout()
 
 
+def update_source_size(item: int):
+    """Update source info for a given source.
+
+    Args:
+        item (String): The identifier for a source in the source tree to be calculated.
+    """
+
+    # FIXME: This crashes if you change the source, and the number of items in the tree changes while it's calculating things
+    source_name = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
+
+    if settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
+        source_path = os.path.join(config['source_path'], source_name)
+    elif settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+        source_path = source_name
+
+    source_dir_size = get_directory_size(source_path)
+    source_tree.SetItem(item, SOURCE_COL_SIZE, label=human_filesize(source_dir_size))
+    source_tree.SetItem(item, SOURCE_COL_RAWSIZE, label=str(source_dir_size))
+
+    # After calculating source info, update the meta info
+    selected_total = 0
+    selected_source_list = []
+    selected_item = source_tree.GetFirstSelected()
+    while selected_item != -1:
+        # Write selected sources to config
+        source_info = {
+            'size': int(source_tree.GetItem(selected_item, SOURCE_COL_RAWSIZE).GetText())
+        }
+
+        if settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
+            source_info['path'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
+
+            if SYS_PLATFORM == PLATFORM_WINDOWS:
+                # Windows uses drive letters, so default name is letter
+                default_name = source_info['path'][0]
+            else:
+                # Linux uses mount points, so get last dir name
+                default_name = source_info['path'].split(os.path.sep)[-1]
+
+            source_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() if source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() else default_name
+        else:
+            # If single drive mode, use source name as dest name
+            source_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
+            source_info['path'] = os.path.join(config['source_path'], source_info['dest_name'])
+
+        selected_source_list.append(source_info)
+
+        # Add total space of selection
+        if source_tree.GetItem(selected_item, SOURCE_COL_SIZE).GetText() != 'Unknown':
+            # Add total space of selection
+            selected_total += int(source_tree.GetItem(selected_item, SOURCE_COL_RAWSIZE).GetText())
+
+        selected_item = source_tree.GetNextSelected(selected_item)
+
+    source_selected_space.SetLabel(human_filesize(selected_total))
+    source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
+    source_src_selection_info_sizer.Layout()
+    source_src_sizer.Layout()
+    config['sources'] = selected_source_list
+
+    source_total = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in range(source_tree.GetItemCount())])
+    human_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in range(source_tree.GetItemCount())]
+
+    # Recalculate and display the selected total
+    source_total_space.SetLabel(f'{"~" if "Unknown" in human_size_list else ""}{human_filesize(source_total)}')
+    source_total_space.SetForegroundColour(Color.TEXT_DEFAULT if source_total > 0 else Color.FADED)
+    source_src_selection_info_sizer.Layout()
+    source_src_sizer.Layout()
+
+    # If everything's calculated, enable analysis button to be clicked
+    selected_source_list = []
+    selected_item = source_tree.GetFirstSelected()
+    while selected_item != -1:
+        selected_source_list.append(selected_item)
+        selected_item = source_tree.GetNextSelected(selected_item)
+
+    source_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in selected_source_list]
+    if 'Unknown' not in source_size_list:
+        start_analysis_btn.Enable()
+        update_status_bar_selection()
+
+    progress_bar.StopIndeterminate()
+
+
 # IDEA: @Calculate total space of all @sources in background
 def select_source():
     """Calculate and display the filesize of a selected source, if it hasn't been calculated.
@@ -641,89 +733,6 @@ def select_source():
     global prev_source_selection
     global source_selection_total
     global backup
-
-    def update_source_size(item: int):
-        """Update source info for a given source.
-
-        Args:
-            item (String): The identifier for a source in the source tree to be calculated.
-        """
-
-        # FIXME: This crashes if you change the source, and the number of items in the tree changes while it's calculating things
-        source_name = source_tree.GetItem(item, SOURCE_COL_PATH).GetText()
-
-        if settings_source_mode in [Config.SOURCE_MODE_SINGLE_DRIVE, Config.SOURCE_MODE_SINGLE_PATH]:
-            source_path = os.path.join(config['source_path'], source_name)
-        elif settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-            source_path = source_name
-
-        source_dir_size = get_directory_size(source_path)
-        source_tree.SetItem(item, SOURCE_COL_SIZE, label=human_filesize(source_dir_size))
-        source_tree.SetItem(item, SOURCE_COL_RAWSIZE, label=str(source_dir_size))
-
-        # After calculating source info, update the meta info
-        selected_total = 0
-        selected_source_list = []
-        selected_item = source_tree.GetFirstSelected()
-        while selected_item != -1:
-            # Write selected sources to config
-            source_info = {
-                'size': int(source_tree.GetItem(selected_item, SOURCE_COL_RAWSIZE).GetText())
-            }
-
-            if settings_source_mode in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-                source_info['path'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
-
-                if SYS_PLATFORM == PLATFORM_WINDOWS:
-                    # Windows uses drive letters, so default name is letter
-                    default_name = source_info['path'][0]
-                else:
-                    # Linux uses mount points, so get last dir name
-                    default_name = source_info['path'].split(os.path.sep)[-1]
-
-                source_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() if source_tree.GetItem(selected_item, SOURCE_COL_NAME).GetText() else default_name
-            else:
-                # If single drive mode, use source name as dest name
-                source_info['dest_name'] = source_tree.GetItem(selected_item, SOURCE_COL_PATH).GetText()
-                source_info['path'] = os.path.join(config['source_path'], source_info['dest_name'])
-
-            selected_source_list.append(source_info)
-
-            # Add total space of selection
-            if source_tree.GetItem(selected_item, SOURCE_COL_SIZE).GetText() != 'Unknown':
-                # Add total space of selection
-                selected_total += int(source_tree.GetItem(selected_item, SOURCE_COL_RAWSIZE).GetText())
-
-            selected_item = source_tree.GetNextSelected(selected_item)
-
-        source_selected_space.SetLabel(human_filesize(selected_total))
-        source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
-        source_src_selection_info_sizer.Layout()
-        source_src_sizer.Layout()
-        config['sources'] = selected_source_list
-
-        source_total = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in range(source_tree.GetItemCount())])
-        human_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in range(source_tree.GetItemCount())]
-
-        # Recalculate and display the selected total
-        source_total_space.SetLabel(f'{"~" if "Unknown" in human_size_list else ""}{human_filesize(source_total)}')
-        source_total_space.SetForegroundColour(Color.TEXT_DEFAULT if source_total > 0 else Color.FADED)
-        source_src_selection_info_sizer.Layout()
-        source_src_sizer.Layout()
-
-        # If everything's calculated, enable analysis button to be clicked
-        selected_source_list = []
-        selected_item = source_tree.GetFirstSelected()
-        while selected_item != -1:
-            selected_source_list.append(selected_item)
-            selected_item = source_tree.GetNextSelected(selected_item)
-
-        source_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in selected_source_list]
-        if 'Unknown' not in source_size_list:
-            start_analysis_btn.Enable()
-            update_status_bar_selection()
-
-        progress_bar.StopIndeterminate()
 
     if not backup or not backup.is_running():
         progress_bar.StartIndeterminate()
@@ -789,8 +798,12 @@ def select_source():
         for item in new_selected:
             update_status_bar_selection(Status.BACKUPSELECT_CALCULATING_SOURCE)
             start_analysis_btn.Disable()
-            source_name = source_tree.GetItem(item, SOURCE_COL_PATH)
-            thread_manager.start(ThreadManager.SINGLE, is_progress_thread=True, target=lambda: update_source_size(item), name=f"SourceCalc_{source_name}", daemon=True)
+            event = wx.PyEvent()
+
+            event.SetEventType(EVT_UPDATE_SOURCE_SIZE)
+            event.data = item
+
+            wx.PostEvent(main_frame, event)
 
         # Set current selection to previous selection var to be referenced next call
         prev_source_selection = selected
@@ -817,15 +830,20 @@ def select_source():
 def select_source_in_background(event):
     """Start a calculation of source filesize in a new thread."""
 
-    thread_manager.start(ThreadManager.MULTIPLE, is_progress_thread=True, target=select_source, name='Load Source Selection', daemon=True)
+    event = wx.PyEvent()
+    event.SetEventType(EVT_SELECT_SOURCE)
 
+    wx.PostEvent(main_frame, event)
 
 def load_dest():
     """Load the destination path info, and display it in the tree."""
 
+    global LOADING_DEST
     global dest_drive_master_list
 
     progress_bar.StartIndeterminate()
+
+    LOADING_DEST = True
 
     # Empty tree in case this is being refreshed
     dest_tree.DeleteAllItems()
@@ -972,6 +990,8 @@ def load_dest():
     dest_total_space.Layout()
     source_dest_selection_info_sizer.Layout()
 
+    LOADING_DEST = False
+
     progress_bar.StopIndeterminate()
 
 
@@ -980,10 +1000,13 @@ def load_dest_in_background():
 
     # TODO: Make load_dest and load_source replaceable, and in their own class
     # TODO: Invalidate load_source or load_dest if tree gets refreshed via some class def call
-    if (backup and backup.is_running()) or thread_manager.is_alive('Refresh Destination'):
+    if (backup and backup.is_running()) or LOADING_DEST:
         return
 
-    thread_manager.start(ThreadManager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
+    event = wx.PyEvent()
+    event.SetEventType(EVT_REQUEST_LOAD_DEST)
+
+    wx.PostEvent(main_frame, event)
 
 
 def gui_select_from_config():
@@ -1252,7 +1275,10 @@ def select_dest():
 def select_dest_in_background(event):
     """Start the drive selection handling in a new thread."""
 
-    thread_manager.start(ThreadManager.MULTIPLE, is_progress_thread=True, target=select_dest, name='Drive Select', daemon=True)
+    event = wx.PyEvent()
+    event.SetEventType(EVT_SELECT_DEST)
+
+    wx.PostEvent(main_frame, event)
 
 
 def start_backup():
@@ -2408,8 +2434,11 @@ if __name__ == '__main__':
 
         redraw_dest_tree()
 
-        if not thread_manager.is_alive('Refresh Destination'):
-            thread_manager.start(ThreadManager.SINGLE, target=load_dest, is_progress_thread=True, name='Refresh Destination', daemon=True)
+        if not LOADING_DEST:
+            event = wx.PyEvent()
+            event.SetEventType(EVT_REQUEST_LOAD_DEST)
+
+            wx.PostEvent(main_frame, event)
 
     def change_source_type(toggle_type: int):
         """Change the drive types for source selection.
@@ -2504,7 +2533,20 @@ if __name__ == '__main__':
             return
 
         dest_list = [dest['name'] for dest in config['destinations']]
-        thread_manager.start(ThreadManager.KILLABLE, target=lambda: verify_data_integrity(dest_list), name='Data Verification', is_progress_thread=True, daemon=True)
+
+        event = wx.PyEvent()
+        event.SetEventType(EVT_VERIFY_DATA_INTEGRITY)
+        event.data = dest_list
+
+        wx.PostEvent(main_frame, event)
+
+    def request_update_ui_pre_analysis():
+        """Request to update the UI before analysis has been run."""
+
+        event = wx.PyEvent()
+        event.SetEventType(EVT_ANALYSIS_STARTING)
+
+        wx.PostEvent(main_frame, event)
 
     def update_ui_pre_analysis():
         """Update the UI before an analysis is run."""
@@ -2918,6 +2960,9 @@ if __name__ == '__main__':
     WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
     if prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
         WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
+
+    LOADING_SOURCE = False
+    LOADING_DEST = False
 
     app = wx.App()
 
@@ -3588,16 +3633,30 @@ if __name__ == '__main__':
     status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
 
     # PyEvent bindings
+    EVT_REQUEST_LOAD_SOURCE = wx.NewEventType()
+    EVT_UPDATE_SOURCE_SIZE = wx.NewEventType()
+    EVT_SELECT_SOURCE = wx.NewEventType()
+    EVT_REQUEST_LOAD_DEST = wx.NewEventType()
+    EVT_SELECT_DEST = wx.NewEventType()
     EVT_REQUEST_OPEN_SOURCE = wx.NewEventType()
     EVT_REQUEST_OPEN_DEST = wx.NewEventType()
+    EVT_ANALYSIS_STARTING = wx.NewEventType()
     EVT_ANALYSIS_FINISHED = wx.NewEventType()
     EVT_BACKUP_FINISHED = wx.NewEventType()
     EVT_CHECK_FOR_UPDATES = wx.NewEventType()
+    EVT_VERIFY_DATA_INTEGRITY = wx.NewEventType()
+    main_frame.Connect(-1, -1, EVT_REQUEST_LOAD_SOURCE, lambda e: load_source())
+    main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_SIZE, lambda e: update_source_size(e.data))
+    main_frame.Connect(-1, -1, EVT_SELECT_SOURCE, lambda e: select_source())
+    main_frame.Connect(-1, -1, EVT_REQUEST_LOAD_DEST, lambda e: load_dest())
+    main_frame.Connect(-1, -1, EVT_SELECT_DEST, lambda e: select_dest())
     main_frame.Connect(-1, -1, EVT_REQUEST_OPEN_SOURCE, lambda e: browse_for_source())
     main_frame.Connect(-1, -1, EVT_REQUEST_OPEN_DEST, lambda e: browse_for_dest())
+    main_frame.Connect(-1, -1, EVT_ANALYSIS_STARTING, lambda e: update_ui_pre_analysis())
     main_frame.Connect(-1, -1, EVT_ANALYSIS_FINISHED, lambda e: update_ui_post_analysis(e.fp, e.sp))
     main_frame.Connect(-1, -1, EVT_BACKUP_FINISHED, lambda e: update_ui_post_backup(e.data))
     main_frame.Connect(-1, -1, EVT_CHECK_FOR_UPDATES, lambda e: show_update_window(e.data))
+    main_frame.Connect(-1, -1, EVT_VERIFY_DATA_INTEGRITY, lambda e: verify_data_integrity(e.data))
 
     # Catch close event for graceful exit
     main_frame.Bind(wx.EVT_CLOSE, lambda e: on_close())
