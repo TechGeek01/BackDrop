@@ -1622,56 +1622,124 @@ def show_update_window(update_info: dict):
     icon_debian_color = wx.Bitmap(wx.Image(resource_path('assets/img/debian_color.png'), wx.BITMAP_TYPE_ANY))
     icon_targz = wx.Bitmap(wx.Image(resource_path(f"assets/img/targz{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
     icon_targz_color = wx.Bitmap(wx.Image(resource_path('assets/img/targz_color.png'), wx.BITMAP_TYPE_ANY))
+    icon_mac = wx.Bitmap(wx.Image(resource_path(f"assets/img/mac{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
+    icon_mac_color = wx.Bitmap(wx.Image(resource_path('assets/img/mac_color.png'), wx.BITMAP_TYPE_ANY))
+    icon_pkg = wx.Bitmap(wx.Image(resource_path(f"assets/img/pkg{'_light' if settings_dark_mode else ''}.png"), wx.BITMAP_TYPE_ANY))
+    icon_pkg_color = wx.Bitmap(wx.Image(resource_path('assets/img/pkg_color.png'), wx.BITMAP_TYPE_ANY))
 
     icon_info = {
-        'backdrop.exe': {
-            'flat_icon': icon_windows,
-            'color_icon': icon_windows_color,
+        'win': {
+            'main': {
+                'flat': icon_windows,
+                'color': icon_windows_color
+            },
             'supplemental': {
-                'name': 'backdrop.zip',
-                'flat_icon': icon_zip,
-                'color_icon': icon_zip_color
+                'flat': icon_zip,
+                'color': icon_zip_color
             }
         },
-        'backdrop-debian': {
-            'flat_icon': icon_debian,
-            'color_icon': icon_debian_color,
+        'debian': {
+            'main': {
+                'flat': icon_debian,
+                'color': icon_debian_color
+            },
             'supplemental': {
-                'name': 'backdrop-debian.tar.gz',
-                'flat_icon': icon_targz,
-                'color_icon': icon_targz_color
+                'flat': icon_targz,
+                'color': icon_targz_color
+            }
+        },
+        'mac': {
+            'main': {
+                'flat': icon_mac,
+                'color': icon_mac_color
+            },
+            'supplemental': {
+                'flat': icon_pkg,
+                'color': icon_pkg_color
             }
         }
     }
 
     if update_info and 'download' in update_info.keys():
-        download_map = {url.split('/')[-1].lower(): url for url in update_info['download']}
-
         update_icon_sizer.Clear(True)
         update_icon_sizer.Layout()
 
+        download_links = {
+            'win': {
+                'main': None,
+                'supplemental': None
+            },
+            'debian': {
+                'main': None,
+                'supplemental': None
+            },
+            'mac': {
+                'main': None,
+                'supplemental': None
+            }
+        }
+
+        for item in update_info['download']:
+            filename = item.split('/')[-1]
+
+            regex = r'^([a-zA-Z]+)(?:[-_]v?(\d+(?:\.\d+){2}(?:-[a-zA-Z]+\d+)?))?(?:[-_]([a-zA-Z]+))?(?:((?:\.[a-zA-Z]{1,4}){1,2}))?$'
+            split = re.split(regex, filename)
+
+            # Ignore files that don't match the regex
+            if len(split) == 1:
+                continue
+
+            start, name, version, platform, extension, *end = split
+
+            # If platform not specified, detect it based on file extension
+            if platform is None:
+                if extension == '.exe':
+                    platform = 'win'
+                elif extension == '.elf':
+                    platform = 'debian'
+                elif extension in ['.dmg', '.pkg']:
+                    platform = 'mac'
+
+            if platform == 'win':
+                if extension == '.exe':
+                    download_links['win']['main'] = item
+                elif extension == '.zip':
+                    download_links['win']['supplemental'] = item
+            elif platform == 'debian':
+                if extension is None:
+                    download_links['debian']['main'] = item
+                elif extension == '.tar.gz':
+                    download_links['debian']['supplemental'] = item
+            elif platform == 'mac':
+                if extension == '.dmg':
+                    download_links['mac']['main'] = item
+                elif extension in ['.pkg', '.zip']:
+                    download_links['mac']['supplemental'] = item
+
         icon_count = 0
-        for file_type, info in icon_info.items():
-            if file_type in download_map.keys():
+        for platform, link_list in download_links.items():
+            for link_type, link in link_list.items():
+                if link is None:
+                    continue
+
                 icon_count += 1
 
                 # If icon isn't first icon, add spacer
                 if icon_count > 1:
                     update_icon_sizer.Add((12, -1), 0)
 
-                download_btn = wx.StaticBitmap(update_frame.root_panel, -1, info['flat_icon'])
-                update_icon_sizer.Add(download_btn, 0, wx.ALIGN_BOTTOM)
-                download_btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, icon=info['color_icon']: e.GetEventObject().SetBitmap(icon))
-                download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=info['flat_icon']: e.GetEventObject().SetBitmap(icon))
-                download_btn.Bind(wx.EVT_LEFT_DOWN, lambda e, url=download_map[file_type]: webbrowser.open_new(url))
-
-                # # Add supplemental icon if download is available
-                if 'supplemental' in icon_info[file_type].keys() or info['supplemental']['name'] in download_map.keys():
-                    download_btn = wx.StaticBitmap(update_frame.root_panel, -1, info['supplemental']['flat_icon'])
+                if link_type == 'main':
+                    download_btn = wx.StaticBitmap(update_frame.root_panel, -1, icon_info[platform][link_type]['flat'])
+                    update_icon_sizer.Add(download_btn, 0, wx.ALIGN_BOTTOM)
+                    download_btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, icon=icon_info[platform][link_type]['color']: e.GetEventObject().SetBitmap(icon))
+                    download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=icon_info[platform][link_type]['flat']: e.GetEventObject().SetBitmap(icon))
+                    download_btn.Bind(wx.EVT_LEFT_DOWN, lambda e, url=link: webbrowser.open_new(url))
+                elif link_type == 'supplemental':
+                    download_btn = wx.StaticBitmap(update_frame.root_panel, -1, icon_info[platform][link_type]['flat'])
                     update_icon_sizer.Add(download_btn, 0, wx.ALIGN_BOTTOM | wx.LEFT, 4)
-                    download_btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, icon=info['supplemental']['color_icon']: e.GetEventObject().SetBitmap(icon))
-                    download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=info['supplemental']['flat_icon']: e.GetEventObject().SetBitmap(icon))
-                    download_btn.Bind(wx.EVT_LEFT_DOWN, lambda e, url=download_map[info['supplemental']['name']]: webbrowser.open_new(url))
+                    download_btn.Bind(wx.EVT_ENTER_WINDOW, lambda e, icon=icon_info[platform][link_type]['color']: e.GetEventObject().SetBitmap(icon))
+                    download_btn.Bind(wx.EVT_LEAVE_WINDOW, lambda e, icon=icon_info[platform][link_type]['flat']: e.GetEventObject().SetBitmap(icon))
+                    download_btn.Bind(wx.EVT_LEFT_DOWN, lambda e, url=link: webbrowser.open_new(url))
 
         update_icon_sizer.Layout()
         update_frame.ShowModal()

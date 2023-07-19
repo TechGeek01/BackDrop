@@ -67,11 +67,11 @@ class UpdateHandler:
 
         m = re.search(r'(\d+)\.(\d+)\.(\d+)(?:-([A_Za-z]+)(\d+))?', version_string)
 
-        if m.group(4) is not None:
+        if m.group(4) is not None and m.group(5) is not None:
             # Dev version exists
             dev_version = {
                 'stage': m.group(4).lower(),
-                'version': int(m.group(5)) if m.group(5) is not None else 1
+                'version': int(m.group(5))
             }
         else:
             dev_version = None
