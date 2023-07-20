@@ -2618,7 +2618,7 @@ if __name__ == '__main__':
 
             update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_BACKUP)
             start_backup_btn.Enable()
-        else:
+        else: 
             # If thread halted, mark analysis as invalid
             update_ui_component(Status.UPDATEUI_STATUS_BAR, Status.BACKUP_READY_FOR_ANALYSIS)
             reset_analysis_output()
@@ -2708,8 +2708,9 @@ if __name__ == '__main__':
         if display_index is not None and buffer['display_index'] is not None:
             # FIXME: Progress bar jumps after completing backup, as though
             #     the progress or total changes when the backup completes
-            progress_bar.SetValue(backup.progress['current'])
-            progress_bar.SetRange(backup.progress['total'])
+            # FIXME: Progress ranges too high cause integer overflows
+            progress_bar.SetRange(10000)
+            progress_bar.SetValue(int(10000 * backup.progress['current'] / backup.progress['total']))
 
             cmd_info_blocks[display_index].SetLabel('current_file', label=buffer['display_filename'])
             cmd_info_blocks[display_index].SetForegroundColour('current_file', Color.TEXT_DEFAULT)
