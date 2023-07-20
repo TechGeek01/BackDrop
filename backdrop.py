@@ -465,7 +465,7 @@ def start_backup_analysis():
         backup_config_file=BACKUP_CONFIG_FILE,
         analysis_pre_callback_fn=request_update_ui_pre_analysis,
         analysis_callback_fn=request_update_ui_post_analysis,
-        backup_callback_fn=lambda cmd: post_event(evt_type=EVT_BACKUP_FINISHED, data=cmd)
+        backup_callback_fn=lambda cmd=None: post_event(evt_type=EVT_BACKUP_FINISHED, data=cmd)
     )
 
     thread_manager.start(ThreadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
