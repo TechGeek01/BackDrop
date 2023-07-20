@@ -80,7 +80,7 @@ def on_release(key):
 
 
 # FIXME: post_event() probably shouldn't hardcode the wx.Frame
-def post_event(evt_type, data: list = None, frame: wx.Frame = None):
+def post_event(evt_type, data=None, frame: wx.Frame = None):
     """Post a wx.PyEvent of a given type with optional data.
 
     Args:
@@ -94,9 +94,7 @@ def post_event(evt_type, data: list = None, frame: wx.Frame = None):
 
     event = wx.PyEvent()
     event.SetEventType(evt_type)
-
-    if data is not None:
-        event.data = data
+    event.data = data
 
     wx.PostEvent(frame, event)
 
