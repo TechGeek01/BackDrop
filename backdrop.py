@@ -2709,8 +2709,8 @@ if __name__ == '__main__':
             # FIXME: Progress bar jumps after completing backup, as though
             #     the progress or total changes when the backup completes
             # FIXME: Progress ranges too high cause integer overflows
-            progress_bar.SetRange(10000)
-            progress_bar.SetValue(int(10000 * backup.progress['current'] / backup.progress['total']))
+            progress_bar.SetRange(backup.progress['total'])
+            progress_bar.SetValue(backup.progress['current'])
 
             cmd_info_blocks[display_index].SetLabel('current_file', label=buffer['display_filename'])
             cmd_info_blocks[display_index].SetForegroundColour('current_file', Color.TEXT_DEFAULT)

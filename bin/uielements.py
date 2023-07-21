@@ -152,6 +152,8 @@ class ModalWindow(RootWindow):
 
 
 class ProgressBar(wx.Gauge):
+    MAX_RANGE = 10000
+
     def __init__(self, parent, *args, **kwargs):
         """Create a progress bar.
 
@@ -160,7 +162,7 @@ class ProgressBar(wx.Gauge):
         """
 
         self.value = 0
-        self.max = None
+        self.range = None
         self.is_indeterminate = False
 
         wx.Gauge.__init__(self, parent, *args, **kwargs)
@@ -202,6 +204,27 @@ class ProgressBar(wx.Gauge):
 
         self.is_indeterminate = False
         self.SetValue(self.value)
+
+    def SetRange(self, value):
+        """Set the max value of the progress bar.
+
+        Args:
+            value (int): The maximum value to use.
+        """
+
+        self.range = value
+
+        wx.Gauge.SetRange(self, ProgressBar.MAX_RANGE)
+
+    def SetValue(self, value):
+        """Set the current value of the progress bar.
+
+        Args:
+            value (int): The value to use.
+        """
+
+        self.value = value
+        wx.Gauge.SetValue(self, int(ProgressBar.MAX_RANGE * value / self.range))
 
 
 class WarningPanel(wx.Panel):
