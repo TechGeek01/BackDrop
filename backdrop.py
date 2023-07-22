@@ -2668,9 +2668,8 @@ if __name__ == '__main__':
                 CURRENT_FILE_HEADER_WIDTH = dc.GetTextExtent('Current file: ').GetWidth()
 
                 dc.SetFont(FONT_DEFAULT)
-                TOOLTIP_HEADER_WIDTH = dc.GetTextExtent('(Click to copy)').GetWidth()
 
-                MAX_WIDTH = summary_details_panel.GetSize().GetWidth() - CURRENT_FILE_HEADER_WIDTH - TOOLTIP_HEADER_WIDTH - 2 * ITEM_UI_PADDING - 50  # Used to be 80%
+                MAX_WIDTH = summary_details_panel.GetSize().GetWidth() - CURRENT_FILE_HEADER_WIDTH - 2 * ITEM_UI_PADDING - 50
                 actual_file_width = dc.GetTextExtent(filename).GetWidth()
 
                 if actual_file_width > MAX_WIDTH:
@@ -2712,10 +2711,28 @@ if __name__ == '__main__':
             progress_bar.SetRange(backup.progress['total'])
             progress_bar.SetValue(backup.progress['current'])
 
-            cmd_info_blocks[display_index].SetLabel('current_file', label=buffer['display_filename'])
+            filename = buffer['display_filename']
+
+            dc = wx.ScreenDC()
+
+            dc.SetFont(FONT_BOLD)
+            CURRENT_FILE_HEADER_WIDTH = dc.GetTextExtent('Current file: ').GetWidth()
+
+            dc.SetFont(FONT_DEFAULT)
+
+            MAX_WIDTH = summary_details_panel.GetSize().GetWidth() - CURRENT_FILE_HEADER_WIDTH - 2 * ITEM_UI_PADDING - 50
+            actual_file_width = dc.GetTextExtent(filename).GetWidth()
+
+            if actual_file_width > MAX_WIDTH:
+                while actual_file_width > MAX_WIDTH and len(filename) > 1:
+                    filename = filename[:-1]
+                    actual_file_width = dc.GetTextExtent(f'{filename}...').GetWidth()
+                filename = f'{filename}...'
+
+            cmd_info_blocks[display_index].SetLabel('current_file', label=filename)
             cmd_info_blocks[display_index].SetForegroundColour('current_file', Color.TEXT_DEFAULT)
             if buffer['operation'] == Status.FILE_OPERATION_DELETE:
-                cmd_info_blocks[display_index].SetLabel('progress', label=f"Deleted {buffer['display_filename']}")
+                cmd_info_blocks[display_index].SetLabel('progress', label=f"Deleted {filename}")
                 cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
             elif buffer['operation'] == Status.FILE_OPERATION_COPY:
                 cmd_info_blocks[display_index].SetLabel('progress', label=f"{percent_copied:.2f}% \u27f6 {human_filesize(buffer['copied'])} of {human_filesize(buffer['total'])}")
