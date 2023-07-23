@@ -1473,7 +1473,7 @@ def verify_data_integrity(path_list: list):
 
         update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
 
-        halt_verification_btn.pack(side='left', padx=4)
+        halt_verification_btn.Enable()
 
         # Empty file detail lists
         for list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
@@ -1588,7 +1588,7 @@ def verify_data_integrity(path_list: list):
                     break
 
         verification_running = False
-        halt_verification_btn.pack_forget()
+        halt_verification_btn.Disable()
 
         progress_bar.StopIndeterminate()
         update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
@@ -2004,14 +2004,14 @@ if __name__ == '__main__':
 
         if status == Status.UPDATEUI_ANALYSIS_START:
             update_status_bar_action(Status.BACKUP_ANALYSIS_RUNNING)
-            start_analysis_btn.SetLabel(label='Halt Analysis')
+            start_analysis_btn.SetBitmap(stop_query_icon)
             start_analysis_btn.Unbind(wx.EVT_LEFT_DOWN)
             start_analysis_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: request_kill_analysis())
             start_analysis_btn.Layout()
             controls_sizer.Layout()
         elif status == Status.UPDATEUI_ANALYSIS_END:
             update_status_bar_action(Status.IDLE)
-            start_analysis_btn.SetLabel(label='Analyze')
+            start_analysis_btn.SetBitmap(query_icon)
             start_analysis_btn.Unbind(wx.EVT_LEFT_DOWN)
             start_analysis_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup_analysis())
             start_analysis_btn.Layout()
@@ -2019,7 +2019,7 @@ if __name__ == '__main__':
         elif status == Status.UPDATEUI_BACKUP_START:
             update_status_bar_action(Status.BACKUP_BACKUP_RUNNING)
             start_analysis_btn.Disable()
-            start_backup_btn.SetLabel(label='Halt Backup')
+            start_backup_btn.SetBitmap(stop_icon)
             start_backup_btn.Unbind(wx.EVT_LEFT_DOWN)
             start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: request_kill_backup())
             start_backup_btn.Layout()
@@ -2027,7 +2027,7 @@ if __name__ == '__main__':
         elif status == Status.UPDATEUI_BACKUP_END:
             update_status_bar_action(Status.IDLE)
             start_analysis_btn.Enable()
-            start_backup_btn.SetLabel(label='Run Backup')
+            start_backup_btn.SetBitmap(play_icon)
             start_backup_btn.Unbind(wx.EVT_LEFT_DOWN)
             start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup())
             start_backup_btn.Layout()
@@ -3396,6 +3396,9 @@ if __name__ == '__main__':
     pause_icon = wx.Bitmap(wx.Image(resource_path('assets/icons/pause.png')))
     stop_icon = wx.Bitmap(wx.Image(resource_path('assets/icons/stop.png')))
     query_icon = wx.Bitmap(wx.Image(resource_path('assets/icons/query.png')))
+    stop_query_icon = wx.Bitmap(wx.Image(resource_path('assets/icons/stop_query.png')))
+    verify_icon = wx.Bitmap(wx.Image(resource_path('assets/icons/verify.png')))
+    stop_verify_icon = wx.Bitmap(wx.Image(resource_path('assets/icons/stop_verify.png')))
 
     controls_sizer = wx.BoxSizer()
     controls_sizer.Add((-1, -1), 1, wx.EXPAND)
@@ -3403,7 +3406,7 @@ if __name__ == '__main__':
     controls_sizer.Add(start_analysis_btn, 0, wx.ALIGN_BOTTOM)
     start_backup_btn = wx.BitmapButton(main_frame.root_panel, -1, play_icon, name='Backup button')
     controls_sizer.Add(start_backup_btn, 0, wx.LEFT | wx.ALIGN_BOTTOM, ITEM_UI_PADDING)
-    halt_verification_btn = wx.BitmapButton(main_frame.root_panel, -1, stop_icon, name='Halt verification button')
+    halt_verification_btn = wx.BitmapButton(main_frame.root_panel, -1, stop_verify_icon, name='Halt verification button')
     halt_verification_btn.Disable()
     controls_sizer.Add(halt_verification_btn, 0, wx.LEFT | wx.ALIGN_BOTTOM, ITEM_UI_PADDING)
     controls_sizer.Add((-1, -1), 1, wx.EXPAND)
