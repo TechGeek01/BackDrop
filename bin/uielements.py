@@ -12,28 +12,29 @@ class Color:
     BLUE = wx.Colour(0x00, 0x93, 0xc4)
     GREEN = wx.Colour(0x6d, 0xb5, 0x00)
     GOLD = wx.Colour(0xeb, 0xb3, 0x00)
-    RED = wx.Colour(0xff, 0x55, 0x33)
+    LIGHT_RED = wx.Colour(0xff, 0x55, 0x33)
+    RED = wx.Colour(0xcc, 0x00, 0x00)
     GRAY = wx.Colour(0x66, 0x66, 0x66)
 
     COLORACCENT = GREEN
 
     TEXT_DEFAULT = WHITE
     FADED = wx.Colour(0x8e, 0x8e, 0x8e)
-    INFO = wx.Colour(0x3b, 0xce, 0xff)
+    INFO = wx.Colour(0x00, 0xb4, 0xd8)
     TOOLTIP = INFO
     WARNING = GOLD
-    ERROR = RED
+    ERROR = LIGHT_RED
 
     ENABLED = GREEN
-    DISABLED = RED
+    DISABLED = LIGHT_RED
 
     SUCCESS = GREEN
-    FAILED = RED
+    FAILED = LIGHT_RED
 
-    DANGER = RED
+    DANGER = LIGHT_RED
     FINISHED = GREEN
     RUNNING = BLUE
-    STOPPED = RED
+    STOPPED = LIGHT_RED
     PENDING = FADED
 
     BACKGROUND = wx.Colour(0x2d, 0x2d, 0x2a)
