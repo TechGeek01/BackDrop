@@ -22,8 +22,6 @@ BackDrop can copy from multiple sources, and will automatically split them among
 ## Installation
 If you're not running a pre-compiled version of the source code, you can run the Python directly. All packages can be installed by passing the associated requirements.txt file to `pip`.
 
-*BackDrop uses tkinter for the GUI frontend. If you're on Linux, this isn't included with Python and will need to be installed separately.*
-
 ## Usage
 For both source and destination, you can select whole drives, or arbitrary paths (your desktop for the source, or a subfolder on an external drive for the destination, for example), and more than one can be selected.
 
