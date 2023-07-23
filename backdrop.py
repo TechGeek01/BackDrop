@@ -5,7 +5,7 @@ logically copying files from point A to point B. This is complete with
 verification, and many other organization and integrity features.
 """
 
-__version__ = '4.0.0-beta2'
+__version__ = '4.0.0'
 
 import platform
 import wx

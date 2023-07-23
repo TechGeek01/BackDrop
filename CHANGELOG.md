@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 4.0.0 - TBD
+## 4.0.0 - 2023-07-23
 ### Added
 - Added current working file during backup to status bar details
 - Experimental\* Mac OSX support
@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - Fixed requiring root on Linux due to `keyboard` library
 - Fixed version string being parsed incorrectly when checking for updates
 - Fixed some assets not showing as download links when prompted for updates
+- Fixed update screen incorrectly identifying some assets for download
 
 ### Changed
 - Migrated from tkinter to wxPython for GUI
