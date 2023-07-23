@@ -2262,14 +2262,14 @@ if __name__ == '__main__':
                 config_space = get_directory_size(os.path.join(dir_name, BACKUP_CONFIG_DIR))
 
                 dir_has_config_file = os.path.isfile(os.path.join(dir_name, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
-                name_stub = dir_name.split(os.path.sep)[-1].strip()
+                name_stub = dir_name.strip(os.path.sep).split(os.path.sep)[-1].strip()
                 avail_space = drive_free_space + path_space - config_space
                 dest_tree.Append((
                     dir_name,
                     name_stub,
                     human_filesize(avail_space),
                     'Yes' if dir_has_config_file else '',
-                    '',
+                    name_stub,
                     '',
                     avail_space
                 ))
