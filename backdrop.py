@@ -5,7 +5,7 @@ logically copying files from point A to point B. This is complete with
 verification, and many other organization and integrity features.
 """
 
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import platform
 import wx
@@ -2970,18 +2970,13 @@ if __name__ == '__main__':
         DANGER_BUTTON_DISABLED_COLOR = '#900'
         DANGER_BUTTON_DISABLED_TEXT_COLOR = '#caa'
 
-    WINDOW_BASE_WIDTH = 1300  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
-    WINDOW_MULTI_SOURCE_EXTRA_WIDTH = 170
+    WINDOW_MIN_WIDTH = 1350  # QUESTION: Can BASE_WIDTH and MIN_WIDTH be rolled into one now that MIN is separate from actual width?
     WINDOW_MIN_HEIGHT = 700
     MULTI_SOURCE_TEXT_COL_WIDTH = 120 if SYS_PLATFORM == PLATFORM_WINDOWS else 200
     MULTI_SOURCE_NAME_COL_WIDTH = 220 if SYS_PLATFORM == PLATFORM_WINDOWS else 140
     SINGLE_SOURCE_TEXT_COL_WIDTH = 170
     SINGLE_SOURCE_NAME_COL_WIDTH = 170
     ITEM_UI_PADDING = 10
-
-    WINDOW_MIN_WIDTH = WINDOW_BASE_WIDTH
-    if prefs.get('selection', 'source_mode', Config.SOURCE_MODE_SINGLE_DRIVE, verify_data=Config.SOURCE_MODE_OPTIONS) in [Config.SOURCE_MODE_MULTI_DRIVE, Config.SOURCE_MODE_MULTI_PATH]:
-        WINDOW_MIN_WIDTH += WINDOW_MULTI_SOURCE_EXTRA_WIDTH
 
     LOADING_SOURCE = False
     LOADING_DEST = False
@@ -3416,7 +3411,7 @@ if __name__ == '__main__':
     branding_version_text.SetForegroundColour(Color.FADED)
     controls_sizer.Add(branding_version_text, 0, wx.ALIGN_TOP | wx.TOP, 6)
     logo_image_path = resource_path('assets/img/logo_icon.png')
-    controls_sizer.Add(wx.StaticBitmap(main_frame.root_panel, -1, wx.Bitmap(wx.Image(logo_image_path, wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM)
+    controls_sizer.Add(wx.StaticBitmap(main_frame.root_panel, -1, wx.Bitmap(wx.Image(logo_image_path, wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM | wx.RIGHT, ITEM_UI_PADDING)
 
     # Status bar
     STATUS_BAR_PADDING = 8
