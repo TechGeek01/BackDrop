@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 4.0.1 - TBD
+## Added
+- Added progress bar for current file
+
 ## 4.0.0 - 2023-07-23
 ### Added
 - Added current working file during backup to status bar details

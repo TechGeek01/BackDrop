@@ -208,15 +208,21 @@ def display_backup_progress(copied: int, total: int, display_filename: str = Non
     # If display index has been specified, write progress to GUI
     if display_index is not None:
         if operation == Status.FILE_OPERATION_DELETE:
-            progress_bar.SetValue(backup.progress['current'])
+            progress_bar_master.SetValue(backup.progress['current'])
+            progress_bar_file.SetValue(copied)
+            progress_bar_file.SetRange(total)
             cmd_info_blocks[display_index].SetLabel('progress', label=f"Deleted {display_filename}")
             cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
         elif operation == Status.FILE_OPERATION_COPY:
-            progress_bar.SetValue(backup.progress['current'])
+            progress_bar_master.SetValue(backup.progress['current'])
+            progress_bar_file.SetValue(copied)
+            progress_bar_file.SetRange(total)
             cmd_info_blocks[display_index].SetLabel('progress', label=f"{percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}")
             cmd_info_blocks[display_index].SetForegroundColour('progress', Color.TEXT_DEFAULT)
         elif operation == Status.FILE_OPERATION_VERIFY:
-            progress_bar.SetValue(backup.progress['current'])
+            progress_bar_master.SetValue(backup.progress['current'])
+            progress_bar_file.SetValue(copied)
+            progress_bar_file.SetRange(total)
             cmd_info_blocks[display_index].SetLabel('progress', label=f"Verifying \u27f6 {percent_copied:.2f}% \u27f6 {human_filesize(copied)} of {human_filesize(total)}")
             cmd_info_blocks[display_index].SetForegroundColour('progress', Color.BLUE)
 
@@ -460,7 +466,7 @@ def start_backup_analysis():
     status_bar_error_count.SetForegroundColour(Color.FADED)
     status_bar_error_count.Layout()
     status_bar_sizer.Layout()
-    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
+    update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
 
     backup = Backup(
         config=config,
@@ -537,7 +543,7 @@ def load_source():
     global source_avail_drive_list
     global source_drive_default
 
-    progress_bar.StartIndeterminate()
+    progress_bar_master.StartIndeterminate()
 
     LOADING_SOURCE = True
 
@@ -604,7 +610,7 @@ def load_source():
 
     LOADING_SOURCE = False
 
-    progress_bar.StopIndeterminate()
+    progress_bar_master.StopIndeterminate()
 
 
 def load_source_in_background():
@@ -741,7 +747,7 @@ def update_source_size(item: int):
         start_analysis_btn.Enable()
         update_status_bar_selection()
 
-    progress_bar.StopIndeterminate()
+    progress_bar_master.StopIndeterminate()
 
 
 # IDEA: @Calculate total space of all @sources in background
@@ -758,7 +764,7 @@ def select_source():
     global backup
 
     if not backup or not backup.is_running():
-        progress_bar.StartIndeterminate()
+        progress_bar_master.StartIndeterminate()
 
         # If analysis was run, invalidate it
         reset_analysis_output()
@@ -827,7 +833,7 @@ def select_source():
         # Set current selection to previous selection var to be referenced next call
         prev_source_selection = selected
 
-        progress_bar.StopIndeterminate()
+        progress_bar_master.StopIndeterminate()
 
     else:
         # Temporarily unbind selection handlers so this function doesn't keep
@@ -852,7 +858,7 @@ def load_dest():
     global LOADING_DEST
     global dest_drive_master_list
 
-    progress_bar.StartIndeterminate()
+    progress_bar_master.StartIndeterminate()
 
     LOADING_DEST = True
 
@@ -1003,7 +1009,7 @@ def load_dest():
 
     LOADING_DEST = False
 
-    progress_bar.StopIndeterminate()
+    progress_bar_master.StopIndeterminate()
 
 
 def load_dest_in_background():
@@ -1199,7 +1205,7 @@ def select_dest():
 
         return
 
-    progress_bar.StartIndeterminate()
+    progress_bar_master.StartIndeterminate()
 
     # If analysis was run, invalidate it
     reset_analysis_output()
@@ -1277,7 +1283,7 @@ def select_dest():
 
     update_status_bar_selection()
 
-    progress_bar.StopIndeterminate()
+    progress_bar_master.StopIndeterminate()
 
 
 def start_backup():
@@ -1342,8 +1348,9 @@ def start_backup():
 
     update_ui_component(Status.UPDATEUI_BACKUP_START)
     update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, '')
-    progress_bar.SetValue(0)
-    progress_bar.SetRange(backup.progress['total'])
+    progress_bar_master.SetValue(0)
+    progress_bar_master.SetRange(backup.progress['total'])
+    progress_bar_file.SetValue(0)
 
     for cmd in backup.command_list:
         cmd_info_blocks[cmd['displayIndex']].state.SetLabel(label='Pending')
@@ -1470,7 +1477,7 @@ def verify_data_integrity(path_list: list):
 
     if not backup or not backup.is_running():
         update_status_bar_action(Status.VERIFICATION_RUNNING)
-        progress_bar.StartIndeterminate()
+        progress_bar_master.StartIndeterminate()
         status_bar_error_count.SetLabel(label='0 failed')
         status_bar_error_count.SetForegroundColour(Color.FADED)
         status_bar_error_count.Layout()
@@ -1557,7 +1564,7 @@ def verify_data_integrity(path_list: list):
                 for file, saved_hash in hash_list[drive].items():
                     filename = os.path.join(drive, file)
                     update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data=filename)
-                    computed_hash = get_file_hash(filename)
+                    computed_hash = get_file_hash(filename, get_backup_killflag)
 
                     if thread_manager.threadlist['Data Verification']['killFlag']:
                         break
@@ -1595,7 +1602,7 @@ def verify_data_integrity(path_list: list):
         verification_running = False
         halt_verification_btn.Disable()
 
-        progress_bar.StopIndeterminate()
+        progress_bar_master.StopIndeterminate()
         update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
         update_status_bar_action(Status.IDLE)
 
@@ -2643,9 +2650,9 @@ if __name__ == '__main__':
         backup_progress = backup.get_progress_updates()
 
         if backup.status == Status.BACKUP_ANALYSIS_RUNNING:
-            progress_bar.StartIndeterminate()
+            progress_bar_master.StartIndeterminate()
         else:
-            progress_bar.StopIndeterminate()
+            progress_bar_master.StopIndeterminate()
 
         # Update ETA timer
         update_backup_eta_timer(backup_progress)
@@ -2712,8 +2719,10 @@ if __name__ == '__main__':
             # FIXME: Progress bar jumps after completing backup, as though
             #     the progress or total changes when the backup completes
             # FIXME: Progress ranges too high cause integer overflows
-            progress_bar.SetRange(backup.progress['total'])
-            progress_bar.SetValue(backup.progress['current'])
+            progress_bar_master.SetRange(backup.progress['total'])
+            progress_bar_master.SetValue(backup.progress['current'])
+            progress_bar_file.SetValue(buffer['copied'])
+            progress_bar_file.SetRange(buffer['total'])
 
             filename = buffer['display_filename']
 
@@ -3394,9 +3403,11 @@ if __name__ == '__main__':
 
     progress_current_file = wx.StaticText(main_frame.root_panel, -1, label='', name='Progress current file detail text')
 
-    progress_bar = FancyProgressBar(parent=main_frame.root_panel, max_val=100)
-    progress_bar.SetRange(100)
-    progress_bar.BindThreadManager(thread_manager)
+    progress_bar_file = FancyProgressBar(parent=main_frame.root_panel, max_val=100)
+    progress_bar_file.BindThreadManager(thread_manager)
+
+    progress_bar_master = FancyProgressBar(parent=main_frame.root_panel, max_val=100)
+    progress_bar_master.BindThreadManager(thread_manager)
 
     play_icon = wx.Bitmap(wx.Image(resource_path('assets/icons/play.png')))
     pause_icon = wx.Bitmap(wx.Image(resource_path('assets/icons/pause.png')))
@@ -3454,6 +3465,8 @@ if __name__ == '__main__':
     root_sizer.Add(file_list_sizer, (0, 1), (2, 1), flag=wx.EXPAND)
     root_sizer.Add(controls_sizer, (2, 1), flag=wx.TOP | wx.BOTTOM | wx.EXPAND, border=ITEM_UI_PADDING)
     root_sizer.Add(progress_current_file, (3, 0), (1, 2), flag=wx.EXPAND)
+    root_sizer.Add(progress_bar_file, (4, 0), (1, 2), flag=wx.EXPAND)
+    root_sizer.Add(progress_bar_master, (5, 0), (1, 2), flag=wx.EXPAND | wx.TOP, border=2)
 
     root_sizer.AddGrowableRow(1)
     root_sizer.AddGrowableCol(1)
