@@ -231,6 +231,11 @@ def get_backup_killflag() -> bool:
     Returns:
         bool: The kill flag of the backup thread.
     """
+
+    # Backup is not defined or is not running
+    if not backup or not backup.is_running():
+        return False
+
     return thread_manager.threadlist['Backup']['killFlag']
 
 
