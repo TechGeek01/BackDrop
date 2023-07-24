@@ -3404,10 +3404,7 @@ if __name__ == '__main__':
     progress_current_file = wx.StaticText(main_frame.root_panel, -1, label='', name='Progress current file detail text')
 
     progress_bar_file = FancyProgressBar(parent=main_frame.root_panel, max_val=100)
-    progress_bar_file.BindThreadManager(thread_manager)
-
     progress_bar_master = FancyProgressBar(parent=main_frame.root_panel, max_val=100)
-    progress_bar_master.BindThreadManager(thread_manager)
 
     play_icon = wx.Bitmap(wx.Image(resource_path('assets/icons/play.png')))
     pause_icon = wx.Bitmap(wx.Image(resource_path('assets/icons/pause.png')))

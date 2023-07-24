@@ -175,6 +175,8 @@ class FancyProgressBar(wx.Panel):
         self._indeterminate_pos = 0
         self._indeterminate_step = 4
 
+        self._progress_threads = 0
+
         if self.value is None:
             self.value = 0
         if self.range is None:
@@ -225,20 +227,13 @@ class FancyProgressBar(wx.Panel):
 
         self.Refresh()
 
-    def BindThreadManager(self, thread_manager):
-        """Bind a ThreadManager instance to the progress bar.
-
-        Args:
-            thread_manager (ThreadManager): The ThreadManager to bind to.
-        """
-
-        self.__thread_manager = thread_manager
-
     def StartIndeterminate(self):
         """Start indeterminate mode."""
 
+        self._progress_threads += 1
+
         # No need to start if this isn't the first progress thread
-        if len(self.__thread_manager.get_progress_threads()) > 1:
+        if self._progress_threads > 1:
             return
 
         # If progress bar is already in indeterminate mode, no need to set it
@@ -251,8 +246,10 @@ class FancyProgressBar(wx.Panel):
     def StopIndeterminate(self):
         """Stop indeterminate mode."""
 
+        self._progress_threads -= 1
+
         # No need to stop if this isn't the only progress thread
-        if len(self.__thread_manager.get_progress_threads()) > 1:
+        if self._progress_threads > 1:
             return
 
         # If progress bar is already in determinate mode, no need to set it
@@ -307,22 +304,17 @@ class ProgressBar(wx.Gauge):
         self.range = None
         self.is_indeterminate = False
 
+        self._progress_threads = 0
+
         wx.Gauge.__init__(self, parent, *args, **kwargs)
-
-    def BindThreadManager(self, thread_manager):
-        """Bind a ThreadManager instance to the progress bar.
-
-        Args:
-            thread_manager (ThreadManager): The ThreadManager to bind to.
-        """
-
-        self.__thread_manager = thread_manager
 
     def StartIndeterminate(self):
         """Start indeterminate mode."""
 
+        self._progress_threads += 1
+
         # No need to start if this isn't the first progress thread
-        if len(self.__thread_manager.get_progress_threads()) > 1:
+        if self._progress_threads > 1:
             return
 
         # If progress bar is already in indeterminate mode, no need to set it
@@ -336,8 +328,10 @@ class ProgressBar(wx.Gauge):
     def StopIndeterminate(self):
         """Stop indeterminate mode."""
 
+        self._progress_threads -= 1
+
         # No need to stop if this isn't the only progress thread
-        if len(self.__thread_manager.get_progress_threads()) > 1:
+        if self._progress_threads > 1:
             return
 
         # If progress bar is already in determinate mode, no need to set it
