@@ -16,6 +16,7 @@ class Color:
     RED = wx.Colour(0xcc, 0x00, 0x00)
     GRAY = wx.Colour(0x66, 0x66, 0x66)
 
+    BRAND_COLOR = wx.Colour(0x9e, 0xcf, 0x00)
     COLORACCENT = GREEN
 
     TEXT_DEFAULT = WHITE
@@ -39,6 +40,7 @@ class Color:
 
     BACKGROUND = wx.Colour(0x2d, 0x2d, 0x2a)
     WIDGET_COLOR = wx.Colour(0x39, 0x39, 0x37)
+    PROGRESS_BAR_BG_COLOR = wx.Colour(0x44, 0x44, 0x42)
     STATUS_BAR = wx.Colour(0x48, 0x48, 0x43)
 
 
@@ -150,6 +152,145 @@ class ModalWindow(RootWindow):
 
         self.parent.Disable()
         self.Show()
+
+
+class FancyProgressBar(wx.Panel):
+    def __init__(self, parent=None, value: int = None, max_val: int = None, height: int = None, color: wx.Colour = None, *args, **kwargs):
+        """Create a progress bar.
+
+        Args:
+            parent: The parent of the progress bar.
+            value (int): The value to set the progress to (optional).
+            
+            color (wx.Colour): The color of the progress bar (optional).
+        """
+
+        self.parent = parent
+        self.value = value
+        self.range = max_val
+        self.height = height
+        self.color = color
+        self._indeterminate = False
+        self._indeterminate_width = 100
+        self._indeterminate_pos = 0
+        self._indeterminate_step = 4
+
+        if self.value is None:
+            self.value = 0
+        if self.range is None:
+            self.range = 10000
+        if self.height is None:
+            self.height = 6
+        if self.color is None:
+            self.color = Color.BRAND_COLOR
+
+        wx.Panel.__init__(self, parent, size=(-1, self.height), *args, **kwargs)
+
+        self.SetBackgroundColour(Color.PROGRESS_BAR_BG_COLOR)
+
+        self._timer = wx.Timer(self)
+
+        self.Bind(wx.EVT_PAINT, self.on_paint)
+        self.Bind(wx.EVT_TIMER, self.update_indeterminate)
+
+    def on_paint(self, event):
+        dc = wx.BufferedPaintDC(self)
+        self.draw(dc)
+
+    def draw(self, dc):
+        dc.SetBackground(wx.Brush(self.GetBackgroundColour()))
+        dc.Clear()
+
+        if not self._indeterminate:
+            progress_width = int(self.GetSize().GetWidth() * self.value / self.range)
+            if progress_width > 0:
+                dc.SetBrush(wx.Brush(self.color))
+                dc.DrawRectangle(0, 0, progress_width, self.height)
+        else:
+            dc.SetBrush(wx.Brush(self.color))
+            dc.DrawRectangle(self._indeterminate_pos, 0, self._indeterminate_width, self.height)
+
+    def update_indeterminate(self, event):
+        self._indeterminate_pos += self._indeterminate_step
+
+        # If bar is all the way to the right, change direction
+        if self._indeterminate_pos + self._indeterminate_width >= self.GetSize().GetWidth():
+            self._indeterminate_pos = self.GetSize().GetWidth() - self._indeterminate_width
+            self._indeterminate_step = -4
+
+        # If bar is all the way to the left, change direction
+        if self._indeterminate_pos <= 0:
+            self._indeterminate_pos = 0
+            self._indeterminate_step = 4
+
+        self.Refresh()
+
+    def BindThreadManager(self, thread_manager):
+        """Bind a ThreadManager instance to the progress bar.
+
+        Args:
+            thread_manager (ThreadManager): The ThreadManager to bind to.
+        """
+
+        self.__thread_manager = thread_manager
+
+    def StartIndeterminate(self):
+        """Start indeterminate mode."""
+
+        # No need to start if this isn't the first progress thread
+        if len(self.__thread_manager.get_progress_threads()) > 1:
+            return
+
+        # If progress bar is already in indeterminate mode, no need to set it
+        if self._indeterminate:
+            return
+
+        self._timer.Start(1)
+        self._indeterminate = True
+
+    def StopIndeterminate(self):
+        """Stop indeterminate mode."""
+
+        # No need to stop if this isn't the only progress thread
+        if len(self.__thread_manager.get_progress_threads()) > 1:
+            return
+
+        # If progress bar is already in determinate mode, no need to set it
+        if not self._indeterminate:
+            return
+
+        self._indeterminate = False
+        self._timer.Stop()
+        self.Refresh()
+
+    def SetRange(self, value):
+        """Set the max value of the progress bar.
+
+        Args:
+            value (int): The maximum value to use.
+        """
+
+        self.range = value
+        self.Refresh()
+
+    def SetValue(self, value):
+        """Set the current value of the progress bar.
+
+        Args:
+            value (int): The value to use.
+        """
+
+        self.value = value
+        self.Refresh()
+
+    def SetForegroundColour(self, value):
+        """Set the color of the progress bar.
+
+        Args:
+            value (int): The value to use.
+        """
+
+        self.color = value
 
 
 class ProgressBar(wx.Gauge):

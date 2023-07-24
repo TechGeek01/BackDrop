@@ -35,7 +35,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, ProgressBar, DetailBlock, BackupDetailBlock, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, FancyProgressBar, DetailBlock, BackupDetailBlock, resource_path
 from bin.status import Status
 
 
@@ -3388,7 +3388,7 @@ if __name__ == '__main__':
     file_list_sizer.Add(file_details_failed_header_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
     file_list_sizer.Add(file_details_failed_panel, 1, wx.EXPAND)
 
-    progress_bar = ProgressBar(main_frame.root_panel, style=wx.GA_SMOOTH | wx.GA_PROGRESS)
+    progress_bar = FancyProgressBar(parent=main_frame.root_panel, max_val=100)
     progress_bar.SetRange(100)
     progress_bar.BindThreadManager(thread_manager)
 
