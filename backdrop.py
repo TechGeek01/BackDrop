@@ -1306,7 +1306,7 @@ def start_backup():
     status_bar_error_count.SetForegroundColour(Color.FADED)
     status_bar_error_count.Layout()
     status_bar_sizer.Layout()
-    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
+    update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
 
     # Reset file detail success and fail lists
     for list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
@@ -1341,7 +1341,7 @@ def start_backup():
         return
 
     update_ui_component(Status.UPDATEUI_BACKUP_START)
-    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, '')
+    update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, '')
     progress_bar.SetValue(0)
     progress_bar.SetRange(backup.progress['total'])
 
@@ -1416,7 +1416,7 @@ def verify_data_integrity(path_list: list):
                 path_stub = entry.path.split(drive)[1].strip(os.path.sep)
                 if entry.is_file():
                     # If entry is a file, hash it, and check for a computed hash
-                    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data=entry.path)
+                    update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data=entry.path)
 
                     file_hash = get_file_hash(entry.path, lambda: thread_manager.threadlist['Data Verification']['killFlag'])
 
@@ -1476,7 +1476,7 @@ def verify_data_integrity(path_list: list):
         status_bar_error_count.Layout()
         status_bar_sizer.Layout()
 
-        update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
+        update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
 
         halt_verification_btn.Enable()
 
@@ -1556,7 +1556,7 @@ def verify_data_integrity(path_list: list):
                 drive_hash_file_path = os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_HASH_FILE)
                 for file, saved_hash in hash_list[drive].items():
                     filename = os.path.join(drive, file)
-                    update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data=filename)
+                    update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data=filename)
                     computed_hash = get_file_hash(filename)
 
                     if thread_manager.threadlist['Data Verification']['killFlag']:
@@ -1596,7 +1596,7 @@ def verify_data_integrity(path_list: list):
         halt_verification_btn.Disable()
 
         progress_bar.StopIndeterminate()
-        update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, data='')
+        update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
         update_status_bar_action(Status.IDLE)
 
 
@@ -2039,10 +2039,9 @@ if __name__ == '__main__':
             controls_sizer.Layout()
         elif status == Status.UPDATEUI_STATUS_BAR:
             update_status_bar_action(data)
-        elif status == Status.UPDATEUI_STATUS_BAR_DETAILS:
-            status_bar_details.SetLabel(label=data)
-            status_bar_details.Layout()
-            status_bar_sizer.Layout()
+        elif status == Status.UPDATEUI_CURRENT_FILE_DETAILS:
+            progress_current_file.SetLabel(label=data)
+            progress_current_file.Layout()
 
     def open_config_file():
         """Open a config file and load it."""
@@ -2695,7 +2694,7 @@ if __name__ == '__main__':
             backup.progress['command_display_index'] = None
 
         # Update status bar
-        update_ui_component(Status.UPDATEUI_STATUS_BAR_DETAILS, filename if filename is not None else '')
+        update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, filename if filename is not None else '')
 
         # Update copied files
         buffer = backup_progress['total']['buffer']
@@ -3393,6 +3392,8 @@ if __name__ == '__main__':
     file_list_sizer.Add(file_details_failed_header_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
     file_list_sizer.Add(file_details_failed_panel, 1, wx.EXPAND)
 
+    progress_current_file = wx.StaticText(main_frame.root_panel, -1, label='', name='Progress current file detail text')
+
     progress_bar = FancyProgressBar(parent=main_frame.root_panel, max_val=100)
     progress_bar.SetRange(100)
     progress_bar.BindThreadManager(thread_manager)
@@ -3436,8 +3437,6 @@ if __name__ == '__main__':
     status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')
     status_bar_error_count.SetForegroundColour(Color.FADED)
     status_bar_sizer.Add(status_bar_error_count, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
-    status_bar_details = wx.StaticText(status_bar, -1, label='', name='Status bar detail item')
-    status_bar_sizer.Add(status_bar_details, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     status_bar_sizer.Add((-1, -1), 1, wx.EXPAND)
     if PORTABLE_MODE:
         status_bar_portable_mode = wx.StaticText(status_bar, -1, label='Portable mode')
@@ -3454,7 +3453,7 @@ if __name__ == '__main__':
     root_sizer.Add(summary_sizer, (1, 0), (2, 1), flag=wx.EXPAND)
     root_sizer.Add(file_list_sizer, (0, 1), (2, 1), flag=wx.EXPAND)
     root_sizer.Add(controls_sizer, (2, 1), flag=wx.TOP | wx.BOTTOM | wx.EXPAND, border=ITEM_UI_PADDING)
-    root_sizer.Add(progress_bar, (3, 0), (1, 2), flag=wx.EXPAND)
+    root_sizer.Add(progress_current_file, (3, 0), (1, 2), flag=wx.EXPAND)
 
     root_sizer.AddGrowableRow(1)
     root_sizer.AddGrowableCol(1)
