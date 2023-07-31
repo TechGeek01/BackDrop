@@ -425,7 +425,7 @@ class Backup:
                 source_info = {source: size for (source, size) in source_info.items() if source not in sources_that_fit_on_dest}
 
                 # Subtract file size of each batch of files from the free space on the drive so the next batch sorts properly
-                processed_source_size += sum((source[1] for source in small_source_list if source[0] in largest_set))
+                processed_source_size += sum((size for (source, size) in small_source_list.items() if source in largest_set))
 
             if self.analysis_killed:
                 break
