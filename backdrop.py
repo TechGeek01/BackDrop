@@ -2641,8 +2641,12 @@ if __name__ == '__main__':
         
         post_event(evt_type=EVT_BACKUP_TIMER)
 
+    PREV_BACKUP_UI_STATUS = None
+
     def update_ui_during_backup():
         """Update the user interface using the event sent via a RepeatedTimer."""
+
+        global PREV_BACKUP_UI_STATUS
 
         if not backup:
             return
@@ -2650,9 +2654,15 @@ if __name__ == '__main__':
         backup_progress = backup.get_progress_updates()
 
         if backup.status == Status.BACKUP_ANALYSIS_RUNNING:
-            progress_bar_master.StartIndeterminate()
+            if PREV_BACKUP_UI_STATUS != Status.BACKUP_ANALYSIS_RUNNING:
+                progress_bar_master.StartIndeterminate()
+
+            PREV_BACKUP_UI_STATUS = Status.BACKUP_ANALYSIS_RUNNING
         else:
-            progress_bar_master.StopIndeterminate()
+            if PREV_BACKUP_UI_STATUS == Status.BACKUP_ANALYSIS_RUNNING:
+                progress_bar_master.StopIndeterminate()
+
+            PREV_BACKUP_UI_STATUS = None
 
         # Update ETA timer
         update_backup_eta_timer(backup_progress)
