@@ -497,6 +497,11 @@ class Backup:
                     if entry.is_file():
                         new_dir_size = entry.stat().st_size
                     elif entry.is_dir():
+                        filename = entry.path[len(source_path):].strip(os.path.sep)
+
+                        if filename in self.SPECIAL_IGNORE_LIST:
+                            continue
+
                         new_dir_size = get_directory_size(entry.path)
 
                     filename = entry.path[len(source_path):].strip(os.path.sep)
@@ -811,6 +816,11 @@ class Backup:
                     source_file_list = os.scandir(source_path)
                     for entry in source_file_list:
                         stub_path = entry.path[source_path_len:].strip(os.path.sep)
+
+                        # Skip over the config folder, and OS special folders
+                        if stub_path in self.SPECIAL_IGNORE_LIST:
+                            continue
+
                         exclusion_stub_path = os.path.join(source, stub_path)
 
                         # Skip over any exclusions
