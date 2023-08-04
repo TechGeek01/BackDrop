@@ -588,7 +588,7 @@ def load_source():
         elif selected_source_mode == Config.SOURCE_MODE_MULTI_DRIVE:
             # Enumerate list of paths in source
             for drive in source_avail_drive_list:
-                drive_name = prefs.get('source_names', drive, default='')
+                drive_name = prefs.get('source_names', drive, default=drive.split(':')[0])
                 source_tree.Append((drive, drive_name, 'Unknown', 0))
         elif selected_source_mode == Config.SOURCE_MODE_SINGLE_PATH:
             if config['source_path'] and os.path.isdir(config['source_path']):
