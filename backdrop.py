@@ -543,7 +543,7 @@ def load_source():
     global source_avail_drive_list
     global source_drive_default
 
-    progress_bar_master.StartIndeterminate()
+    post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
 
     LOADING_SOURCE = True
 
@@ -610,7 +610,7 @@ def load_source():
 
     LOADING_SOURCE = False
 
-    progress_bar_master.StopIndeterminate()
+    post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
 
 
 def load_source_in_background():
@@ -769,7 +769,7 @@ def update_source_size(item: int):
         start_analysis_btn.Enable()
         update_status_bar_selection()
 
-    progress_bar_master.StopIndeterminate()
+    post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
 
 
 # IDEA: @Calculate total space of all @sources in background
@@ -786,7 +786,7 @@ def select_source():
     global backup
 
     if not backup or not backup.is_running():
-        progress_bar_master.StartIndeterminate()
+        post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
 
         # If analysis was run, invalidate it
         reset_analysis_output()
@@ -855,7 +855,7 @@ def select_source():
         # Set current selection to previous selection var to be referenced next call
         prev_source_selection = selected
 
-        progress_bar_master.StopIndeterminate()
+        post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
 
     else:
         # Temporarily unbind selection handlers so this function doesn't keep
@@ -901,7 +901,7 @@ def load_dest():
     global LOADING_DEST
     global dest_drive_master_list
 
-    progress_bar_master.StartIndeterminate()
+    post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
 
     LOADING_DEST = True
 
@@ -1050,7 +1050,7 @@ def load_dest():
     post_event(evt_type=EVT_UPDATE_DEST_META_TOTAL, data=total_drive_space_available)
 
     LOADING_DEST = False
-    progress_bar_master.StopIndeterminate()
+    post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
 
 
 def load_dest_in_background():
@@ -1246,7 +1246,7 @@ def select_dest():
 
         return
 
-    progress_bar_master.StartIndeterminate()
+    post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
 
     # If analysis was run, invalidate it
     reset_analysis_output()
@@ -1324,7 +1324,7 @@ def select_dest():
 
     update_status_bar_selection()
 
-    progress_bar_master.StopIndeterminate()
+    post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
 
 
 def start_backup():
@@ -1518,7 +1518,7 @@ def verify_data_integrity(path_list: list):
 
     if not backup or not backup.is_running():
         update_status_bar_action(Status.VERIFICATION_RUNNING)
-        progress_bar_master.StartIndeterminate()
+        post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
         status_bar_error_count.SetLabel(label='0 failed')
         status_bar_error_count.SetForegroundColour(Color.FADED)
         status_bar_error_count.Layout()
@@ -1643,7 +1643,7 @@ def verify_data_integrity(path_list: list):
         verification_running = False
         halt_verification_btn.Disable()
 
-        progress_bar_master.StopIndeterminate()
+        post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
         update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
         update_status_bar_action(Status.IDLE)
 
@@ -2301,7 +2301,7 @@ if __name__ == '__main__':
 
             thread_manager.start(ThreadManager.KILLABLE, target=lambda: request_add_source_to_tree(dir_name), name='Browse for source', daemon=True)
 
-    def request_add_dest_to_tree(dir_name):
+    def request_add_dest_to_tree(dir_name: str):
         """Request to add a destination to the tree.
 
         Args:
@@ -2725,12 +2725,12 @@ if __name__ == '__main__':
 
         if backup.status == Status.BACKUP_ANALYSIS_RUNNING:
             if PREV_BACKUP_UI_STATUS != Status.BACKUP_ANALYSIS_RUNNING:
-                progress_bar_master.StartIndeterminate()
+                post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
 
             PREV_BACKUP_UI_STATUS = Status.BACKUP_ANALYSIS_RUNNING
         else:
             if PREV_BACKUP_UI_STATUS == Status.BACKUP_ANALYSIS_RUNNING:
-                progress_bar_master.StopIndeterminate()
+                post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
 
             PREV_BACKUP_UI_STATUS = None
 
