@@ -688,6 +688,33 @@ def update_source_meta_control_label(label: str):
     source_src_control_sizer.Layout()
 
 
+def update_source_meta_selected_label(label: str):
+    """Update the source selected space label string.
+
+    Args:
+        label (String): The label to set.
+    """
+
+    source_selected_space.SetLabel(human_filesize(label))
+    source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if label > 0 else Color.FADED)
+    source_src_selection_info_sizer.Layout()
+    source_src_sizer.Layout()
+
+
+def update_source_meta_total_space(label: str, color: wx.Colour):
+    """Update the source selected space label string.
+
+    Args:
+        label (String): The label to set.
+        color (wx.Colour): The color to set the text to.
+    """
+
+    source_total_space.SetLabel(label)
+    source_total_space.SetForegroundColour(color)
+    source_src_selection_info_sizer.Layout()
+    source_src_sizer.Layout()
+
+
 def update_source_size(item: int):
     """Update source info for a given source.
 
@@ -742,20 +769,19 @@ def update_source_size(item: int):
 
         selected_item = source_tree.GetNextSelected(selected_item)
 
-    source_selected_space.SetLabel(human_filesize(selected_total))
-    source_selected_space.SetForegroundColour(Color.TEXT_DEFAULT if selected_total > 0 else Color.FADED)
-    source_src_selection_info_sizer.Layout()
-    source_src_sizer.Layout()
+    post_event(evt_type=EVT_UPDATE_SOURCE_META_SELECTED_LABEL, data=selected_total)
     config['sources'] = selected_source_list
 
     source_total = sum([int(source_tree.GetItem(item, SOURCE_COL_RAWSIZE).GetText()) for item in range(source_tree.GetItemCount())])
     human_size_list = [source_tree.GetItem(item, SOURCE_COL_SIZE).GetText() for item in range(source_tree.GetItemCount())]
 
     # Recalculate and display the selected total
-    source_total_space.SetLabel(f'{"~" if "Unknown" in human_size_list else ""}{human_filesize(source_total)}')
-    source_total_space.SetForegroundColour(Color.TEXT_DEFAULT if source_total > 0 else Color.FADED)
-    source_src_selection_info_sizer.Layout()
-    source_src_sizer.Layout()
+    event = wx.PyEvent()
+    event.SetEventType(EVT_UPDATE_SOURCE_META_TOTAL)
+    event.label = f'{"~" if "Unknown" in human_size_list else ""}{human_filesize(source_total)}'
+    event.color = Color.TEXT_DEFAULT if source_total > 0 else Color.FADED
+
+    wx.PostEvent(main_frame, event)
 
     # If everything's calculated, enable analysis button to be clicked
     selected_source_list = []
@@ -3753,7 +3779,9 @@ if __name__ == '__main__':
     # PyEvent bindings
     EVT_REQUEST_LOAD_SOURCE = wx.NewEventType()
     EVT_UPDATE_SOURCE_SIZE = wx.NewEventType()
+    EVT_UPDATE_SOURCE_META_SELECTED_LABEL = wx.NewEventType()
     EVT_UPDATE_SOURCE_META_CONTROL_LABEL = wx.NewEventType()
+    EVT_UPDATE_SOURCE_META_TOTAL = wx.NewEventType()
     EVT_SELECT_SOURCE = wx.NewEventType()
     EVT_ADD_SOURCE_TO_TREE = wx.NewEventType()
     EVT_ADD_DEST_TO_TREE = wx.NewEventType()
@@ -3770,7 +3798,9 @@ if __name__ == '__main__':
     EVT_PROGRESS_MASTER_STOP_INDETERMINATE = wx.NewEventType()
     main_frame.Connect(-1, -1, EVT_REQUEST_LOAD_SOURCE, lambda e: load_source())
     main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_SIZE, lambda e: update_source_size(e.data))
+    main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_META_SELECTED_LABEL, lambda e: update_source_meta_selected_label(e.data))
     main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_META_CONTROL_LABEL, lambda e: update_source_meta_control_label(e.data))
+    main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_META_TOTAL, lambda e: update_source_meta_total_space(label=e.label, color=e.color))
     main_frame.Connect(-1, -1, EVT_SELECT_SOURCE, lambda e: select_source())
     main_frame.Connect(-1, -1, EVT_ADD_SOURCE_TO_TREE, lambda e: add_source_to_tree(e.data))
     main_frame.Connect(-1, -1, EVT_ADD_DEST_TO_TREE, lambda e: add_dest_to_tree(e.data))
