@@ -35,7 +35,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, FancyProgressBar, DetailBlock, BackupDetailBlock, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, FancyProgressBar, InlineLabel, DetailBlock, BackupDetailBlock, resource_path
 from bin.status import Status
 
 
@@ -555,8 +555,10 @@ def load_source():
     if settings_source_mode in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH] or source_avail_drive_list:
         # Display empty selection sizes
         source_selected_space.SetLabel('None')
-        source_total_space.SetLabel('~None')
+        source_selected_space.SetForegroundColour(Color.FADED)
         source_selected_space.Layout()
+        source_total_space.SetLabel('~None')
+        source_total_space.SetForegroundColour(Color.FADED)
         source_total_space.Layout()
         source_dest_selection_info_sizer.Layout()
 
@@ -3270,15 +3272,11 @@ if __name__ == '__main__':
     source_warning_panel.sizer.Add(wx.StaticText(source_warning_panel, -1, label='No source drives are available'), 0, wx.ALIGN_CENTER)
 
     source_src_selection_info_sizer = wx.BoxSizer()
-    source_src_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Selected:', name='Source meta selected label'), 0, wx.ALIGN_CENTER_VERTICAL)
-    source_selected_space = wx.StaticText(main_frame.root_panel, -1, label='None', name='Source meta selected value')
-    source_selected_space.SetForegroundColour(Color.FADED)
-    source_src_selection_info_sizer.Add(source_selected_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+    source_selected_space = InlineLabel(main_frame.root_panel, label='Selected', value='None', value_color=Color.FADED, name='Source meta selected')
+    source_src_selection_info_sizer.Add(source_selected_space, 0, wx.ALIGN_CENTER_VERTICAL)
     source_src_selection_info_sizer.Add((20, -1), 1, wx.EXPAND)
-    source_src_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Total:', name='Source meta total label'), 0, wx.ALIGN_CENTER_VERTICAL)
-    source_total_space = wx.StaticText(main_frame.root_panel, -1, label='~None', name='Source meta total value')
-    source_total_space.SetForegroundColour(Color.FADED)
-    source_src_selection_info_sizer.Add(source_total_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+    source_total_space = InlineLabel(main_frame.root_panel, label='Total', value='~None', value_color=Color.FADED, name='Source meta total')
+    source_src_selection_info_sizer.Add(source_total_space, 0, wx.ALIGN_CENTER_VERTICAL)
     spacer_button = wx.Button(main_frame.root_panel, -1, label='', size=(0, -1), name='Spacer dummy button')
     spacer_button.Disable()
     source_src_selection_info_sizer.Add(spacer_button, 0, wx.ALIGN_CENTER_VERTICAL)
@@ -3344,20 +3342,14 @@ if __name__ == '__main__':
 
     source_dest_selection_info_sizer = wx.BoxSizer()
     source_dest_selection_info_sizer.Add((-1, -1), 1, wx.EXPAND)
-    source_dest_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Config:', name='Destination meta config label'), 0, wx.ALIGN_CENTER_VERTICAL)
-    config_selected_space = wx.StaticText(main_frame.root_panel, -1, label='None', name='Destination meta config value')
-    config_selected_space.SetForegroundColour(Color.FADED)
-    source_dest_selection_info_sizer.Add(config_selected_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+    config_selected_space = InlineLabel(main_frame.root_panel, label='Config', value='None', value_color=Color.FADED, name='Destination meta config')
+    source_dest_selection_info_sizer.Add(config_selected_space, 0, wx.ALIGN_CENTER_VERTICAL)
     source_dest_selection_info_sizer.Add((20, -1), 0)
-    source_dest_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Selected:', name='Destination meta selected label'), 0, wx.ALIGN_CENTER_VERTICAL)
-    dest_selected_space = wx.StaticText(main_frame.root_panel, -1, label='None', name='Destination meta selected value')
-    dest_selected_space.SetForegroundColour(Color.FADED)
-    source_dest_selection_info_sizer.Add(dest_selected_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+    dest_selected_space = InlineLabel(main_frame.root_panel, label='Selected', value='None', value_color=Color.FADED, name='Destination meta selected')
+    source_dest_selection_info_sizer.Add(dest_selected_space, 0, wx.ALIGN_CENTER_VERTICAL)
     source_dest_selection_info_sizer.Add((20, -1), 0)
-    source_dest_selection_info_sizer.Add(wx.StaticText(main_frame.root_panel, -1, label='Avail:', name='Destination meta available label'), 0, wx.ALIGN_CENTER_VERTICAL)
-    dest_total_space = wx.StaticText(main_frame.root_panel, -1, label=human_filesize(0), name='Destination meta available value')
-    dest_total_space.SetForegroundColour(Color.FADED)
-    source_dest_selection_info_sizer.Add(dest_total_space, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+    dest_total_space = InlineLabel(main_frame.root_panel, label='Avail', value=human_filesize(0), value_color=Color.FADED, name='Destination meta available')
+    source_dest_selection_info_sizer.Add(dest_total_space, 0, wx.ALIGN_CENTER_VERTICAL)
     source_dest_selection_info_sizer.Add((-1, -1), 1, wx.EXPAND)
     split_mode_status = wx.StaticText(main_frame.root_panel, -1, label='', name='Split mode toggle status')
     update_split_mode_label()

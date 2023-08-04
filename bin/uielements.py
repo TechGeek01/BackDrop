@@ -382,6 +382,60 @@ class WarningPanel(wx.Panel):
         self.box.Add((-1, -1), 1)
 
 
+class InlineLabel(wx.BoxSizer):
+    def __init__(self, parent, label: str, value: str, color=None, value_color=None, name: str = 'InlineLabel', *args, **kwargs):
+        """Create an inline label with both a label and content.
+
+        Args:
+            parent: The parent widget.
+            label (String): The label text to display.
+            value (String): The value text for the label.
+            color (wx.Colour): The color for the label (optional).
+            value_color (wx.Colour): The color for the value (optional).
+            name (String): The name to use for the StaticText items.
+        """
+
+        if color is None:
+            color = Color.TEXT_DEFAULT
+        if value_color is None:
+            value_color = Color.TEXT_DEFAULT
+
+        wx.BoxSizer.__init__(self, *args, **kwargs)
+
+        self.parent = parent
+
+        self.color = color
+        self.value_color = value_color
+
+        self.label = wx.StaticText(self.parent, -1, label=f'{label}: ', name=f'{name} label')
+        self.value = wx.StaticText(self.parent, -1, label=value, name=f'{name} value')
+        self.Add(self.label, 0, wx.ALIGN_CENTER_VERTICAL)
+        self.Add(self.value, 0, wx.ALIGN_CENTER_VERTICAL)
+        self.label.SetForegroundColour(self.color)
+        self.value.SetForegroundColour(self.value_color)
+
+    def SetLabel(self, label: str):
+        """Set the label for the value of the InlineLabel.
+
+        Args:
+            label (String): The label to set.
+        """
+
+        self.value.SetLabel(label=label)
+        self.value.Layout()
+        self.Layout()
+        self.parent.Layout()
+
+    def SetForegroundColour(self, color: str):
+        """Set the color for the value of the InlineLabel.
+
+        Args:
+            color (String): The color to set.
+        """
+
+        self.value.SetForegroundColour(color)
+
+
 class DetailBlock(wx.BoxSizer):
     TITLE = 'title'
     CONTENT = 'content'
