@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## Added
 - Added progress bar for current file
 
+## Fixed
+- Fixed loading source and destination custom paths causing UI to hang
+
 ## 4.0.0 - 2023-07-23
 ### Added
 - Added current working file during backup to status bar details

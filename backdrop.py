@@ -666,6 +666,28 @@ def reset_analysis_output():
     summary_summary_box.Layout()
 
 
+def add_source_to_tree(data):
+    """Add a source to the source tree.
+
+    Args:
+        data (tuple): The data to add.
+    """
+
+    source_tree.Append(data)
+
+
+def update_source_meta_control_label(label: str):
+    """Update the source control label string.
+
+    Args:
+        label (String): The label to set.
+    """
+
+    source_src_control_label.SetLabel(label=label)
+    source_src_control_label.Layout()
+    source_src_control_sizer.Layout()
+
+
 def update_source_size(item: int):
     """Update source info for a given source.
 
@@ -2220,10 +2242,55 @@ if __name__ == '__main__':
 
         backup_error_log_frame.ShowModal()
 
-    def browse_for_source():
-        """Browse for a source path, and either make it the source, or add to the list."""
+    def request_add_source_to_tree(dir_name: str):
+        """Request to add a source to the tree.
+
+        Args:
+            dir_name (String): The directory name to add.
+        """
 
         global last_selected_custom_source
+
+        post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
+
+        dir_name = os.path.sep.join(dir_name.split('/'))
+        if not dir_name:
+            return
+
+        if settings_source_mode == Config.SOURCE_MODE_SINGLE_PATH:
+            post_event(evt_type=EVT_UPDATE_SOURCE_META_CONTROL_LABEL, data=dir_name)
+            config['source_path'] = dir_name
+
+            # Log last selection to preferences
+            last_selected_custom_source = dir_name
+            prefs.set('selection', 'last_selected_custom_source', dir_name)
+
+            load_source_in_background()
+        elif settings_source_mode == Config.SOURCE_MODE_MULTI_PATH:
+            # Get list of paths already in tree
+            existing_path_list = [source_tree.GetItem(item, SOURCE_COL_PATH).GetText() for item in range(source_tree.GetItemCount())]
+
+            # Only add item to list if it's not already there
+            if dir_name not in existing_path_list:
+                # Log last selection to preferences
+                last_selected_custom_source = dir_name
+                prefs.set('selection', 'last_selected_custom_source', dir_name)
+
+                # Custom multi-source isn't stored in preferences, so default to
+                # dir name
+                path_name = dir_name.split(os.path.sep)[-1]
+
+                post_event(evt_type=EVT_ADD_SOURCE_TO_TREE, data=(
+                    dir_name,
+                    path_name,
+                    'Unknown',
+                    0)
+                )
+
+        post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
+
+    def browse_for_source():
+        """Browse for a source path, and either make it the source, or add to the list."""
 
         with wx.DirDialog(main_frame, 'Select source folder', style=wx.DD_DEFAULT_STYLE) as dir_dialog:
             # User changed their mind
@@ -2232,36 +2299,7 @@ if __name__ == '__main__':
 
             dir_name = dir_dialog.GetPath()
 
-            dir_name = os.path.sep.join(dir_name.split('/'))
-            if not dir_name:
-                return
-
-            if settings_source_mode == Config.SOURCE_MODE_SINGLE_PATH:
-                source_src_control_label.SetLabel(label=dir_name)
-                source_src_control_label.Layout()
-                source_src_control_sizer.Layout()
-                config['source_path'] = dir_name
-
-                # Log last selection to preferences
-                last_selected_custom_source = dir_name
-                prefs.set('selection', 'last_selected_custom_source', dir_name)
-
-                load_source_in_background()
-            elif settings_source_mode == Config.SOURCE_MODE_MULTI_PATH:
-                # Get list of paths already in tree
-                existing_path_list = [source_tree.GetItem(item, SOURCE_COL_PATH).GetText() for item in range(source_tree.GetItemCount())]
-
-                # Only add item to list if it's not already there
-                if dir_name not in existing_path_list:
-                    # Log last selection to preferences
-                    last_selected_custom_source = dir_name
-                    prefs.set('selection', 'last_selected_custom_source', dir_name)
-
-                    # Custom multi-source isn't stored in preferences, so default to
-                    # dir name
-                    path_name = dir_name.split(os.path.sep)[-1]
-
-                    source_tree.Append((dir_name, path_name, 'Unknown', 0))
+            thread_manager.start(ThreadManager.KILLABLE, target=lambda: request_add_source_to_tree(dir_name), name='Browse for source', daemon=True)
 
     def request_add_dest_to_tree(dir_name):
         """Request to add a destination to the tree.
@@ -3715,7 +3753,9 @@ if __name__ == '__main__':
     # PyEvent bindings
     EVT_REQUEST_LOAD_SOURCE = wx.NewEventType()
     EVT_UPDATE_SOURCE_SIZE = wx.NewEventType()
+    EVT_UPDATE_SOURCE_META_CONTROL_LABEL = wx.NewEventType()
     EVT_SELECT_SOURCE = wx.NewEventType()
+    EVT_ADD_SOURCE_TO_TREE = wx.NewEventType()
     EVT_ADD_DEST_TO_TREE = wx.NewEventType()
     EVT_UPDATE_DEST_META_TOTAL = wx.NewEventType()
     EVT_SELECT_DEST = wx.NewEventType()
@@ -3730,7 +3770,9 @@ if __name__ == '__main__':
     EVT_PROGRESS_MASTER_STOP_INDETERMINATE = wx.NewEventType()
     main_frame.Connect(-1, -1, EVT_REQUEST_LOAD_SOURCE, lambda e: load_source())
     main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_SIZE, lambda e: update_source_size(e.data))
+    main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_META_CONTROL_LABEL, lambda e: update_source_meta_control_label(e.data))
     main_frame.Connect(-1, -1, EVT_SELECT_SOURCE, lambda e: select_source())
+    main_frame.Connect(-1, -1, EVT_ADD_SOURCE_TO_TREE, lambda e: add_source_to_tree(e.data))
     main_frame.Connect(-1, -1, EVT_ADD_DEST_TO_TREE, lambda e: add_dest_to_tree(e.data))
     main_frame.Connect(-1, -1, EVT_UPDATE_DEST_META_TOTAL, lambda e: update_dest_meta_total_space(e.data))
     main_frame.Connect(-1, -1, EVT_SELECT_DEST, lambda e: select_dest())
