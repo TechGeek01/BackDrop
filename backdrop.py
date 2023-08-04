@@ -852,6 +852,27 @@ def select_source():
         source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, lambda e: post_event(evt_type=EVT_SELECT_SOURCE))
 
 
+def add_dest_to_tree(data):
+    """Add a destination to the destination tree.
+
+    Args:
+        data (tuple): The data to add.
+    """
+
+    dest_tree.Append(data)
+
+def update_dest_meta_total_space(total):
+    """Refresh the destination metadata.
+
+    Args:
+        total (int): The total to update.
+    """
+
+    dest_total_space.SetLabel(human_filesize(total))
+    dest_total_space.Layout()
+    source_dest_selection_info_sizer.Layout()
+
+
 def load_dest():
     """Load the destination path info, and display it in the tree."""
 
@@ -907,7 +928,8 @@ def load_dest():
                             drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                             total_drive_space_available = total_drive_space_available + drive_size
-                            dest_tree.Append((
+
+                            post_event(evt_type=EVT_ADD_DEST_TO_TREE, data=(
                                 drive,
                                 '',
                                 human_filesize(drive_size),
@@ -983,7 +1005,7 @@ def load_dest():
                     drive_has_config_file = os.path.exists(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE)) and os.path.isfile(os.path.join(drive, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
 
                     total_drive_space_available += drive_size
-                    dest_tree.Append((
+                    add_dest_to_tree(evt_type=EVT_ADD_DEST_TO_TREE, data=(
                         drive,
                         '',
                         human_filesize(drive_size),
@@ -1003,12 +1025,9 @@ def load_dest():
     elif settings_dest_mode == Config.DEST_MODE_PATHS:
         total_drive_space_available = 0
 
-    dest_total_space.SetLabel(human_filesize(total_drive_space_available))
-    dest_total_space.Layout()
-    source_dest_selection_info_sizer.Layout()
+    post_event(evt_type=EVT_UPDATE_DEST_META_TOTAL, data=total_drive_space_available)
 
     LOADING_DEST = False
-
     progress_bar_master.StopIndeterminate()
 
 
@@ -1020,7 +1039,7 @@ def load_dest_in_background():
     if (backup and backup.is_running()) or LOADING_DEST:
         return
 
-    post_event(evt_type=EVT_REQUEST_LOAD_DEST)
+    thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=load_dest(), name='Load dest', daemon=True)
 
 
 def gui_select_from_config():
@@ -2244,6 +2263,48 @@ if __name__ == '__main__':
 
                     source_tree.Append((dir_name, path_name, 'Unknown', 0))
 
+    def request_add_dest_to_tree(dir_name):
+        """Request to add a destination to the tree.
+
+        Args:
+            dir_name (String): The directory name to add.
+        """
+
+        post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
+
+        dir_name = os.path.sep.join(dir_name.split('/'))
+        if not dir_name:
+            return
+
+        if settings_dest_mode != Config.DEST_MODE_PATHS:
+            return
+
+        # Get list of paths already in tree
+        existing_path_list = [dest_tree.GetItem(item, DEST_COL_PATH) for item in range(dest_tree.GetItemCount())]
+
+        # Only add item to list if it's not already there
+        if dir_name not in existing_path_list:
+            # Custom dest isn't stored in preferences, so default to
+            # dir name
+            drive_free_space = shutil.disk_usage(dir_name).free
+            path_space = get_directory_size(dir_name)
+            config_space = get_directory_size(os.path.join(dir_name, BACKUP_CONFIG_DIR))
+
+            dir_has_config_file = os.path.isfile(os.path.join(dir_name, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
+            name_stub = dir_name.strip(os.path.sep).split(os.path.sep)[-1].strip()
+            avail_space = drive_free_space + path_space - config_space
+            post_event(evt_type=EVT_ADD_DEST_TO_TREE, data=(
+                dir_name,
+                name_stub,
+                human_filesize(avail_space),
+                'Yes' if dir_has_config_file else '',
+                name_stub,
+                '',
+                avail_space
+            ))
+
+        post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
+
     def browse_for_dest():
         """Browse for a destination path, and add to the list."""
 
@@ -2254,36 +2315,7 @@ if __name__ == '__main__':
 
             dir_name = dir_dialog.GetPath()
 
-            dir_name = os.path.sep.join(dir_name.split('/'))
-            if not dir_name:
-                return
-
-            if settings_dest_mode != Config.DEST_MODE_PATHS:
-                return
-
-            # Get list of paths already in tree
-            existing_path_list = [dest_tree.GetItem(item, DEST_COL_PATH) for item in range(dest_tree.GetItemCount())]
-
-            # Only add item to list if it's not already there
-            if dir_name not in existing_path_list:
-                # Custom dest isn't stored in preferences, so default to
-                # dir name
-                drive_free_space = shutil.disk_usage(dir_name).free
-                path_space = get_directory_size(dir_name)
-                config_space = get_directory_size(os.path.join(dir_name, BACKUP_CONFIG_DIR))
-
-                dir_has_config_file = os.path.isfile(os.path.join(dir_name, BACKUP_CONFIG_DIR, BACKUP_CONFIG_FILE))
-                name_stub = dir_name.strip(os.path.sep).split(os.path.sep)[-1].strip()
-                avail_space = drive_free_space + path_space - config_space
-                dest_tree.Append((
-                    dir_name,
-                    name_stub,
-                    human_filesize(avail_space),
-                    'Yes' if dir_has_config_file else '',
-                    name_stub,
-                    '',
-                    avail_space
-                ))
+            thread_manager.start(ThreadManager.KILLABLE, target=lambda: request_add_dest_to_tree(dir_name), name='Browse for destination', daemon=True)
 
     def rename_source_item(item):
         """Rename an item in the source tree for multi-source mode.
@@ -2477,7 +2509,7 @@ if __name__ == '__main__':
         redraw_dest_tree()
 
         if not LOADING_DEST:
-            post_event(evt_type=EVT_REQUEST_LOAD_DEST)
+            thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=load_dest(), name='Load dest', daemon=True)
 
     def change_source_type(toggle_type: int):
         """Change the drive types for source selection.
@@ -3684,7 +3716,8 @@ if __name__ == '__main__':
     EVT_REQUEST_LOAD_SOURCE = wx.NewEventType()
     EVT_UPDATE_SOURCE_SIZE = wx.NewEventType()
     EVT_SELECT_SOURCE = wx.NewEventType()
-    EVT_REQUEST_LOAD_DEST = wx.NewEventType()
+    EVT_ADD_DEST_TO_TREE = wx.NewEventType()
+    EVT_UPDATE_DEST_META_TOTAL = wx.NewEventType()
     EVT_SELECT_DEST = wx.NewEventType()
     EVT_REQUEST_OPEN_SOURCE = wx.NewEventType()
     EVT_REQUEST_OPEN_DEST = wx.NewEventType()
@@ -3693,10 +3726,13 @@ if __name__ == '__main__':
     EVT_BACKUP_FINISHED = wx.NewEventType()
     EVT_CHECK_FOR_UPDATES = wx.NewEventType()
     EVT_VERIFY_DATA_INTEGRITY = wx.NewEventType()
+    EVT_PROGRESS_MASTER_START_INDETERMINATE = wx.NewEventType()
+    EVT_PROGRESS_MASTER_STOP_INDETERMINATE = wx.NewEventType()
     main_frame.Connect(-1, -1, EVT_REQUEST_LOAD_SOURCE, lambda e: load_source())
     main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_SIZE, lambda e: update_source_size(e.data))
     main_frame.Connect(-1, -1, EVT_SELECT_SOURCE, lambda e: select_source())
-    main_frame.Connect(-1, -1, EVT_REQUEST_LOAD_DEST, lambda e: load_dest())
+    main_frame.Connect(-1, -1, EVT_ADD_DEST_TO_TREE, lambda e: add_dest_to_tree(e.data))
+    main_frame.Connect(-1, -1, EVT_UPDATE_DEST_META_TOTAL, lambda e: update_dest_meta_total_space(e.data))
     main_frame.Connect(-1, -1, EVT_SELECT_DEST, lambda e: select_dest())
     main_frame.Connect(-1, -1, EVT_REQUEST_OPEN_SOURCE, lambda e: browse_for_source())
     main_frame.Connect(-1, -1, EVT_REQUEST_OPEN_DEST, lambda e: browse_for_dest())
@@ -3705,6 +3741,8 @@ if __name__ == '__main__':
     main_frame.Connect(-1, -1, EVT_BACKUP_FINISHED, lambda e: update_ui_post_backup(e.data))
     main_frame.Connect(-1, -1, EVT_CHECK_FOR_UPDATES, lambda e: show_update_window(e.data))
     main_frame.Connect(-1, -1, EVT_VERIFY_DATA_INTEGRITY, lambda e: verify_data_integrity(e.data))
+    main_frame.Connect(-1, -1, EVT_PROGRESS_MASTER_START_INDETERMINATE, lambda e: progress_bar_master.StartIndeterminate())
+    main_frame.Connect(-1, -1, EVT_PROGRESS_MASTER_STOP_INDETERMINATE, lambda e: progress_bar_master.StopIndeterminate())
 
     # Catch close event for graceful exit
     main_frame.Bind(wx.EVT_CLOSE, lambda e: on_close())
