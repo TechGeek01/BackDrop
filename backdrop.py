@@ -9,6 +9,8 @@ __version__ = '4.0.1'
 
 import platform
 import wx
+import wx.adv
+import wx.lib.inspection
 from sys import exit
 import shutil
 import os
@@ -26,7 +28,6 @@ if platform.system() == 'Windows':
     import win32api
     import win32file
     import wmi
-import wx.lib.inspection
 import logging
 
 from bin.fileutils import FileUtils, get_drive_list, human_filesize, get_directory_size, get_file_hash, do_delete
@@ -2873,6 +2874,9 @@ if __name__ == '__main__':
                 cmd_info_blocks[display_index].SetLabel('progress', label='Done')
                 cmd_info_blocks[display_index].SetForegroundColour('progress', Color.FINISHED)
 
+                # Play success tone, so user knows it's completed
+                success_sound.Play()
+
         # If backup stopped, 
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
@@ -3523,6 +3527,9 @@ if __name__ == '__main__':
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(root_sizer, 1, wx.EXPAND | wx.ALL, 10)
     box.Add(status_bar, 0, wx.EXPAND)
+
+    # Sounds
+    success_sound = wx.adv.Sound('assets/sounds/success.wav')
 
     # Right click menu stuff
     ID_SOURCE_RENAME = wx.NewIdRef()
