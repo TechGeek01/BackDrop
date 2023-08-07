@@ -29,7 +29,7 @@ if platform.system() == 'Windows':
 import wx.lib.inspection
 import logging
 
-from bin.fileutils import FileUtils, human_filesize, get_directory_size, get_file_hash, do_delete
+from bin.fileutils import FileUtils, get_drive_list, human_filesize, get_directory_size, get_file_hash, do_delete
 from bin.threadmanager import ThreadManager
 from bin.config import Config
 from bin.backup import Backup
@@ -480,61 +480,6 @@ def start_backup_analysis():
     thread_manager.start(ThreadManager.KILLABLE, target=backup.analyze, name='Backup Analysis', daemon=True)
 
 
-def get_source_drive_list() -> list:
-    """Get the list of available source drives.
-
-    Returns:
-        list: The list of source drives.
-    """
-
-    source_avail_drive_list = []
-
-    if SYS_PLATFORM == PLATFORM_WINDOWS:
-        drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
-        drive_type_list = []
-        if prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN):
-            drive_type_list.append(DRIVE_TYPE_REMOTE)
-        if prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN):
-            drive_type_list.append(DRIVE_TYPE_FIXED)
-            drive_type_list.append(DRIVE_TYPE_REMOVABLE)
-        source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != SYSTEM_DRIVE]
-    else:
-        local_selected = prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN)
-        network_selected = prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN)
-
-        if network_selected and not local_selected:
-            cmd = ['df', '-tcifs', '-tnfs', '--output=target']
-        elif local_selected and not network_selected:
-            cmd = ['df', '-xtmpfs', '-xsquashfs', '-xdevtmpfs', '-xcifs', '-xnfs', '--output=target']
-        elif local_selected and network_selected:
-            cmd = ['df', '-xtmpfs', '-xsquashfs', '-xdevtmpfs', '--output=target']
-
-        out = subprocess.run(cmd,
-                             stdout=subprocess.PIPE,
-                             stdin=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
-        logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
-        logical_drive_list = [mount for mount in logical_drive_list if mount]
-
-        # Filter system drive out from available selection
-        source_avail_drive_list = []
-        for drive in logical_drive_list:
-            drive_name = f'"{drive}"'
-
-            out = subprocess.run("mount | grep " + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'",
-                                 stdout=subprocess.PIPE,
-                                 stdin=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL,
-                                 shell=True)
-            physical_disk = out.stdout.decode('utf-8').split('\n')[0].strip()
-
-            # Only process mount point if it's not on the system drive
-            if physical_disk != SYSTEM_DRIVE and drive != '/':
-                source_avail_drive_list.append(drive)
-
-    return source_avail_drive_list
-
-
 def load_source():
     """Load the source destination and source lists, and display sources in the tree."""
 
@@ -550,7 +495,16 @@ def load_source():
     # Empty tree in case this is being refreshed
     source_tree.DeleteAllItems()
 
-    source_avail_drive_list = get_source_drive_list()
+    flags = 0
+    if prefs.get('selection', 'source_local_drives', default=True, data_type=Config.BOOLEAN):
+        flags = flags | FileUtils.LOCAL_DRIVE
+    if prefs.get('selection', 'source_network_drives', default=False, data_type=Config.BOOLEAN):
+        flags = flags | FileUtils.NETWORK_DRIVE
+
+    source_avail_drive_list = get_drive_list(
+        system_drive=SYSTEM_DRIVE,
+        flags=flags
+    )
 
     if settings_source_mode in [Config.SOURCE_MODE_SINGLE_PATH, Config.SOURCE_MODE_MULTI_PATH] or source_avail_drive_list:
         # Display empty selection sizes

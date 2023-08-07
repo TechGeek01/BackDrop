@@ -1,6 +1,11 @@
 import os
 import shutil
 from blake3 import blake3
+import subprocess
+import platform
+if platform.system() == 'Windows':
+    import win32api
+    import win32file
 
 from bin.status import Status
 
@@ -16,7 +21,69 @@ class FileUtils:
     LIST_DELETE_SUCCESS = 'delete_success'
     LIST_DELETE_FAIL = 'delete_fail'
 
+    LOCAL_DRIVE = 1
+    NETWORK_DRIVE = 2
+
     READINTO_BUFSIZE = 1024 * 1024 * 2  # differs from shutil.COPY_BUFSIZE on platforms != Windows
+
+
+def get_drive_list(system_drive, flags=0) -> list:
+    """Get the list of available drives based on a selection.
+
+    Args:
+        system_drive: The drive letter or mount point for the system drive.
+        flags: The flags to select drives.
+
+    Returns:
+        list: The list of drives selected.
+    """
+
+    source_avail_drive_list = []
+
+    if platform.system() == 'Windows':
+        drive_list = win32api.GetLogicalDriveStrings().split('\000')[:-1]
+        drive_type_list = []
+        if flags & FileUtils.NETWORK_DRIVE:
+            drive_type_list.append(win32file.DRIVE_REMOTE)
+        if flags & FileUtils.LOCAL_DRIVE:
+            drive_type_list.append(win32file.DRIVE_FIXED)
+            drive_type_list.append(win32file.DRIVE_REMOVABLE)
+        source_avail_drive_list = [drive[:2] for drive in drive_list if win32file.GetDriveType(drive) in drive_type_list and drive[:2] != system_drive]
+    else:
+        local_selected = flags & FileUtils.LOCAL_DRIVE
+        network_selected = flags & FileUtils.NETWORK_DRIVE
+
+        if network_selected and not local_selected:
+            cmd = ['df', '-tcifs', '-tnfs', '--output=target']
+        elif local_selected and not network_selected:
+            cmd = ['df', '-xtmpfs', '-xsquashfs', '-xdevtmpfs', '-xcifs', '-xnfs', '--output=target']
+        elif local_selected and network_selected:
+            cmd = ['df', '-xtmpfs', '-xsquashfs', '-xdevtmpfs', '--output=target']
+
+        out = subprocess.run(cmd,
+                             stdout=subprocess.PIPE,
+                             stdin=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+        logical_drive_list = out.stdout.decode('utf-8').split('\n')[1:]
+        logical_drive_list = [mount for mount in logical_drive_list if mount]
+
+        # Filter system drive out from available selection
+        source_avail_drive_list = []
+        for drive in logical_drive_list:
+            drive_name = f'"{drive}"'
+
+            out = subprocess.run("mount | grep " + drive_name + " | awk 'NR==1{print $1}' | sed 's/[0-9]*//g'",
+                                 stdout=subprocess.PIPE,
+                                 stdin=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL,
+                                 shell=True)
+            physical_disk = out.stdout.decode('utf-8').split('\n')[0].strip()
+
+            # Only process mount point if it's not on the system drive
+            if physical_disk != system_drive and drive != '/':
+                source_avail_drive_list.append(drive)
+
+    return source_avail_drive_list
 
 
 def human_filesize(num: int, suffix=None) -> str:
