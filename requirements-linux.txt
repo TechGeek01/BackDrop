@@ -1,6 +1,6 @@
 blake3==0.3.3
 certifi==2023.7.22
-chardet==5.1.0
+chardet==5.2.0
 clipboard==0.0.4
 idna==3.4
 Pillow==10.0.0
