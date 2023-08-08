@@ -204,7 +204,11 @@ class FancyProgressBar(wx.Panel):
         dc.Clear()
 
         if not self._indeterminate:
-            progress_width = int(self.GetSize().GetWidth() * self.value / self.range)
+            if self.range > 0:
+                progress_width = int(self.GetSize().GetWidth() * self.value / self.range)
+            else:
+                progress_width = 0
+
             if progress_width > 0:
                 dc.SetBrush(wx.Brush(self.color))
                 dc.DrawRectangle(0, 0, progress_width, self.height)

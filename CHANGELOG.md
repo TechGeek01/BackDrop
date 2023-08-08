@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ## Fixed
 - Fixed loading source and destination custom paths causing UI to hang
+- Fixed program crash when running backup if no files need copying
 
 ## 4.0.0 - 2023-07-23
 ### Added
