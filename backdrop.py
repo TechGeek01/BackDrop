@@ -2787,6 +2787,12 @@ if __name__ == '__main__':
             progress_bar_file.SetValue(buffer['copied'])
             progress_bar_file.SetRange(buffer['total'])
 
+            # Change file progress bar to blue during verification
+            if buffer['operation'] == Status.FILE_OPERATION_VERIFY:
+                progress_bar_file.SetForegroundColour(Color.BLUE)
+            else:
+                progress_bar_file.SetForegroundColour(Color.BRAND_COLOR)
+
             filename = buffer['display_filename']
 
             dc = wx.ScreenDC()
