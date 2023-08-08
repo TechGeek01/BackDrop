@@ -540,6 +540,8 @@ class DetailBlock(wx.BoxSizer):
 
         if line_name in self.lines.keys():
             self.lines[line_name].SetFont(*args, **kwargs)
+            self.lines[line_name].Layout()
+            self.Layout()
 
     def SetLabel(self, line_name: str, label: str):
         """Set the label text of an info line.
@@ -550,6 +552,8 @@ class DetailBlock(wx.BoxSizer):
 
         if line_name in self.lines.keys():
             self.lines[line_name].SetLabel(label=label)
+            self.lines[line_name].Layout()
+            self.Layout()
 
     class InfoLine(wx.BoxSizer):
         def __init__(self, parent, title: str, content: str, bold_font: wx.Font, text_font: wx.Font, clipboard_data: str = None, *args, **kwargs):
@@ -598,16 +602,19 @@ class DetailBlock(wx.BoxSizer):
             """Set the foreground color of the line."""
 
             self.title.SetForegroundColour(*args, **kwargs)
+            self.content.SetForegroundColour(*args, **kwargs)
 
         def SetFont(self, *args, **kwargs):
             """Set the font of the line."""
 
             self.title.SetFont(*args, **kwargs)
+            self.title.Layout()
 
         def SetLabel(self, label: str):
             """Set the content label text of the line."""
 
             self.content.SetLabel(label=label)
+            self.content.Layout()
 
         def Layout(self, *args, **kwargs):
             """Update the layout of the line."""
