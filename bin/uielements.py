@@ -440,6 +440,99 @@ class InlineLabel(wx.BoxSizer):
         self.value.SetForegroundColour(color)
 
 
+class CopyListPanel(wx.Panel):
+    def __init__(self, parent, label, name: str = None, *args, **kwargs):
+        """Create a scrollable list block with a header and click-to-copy.
+
+        Args:
+            label (str): The label for the header.
+            name (str): The name for the CopyListBlock item (optional).
+        """
+
+        wx.Panel.__init__(self, parent, *args, **kwargs)
+
+        self.parent = parent
+        self.counter = 0
+        self.list = []
+
+        # Set up box sizer for panel
+        self._box = wx.BoxSizer(wx.VERTICAL)
+        self.SetSizer(self._box)
+        self.SetForegroundColour(self.parent.GetForegroundColour())
+
+        self._header_sizer = wx.BoxSizer()
+        self._header_text = wx.StaticText(self, -1, label=f'{label} ', name=f'{name} header')
+        self._header_copy_text = wx.StaticText(self, -1, label='(click to copy)', name=f'{name} click to copy text')
+        self._header_copy_text.SetForegroundColour(Color.FADED)
+        self._counter_text = wx.StaticText(self, -1, label=str(self.counter), name=f'{name} counter')
+        self._header_sizer.Add(self._header_text, 0, wx.ALIGN_BOTTOM)
+        self._header_sizer.Add(self._header_copy_text, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, 1)
+        self._header_sizer.Add((-1, -1), 1, wx.EXPAND)
+        self._header_sizer.Add(self._counter_text, 0, wx.ALIGN_BOTTOM)
+
+        self._list_panel = wx.ScrolledWindow(self, -1, style=wx.VSCROLL, name=f'{name} scrollable panel')
+        self._list_panel.SetScrollbars(20, 20, 50, 50)
+        self._list_panel.SetForegroundColour(Color.TEXT_DEFAULT)
+
+        self._list_panel_box = wx.BoxSizer(wx.VERTICAL)
+        self._list_panel.SetSizer(self._list_panel_box)
+
+        self._box.Add(self._header_sizer, 0, wx.EXPAND)
+        self._box.Add(self._list_panel, 1, wx.EXPAND)
+
+        # Mouse click bindings
+        self._header_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join(self.list)))
+        self._header_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join(self.list)))
+        self._counter_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join(self.list)))
+
+    def AddItems(self, items, color=None, *args, **kwargs):
+        """Add one or more items to the panel.
+
+        Args:
+            items (list): The items to add.
+            color (wx.Colour): The text color to use (optional).
+            name (str): The name to assign the StaticText (optional).
+        """
+
+        self.list.append(items)
+        self.counter += len(items)
+
+        file_label = wx.StaticText(self._list_panel, -1, label='\n'.join(items))
+        if color is not None:
+            file_label.SetForegroundColour(color)
+
+        self._list_panel_box.Add(file_label, 0)
+        self._list_panel.Layout()
+
+        self._counter_text.SetLabel(label=str(len(self.list)))
+        self._counter_text.Layout()
+
+    def SetLabel(self, label, *args, **kwargs):
+        """Set the label for the header."""
+
+        self._header_text.SetLabel(label=label, *args, **kwargs)
+        self._header_text.Layout()
+        self.Layout()
+
+    def SetHeaderFont(self, font, *args, **kwargs):
+        """Set the font for the header lines."""
+
+        self._header_text.SetFont(font, *args, **kwargs)
+        self._header_text.Layout()
+        self._counter_text.SetFont(font, *args, **kwargs)
+        self._counter_text.Layout()
+        self.Layout()
+
+    def Clear(self, *args, **kwargs):
+        """Clear the panel."""
+
+        self.list = []
+        self.counter = 0
+        self._counter_text.SetLabel(label=str(self.counter))
+        self._counter_text.Layout()
+        self._list_panel_box.Clear(True)
+
+
 class DetailBlock(wx.BoxSizer):
     TITLE = 'title'
     CONTENT = 'content'

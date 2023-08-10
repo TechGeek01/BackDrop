@@ -36,7 +36,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, FancyProgressBar, InlineLabel, DetailBlock, BackupDetailBlock, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, FancyProgressBar, CopyListPanel, InlineLabel, DetailBlock, BackupDetailBlock, resource_path
 from bin.status import Status
 
 
@@ -144,31 +144,15 @@ def update_file_detail_lists(list_name: str, files: set):
         file_details_pending_sizer.Layout()
 
         # Update copy list scrollable
-        filenames = '\n'.join([filename.split(os.path.sep)[-1] for filename in files])
+        filenames = [filename.split(os.path.sep)[-1] for filename in files]
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_DELETE_SUCCESS]:
-            new_file_label = wx.StaticText(file_details_success_panel, -1, label=filenames)
-            if list_name == FileUtils.LIST_DELETE_SUCCESS:
-                new_file_label.SetForegroundColour(Color.FADED)
-            file_details_success_sizer.Add(new_file_label, 0)
-            file_details_success_sizer.Layout()
-
-            file_details_success_count.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_SUCCESS]) + len(file_detail_list[FileUtils.LIST_DELETE_SUCCESS])))
-            file_details_success_count.Layout()
-            file_details_success_header_sizer.Layout()
+            file_details_success_panel.AddItems(items=filenames, color=Color.FADED if list_name == FileUtils.LIST_DELETE_SUCCESS else Color.TEXT_DEFAULT)
 
             # Remove all but the most recent 250 items for performance reasons
             # FIXME: See if truncating the list like this is needed in wxPython
             # file_details_copied.show_items(250)
         else:
-            new_file_label = wx.StaticText(file_details_failed_panel, -1, label=filenames)
-            if list_name == FileUtils.LIST_DELETE_FAIL:
-                new_file_label.SetForegroundColour(Color.FADED)
-            file_details_failed_sizer.Add(new_file_label, 0)
-            file_details_failed_sizer.Layout()
-
-            file_details_failed_count.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL])))
-            file_details_failed_count.Layout()
-            file_details_failed_header_sizer.Layout()
+            file_details_failed_panel.AddItems(items=filenames, color=Color.FADED if list_name == FileUtils.LIST_DELETE_FAIL else Color.TEXT_DEFAULT)
 
             # Update counter in status bar
             FAILED_FILE_COUNT = len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL])
@@ -427,18 +411,8 @@ def backup_reset_ui():
     file_details_pending_copy_counter_total.SetLabel(label='0')
     file_details_pending_copy_counter_total.Layout()
     file_details_pending_sizer.Layout()
-    file_details_success_count.SetLabel(label='0')
-    file_details_success_count.Layout()
-    file_details_success_header_sizer.Layout()
-    file_details_failed_count.SetLabel(label='0')
-    file_details_failed_count.Layout()
-    file_details_failed_header_sizer.Layout()
-
-    # Empty file details list panes
-    file_details_success_sizer.Clear(True)
-    file_details_success_sizer.Layout()
-    file_details_failed_sizer.Clear(True)
-    file_details_failed_sizer.Layout()
+    file_details_success_panel.Clear()
+    file_details_failed_panel.Clear()
 
 
 def request_kill_analysis():
@@ -1354,18 +1328,8 @@ def start_backup():
     file_details_pending_copy_counter_total.SetLabel(label=str(FILE_COPY_COUNT))
     file_details_pending_copy_counter_total.Layout()
     file_details_pending_sizer.Layout()
-    file_details_success_count.SetLabel(label='0')
-    file_details_success_count.Layout()
-    file_details_success_header_sizer.Layout()
-    file_details_failed_count.SetLabel(label='0')
-    file_details_failed_count.Layout()
-    file_details_failed_header_sizer.Layout()
-
-    # Empty file details list panes
-    file_details_success_sizer.Clear(True)
-    file_details_success_sizer.Layout()
-    file_details_failed_sizer.Clear(True)
-    file_details_failed_sizer.Layout()
+    file_details_success_panel.Clear()
+    file_details_failed_panel.Clear()
 
     if not backup.analysis_valid or not backup.sanity_check():
         return
@@ -1525,18 +1489,8 @@ def verify_data_integrity(path_list: list):
         file_details_pending_copy_counter_total.SetLabel(label='0')
         file_details_pending_copy_counter_total.Layout()
         file_details_pending_sizer.Layout()
-        file_details_success_count.SetLabel(label='0')
-        file_details_success_count.Layout()
-        file_details_success_header_sizer.Layout()
-        file_details_failed_count.SetLabel(label='0')
-        file_details_failed_count.Layout()
-        file_details_failed_header_sizer.Layout()
-
-        # Empty file details list panes
-        file_details_success_sizer.Clear(True)
-        file_details_success_sizer.Layout()
-        file_details_failed_sizer.Clear(True)
-        file_details_failed_sizer.Layout()
+        file_details_success_panel.Clear()
+        file_details_failed_panel.Clear()
 
         verification_running = True
         verification_failed_list = []
@@ -3419,49 +3373,16 @@ if __name__ == '__main__':
     file_details_pending_copy_counter_total.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_copy_counter_total, 0, wx.ALIGN_BOTTOM)
 
-    file_details_success_header_sizer = wx.BoxSizer()
-    file_details_success_header = wx.StaticText(main_frame.root_panel, -1, label='Successful', name='Success file list header')
-    file_details_success_header.SetFont(FONT_HEADING)
-    file_details_success_header_sizer.Add(file_details_success_header, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
-    file_details_success_copy_text = wx.StaticText(main_frame.root_panel, -1, label='(Click to copy)', name='Success file list clipboard header')
-    file_details_success_copy_text.SetForegroundColour(Color.FADED)
-    file_details_success_header_sizer.Add(file_details_success_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
-    file_details_success_header_sizer.Add((-1, -1), 1, wx.EXPAND)
-    file_details_success_count = wx.StaticText(main_frame.root_panel, -1, label='0', name='Success file list count')
-    file_details_success_count.SetFont(FONT_HEADING)
-    file_details_success_header_sizer.Add(file_details_success_count, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
-
-    file_details_success_panel = wx.ScrolledWindow(main_frame.root_panel, -1, style=wx.VSCROLL, name='Success file list')
-    file_details_success_panel.SetScrollbars(20, 20, 50, 50)
-    file_details_success_panel.SetForegroundColour(Color.TEXT_DEFAULT)
-    file_details_success_sizer = wx.BoxSizer(wx.VERTICAL)
-    file_details_success_panel.SetSizer(file_details_success_sizer)
-
-    file_details_failed_header_sizer = wx.BoxSizer()
-    file_details_failed_header = wx.StaticText(main_frame.root_panel, -1, label='Failed', name='Failed file list header')
-    file_details_failed_header.SetFont(FONT_HEADING)
-    file_details_failed_header_sizer.Add(file_details_failed_header, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
-    file_details_failed_copy_text = wx.StaticText(main_frame.root_panel, -1, label='(Click to copy)', name='Failed file list clipboard header')
-    file_details_failed_copy_text.SetForegroundColour(Color.FADED)
-    file_details_failed_header_sizer.Add(file_details_failed_copy_text, 0, wx.ALIGN_BOTTOM | wx.LEFT, 5)
-    file_details_failed_header_sizer.Add((-1, -1), 1, wx.EXPAND)
-    file_details_failed_count = wx.StaticText(main_frame.root_panel, -1, label='0', name='Failed file list count')
-    file_details_failed_count.SetFont(FONT_HEADING)
-    file_details_failed_header_sizer.Add(file_details_failed_count, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
-
-    file_details_failed_panel = wx.ScrolledWindow(main_frame.root_panel, -1, style=wx.VSCROLL, name='Failed file list')
-    file_details_failed_panel.SetScrollbars(20, 20, 50, 50)
-    file_details_failed_panel.SetForegroundColour(Color.TEXT_DEFAULT)
-    file_details_failed_sizer = wx.BoxSizer(wx.VERTICAL)
-    file_details_failed_panel.SetSizer(file_details_failed_sizer)
+    file_details_success_panel = CopyListPanel(main_frame.root_panel, label='Successful', name='Success file list')
+    file_details_success_panel.SetHeaderFont(FONT_HEADING)
+    file_details_failed_panel = CopyListPanel(main_frame.root_panel, label='Failed', name='Failed file list')
+    file_details_failed_panel.SetHeaderFont(FONT_HEADING)
 
     file_list_sizer = wx.BoxSizer(wx.VERTICAL)
     file_list_sizer.Add(file_details_pending_header_sizer, 0, wx.EXPAND)
     file_list_sizer.Add(file_details_pending_sizer, 0, wx.EXPAND)
-    file_list_sizer.Add(file_details_success_header_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
-    file_list_sizer.Add(file_details_success_panel, 2, wx.EXPAND)
-    file_list_sizer.Add(file_details_failed_header_sizer, 0, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
-    file_list_sizer.Add(file_details_failed_panel, 1, wx.EXPAND)
+    file_list_sizer.Add(file_details_success_panel, 2, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
+    file_list_sizer.Add(file_details_failed_panel, 1, wx.EXPAND | wx.TOP, ITEM_UI_PADDING)
 
     progress_current_file = wx.StaticText(main_frame.root_panel, -1, label='', name='Progress current file detail text')
 
@@ -3721,12 +3642,6 @@ if __name__ == '__main__':
     file_details_delete_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_DELETE]])))
     file_details_copy_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
     file_details_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_TOTAL_COPY]])))
-    file_details_success_header.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
-    file_details_success_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
-    file_details_success_count.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_SUCCESS]])))
-    file_details_failed_header.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
-    file_details_failed_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
-    file_details_failed_count.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join([file['filename'] for file in file_detail_list[FileUtils.LIST_FAIL]])))
 
     start_analysis_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup_analysis())
     start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup())
