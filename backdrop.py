@@ -595,6 +595,10 @@ def reset_analysis_output():
     summary_summary_sizer.Add(wx.StaticText(summary_summary_panel, -1, label='Please start a backup analysis to generate a summary.', name='Backup summary placeholder tooltip 2'), 0, wx.TOP, 5)
     summary_summary_sizer.Layout()
     summary_summary_box.Layout()
+    summary_details_sizer.Add(wx.StaticText(summary_details_panel, -1, label="This area will show details of the backup that's been configured.", name='Backup details placeholder tooltip 1'), 0)
+    summary_details_sizer.Add(wx.StaticText(summary_details_panel, -1, label='Please start a backup analysis to generate details.', name='Backup details placeholder tooltip 2'), 0, wx.TOP, 5)
+    summary_details_sizer.Layout()
+    summary_details_box.Layout()
 
 
 def add_source_to_tree(data):
