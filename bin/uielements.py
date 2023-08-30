@@ -440,6 +440,32 @@ class InlineLabel(wx.BoxSizer):
         self.value.SetForegroundColour(color)
 
 
+class SelectionListCtrl(wx.ListCtrl):
+    def __init__(self, parent, id, *args, **kwargs):
+        """Create a ListCtrl for file selection.
+
+        Args:
+            id (int): The ID for the ListCtrl widget.
+        """
+
+        wx.ListCtrl.__init__(self, parent, id, *args, **kwargs)
+
+        self.locked = False
+
+        self.SetBackgroundColour(Color.WIDGET_COLOR)
+        self.SetTextColour(Color.WHITE)
+
+    def Lock(self):
+        """Lock the ListCtrl from being changed."""
+
+        self.locked = True
+
+    def Unlock(self):
+        """Unlock the ListCtrl to allow changes."""
+
+        self.locked = False
+
+
 class CopyListPanel(wx.Panel):
     def __init__(self, parent, label, name: str = None, *args, **kwargs):
         """Create a scrollable list block with a header and click-to-copy.

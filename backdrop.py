@@ -36,7 +36,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, FancyProgressBar, CopyListPanel, InlineLabel, DetailBlock, BackupDetailBlock, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, FancyProgressBar, SelectionListCtrl, CopyListPanel, InlineLabel, DetailBlock, BackupDetailBlock, resource_path
 from bin.status import Status
 
 
@@ -742,6 +742,10 @@ def select_source():
     global source_selection_total
     global backup
 
+    # If tree is locked, ignore changes
+    if source_tree.locked:
+        return
+
     if not backup or not backup.is_running():
         post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
 
@@ -817,8 +821,8 @@ def select_source():
     else:
         # Temporarily unbind selection handlers so this function doesn't keep
         # running with every change
-        source_tree.Unbind(wx.EVT_LIST_ITEM_SELECTED)
-        source_tree.Unbind(wx.EVT_LIST_ITEM_DESELECTED)
+        # IDEA: Is this better to replace select tree bindings with mouse down bindings?
+        source_tree.Lock()
 
         for item in range(source_tree.GetItemCount()):
             source_tree.Select(item, on=item in prev_source_selection)
@@ -827,8 +831,7 @@ def select_source():
             source_tree.Focus(prev_source_selection[-1])
 
         # Re-enable the selection handlers that were temporarily disabled
-        source_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, lambda e: post_event(evt_type=EVT_SELECT_SOURCE))
-        source_tree.Bind(wx.EVT_LIST_ITEM_DESELECTED, lambda e: post_event(evt_type=EVT_SELECT_SOURCE))
+        source_tree.Unlock()
 
 
 def add_dest_to_tree(data):
@@ -839,6 +842,7 @@ def add_dest_to_tree(data):
     """
 
     dest_tree.Append(data)
+
 
 def update_dest_meta_total_space(total):
     """Refresh the destination metadata.
@@ -1187,10 +1191,14 @@ def select_dest():
     global prev_dest_selection
     global dest_select_bind
 
+    # Make sure ListCtrl isn't locked
+    if dest_tree.locked:
+        return
+
     if backup and backup.is_running():
         # Temporarily undind selection handler so this function doesn't keep
         # running with every change
-        dest_tree.Unbind(wx.EVT_LIST_ITEM_SELECTED)
+        dest_tree.Lock()
 
         for item in range(dest_tree.GetItemCount()):
             dest_tree.Select(item, on=item in prev_dest_selection)
@@ -1199,7 +1207,7 @@ def select_dest():
             dest_tree.Focus(prev_dest_selection[-1])
 
         # Re-enable the selection handler that was temporarily disabled
-        dest_tree.Bind(wx.EVT_LIST_ITEM_SELECTED, lambda e: post_event(evt_type=EVT_SELECT_DEST))
+        dest_tree.Unlock()
 
         return
 
@@ -3172,16 +3180,13 @@ if __name__ == '__main__':
     SOURCE_COL_RAWSIZE = 3
 
     # FIXME: Remove size in source tree constructor when SetSize works
-    source_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, 170), style=wx.LC_REPORT, name='Source tree')
+    source_tree = SelectionListCtrl(main_frame.root_panel, -1, size=(420, 170), style=wx.LC_REPORT, name='Source tree')
 
     source_tree.AppendColumn('Path')
     source_tree.AppendColumn('Name')
     source_tree.AppendColumn('Size')
     source_tree.AppendColumn('Raw Size')
     source_tree.SetColumnWidth(SOURCE_COL_RAWSIZE, 0)
-
-    source_tree.SetBackgroundColour(Color.WIDGET_COLOR)
-    source_tree.SetTextColour(Color.WHITE)
 
     source_warning_panel = WarningPanel(main_frame.root_panel, size=(420, 170))
     source_warning_panel.SetFont(FONT_MEDIUM)
@@ -3228,7 +3233,7 @@ if __name__ == '__main__':
     DEST_COL_RAWSIZE = 6
 
     # FIXME: Remove size in dest tree constructor when SetSize works
-    dest_tree = wx.ListCtrl(main_frame.root_panel, -1, size=(420, 170), style=wx.LC_REPORT, name='Destination tree')
+    dest_tree = SelectionListCtrl(main_frame.root_panel, -1, size=(420, 170), style=wx.LC_REPORT, name='Destination tree')
 
     dest_tree.AppendColumn('Path')
     dest_tree.AppendColumn('Name')
@@ -3238,9 +3243,6 @@ if __name__ == '__main__':
     dest_tree.AppendColumn('Serial')
     dest_tree.AppendColumn('Raw Size')
     dest_tree.SetColumnWidth(DEST_COL_RAWSIZE, 0)
-
-    dest_tree.SetBackgroundColour(Color.WIDGET_COLOR)
-    dest_tree.SetTextColour(Color.WHITE)
 
     def update_split_mode_label():
         """ Update the split mode indicator. """
