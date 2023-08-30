@@ -458,14 +458,15 @@ def start_backup_analysis():
 def load_source():
     """Load the source destination and source lists, and display sources in the tree."""
 
-    global LOADING_SOURCE
     global PREV_SOURCE_DRIVE
     global source_avail_drive_list
     global source_drive_default
 
-    post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
+    # Don't load if backup is running
+    if backup and backup.is_running():
+        return
 
-    LOADING_SOURCE = True
+    post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
 
     # Empty tree in case this is being refreshed
     source_tree.DeleteAllItems()
@@ -539,18 +540,13 @@ def load_source():
             summary_sizer.Layout()
             root_sizer.Layout()
 
-    LOADING_SOURCE = False
-
     post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
 
 
 def load_source_in_background():
     """Start a source refresh in a new thread."""
 
-    if (backup and backup.is_running()) or LOADING_SOURCE:
-        return
-
-    post_event(evt_type=EVT_REQUEST_LOAD_SOURCE)
+    thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=post_event(evt_type=EVT_REQUEST_LOAD_SOURCE), name='Load source', daemon=True)
 
 
 def change_source_drive(e):
@@ -863,12 +859,13 @@ def update_dest_meta_total_space(total):
 def load_dest():
     """Load the destination path info, and display it in the tree."""
 
-    global LOADING_DEST
     global dest_drive_master_list
 
-    post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
+    # Don't load if backup is running
+    if backup and backup.is_running():
+        return
 
-    LOADING_DEST = True
+    post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
 
     # Empty tree in case this is being refreshed
     dest_tree.DeleteAllItems()
@@ -1014,7 +1011,6 @@ def load_dest():
 
     post_event(evt_type=EVT_UPDATE_DEST_META_TOTAL, data=total_drive_space_available)
 
-    LOADING_DEST = False
     post_event(evt_type=EVT_PROGRESS_MASTER_STOP_INDETERMINATE)
 
 
@@ -1023,10 +1019,7 @@ def load_dest_in_background():
 
     # TODO: Make load_dest and load_source replaceable, and in their own class
     # TODO: Invalidate load_source or load_dest if tree gets refreshed via some class def call
-    if (backup and backup.is_running()) or LOADING_DEST:
-        return
-
-    thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=load_dest(), name='Load dest', daemon=True)
+    thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=dest_tree.load(), name='Load dest', daemon=True)
 
 
 def gui_select_from_config():
@@ -2495,8 +2488,8 @@ if __name__ == '__main__':
 
         redraw_dest_tree()
 
-        if not LOADING_DEST:
-            thread_manager.start(ThreadManager.KILLABLE, is_progress_thread=True, target=load_dest(), name='Load dest', daemon=True)
+        if not dest_tree.loading:
+            load_dest_in_background()
 
     def change_source_type(toggle_type: int):
         """Change the drive types for source selection.
@@ -3029,9 +3022,6 @@ if __name__ == '__main__':
     SINGLE_SOURCE_NAME_COL_WIDTH = 170
     ITEM_UI_PADDING = 10
 
-    LOADING_SOURCE = False
-    LOADING_DEST = False
-
     app = wx.App()
 
     wx.Font.AddPrivateFont(resource_path('assets/fonts/Roboto-Regular.ttf'))
@@ -3184,7 +3174,7 @@ if __name__ == '__main__':
     SOURCE_COL_RAWSIZE = 3
 
     # FIXME: Remove size in source tree constructor when SetSize works
-    source_tree = SelectionListCtrl(main_frame.root_panel, -1, size=(420, 170), style=wx.LC_REPORT, name='Source tree')
+    source_tree = SelectionListCtrl(main_frame.root_panel, -1, load_fn=load_source, size=(420, 170), style=wx.LC_REPORT, name='Source tree')
 
     source_tree.AppendColumn('Path')
     source_tree.AppendColumn('Name')
@@ -3237,7 +3227,7 @@ if __name__ == '__main__':
     DEST_COL_RAWSIZE = 6
 
     # FIXME: Remove size in dest tree constructor when SetSize works
-    dest_tree = SelectionListCtrl(main_frame.root_panel, -1, size=(420, 170), style=wx.LC_REPORT, name='Destination tree')
+    dest_tree = SelectionListCtrl(main_frame.root_panel, -1, load_fn=load_dest, size=(420, 170), style=wx.LC_REPORT, name='Destination tree')
 
     dest_tree.AppendColumn('Path')
     dest_tree.AppendColumn('Name')
@@ -3676,7 +3666,7 @@ if __name__ == '__main__':
     EVT_VERIFY_DATA_INTEGRITY = wx.NewEventType()
     EVT_PROGRESS_MASTER_START_INDETERMINATE = wx.NewEventType()
     EVT_PROGRESS_MASTER_STOP_INDETERMINATE = wx.NewEventType()
-    main_frame.Connect(-1, -1, EVT_REQUEST_LOAD_SOURCE, lambda e: load_source())
+    main_frame.Connect(-1, -1, EVT_REQUEST_LOAD_SOURCE, lambda e: source_tree.load())
     main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_SIZE, lambda e: update_source_size(e.data))
     main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_META_SELECTED_LABEL, lambda e: update_source_meta_selected_label(e.data))
     main_frame.Connect(-1, -1, EVT_UPDATE_SOURCE_META_CONTROL_LABEL, lambda e: update_source_meta_control_label(e.data))

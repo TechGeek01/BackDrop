@@ -441,19 +441,34 @@ class InlineLabel(wx.BoxSizer):
 
 
 class SelectionListCtrl(wx.ListCtrl):
-    def __init__(self, parent, id, *args, **kwargs):
+    def __init__(self, parent, id, load_fn, *args, **kwargs):
         """Create a ListCtrl for file selection.
 
         Args:
             id (int): The ID for the ListCtrl widget.
+            load_fn (def): The function to call when loading data.
         """
 
         wx.ListCtrl.__init__(self, parent, id, *args, **kwargs)
 
+        self._load_fn = load_fn
+
+        self.loading = False
         self.locked = False
 
         self.SetBackgroundColour(Color.WIDGET_COLOR)
         self.SetTextColour(Color.WHITE)
+
+    def load(self, *args, **kwargs):
+        """Load data to populate the SelectionListCtrl."""
+
+        # Don't load if already loading
+        if self.loading:
+            return
+
+        self.loading = True
+        self._load_fn(*args, **kwargs)
+        self.loading = False
 
     def Lock(self):
         """Lock the ListCtrl from being changed."""
