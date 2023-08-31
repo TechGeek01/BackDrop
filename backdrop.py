@@ -2747,8 +2747,13 @@ if __name__ == '__main__':
             # FIXME: Progress bar jumps after completing backup, as though
             #     the progress or total changes when the backup completes
             # FIXME: Progress ranges too high cause integer overflows
+
+            total_progress_with_buffer = backup.progress['current']
+            if buffer['operation'] == Status.FILE_OPERATION_VERIFY:
+                total_progress_with_buffer += buffer['total']
+
             progress_bar_master.SetRange(backup.progress['total'])
-            progress_bar_master.SetValue(backup.progress['current'])
+            progress_bar_master.SetValue(total_progress_with_buffer)
             progress_bar_file.SetValue(buffer['copied'])
             progress_bar_file.SetRange(buffer['total'])
 
