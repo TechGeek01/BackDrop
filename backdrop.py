@@ -1391,6 +1391,12 @@ def cleanup_handler(signal_received, frame):
     exit(0)
 
 
+def get_data_verify_killflag():
+    """Get the kill flag for the data verification thread."""
+
+    return thread_manager.threadlist['Data Verification']['killFlag']
+
+
 # TODO: Move file verification to Backup class
 def verify_data_integrity(path_list: list):
     """Verify itegrity of files on destination paths by checking hashes.
@@ -1420,7 +1426,7 @@ def verify_data_integrity(path_list: list):
 
                     file_hash = get_file_hash(entry.path, lambda: thread_manager.threadlist['Data Verification']['killFlag'])
 
-                    if thread_manager.threadlist['Data Verification']['killFlag']:
+                    if get_data_verify_killflag():
                         break
 
                     if path_stub in hash_list[drive].keys():
