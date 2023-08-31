@@ -178,21 +178,22 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
         if not os.path.exists(path_stub):
             os.makedirs(path_stub)
 
-        fdst = open(dest_filename, 'wb')
         try:
-            for n in iter(lambda: f.readinto(mv), 0):
-                fdst.write(mv[:n])
-                h.update(mv[:n])
+            with open(dest_filename, 'wb') as fdst:
+                try:
+                    for n in iter(lambda: f.readinto(mv), 0):
+                        fdst.write(mv[:n])
+                        h.update(mv[:n])
 
-                copied += n
-                prog_callback(c=copied, t=file_size, op=operation)
+                        copied += n
+                        prog_callback(c=copied, t=file_size, op=operation)
 
-                if get_backup_killflag():
-                    break
-        except OSError:
+                        if get_backup_killflag():
+                            break
+                except OSError:
+                    pass
+        except PermissionError:
             pass
-
-        fdst.close()
 
     # If file wasn't copied successfully, delete it
     if copied != file_size:
