@@ -2845,12 +2845,12 @@ if __name__ == '__main__':
                 cmd_info_blocks[display_index].SetLabel('progress', label='Done')
                 cmd_info_blocks[display_index].SetForegroundColour('progress', Color.FINISHED)
 
-                # Play success tone, so user knows it's completed
-                success_sound.Play()
-
         # If backup stopped, 
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
+
+            # Play success tone, so user knows it's completed
+            success_sound.Play()
 
     # FIXME: can a function like this be generalized to set a setting and preferences?
     def change_verification_all_preferences(verify_all: bool = True):
