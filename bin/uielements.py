@@ -266,28 +266,24 @@ class StatusBar(wx.Panel):
             self._action_label.SetForegroundColour(color)
             self._action_label.Layout()
 
-    def SetErrorLabel(self, label: str):
+    def SetErrorCount(self, count: int = None):
         """Set the label for the error counter.
 
         Args:
-            label (str): The label to set.
+            count (int): The error count to set.
         """
 
+        if count is None:
+            count = 0
+
         if self.flags & StatusBar.ERROR:
-            self._error_counter_label.SetLabel(label=label)
+            self._error_counter_label.SetLabel(label=f'{count} failed')
+            if count > 0:
+                self._error_counter_label.SetForegroundColour(Color.DANGER)
+            else:
+                self._error_counter_label.SetForegroundColour(Color.FADED)
             self._error_counter_label.Layout()
             self.Layout()
-
-    def SetErrorForegroundColour(self, color: wx.Colour):
-        """Set the label for the error counter.
-
-        Args:
-            color (wx.Colour): The color to set the text to.
-        """
-
-        if self.flags & StatusBar.ERROR:
-            self._error_counter_label.SetForegroundColour(color)
-            self._error_counter_label.Layout()
 
     def SetUpdateLabel(self, label: str):
         """Set the label for the update indicator.

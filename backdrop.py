@@ -156,8 +156,7 @@ def update_file_detail_lists(list_name: str, files: set):
 
             # Update counter in status bar
             FAILED_FILE_COUNT = len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL])
-            status_bar.SetErrorLabel(label=f'{FAILED_FILE_COUNT} failed')
-            status_bar.SetErrorForegroundColour(Color.DANGER if FAILED_FILE_COUNT > 0 else Color.FADED)
+            status_bar.SetErrorCount(FAILED_FILE_COUNT)
 
             # HACK: The scroll yview won't see the label instantly after it's packed.
             # Sleeping for a brief time fixes that. This is acceptable as long as it's
@@ -433,8 +432,7 @@ def start_backup_analysis():
 
     # TODO: Move status bar error log counter reset to reset UI function?
     backup_reset_ui()
-    status_bar.SetErrorLabel(label='0 failed')
-    status_bar.SetErrorForegroundColour(Color.FADED)
+    status_bar.SetErrorCount(0)
     update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
 
     backup = Backup(
@@ -1305,8 +1303,7 @@ def start_backup():
                 return
 
     # Reset UI
-    status_bar.SetErrorLabel(label='0 failed')
-    status_bar.SetErrorForegroundColour(Color.FADED)
+    status_bar.SetErrorCount(0)
     update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
 
     # Reset file detail success and fail lists
@@ -1435,8 +1432,7 @@ def verify_data_integrity(path_list: list):
 
                             # Update UI counter
                             verification_failed_list.append(entry.path)
-                            status_bar.SetErrorLabel(label=f'{len(verification_failed_list)} failed')
-                            status_bar.SetErrorForegroundColour(Color.DANGER)
+                            status_bar.SetErrorCount(len(verification_failed_list))
 
                             # Also delete the saved hash
                             if path_stub in hash_list[drive].keys():
@@ -1467,8 +1463,7 @@ def verify_data_integrity(path_list: list):
     if not backup or not backup.is_running():
         update_status_bar_action(Status.VERIFICATION_RUNNING)
         post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
-        status_bar.SetErrorLabel(label='0 failed')
-        status_bar.SetErrorForegroundColour(Color.FADED)
+        status_bar.SetErrorCount(0)
 
         update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
 
@@ -1552,8 +1547,7 @@ def verify_data_integrity(path_list: list):
 
                         # Update UI counter
                         verification_failed_list.append(filename)
-                        status_bar.SetErrorLabel(label=f'{len(verification_failed_list)} failed')
-                        status_bar.SetErrorForegroundColour(Color.DANGER)
+                        status_bar.SetErrorCount(len(verification_failed_list))
 
                         # Delete the saved hash, and write changes to the hash file
                         if file in hash_list[drive].keys():
@@ -3402,8 +3396,7 @@ if __name__ == '__main__':
     status_bar.SetForegroundColour(Color.TEXT_DEFAULT)
     update_status_bar_selection()
     update_status_bar_action(Status.IDLE)
-    status_bar.SetErrorLabel(label='0 failed')
-    status_bar.SetErrorForegroundColour(Color.FADED)
+    status_bar.SetErrorCount(0)
 
     root_sizer.Add(source_sizer, (0, 0), flag=wx.EXPAND)
     root_sizer.Add(summary_sizer, (1, 0), (2, 1), flag=wx.EXPAND)
