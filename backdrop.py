@@ -2850,7 +2850,7 @@ if __name__ == '__main__':
                 cmd_info_blocks[display_index].SetLabel('progress', label='Done')
                 cmd_info_blocks[display_index].SetForegroundColour('progress', Color.FINISHED)
 
-        # If backup stopped, 
+        # If backup stopped, mark as finished, and play sound
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
 

@@ -161,7 +161,8 @@ class FancyProgressBar(wx.Panel):
         Args:
             parent: The parent of the progress bar.
             value (int): The value to set the progress to (optional).
-            
+            max_val (int): The max value of the progress bar (optional).
+            height (int): The height of the progress bar (optional).
             color (wx.Colour): The color of the progress bar (optional).
         """
 
