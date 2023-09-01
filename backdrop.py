@@ -36,7 +36,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, WarningPanel, FancyProgressBar, SelectionListCtrl, CopyListPanel, InlineLabel, DetailBlock, BackupDetailBlock, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, StatusBar, WarningPanel, FancyProgressBar, SelectionListCtrl, CopyListPanel, InlineLabel, DetailBlock, BackupDetailBlock, resource_path
 from bin.status import Status
 
 
@@ -156,10 +156,8 @@ def update_file_detail_lists(list_name: str, files: set):
 
             # Update counter in status bar
             FAILED_FILE_COUNT = len(file_detail_list[FileUtils.LIST_FAIL]) + len(file_detail_list[FileUtils.LIST_DELETE_FAIL])
-            status_bar_error_count.SetLabel(label=f'{FAILED_FILE_COUNT} failed')
-            status_bar_error_count.SetForegroundColour(Color.DANGER if FAILED_FILE_COUNT > 0 else Color.FADED)
-            status_bar_error_count.Layout()
-            status_bar_sizer.Layout()
+            status_bar.SetErrorLabel(label=f'{FAILED_FILE_COUNT} failed')
+            status_bar.SetErrorForegroundColour(Color.DANGER if FAILED_FILE_COUNT > 0 else Color.FADED)
 
             # HACK: The scroll yview won't see the label instantly after it's packed.
             # Sleeping for a brief time fixes that. This is acceptable as long as it's
@@ -419,9 +417,7 @@ def request_kill_analysis():
     """Kill a running analysis."""
 
     if backup:
-        status_bar_action.SetLabel(label='Stopping analysis')
-        status_bar_action.Layout()
-        status_bar_sizer.Layout()
+        update_status_bar_action(Status.BACKUP_ANALYSIS_HALT_REQUESTED)
         backup.kill(Backup.KILL_ANALYSIS)
 
 
@@ -437,10 +433,8 @@ def start_backup_analysis():
 
     # TODO: Move status bar error log counter reset to reset UI function?
     backup_reset_ui()
-    status_bar_error_count.SetLabel(label='0 failed')
-    status_bar_error_count.SetForegroundColour(Color.FADED)
-    status_bar_error_count.Layout()
-    status_bar_sizer.Layout()
+    status_bar.SetErrorLabel(label='0 failed')
+    status_bar.SetErrorForegroundColour(Color.FADED)
     update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
 
     backup = Backup(
@@ -1311,10 +1305,8 @@ def start_backup():
                 return
 
     # Reset UI
-    status_bar_error_count.SetLabel(label='0 failed')
-    status_bar_error_count.SetForegroundColour(Color.FADED)
-    status_bar_error_count.Layout()
-    status_bar_sizer.Layout()
+    status_bar.SetErrorLabel(label='0 failed')
+    status_bar.SetErrorForegroundColour(Color.FADED)
     update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
 
     # Reset file detail success and fail lists
@@ -1443,10 +1435,8 @@ def verify_data_integrity(path_list: list):
 
                             # Update UI counter
                             verification_failed_list.append(entry.path)
-                            status_bar_error_count.SetLabel(label=f'{len(verification_failed_list)} failed')
-                            status_bar_error_count.SetForegroundColour(Color.DANGER)
-                            status_bar_error_count.Layout()
-                            status_bar_sizer.Layout()
+                            status_bar.SetErrorLabel(label=f'{len(verification_failed_list)} failed')
+                            status_bar.SetErrorForegroundColour(Color.DANGER)
 
                             # Also delete the saved hash
                             if path_stub in hash_list[drive].keys():
@@ -1477,10 +1467,8 @@ def verify_data_integrity(path_list: list):
     if not backup or not backup.is_running():
         update_status_bar_action(Status.VERIFICATION_RUNNING)
         post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
-        status_bar_error_count.SetLabel(label='0 failed')
-        status_bar_error_count.SetForegroundColour(Color.FADED)
-        status_bar_error_count.Layout()
-        status_bar_sizer.Layout()
+        status_bar.SetErrorLabel(label='0 failed')
+        status_bar.SetErrorForegroundColour(Color.FADED)
 
         update_ui_component(Status.UPDATEUI_CURRENT_FILE_DETAILS, data='')
 
@@ -1564,10 +1552,8 @@ def verify_data_integrity(path_list: list):
 
                         # Update UI counter
                         verification_failed_list.append(filename)
-                        status_bar_error_count.SetLabel(label=f'{len(verification_failed_list)} failed')
-                        status_bar_error_count.SetForegroundColour(Color.DANGER)
-                        status_bar_error_count.Layout()
-                        status_bar_sizer.Layout()
+                        status_bar.SetErrorLabel(label=f'{len(verification_failed_list)} failed')
+                        status_bar.SetErrorForegroundColour(Color.DANGER)
 
                         # Delete the saved hash, and write changes to the hash file
                         if file in hash_list[drive].keys():
@@ -1920,9 +1906,7 @@ if __name__ == '__main__':
 
         # Set status
         if status in STATUS_TEXT_MAP.keys():
-            status_bar_selection.SetLabel(STATUS_TEXT_MAP[status])
-            status_bar_selection.Layout()
-            status_bar_sizer.Layout()
+            status_bar.SetSelectionLabel(STATUS_TEXT_MAP[status])
 
     def update_status_bar_action(status: int):
         """Update the status bar action status.
@@ -1932,13 +1916,11 @@ if __name__ == '__main__':
         """
 
         if status == Status.IDLE:
-            status_bar_action.SetLabel('Idle')
-            status_bar_action.Layout()
-            status_bar_sizer.Layout()
+            status_bar.SetActionLabel('Idle')
         elif status == Status.BACKUP_ANALYSIS_RUNNING:
-            status_bar_action.SetLabel('Analysis running')
-            status_bar_action.Layout()
-            status_bar_sizer.Layout()
+            status_bar.SetActionLabel('Analysis running')
+        elif status == Status.BACKUP_ANALYSIS_HALT_REQUESTED:
+            status_bar.SetActionLabel('Stopping analysis')
         elif status == Status.BACKUP_READY_FOR_BACKUP:
             backup_eta_label.SetLabel('Analysis finished, ready for backup')
             backup_eta_label.SetForegroundColour(Color.TEXT_DEFAULT)
@@ -1950,17 +1932,11 @@ if __name__ == '__main__':
             backup_eta_label.Layout()
             summary_sizer.Layout()
         elif status == Status.BACKUP_BACKUP_RUNNING:
-            status_bar_action.SetLabel('Backup running')
-            status_bar_action.Layout()
-            status_bar_sizer.Layout()
+            status_bar.SetActionLabel('Backup running')
         elif status == Status.BACKUP_HALT_REQUESTED:
-            status_bar_action.SetLabel('Stopping backup')
-            status_bar_action.Layout()
-            status_bar_sizer.Layout()
+            status_bar.SetActionLabel('Stopping backup')
         elif status == Status.VERIFICATION_RUNNING:
-            status_bar_action.SetLabel('Data verification running')
-            status_bar_action.Layout()
-            status_bar_sizer.Layout()
+            status_bar.SetActionLabel('Data verification running')
 
     def update_status_bar_update(status: int):
         """Update the status bar update message.
@@ -1978,10 +1954,8 @@ if __name__ == '__main__':
 
         # Set status
         if status in STATUS_TEXT_MAP.keys():
-            status_bar_updates.SetLabel(STATUS_TEXT_MAP[status][0])
-            status_bar_updates.SetForegroundColour(STATUS_TEXT_MAP[status][1])
-            status_bar_updates.Layout()
-            status_bar_sizer.Layout()
+            status_bar.SetUpdateLabel(STATUS_TEXT_MAP[status][0])
+            status_bar.SetUpdateForegroundColour(STATUS_TEXT_MAP[status][1])
 
     def request_kill_backup():
         """Kill a running backup."""
@@ -1990,9 +1964,7 @@ if __name__ == '__main__':
         # FIXME: When aborting backup, file detail block shows "done" instead of "aborted"
 
         if backup:
-            status_bar_action.SetLabel(label='Stopping backup')
-            status_bar_action.Layout()
-            status_bar_sizer.Layout()
+            update_status_bar_action(Status.BACKUP_HALT_REQUESTED)
             backup.kill(Backup.KILL_BACKUP)
 
     def update_ui_component(status: int, data=None):
@@ -3421,31 +3393,17 @@ if __name__ == '__main__':
     controls_sizer.Add(wx.StaticBitmap(main_frame.root_panel, -1, wx.Bitmap(wx.Image(logo_image_path, wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM | wx.RIGHT, ITEM_UI_PADDING)
 
     # Status bar
-    STATUS_BAR_PADDING = 8
-    status_bar = wx.Panel(main_frame.root_panel, size=(-1, 20))
+    STATUS_BAR_FLAGS = StatusBar.ALL
+    if PORTABLE_MODE:
+        STATUS_BAR_FLAGS = STATUS_BAR_FLAGS | StatusBar.PORTABLE_MODE
+
+    status_bar = StatusBar(main_frame.root_panel, flags=STATUS_BAR_FLAGS)
     status_bar.SetBackgroundColour(Color.STATUS_BAR)
     status_bar.SetForegroundColour(Color.TEXT_DEFAULT)
-    status_bar_sizer = wx.BoxSizer()
-    status_bar_selection = wx.StaticText(status_bar, -1, label='', name='Status bar selection')
-    status_bar_sizer.Add(status_bar_selection, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     update_status_bar_selection()
-    status_bar_action = wx.StaticText(status_bar, -1, label='', name='Status bar action')
-    status_bar_sizer.Add(status_bar_action, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
     update_status_bar_action(Status.IDLE)
-    status_bar_error_count = wx.StaticText(status_bar, -1, label='0 failed', name='Status bar error count')
-    status_bar_error_count.SetForegroundColour(Color.FADED)
-    status_bar_sizer.Add(status_bar_error_count, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
-    status_bar_sizer.Add((-1, -1), 1, wx.EXPAND)
-    if PORTABLE_MODE:
-        status_bar_portable_mode = wx.StaticText(status_bar, -1, label='Portable mode')
-        status_bar_sizer.Add(status_bar_portable_mode, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
-    status_bar_updates = wx.StaticText(status_bar, -1, label='Up to date', name='Status bar update indicator')
-    status_bar_sizer.Add(status_bar_updates, 0, wx.LEFT | wx.RIGHT, STATUS_BAR_PADDING)
-    status_bar_outer_sizer = wx.BoxSizer(wx.VERTICAL)
-    status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
-    status_bar_outer_sizer.Add(status_bar_sizer, 0, wx.EXPAND)
-    status_bar_outer_sizer.Add((-1, -1), 1, wx.EXPAND)
-    status_bar.SetSizer(status_bar_outer_sizer)
+    status_bar.SetErrorLabel(label='0 failed')
+    status_bar.SetErrorForegroundColour(Color.FADED)
 
     root_sizer.Add(source_sizer, (0, 0), flag=wx.EXPAND)
     root_sizer.Add(summary_sizer, (1, 0), (2, 1), flag=wx.EXPAND)
@@ -3654,8 +3612,9 @@ if __name__ == '__main__':
     start_backup_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: start_backup())
     halt_verification_btn.Bind(wx.EVT_LEFT_DOWN, lambda e: thread_manager.kill('Data Verification'))
 
-    status_bar_error_count.Bind(wx.EVT_LEFT_DOWN, lambda e: show_backup_error_log())
-    status_bar_updates.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
+    # TODO: Create these bindings in the StatusBar class rather than binding on private variables
+    status_bar._error_counter_label.Bind(wx.EVT_LEFT_DOWN, lambda e: show_backup_error_log())
+    status_bar._update_label.Bind(wx.EVT_LEFT_DOWN, lambda e: show_update_window(update_info))
 
     # PyEvent bindings
     EVT_REQUEST_LOAD_SOURCE = wx.NewEventType()

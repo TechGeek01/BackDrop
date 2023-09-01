@@ -154,6 +154,165 @@ class ModalWindow(RootWindow):
         self.Show()
 
 
+class StatusBar(wx.Panel):
+    SELECTION = 1
+    ACTION = 2
+    ERROR = 4
+    PORTABLE_MODE = 8
+    UPDATES = 16
+
+    ALL = SELECTION | ACTION | ERROR | UPDATES
+
+    def __init__(self, parent=None, height: int = None, padding: int = None, flags: int = None, name: str = None, *args, **kwargs):
+        """Create a status bar.
+
+        Args:
+            parent: The parent of the status bar.
+            height (int): The height of the progress bar (default: 20).
+            padding (int): The padding between items (default: 8).
+            flags (int): The flags for styling the status bar (default: all).
+            name (str): The name to give the widgets (optional).
+        """
+
+        self.parent = parent
+        self.height = height
+        self.padding = padding
+        self.flags = flags
+        self.name = name
+
+        if self.height is None:
+            self.height = 20
+        if self.padding is None:
+            self.padding = 8
+        if self.flags is None:
+            self.flags = StatusBar.ALL
+        if self.name is None:
+            self.name = 'Status bar'
+
+        wx.Panel.__init__(self, parent, size=(-1, self.height), name=self.name, *args, **kwargs)
+        self.SetForegroundColour(parent.GetForegroundColour())
+        self.SetBackgroundColour(parent.GetBackgroundColour())
+
+        self._box = wx.BoxSizer()
+
+        if self.flags & StatusBar.SELECTION:
+            self._selection_label = wx.StaticText(self, -1, label='', name=f'{self.name} selection')
+            self._box.Add(self._selection_label, 0, wx.LEFT | wx.RIGHT, self.padding)
+        if self.flags & StatusBar.ACTION:
+            self._action_label = wx.StaticText(self, -1, label='', name=f'{self.name} action')
+            self._box.Add(self._action_label, 0, wx.LEFT | wx.RIGHT, self.padding)
+        if self.flags & StatusBar.ERROR:
+            self._error_counter_label = wx.StaticText(self, -1, label='', name=f'{self.name} error count')
+            self._box.Add(self._error_counter_label, 0, wx.LEFT | wx.RIGHT, self.padding)
+
+        self._box.Add((-1, -1), 1, wx.EXPAND)
+
+        if self.flags & StatusBar.PORTABLE_MODE:
+            self._portable_mode_label = wx.StaticText(self, -1, label='Portable mode')
+            self._box.Add(self._portable_mode_label, 0, wx.LEFT | wx.RIGHT, self.padding)
+        if self.flags & StatusBar.UPDATES:
+            self._update_label = wx.StaticText(self, -1, label='Up to date', name=f'{self.name} update indicator')
+            self._box.Add(self._update_label, 0, wx.LEFT | wx.RIGHT, self.padding)
+
+        self._outer_box = wx.BoxSizer(wx.VERTICAL)
+        self._outer_box.Add((-1, -1), 1, wx.EXPAND)
+        self._outer_box.Add(self._box, 0, wx.EXPAND)
+        self._outer_box.Add((-1, -1), 1, wx.EXPAND)
+        self.SetSizer(self._outer_box)
+
+    def SetSelectionLabel(self, label: str):
+        """Set the label for the selection.
+
+        Args:
+            label (str): The label to set.
+        """
+
+        if self.flags & StatusBar.SELECTION:
+            self._selection_label.SetLabel(label=label)
+            self._selection_label.Layout()
+            self.Layout()
+
+    def SetSelectionForegroundColour(self, color: wx.Colour):
+        """Set the label for the selection.
+
+        Args:
+            color (wx.Colour): The color to set the text to.
+        """
+
+        if self.flags & StatusBar.SELECTION:
+            self._selection_label.SetForegroundColour(color)
+            self._selection_label.Layout()
+
+    def SetActionLabel(self, label: str):
+        """Set the label for the action.
+
+        Args:
+            label (str): The label to set.
+        """
+
+        if self.flags & StatusBar.ACTION:
+            self._action_label.SetLabel(label=label)
+            self._action_label.Layout()
+            self.Layout()
+
+    def SetActionForegroundColour(self, color: wx.Colour):
+        """Set the label for the action.
+
+        Args:
+            color (wx.Colour): The color to set the text to.
+        """
+
+        if self.flags & StatusBar.ACTION:
+            self._action_label.SetForegroundColour(color)
+            self._action_label.Layout()
+
+    def SetErrorLabel(self, label: str):
+        """Set the label for the error counter.
+
+        Args:
+            label (str): The label to set.
+        """
+
+        if self.flags & StatusBar.ERROR:
+            self._error_counter_label.SetLabel(label=label)
+            self._error_counter_label.Layout()
+            self.Layout()
+
+    def SetErrorForegroundColour(self, color: wx.Colour):
+        """Set the label for the error counter.
+
+        Args:
+            color (wx.Colour): The color to set the text to.
+        """
+
+        if self.flags & StatusBar.ERROR:
+            self._error_counter_label.SetForegroundColour(color)
+            self._error_counter_label.Layout()
+
+    def SetUpdateLabel(self, label: str):
+        """Set the label for the update indicator.
+
+        Args:
+            label (str): The label to set.
+        """
+
+        if self.flags & StatusBar.UPDATES:
+            self._update_label.SetLabel(label=label)
+            self._update_label.Layout()
+            self.Layout()
+
+    def SetUpdateForegroundColour(self, color: wx.Colour):
+        """Set the label for the update indicator.
+
+        Args:
+            color (wx.Colour): The color to set the text to.
+        """
+
+        if self.flags & StatusBar.UPDATES:
+            self._update_label.SetForegroundColour(color)
+            self._update_label.Layout()
+
+
 class FancyProgressBar(wx.Panel):
     def __init__(self, parent=None, value: int = None, max_val: int = None, height: int = None, color: wx.Colour = None, *args, **kwargs):
         """Create a progress bar.
