@@ -17,6 +17,10 @@ class Timer:
             time: The time to start from (optional).
         """
 
+        # Do not start if already running
+        if self._running:
+            return
+
         self._running = True
         self._stop = None
         if time is None:
@@ -26,6 +30,10 @@ class Timer:
 
     def stop(self):
         """Stop the timer."""
+
+        # Do not stop if already stopped
+        if not self._running:
+            return
 
         self._stop = datetime.now()
         self._running = False
@@ -44,7 +52,6 @@ class Timer:
             return self._stop - self._start
         else:
             return 0
-
 
     @property
     def running(self) -> bool:
