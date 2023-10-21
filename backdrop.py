@@ -2820,7 +2820,8 @@ if __name__ == '__main__':
         if backup.status != Status.BACKUP_BACKUP_RUNNING:
             update_ui_component(Status.UPDATEUI_BACKUP_END)
 
-            # Play success tone, so user knows it's completed
+        # If backup complete, play success tone
+        if backup.status == Status.BACKUP_BACKUP_FINISHED:
             success_sound.Play()
 
     # FIXME: can a function like this be generalized to set a setting and preferences?
