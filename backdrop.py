@@ -3387,9 +3387,10 @@ if __name__ == '__main__':
     controls_sizer.Add(wx.StaticBitmap(main_frame.root_panel, -1, wx.Bitmap(wx.Image(logo_image_path, wx.BITMAP_TYPE_ANY))), 0, wx.ALIGN_BOTTOM | wx.RIGHT, ITEM_UI_PADDING)
 
     # Status bar
-    STATUS_BAR_FLAGS = StatusBar.ALL
-    if PORTABLE_MODE:
-        STATUS_BAR_FLAGS = STATUS_BAR_FLAGS | StatusBar.PORTABLE_MODE
+    if not PORTABLE_MODE:
+        STATUS_BAR_FLAGS = StatusBar.ALL
+    else:
+        STATUS_BAR_FLAGS = StatusBar.ALL | StatusBar.PORTABLE_MODE
 
     status_bar = StatusBar(main_frame.root_panel, flags=STATUS_BAR_FLAGS)
     status_bar.SetBackgroundColour(Color.STATUS_BAR)
