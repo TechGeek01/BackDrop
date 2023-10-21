@@ -291,7 +291,7 @@ def update_backup_eta_timer(progress_info: dict):
         # Total is copy source, verify dest, so total data is 2 * copy
         total_to_copy = progress_info['total']['total'] - progress_info['total']['delete_total']
 
-        running_time = datetime.now() - backup.get_backup_start_time()
+        running_time = backup.timer.elapsed
         if total_to_copy > 0:
             percent_copied = progress_info['total']['current'] / total_to_copy
         else:
@@ -308,12 +308,12 @@ def update_backup_eta_timer(progress_info: dict):
         backup_eta_label.Layout()
         summary_sizer.Layout()
     elif backup.status == Status.BACKUP_BACKUP_ABORTED:
-        backup_eta_label.SetLabel(f'Backup aborted in {str(datetime.now() - backup.get_backup_start_time()).split(".")[0]}')
+        backup_eta_label.SetLabel(f'Backup aborted in {str(backup.timer.elapsed).split(".")[0]}')
         backup_eta_label.SetForegroundColour(Color.FAILED)
         backup_eta_label.Layout()
         summary_sizer.Layout()
     elif backup.status == Status.BACKUP_BACKUP_FINISHED:
-        backup_eta_label.SetLabel(f'Backup completed successfully in {str(datetime.now() - backup.get_backup_start_time()).split(".")[0]}')
+        backup_eta_label.SetLabel(f'Backup completed successfully in {str(backup.timer.elapsed).split(".")[0]}')
         backup_eta_label.SetForegroundColour(Color.FINISHED)
         backup_eta_label.Layout()
         summary_sizer.Layout()

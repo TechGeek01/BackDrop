@@ -8,6 +8,7 @@ import math
 import time
 
 from bin.fileutils import FileUtils, human_filesize, get_directory_size, do_delete, do_copy
+from bin.utils import Timer
 from bin.config import Config
 from bin.status import Status
 
@@ -34,6 +35,8 @@ class Backup:
             analysis_callback_fn (def): The callback function to call post analysis.
             backup_callback_fn (def): The callback function to call post backup.
         """
+
+        self.timer = Timer()
 
         self.progress = {
             'analysis': [],  # (list, file path)
@@ -1049,6 +1052,7 @@ class Backup:
 
         self.run_killed = False
         self.backup_running = True
+        self.timer.start()
         self.status = Status.BACKUP_BACKUP_RUNNING
 
         # Write config file to drives
@@ -1066,15 +1070,9 @@ class Backup:
             'display_index': None
         }
 
-        timer_started = False
-
         for cmd in self.command_list:
             if cmd['type'] == Backup.COMMAND_TYPE_FILE_LIST:
                 self.progress['command_display_index'] = cmd['displayIndex']
-
-                if not timer_started:
-                    timer_started = True
-                    self.backup_start_time = datetime.now()
 
                 if cmd['mode'] == Status.FILE_OPERATION_DELETE:
                     for drive, file, size in cmd['payload']:
@@ -1147,6 +1145,8 @@ class Backup:
             if self.run_killed:
                 break
 
+        self.timer.stop()
+
         if not self.run_killed:
             self.status = Status.BACKUP_BACKUP_FINISHED
         if self.run_killed:
@@ -1195,14 +1195,6 @@ class Backup:
         current_progress['total'] = self.progress
 
         return current_progress
-
-    def get_backup_start_time(self) -> datetime:
-        """
-        Returns:
-            datetime: The time the backup started. (default 0)
-        """
-
-        return self.backup_start_time
 
     def is_running(self) -> bool:
         """

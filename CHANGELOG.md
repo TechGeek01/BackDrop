@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Fixed loading source and destination custom paths causing UI to hang
 - Fixed program crash when running backup if no files need copying
 - Fixed crash on PermissionError when trying to open some existing destination files for writing
+- Fixed backup timer not stopping when backup is completed or aborted
 
 ## 4.0.0 - 2023-07-23
 ### Added
