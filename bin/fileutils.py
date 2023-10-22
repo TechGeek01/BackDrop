@@ -169,7 +169,7 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
     copied = 0
     with open(source_filename, 'rb', buffering=0) as f:
         try:
-            file_size = os.stat(f.fileno()).st_size
+            file_size = os.stat(source_filename).st_size
         except OSError:
             file_size = FileUtils.READINTO_BUFSIZE
 
