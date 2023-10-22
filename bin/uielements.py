@@ -64,9 +64,12 @@ class RootWindow(wx.Frame):
             parent: The parent of the resulting frame.
             title (String): The title of the window.
             size (wx.Size): The size of the window.
-            name (String): The name to give the frame.
+            name (String): The name to give the frame (optonal).
             icon (wx.Icon): The icon to apply to the window (optional).
         """
+
+        if name is None:
+            name = 'RootWindow'
 
         self.parent = parent
         self.icon = icon
@@ -93,6 +96,9 @@ class RootWindow(wx.Frame):
             foreground (wx.Colour): The foreground color of the panel (optional).
         """
 
+        if name is None:
+            name = 'Panel'
+
         self.root_panel = wx.Panel(self, name=name)
 
         if background is not None:
@@ -110,12 +116,15 @@ class ModalWindow(RootWindow):
         """Create a modal window.
 
         Args:
-            parent: The parent of the resulting frame.
+            parent: The parent widget.
             title (String): The title of the window.
             size (wx.Size): The size of the window.
             name (String): The name to give the frame.
             icon (wx.Icon): The icon to apply to the window (optional).
         """
+
+        if name is None:
+            name = 'ModalWindow'
 
         self.icon = icon
 
@@ -167,27 +176,27 @@ class StatusBar(wx.Panel):
         """Create a status bar.
 
         Args:
-            parent: The parent of the status bar.
+            parent: The parent widget.
             height (int): The height of the progress bar (default: 20).
             padding (int): The padding between items (default: 8).
             flags (int): The flags for styling the status bar (default: all).
             name (str): The name to give the widgets (optional).
         """
 
+        if height is None:
+            height = 20
+        if padding is None:
+            padding = 8
+        if flags is None:
+            flags = StatusBar.ALL
+        if name is None:
+            name = 'StatusBar'
+
         self.parent = parent
         self.height = height
         self.padding = padding
         self.flags = flags
         self.name = name
-
-        if self.height is None:
-            self.height = 20
-        if self.padding is None:
-            self.padding = 8
-        if self.flags is None:
-            self.flags = StatusBar.ALL
-        if self.name is None:
-            self.name = 'Status bar'
 
         wx.Panel.__init__(self, parent, size=(-1, self.height), name=self.name, *args, **kwargs)
         self.SetForegroundColour(parent.GetForegroundColour())
@@ -310,16 +319,28 @@ class StatusBar(wx.Panel):
 
 
 class FancyProgressBar(wx.Panel):
-    def __init__(self, parent=None, value: int = None, max_val: int = None, height: int = None, color: wx.Colour = None, *args, **kwargs):
+    def __init__(self, parent=None, value: int = None, max_val: int = None, height: int = None, color: wx.Colour = None, name: str = None, *args, **kwargs):
         """Create a progress bar.
 
         Args:
-            parent: The parent of the progress bar.
+            parent: The parent widget.
             value (int): The value to set the progress to (optional).
             max_val (int): The max value of the progress bar (optional).
             height (int): The height of the progress bar (optional).
             color (wx.Colour): The color of the progress bar (optional).
+            name (String): The name of the widget (optional).
         """
+
+        if value is None:
+            value = 0
+        if max_val is None:
+            max_val = 10000
+        if height is None:
+            height = 6
+        if color is None:
+            color = Color.BRAND_COLOR
+        if name is None:
+            name = 'FancyProgressBar'
 
         self.parent = parent
         self.value = value
@@ -333,16 +354,7 @@ class FancyProgressBar(wx.Panel):
 
         self._progress_threads = 0
 
-        if self.value is None:
-            self.value = 0
-        if self.range is None:
-            self.range = 10000
-        if self.height is None:
-            self.height = 6
-        if self.color is None:
-            self.color = Color.BRAND_COLOR
-
-        wx.Panel.__init__(self, parent, size=(-1, self.height), *args, **kwargs)
+        wx.Panel.__init__(self, parent, size=(-1, self.height), name=name, *args, **kwargs)
 
         self.SetBackgroundColour(Color.PROGRESS_BAR_BG_COLOR)
 
@@ -453,12 +465,16 @@ class FancyProgressBar(wx.Panel):
 class ProgressBar(wx.Gauge):
     MAX_RANGE = 10000
 
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, name: str = None, *args, **kwargs):
         """Create a progress bar.
 
         Args:
-            parent: The parent of the progress bar.
+            parent: The parent widget.
+            name (String): The name of the widget (optional).
         """
+
+        if name is None:
+            name = 'ProgressBar'
 
         self.value = 0
         self.range = None
@@ -466,7 +482,7 @@ class ProgressBar(wx.Gauge):
 
         self._progress_threads = 0
 
-        wx.Gauge.__init__(self, parent, *args, **kwargs)
+        wx.Gauge.__init__(self, parent, name=name, *args, **kwargs)
 
     def StartIndeterminate(self):
         """Start indeterminate mode."""
@@ -524,10 +540,18 @@ class ProgressBar(wx.Gauge):
 
 
 class WarningPanel(wx.Panel):
-    def __init__(self, parent, *args, **kwargs):
-        """Create an alert-like panel for warnings and errors."""
+    def __init__(self, parent, name: str = None, *args, **kwargs):
+        """Create an alert-like panel for warnings and errors.
 
-        wx.Panel.__init__(self, parent, *args, **kwargs)
+        Args:
+            parent: The parent widget.
+            name (String): The name of the widget (optional).
+        """
+
+        if name is None:
+            name = 'WarningPanel'
+
+        wx.Panel.__init__(self, parent, name=name, *args, **kwargs)
 
         self.parent = parent
 
@@ -543,7 +567,7 @@ class WarningPanel(wx.Panel):
 
 
 class InlineLabel(wx.BoxSizer):
-    def __init__(self, parent, label: str, value: str, color=None, value_color=None, name: str = 'InlineLabel', *args, **kwargs):
+    def __init__(self, parent, label: str, value: str, color=None, value_color=None, name: str = None, *args, **kwargs):
         """Create an inline label with both a label and content.
 
         Args:
@@ -552,13 +576,15 @@ class InlineLabel(wx.BoxSizer):
             value (String): The value text for the label.
             color (wx.Colour): The color for the label (optional).
             value_color (wx.Colour): The color for the value (optional).
-            name (String): The name to use for the StaticText items.
+            name (String): The name to use for the StaticText items (optional).
         """
 
         if color is None:
             color = Color.TEXT_DEFAULT
         if value_color is None:
             value_color = Color.TEXT_DEFAULT
+        if name is None:
+            name = 'InlineLabel'
 
         wx.BoxSizer.__init__(self, *args, **kwargs)
 
@@ -597,17 +623,19 @@ class InlineLabel(wx.BoxSizer):
 
 
 class Counter(wx.BoxSizer):
-    def __init__(self, parent, value: int = None, name: str = 'Counter', *args, **kwargs):
+    def __init__(self, parent, value: int = None, name: str = None, *args, **kwargs):
         """Create a counter to track numbers.
 
         Args:
             parent: The parent widget.
             value (int): The iniitial value to set (optional).
-            name (String): The name to use for the StaticText items.
+            name (String): The name to use for the StaticText items (optional).
         """
 
         if value is None:
             value = 0
+        if name is None:
+            name = 'Counter'
 
         wx.BoxSizer.__init__(self, *args, **kwargs)
 
@@ -661,15 +689,19 @@ class Counter(wx.BoxSizer):
 
 
 class SelectionListCtrl(wx.ListCtrl):
-    def __init__(self, parent, id, load_fn, *args, **kwargs):
+    def __init__(self, parent, id, load_fn, name: str = None, *args, **kwargs):
         """Create a ListCtrl for file selection.
 
         Args:
             id (int): The ID for the ListCtrl widget.
             load_fn (def): The function to call when loading data.
+            name (String): The name of the ListCtrl (optional).
         """
 
-        wx.ListCtrl.__init__(self, parent, id, *args, **kwargs)
+        if name is None:
+            name = 'SelectionListCtrl'
+
+        wx.ListCtrl.__init__(self, parent, id, name=name, *args, **kwargs)
 
         self._load_fn = load_fn
 
@@ -709,6 +741,9 @@ class CopyListPanel(wx.Panel):
             label (str): The label for the header.
             name (str): The name for the CopyListBlock item (optional).
         """
+
+        if name is None:
+            name = 'CopyListPanel'
 
         wx.Panel.__init__(self, parent, *args, **kwargs)
 
@@ -751,7 +786,6 @@ class CopyListPanel(wx.Panel):
         Args:
             items (list): The items to add.
             color (wx.Colour): The text color to use (optional).
-            name (str): The name to assign the StaticText (optional).
         """
 
         self.list.append(items)
@@ -798,16 +832,20 @@ class DetailBlock(wx.BoxSizer):
     TITLE = 'title'
     CONTENT = 'content'
 
-    def __init__(self, parent, title: str, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
+    def __init__(self, parent, title: str, name: str = None, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
         """Create an expandable detail block to display info.
 
         Args:
             parent: The parent widget.
             title (String): The bold title to display.
+            name (String): The name of the widget (optional).
             text_font (wx.Font): The font to use for the text.
             bold_font (wx.Font): The font to use for the headings.
             enabled (bool): Whether or not this block is enabled.
         """
+
+        if name is None:
+            name = 'DetailBlock'
 
         wx.BoxSizer.__init__(self, orient=wx.VERTICAL)
 
@@ -825,13 +863,13 @@ class DetailBlock(wx.BoxSizer):
         self.header_sizer = wx.BoxSizer()
         self.arrow = wx.StaticBitmap(self.parent, -1, self.right_arrow)
         self.header_sizer.Add(self.arrow, 0, wx.TOP, 2)
-        self.header = wx.StaticText(self.parent, -1, label=title)
+        self.header = wx.StaticText(self.parent, -1, label=title, name=f'{name} header text')
         self.header.SetFont(self.BOLD_FONT)
         self.header.SetForegroundColour(Color.TEXT_DEFAULT if self.enabled else Color.FADED)
         self.header_sizer.Add(self.header, 0, wx.LEFT, 5)
         self.Add(self.header_sizer, 0)
 
-        self.content = wx.Panel(self.parent, name='DetailBlock content panel')
+        self.content = wx.Panel(self.parent, name=f'{name} content panel')
         self.content.Hide()
         self.content.SetForegroundColour(Color.TEXT_DEFAULT if self.enabled else Color.FADED)
         self.content_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -982,20 +1020,24 @@ class DetailBlock(wx.BoxSizer):
 
 
 class BackupDetailBlock(DetailBlock):
-    def __init__(self, parent, title: str, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
+    def __init__(self, parent, title: str, name: str = None, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
         """Create an expandable detail block to display info.
 
         Args:
             parent: The parent widget.
             title (String): The bold title to display.
+            name (String): The name of the widget (optional).
             text_font (wx.Font): The font to use for the text.
             bold_font (wx.Font): The font to use for the headings.
             enabled (bool): Whether or not this block is enabled.
         """
 
-        # FIXME: Clicking on the state doesn't toggle the content. Rewriting the toggle function should fix this.
-        DetailBlock.__init__(self, parent, title, text_font, bold_font, enabled)
+        if name is None:
+            name = 'BackupDetailBlock'
 
-        self.state = wx.StaticText(self.parent, -1, label='Pending' if self.enabled else 'Skipped')
+        # FIXME: Clicking on the state doesn't toggle the content. Rewriting the toggle function should fix this.
+        DetailBlock.__init__(self, parent, title, name=name, text_font, bold_font, enabled)
+
+        self.state = wx.StaticText(self.parent, -1, label='Pending' if self.enabled else 'Skipped', name=f'{name} state text')
         self.state.SetForegroundColour(Color.PENDING if self.enabled else Color.FADED)
         self.header_sizer.Add(self.state, 0, wx.LEFT, 5)
