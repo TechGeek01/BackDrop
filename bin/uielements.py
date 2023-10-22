@@ -596,6 +596,70 @@ class InlineLabel(wx.BoxSizer):
         self.value.SetForegroundColour(color)
 
 
+class Counter(wx.BoxSizer):
+    def __init__(self, parent, value: int = None, name: str = 'Counter', *args, **kwargs):
+        """Create a counter to track numbers.
+
+        Args:
+            parent: The parent widget.
+            value (int): The iniitial value to set (optional).
+            name (String): The name to use for the StaticText items.
+        """
+
+        if value is None:
+            value = 0
+
+        wx.BoxSizer.__init__(self, *args, **kwargs)
+
+        self.parent = parent
+
+        self._value = value
+        self._label = wx.StaticText(self.parent, -1, label=str(value), name=f'{name} label')
+        self.Add(self._label, 0)
+
+    def SetLabel(self, text):
+        """Set the label of the counter.
+
+        Args:
+            text (str): The label to set.
+        """
+
+        self._label.SetLabel(text)
+
+        self._label.Layout()
+        self.Layout()
+
+    def AddCount(self, count):
+        """Add a count to the value of the counter.
+
+        Args:
+            count (int): The count to add to the value.
+        """
+
+        self._value += count
+        self.SetLabel(str(self._value))
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = value
+        self.SetLabel(str(value))
+
+    def SetFont(self, *args, **kwargs):
+        self._label.SetFont(*args, **kwargs)
+        self._label.Layout()
+        self.Layout()
+
+    def SetForegroundColour(self, *args, **kwargs):
+        self._label.SetForegroundColour(*args, **kwargs)
+
+    def Bind(self, *args, **kwargs):
+        self._label.Bind(*args, **kwargs)
+
+
 class SelectionListCtrl(wx.ListCtrl):
     def __init__(self, parent, id, load_fn, *args, **kwargs):
         """Create a ListCtrl for file selection.
@@ -649,7 +713,6 @@ class CopyListPanel(wx.Panel):
         wx.Panel.__init__(self, parent, *args, **kwargs)
 
         self.parent = parent
-        self.counter = 0
         self.list = []
 
         # Set up box sizer for panel
@@ -661,11 +724,11 @@ class CopyListPanel(wx.Panel):
         self._header_text = wx.StaticText(self, -1, label=f'{label} ', name=f'{name} header')
         self._header_copy_text = wx.StaticText(self, -1, label='(click to copy)', name=f'{name} click to copy text')
         self._header_copy_text.SetForegroundColour(Color.FADED)
-        self._counter_text = wx.StaticText(self, -1, label=str(self.counter), name=f'{name} counter')
+        self._counter = Counter(self, name=f'{name} counter')
         self._header_sizer.Add(self._header_text, 0, wx.ALIGN_BOTTOM)
         self._header_sizer.Add(self._header_copy_text, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, 1)
         self._header_sizer.Add((-1, -1), 1, wx.EXPAND)
-        self._header_sizer.Add(self._counter_text, 0, wx.ALIGN_BOTTOM)
+        self._header_sizer.Add(self._counter, 0, wx.ALIGN_BOTTOM)
 
         self._list_panel = wx.ScrolledWindow(self, -1, style=wx.VSCROLL, name=f'{name} scrollable panel')
         self._list_panel.SetScrollbars(20, 20, 50, 50)
@@ -680,7 +743,7 @@ class CopyListPanel(wx.Panel):
         # Mouse click bindings
         self._header_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join(self.list)))
         self._header_copy_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join(self.list)))
-        self._counter_text.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join(self.list)))
+        self._counter.Bind(wx.EVT_LEFT_DOWN, lambda event: clipboard.copy('\n'.join(self.list)))
 
     def AddItems(self, items, color=None, *args, **kwargs):
         """Add one or more items to the panel.
@@ -692,7 +755,6 @@ class CopyListPanel(wx.Panel):
         """
 
         self.list.append(items)
-        self.counter += len(items)
 
         file_label = wx.StaticText(self._list_panel, -1, label='\n'.join(items))
         if color is not None:
@@ -701,8 +763,7 @@ class CopyListPanel(wx.Panel):
         self._list_panel_box.Add(file_label, 0)
         self._list_panel.Layout()
 
-        self._counter_text.SetLabel(label=str(len(self.list)))
-        self._counter_text.Layout()
+        self._counter.AddCount(len(items))
 
     def SetLabel(self, label, *args, **kwargs):
         """Set the label for the header."""
@@ -716,17 +777,14 @@ class CopyListPanel(wx.Panel):
 
         self._header_text.SetFont(font, *args, **kwargs)
         self._header_text.Layout()
-        self._counter_text.SetFont(font, *args, **kwargs)
-        self._counter_text.Layout()
+        self._counter.SetFont(font, *args, **kwargs)
         self.Layout()
 
     def Clear(self, *args, **kwargs):
         """Clear the panel."""
 
         self.list = []
-        self.counter = 0
-        self._counter_text.SetLabel(label=str(self.counter))
-        self._counter_text.Layout()
+        self._counter.value = 0
         self._list_panel_box.Clear(True)
 
 

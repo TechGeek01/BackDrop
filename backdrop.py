@@ -36,7 +36,7 @@ from bin.config import Config
 from bin.backup import Backup
 from bin.repeatedtimer import RepeatedTimer
 from bin.update import UpdateHandler
-from bin.uielements import Color, RootWindow, ModalWindow, StatusBar, WarningPanel, FancyProgressBar, SelectionListCtrl, CopyListPanel, InlineLabel, DetailBlock, BackupDetailBlock, resource_path
+from bin.uielements import Color, RootWindow, ModalWindow, StatusBar, WarningPanel, FancyProgressBar, SelectionListCtrl, CopyListPanel, InlineLabel, Counter, DetailBlock, BackupDetailBlock, resource_path
 from bin.status import Status
 
 
@@ -118,16 +118,12 @@ def update_file_detail_lists(list_name: str, files: set):
     } for filename in files])
 
     if list_name == FileUtils.LIST_TOTAL_DELETE:
-        file_details_pending_delete_counter.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
-        file_details_pending_delete_counter.Layout()
-        file_details_pending_delete_counter_total.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])))
-        file_details_pending_delete_counter_total.Layout()
+        file_details_pending_delete_counter.value = len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])
+        file_details_pending_delete_counter_total.value = len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])
         file_details_pending_sizer.Layout()
     elif list_name == FileUtils.LIST_TOTAL_COPY:
-        file_details_pending_copy_counter.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
-        file_details_pending_copy_counter.Layout()
-        file_details_pending_copy_counter_total.SetLabel(label=str(len(file_detail_list[FileUtils.LIST_TOTAL_COPY])))
-        file_details_pending_copy_counter_total.Layout()
+        file_details_pending_copy_counter.value = len(file_detail_list[FileUtils.LIST_TOTAL_COPY])
+        file_details_pending_copy_counter_total.value = len(file_detail_list[FileUtils.LIST_TOTAL_COPY])
         file_details_pending_sizer.Layout()
     elif list_name in [FileUtils.LIST_DELETE_SUCCESS, FileUtils.LIST_DELETE_FAIL, FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
         # Remove file from pending list
@@ -136,11 +132,9 @@ def update_file_detail_lists(list_name: str, files: set):
 
         # Update file counter
         if list_name in [FileUtils.LIST_SUCCESS, FileUtils.LIST_FAIL]:
-            file_details_pending_copy_counter.SetLabel(label=str(len(file_detail_list[file_detail_list_name])))
-            file_details_pending_copy_counter.Layout()
+            file_details_pending_copy_counter.value = len(file_detail_list[file_detail_list_name])
         else:
-            file_details_pending_delete_counter.SetLabel(label=str(len(file_detail_list[file_detail_list_name])))
-            file_details_pending_delete_counter.Layout()
+            file_details_pending_delete_counter.value = len(file_detail_list[file_detail_list_name])
         file_details_pending_sizer.Layout()
 
         # Update copy list scrollable
@@ -399,14 +393,10 @@ def backup_reset_ui():
         file_detail_list[list_name].clear()
 
     # Reset file details counters
-    file_details_pending_delete_counter.SetLabel(label='0')
-    file_details_pending_delete_counter.Layout()
-    file_details_pending_delete_counter_total.SetLabel(label='0')
-    file_details_pending_delete_counter_total.Layout()
-    file_details_pending_copy_counter.SetLabel(label='0')
-    file_details_pending_copy_counter.Layout()
-    file_details_pending_copy_counter_total.SetLabel(label='0')
-    file_details_pending_copy_counter_total.Layout()
+    file_details_pending_delete_counter.value = 0
+    file_details_pending_delete_counter_total.value - 0
+    file_details_pending_copy_counter.value = 0
+    file_details_pending_copy_counter_total.value = 0
     file_details_pending_sizer.Layout()
     file_details_success_panel.Clear()
     file_details_failed_panel.Clear()
@@ -1313,14 +1303,10 @@ def start_backup():
     # Reset file details counters
     FILE_DELETE_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_DELETE])
     FILE_COPY_COUNT = len(file_detail_list[FileUtils.LIST_TOTAL_COPY])
-    file_details_pending_delete_counter.SetLabel(label=str(FILE_DELETE_COUNT))
-    file_details_pending_delete_counter.Layout()
-    file_details_pending_delete_counter_total.SetLabel(label=str(FILE_DELETE_COUNT))
-    file_details_pending_delete_counter_total.Layout()
-    file_details_pending_copy_counter.SetLabel(label=str(FILE_COPY_COUNT))
-    file_details_pending_copy_counter.Layout()
-    file_details_pending_copy_counter_total.SetLabel(label=str(FILE_COPY_COUNT))
-    file_details_pending_copy_counter_total.Layout()
+    file_details_pending_delete_counter.value = FILE_DELETE_COUNT
+    file_details_pending_delete_counter_total.value = FILE_DELETE_COUNT
+    file_details_pending_copy_counter.value = FILE_COPY_COUNT
+    file_details_pending_copy_counter_total.value = FILE_COPY_COUNT
     file_details_pending_sizer.Layout()
     file_details_success_panel.Clear()
     file_details_failed_panel.Clear()
@@ -1474,14 +1460,10 @@ def verify_data_integrity(path_list: list):
             file_detail_list[list_name].clear()
 
         # Reset file details counters
-        file_details_pending_delete_counter.SetLabel(label='0')
-        file_details_pending_delete_counter.Layout()
-        file_details_pending_delete_counter_total.SetLabel(label='0')
-        file_details_pending_delete_counter_total.Layout()
-        file_details_pending_copy_counter.SetLabel(label='0')
-        file_details_pending_copy_counter.Layout()
-        file_details_pending_copy_counter_total.SetLabel(label='0')
-        file_details_pending_copy_counter_total.Layout()
+        file_details_pending_delete_counter.value = 0
+        file_details_pending_delete_counter_total.value = 0
+        file_details_pending_copy_counter.value = 0
+        file_details_pending_copy_counter_total.value = 0
         file_details_pending_sizer.Layout()
         file_details_success_panel.Clear()
         file_details_failed_panel.Clear()
@@ -3323,26 +3305,26 @@ if __name__ == '__main__':
     file_details_pending_header_sizer.Add(file_details_copy_text, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -1)
 
     file_details_pending_sizer = wx.BoxSizer()
-    file_details_pending_delete_counter = wx.StaticText(main_frame.root_panel, -1, label='0', name='Pending delete counter')
+    file_details_pending_delete_counter = Counter(main_frame.root_panel, name='Pending delete counter')
     file_details_pending_delete_counter.SetFont(FONT_GIANT)
     file_details_pending_sizer.Add(file_details_pending_delete_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
     file_details_pending_delete_of = wx.StaticText(main_frame.root_panel, -1, label='of', name='Pending delete "of"')
     file_details_pending_delete_of.SetFont(FONT_MEDIUM)
     file_details_pending_delete_of.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_delete_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
-    file_details_pending_delete_counter_total = wx.StaticText(main_frame.root_panel, -1, label='0', name='Pending delete total')
+    file_details_pending_delete_counter_total = Counter(main_frame.root_panel, name='Pending delete total')
     file_details_pending_delete_counter_total.SetFont(FONT_MEDIUM)
     file_details_pending_delete_counter_total.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_delete_counter_total, 0, wx.ALIGN_BOTTOM)
     file_details_pending_sizer.Add((-1, -1), 1, wx.EXPAND)
-    file_details_pending_copy_counter = wx.StaticText(main_frame.root_panel, -1, label='0', name='Pending copy counter')
+    file_details_pending_copy_counter = Counter(main_frame.root_panel, name='Pending copy counter')
     file_details_pending_copy_counter.SetFont(FONT_GIANT)
     file_details_pending_sizer.Add(file_details_pending_copy_counter, 0, wx.ALIGN_BOTTOM | wx.BOTTOM, -5)
     file_details_pending_copy_of = wx.StaticText(main_frame.root_panel, -1, label='of', name='Pending copy "of"')
     file_details_pending_copy_of.SetFont(FONT_MEDIUM)
     file_details_pending_copy_of.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_copy_of, 0, wx.ALIGN_BOTTOM | wx.LEFT | wx.RIGHT, 5)
-    file_details_pending_copy_counter_total = wx.StaticText(main_frame.root_panel, -1, label='0', name='Pending copy total')
+    file_details_pending_copy_counter_total = Counter(main_frame.root_panel, name='Pending copy total')
     file_details_pending_copy_counter_total.SetFont(FONT_MEDIUM)
     file_details_pending_copy_counter_total.SetForegroundColour(Color.FADED)
     file_details_pending_sizer.Add(file_details_pending_copy_counter_total, 0, wx.ALIGN_BOTTOM)
