@@ -2692,10 +2692,6 @@ if __name__ == '__main__':
 
         # If display index has been specified, write progress to GUI
         if display_index is not None and buffer['display_index'] is not None:
-            # FIXME: Progress bar jumps after completing backup, as though
-            #     the progress or total changes when the backup completes
-            # FIXME: Progress ranges too high cause integer overflows
-
             total_progress_with_buffer = backup.progress['current']
             if buffer['operation'] == Status.FILE_OPERATION_VERIFY:
                 total_progress_with_buffer += buffer['total']
