@@ -64,7 +64,6 @@ class Backup:
         self.analysis_started = False
         self.analysis_running = False
         self.backup_running = False
-        self.backup_start_time = datetime.now()
         self.status = Status.BACKUP_IDLE
 
         self.command_list = []
