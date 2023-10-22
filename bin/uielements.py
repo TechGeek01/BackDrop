@@ -766,6 +766,10 @@ class CopyListPanel(wx.Panel):
         self._counter.AddCount(len(items))
         self.Layout()
 
+    @property
+    def count(self):
+        return self._counter.value
+
     def SetLabel(self, label, *args, **kwargs):
         """Set the label for the header."""
 
