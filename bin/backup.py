@@ -1195,7 +1195,8 @@ class Backup:
 
         return current_progress
 
-    def is_running(self) -> bool:
+    @property
+    def running(self) -> bool:
         """
         Returns:
             bool: Whether or not the backup is actively running something.

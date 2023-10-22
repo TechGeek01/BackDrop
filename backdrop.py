@@ -215,7 +215,7 @@ def get_backup_killflag() -> bool:
     """
 
     # Backup is not defined or is not running
-    if not backup or not backup.is_running():
+    if not backup or not backup.running:
         return False
 
     return thread_manager.threadlist['Backup']['killFlag']
@@ -417,7 +417,7 @@ def start_backup_analysis():
 
     # FIXME: If backup @analysis @thread is already running, it needs to be killed before it's rerun
     # CAVEAT: This requires some way to have the @analysis @thread itself check for the kill flag and break if it's set.
-    if (backup and backup.is_running()) or verification_running or not source_avail_drive_list:
+    if (backup and backup.running) or verification_running or not source_avail_drive_list:
         return
 
     # TODO: Move status bar error log counter reset to reset UI function?
@@ -445,7 +445,7 @@ def load_source():
     global source_drive_default
 
     # Don't load if backup is running
-    if backup and backup.is_running():
+    if backup and backup.running:
         return
 
     post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
@@ -540,7 +540,7 @@ def change_source_drive(e):
     selection = source_src_control_dropdown.GetValue()
 
     # If backup is running, ignore request to change
-    if backup and backup.is_running():
+    if backup and backup.running:
         prev_source_index = source_src_control_dropdown.FindString(PREV_SOURCE_DRIVE)
         source_src_control_dropdown.SetSelection(prev_source_index)
         return
@@ -728,7 +728,7 @@ def select_source():
     if source_tree.locked:
         return
 
-    if not backup or not backup.is_running():
+    if not backup or not backup.running:
         post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
 
         # If analysis was run, invalidate it
@@ -844,7 +844,7 @@ def load_dest():
     global dest_drive_master_list
 
     # Don't load if backup is running
-    if backup and backup.is_running():
+    if backup and backup.running:
         return
 
     post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
@@ -1174,7 +1174,7 @@ def select_dest():
     if dest_tree.locked:
         return
 
-    if backup and backup.is_running():
+    if backup and backup.running:
         # Temporarily undind selection handler so this function doesn't keep
         # running with every change
         dest_tree.Lock()
@@ -1446,7 +1446,7 @@ def verify_data_integrity(path_list: list):
         except Exception:
             pass
 
-    if not backup or not backup.is_running():
+    if not backup or not backup.running:
         update_status_bar_action(Status.VERIFICATION_RUNNING)
         post_event(evt_type=EVT_PROGRESS_MASTER_START_INDETERMINATE)
         status_bar.SetErrorCount(0)
@@ -2355,7 +2355,7 @@ if __name__ == '__main__':
         global settings_source_mode
 
         # If backup is running, ignore request to change
-        if backup and backup.is_running():
+        if backup and backup.running:
             selection_source_mode_menu_single_drive.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_DRIVE)
             selection_source_mode_menu_multi_drive.Check(settings_source_mode == Config.SOURCE_MODE_MULTI_DRIVE)
             selection_source_mode_menu_single_path.Check(settings_source_mode == Config.SOURCE_MODE_SINGLE_PATH)
@@ -2421,7 +2421,7 @@ if __name__ == '__main__':
         global settings_dest_mode
 
         # If backup is running, ignore request to change
-        if backup and backup.is_running():
+        if backup and backup.running:
             selection_dest_mode_menu_paths.Check(settings_dest_mode == Config.DEST_MODE_PATHS)
             selection_dest_mode_menu_drives.Check(settings_dest_mode == Config.DEST_MODE_DRIVES)
             return
@@ -2456,7 +2456,7 @@ if __name__ == '__main__':
         global settings_show_drives_source_local
 
         # If backup is running, ignore request to change
-        if backup and backup.is_running():
+        if backup and backup.running:
             if toggle_type == DRIVE_TYPE_LOCAL:
                 selection_menu_show_drives_source_local.Check(settings_show_drives_source_local)
             elif toggle_type == DRIVE_TYPE_REMOTE:
@@ -2499,7 +2499,7 @@ if __name__ == '__main__':
         global settings_show_drives_destination_local
 
         # If backup is running, ignore request to change
-        if backup and backup.is_running():
+        if backup and backup.running:
             if toggle_type == DRIVE_TYPE_LOCAL:
                 selection_menu_show_drives_destination_local.Check(settings_show_drives_destination_local)
             elif toggle_type == DRIVE_TYPE_REMOTE:
@@ -2534,7 +2534,7 @@ if __name__ == '__main__':
     def start_verify_data_from_hash_list():
         """Start data verification in a new thread"""
 
-        if backup and backup.is_running():  # Backup can't be running while data verification takes place
+        if backup and backup.running:  # Backup can't be running while data verification takes place
             return
 
         dest_list = [dest['name'] for dest in config['destinations']]
@@ -3210,7 +3210,7 @@ if __name__ == '__main__':
     def toggle_split_mode():
         """Handle toggling of split mode based on checkbox value."""
 
-        if (not backup or not backup.is_running()) and not verification_running:
+        if (not backup or not backup.running) and not verification_running:
             config['splitMode'] = not config['splitMode']
             update_split_mode_label()
 
