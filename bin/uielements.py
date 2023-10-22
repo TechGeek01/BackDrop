@@ -764,6 +764,7 @@ class CopyListPanel(wx.Panel):
         self._list_panel.Layout()
 
         self._counter.AddCount(len(items))
+        self.Layout()
 
     def SetLabel(self, label, *args, **kwargs):
         """Set the label for the header."""
@@ -786,6 +787,7 @@ class CopyListPanel(wx.Panel):
         self.list = []
         self._counter.value = 0
         self._list_panel_box.Clear(True)
+        self.Layout()
 
 
 class DetailBlock(wx.BoxSizer):
