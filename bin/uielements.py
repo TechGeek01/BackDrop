@@ -832,16 +832,16 @@ class DetailBlock(wx.BoxSizer):
     TITLE = 'title'
     CONTENT = 'content'
 
-    def __init__(self, parent, title: str, name: str = None, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
+    def __init__(self, parent, title: str, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True, name: str = None):
         """Create an expandable detail block to display info.
 
         Args:
             parent: The parent widget.
             title (String): The bold title to display.
-            name (String): The name of the widget (optional).
             text_font (wx.Font): The font to use for the text.
             bold_font (wx.Font): The font to use for the headings.
             enabled (bool): Whether or not this block is enabled.
+            name (String): The name of the widget (optional).
         """
 
         if name is None:
@@ -1020,23 +1020,23 @@ class DetailBlock(wx.BoxSizer):
 
 
 class BackupDetailBlock(DetailBlock):
-    def __init__(self, parent, title: str, name: str = None, text_font: wx.Font, bold_font: wx.Font, enabled: bool = True):
+    def __init__(self, parent, title: str, text_font: wx.Font, bold_font: wx.Font, name: str = None, enabled: bool = True):
         """Create an expandable detail block to display info.
 
         Args:
             parent: The parent widget.
             title (String): The bold title to display.
-            name (String): The name of the widget (optional).
             text_font (wx.Font): The font to use for the text.
             bold_font (wx.Font): The font to use for the headings.
-            enabled (bool): Whether or not this block is enabled.
+            name (String): The name of the widget (optional).
+            enabled (bool): Whether or not this block is enabled (optional).
         """
 
         if name is None:
             name = 'BackupDetailBlock'
 
         # FIXME: Clicking on the state doesn't toggle the content. Rewriting the toggle function should fix this.
-        DetailBlock.__init__(self, parent, title, name=name, text_font, bold_font, enabled)
+        DetailBlock.__init__(self, parent, title, text_font, bold_font, enabled, name=name)
 
         self.state = wx.StaticText(self.parent, -1, label='Pending' if self.enabled else 'Skipped', name=f'{name} state text')
         self.state.SetForegroundColour(Color.PENDING if self.enabled else Color.FADED)
