@@ -57,17 +57,20 @@ def resource_path(relative_path):
 
 
 class RootWindow(wx.Frame):
-    def __init__(self, parent=None, title: str = None, size: wx.Size = wx.Size(400, 200), name: str = None, icon: wx.Icon = None, *args, **kwargs):
+    def __init__(self, parent=None, title: str = None, size: wx.Size = wx.Size(400, 200), min_size: wx.Size = None, name: str = None, icon: wx.Icon = None, *args, **kwargs):
         """Create a window.
 
         Args:
             parent: The parent of the resulting frame.
             title (String): The title of the window.
             size (wx.Size): The size of the window.
+            min_size (wx.Size): The minimum size of the window (optional).
             name (String): The name to give the frame (optonal).
             icon (wx.Icon): The icon to apply to the window (optional).
         """
 
+        if min_size is None:
+            min_size = size
         if name is None:
             name = 'RootWindow'
 
@@ -83,6 +86,7 @@ class RootWindow(wx.Frame):
             *args,
             **kwargs
         )
+        self.SetMinSize(min_size)
 
         if icon is not None:
             self.SetIcon(icon)

@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Added
 - Added progress bar for current file
 - Added sound effect for completed backups
+- Add minimum size to windows to prevent them from being resized too small
 
 ## Fixed
 - Fixed loading source and destination custom paths causing UI to hang
