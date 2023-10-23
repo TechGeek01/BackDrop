@@ -936,7 +936,7 @@ class DetailBlock(wx.BoxSizer):
 
         if line_name in self.lines.keys():
             self.lines[line_name].SetFont(*args, **kwargs)
-            self.lines[line_name].Layout()
+            self.content_sizer.Layout()
             self.Layout()
 
     def SetLabel(self, line_name: str, label: str):
@@ -948,7 +948,7 @@ class DetailBlock(wx.BoxSizer):
 
         if line_name in self.lines.keys():
             self.lines[line_name].SetLabel(label=label)
-            self.lines[line_name].Layout()
+            self.content_sizer.Layout()
             self.Layout()
 
     class InfoLine(wx.BoxSizer):
@@ -1005,18 +1005,14 @@ class DetailBlock(wx.BoxSizer):
 
             self.title.SetFont(*args, **kwargs)
             self.title.Layout()
+            self.Layout()
 
         def SetLabel(self, label: str):
             """Set the content label text of the line."""
 
             self.content.SetLabel(label=label)
             self.content.Layout()
-
-        def Layout(self, *args, **kwargs):
-            """Update the layout of the line."""
-
-            self.title.Layout(*args, **kwargs)
-            self.content.Layout(*args, **kwargs)
+            self.Layout()
 
 
 class BackupDetailBlock(DetailBlock):
