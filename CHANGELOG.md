@@ -2,12 +2,12 @@
 All notable changes to this project will be documented in this file.
 
 ## 4.0.1 - 2023-10-23
-## Added
+### Added
 - Added progress bar for current file
 - Added sound effect for completed backups
 - Add minimum size to windows to prevent them from being resized too small
 
-## Fixed
+### Fixed
 - Fixed loading source and destination custom paths causing UI to hang
 - Fixed program crash when running backup if no files need copying
 - Fixed crash on PermissionError when trying to open some existing destination files for writing
