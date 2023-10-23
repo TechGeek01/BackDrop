@@ -197,10 +197,13 @@ def copy_file(source_filename, dest_filename, drive_path, pre_callback, prog_cal
 
     # If file wasn't copied successfully, delete it
     if copied != file_size:
-        if os.path.isfile(dest_filename):
-            os.remove(dest_filename)
-        elif os.path.isdir(dest_filename):
-            shutil.rmtree(dest_filename)
+        try:
+            if os.path.isfile(dest_filename):
+                os.remove(dest_filename)
+            elif os.path.isdir(dest_filename):
+                shutil.rmtree(dest_filename)
+        except PermissionError:
+            pass
 
         fd_callback(
             status=Status.FILE_OPERATION_FAILED,

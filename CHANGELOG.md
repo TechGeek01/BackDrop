@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - Fixed program crash when running backup if no files need copying
 - Fixed crash on PermissionError when trying to open some existing destination files for writing
 - Fixed backup timer not stopping when backup is completed or aborted
+- Fixed program crash if PermissionError is raised when deleting files
 
 ## 4.0.0 - 2023-07-23
 ### Added
