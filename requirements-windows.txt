@@ -2,7 +2,7 @@ blake3==0.3.3
 certifi==2023.11.17
 chardet==5.2.0
 clipboard==0.0.4
-idna==3.4
+idna==3.6
 Pillow==10.1.0
 pynput==1.7.6
 pyperclip==1.8.2
