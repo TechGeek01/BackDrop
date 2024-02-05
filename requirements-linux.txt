@@ -1,5 +1,5 @@
 blake3==0.3.4
-certifi==2023.11.17
+certifi==2024.2.2
 chardet==5.2.0
 clipboard==0.0.4
 idna==3.6
