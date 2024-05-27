@@ -7,6 +7,6 @@ Pillow==10.3.0
 pynput==1.7.6
 pyperclip==1.8.2
 pywin32==306
-requests==2.31.0
+requests==2.32.2
 WMI==1.5.1
 wxpython==4.2.1
