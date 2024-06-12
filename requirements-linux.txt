@@ -6,5 +6,5 @@ idna==3.7
 Pillow==10.3.0
 pynput==1.7.7
 pyperclip==1.8.2
-requests==2.31.0
+requests==2.32.2
 wxpython==4.2.1
