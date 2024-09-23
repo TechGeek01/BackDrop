@@ -7,4 +7,4 @@ Pillow==10.4.0
 pynput==1.7.7
 pyperclip==1.9.0
 requests==2.32.3
-wxpython==4.2.1
+wxpython==4.2.2
