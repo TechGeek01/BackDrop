@@ -4,7 +4,7 @@ chardet==5.2.0
 clipboard==0.0.4
 idna==3.10
 Pillow==11.1.0
-pynput==1.7.7
+pynput==1.7.8
 pyperclip==1.9.0
 requests==2.32.3
 wxpython==4.2.2
