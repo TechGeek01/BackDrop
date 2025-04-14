@@ -3,7 +3,7 @@ certifi==2025.1.31
 chardet==5.2.0
 clipboard==0.0.4
 idna==3.10
-Pillow==11.1.0
+Pillow==11.2.1
 pynput==1.7.7
 pyperclip==1.9.0
 pywin32==308
