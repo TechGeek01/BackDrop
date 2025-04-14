@@ -9,4 +9,4 @@ pyperclip==1.9.0
 pywin32==308
 requests==2.32.3
 WMI==1.5.1
-wxpython==4.2.2
+wxpython==4.2.3
