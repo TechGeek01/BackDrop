@@ -1,4 +1,4 @@
-blake3==1.0.4
+blake3==1.0.5
 certifi==2025.4.26
 chardet==5.2.0
 clipboard==0.0.4
